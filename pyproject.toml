@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "event.sourcing"
+version = "0.1.0"
+description = "Event sourcing library."
+authors = ["Toby Clemson <tobyclemson@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "event", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

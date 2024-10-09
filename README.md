@@ -1,4 +1,4 @@
-event.sourcing
-==============
+event.store
+===========
 
 TODO: write me

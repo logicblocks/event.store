@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "event.sourcing"
+name = "event.store"
 version = "0.1.0"
-description = "Event sourcing library."
+description = "Event store for event sourced architectures."
 authors = ["Toby Clemson <tobyclemson@gmail.com>"]
 license = "MIT"
 readme = "README.md"
@@ -9,6 +9,23 @@ packages = [{ include = "event", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.6.9"
+poethepoet = "^0.29.0"
+pyright = "^1.1.383"
+
+[tool.pyright]
+include = ["src", "tests/unit"]
+exclude = ["**/__pycache__"]
+pythonVersion = "3.11"
+
+[tool.poe.tasks]
+lint-check = "ruff check"
+lint-fix = "ruff check --fix"
+format-check = "ruff format --check"
+format-fix = "ruff format"
+type-check = "pyright"
 
 [build-system]
 requires = ["poetry-core"]

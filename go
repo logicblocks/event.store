@@ -50,6 +50,10 @@ echo "Checking for system dependencies."
   echo "All system dependencies present. Continuing."
 fi
 
+if [[ "$CI" = "yes" ]]; then
+  bundle config --global silence_root_warning true
+fi
+
 if [[ "$offline" = "no" ]]; then
   if ! bundle check > /dev/null 2>&1; then
     echo "Installing ruby dependencies."

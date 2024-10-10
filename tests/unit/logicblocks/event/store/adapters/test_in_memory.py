@@ -1,7 +1,7 @@
 import unittest
 
-from event.store.types import Event
-from event.store.adapters import InMemoryEventStoreAdapter
+from logicblocks.event.store.types import Event
+from logicblocks.event.store.adapters import InMemoryEventStoreAdapter
 
 
 class TestInMemoryAdapter(unittest.TestCase):

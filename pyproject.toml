@@ -2,14 +2,14 @@
 requires-python = ">=3.11"
 
 [tool.poetry]
-name = "event.store"
+name = "logicblocks.event.store"
 version = "0.1.0"
 description = "Event store for event sourced architectures."
 authors = ["Toby Clemson <tobyclemson@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [
-    { include = "event", from = "src" },
+    { include = "logicblocks", from = "src" },
 ]
 
 [tool.poetry.dependencies]
@@ -26,7 +26,7 @@ include = ["src", "tests/unit"]
 exclude = ["**/__pycache__"]
 
 [tool.ruff]
-namespace-packages = ["event"]
+namespace-packages = ["logicblocks/event"]
 line-length = 79
 
 [tool.ruff.lint.per-file-ignores]

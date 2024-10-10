@@ -16,5 +16,7 @@ git pull
 ./go poetry:login_to_pypi
 ./go library:publish:release
 
-git status
+VERSION=$(poetry version | cut -d' ' -f2)
+
+git commit -a -m "Bump version to $VERSION for release [ci skip]"
 git push

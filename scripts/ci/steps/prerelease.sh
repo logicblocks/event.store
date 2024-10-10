@@ -14,5 +14,7 @@ git crypt unlock
 ./go poetry:login_to_pypi
 ./go library:publish:prerelease
 
-git status
+VERSION=$(poetry version | cut -d' ' -f2)
+
+git commit -a -m "Bump version to $VERSION for prerelease [ci skip]"
 git push

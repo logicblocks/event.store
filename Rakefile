@@ -13,17 +13,21 @@ require 'yaml'
 
 task default: %i[
   build:code:fix
+  library:dependencies:install
   library:lint:fix
   library:type:check
   library:format:fix
+  library:build
   library:test:unit
 ]
 
 task check: %i[
   build:code:check
+  library:dependencies:install
   library:lint:check
   library:type:check
   library:format:check
+  library:build
   library:test:unit
 ]
 
@@ -183,50 +187,107 @@ namespace :build do
   end
 end
 
+namespace :poetry do
+  desc 'Login to PyPI'
+  task :login_to_pypi do
+    pypi_config =
+      YAML.load_file('config/secrets/pypi/config.yaml')
+
+    invoke_poetry_command(
+      'config', 'pypi-token.pypi', pypi_config['pypi_api_token']
+    )
+  end
+end
+
 namespace :library do
+  desc 'Run all checks'
+  task check: %i[lint:check format:check type:check]
+
+  namespace :dependencies do
+    desc 'Install dependencies'
+    task :install do
+      invoke_poetry_command('install')
+    end
+  end
+
+  task build: %i[dependencies:install] do
+    invoke_poetry_command('build')
+  end
+
   namespace :lint do
     desc 'Check linting'
-    task :check do
-      invoke_python_task('lint-check')
+    task check: %i[dependencies:install] do
+      invoke_poetry_task('lint-check')
     end
 
     desc 'Fix linting'
-    task :fix do
-      invoke_python_task('lint-fix')
+    task fix: %i[dependencies:install] do
+      invoke_poetry_task('lint-fix')
     end
   end
 
   namespace :format do
     desc 'Check formatting'
-    task :check do
-      invoke_python_task('format-check')
+    task check: %i[dependencies:install] do
+      invoke_poetry_task('format-check')
     end
 
     desc 'Fix formatting'
-    task :fix do
-      invoke_python_task('format-fix')
+    task fix: %i[dependencies:install] do
+      invoke_poetry_task('format-fix')
     end
   end
 
   namespace :type do
     desc 'Check types'
-    task :check do
-      invoke_python_task('type-check')
+    task check: %i[dependencies:install] do
+      invoke_poetry_task('type-check')
     end
   end
 
   namespace :test do
     desc 'Run unit tests'
-    task :unit do
-      invoke_python_task('test-unit')
+    task unit: %i[dependencies:install] do
+      invoke_poetry_task('test-unit')
+    end
+  end
+
+  namespace :version do
+    desc 'Bump version'
+    task :bump, [:type] do |_, args|
+      args.with_defaults(type: 'patch')
+      invoke_poetry_command('version', args.type)
+    end
+  end
+
+  desc 'Publish library'
+  task :publish do
+    invoke_poetry_command('publish', '--build')
+  end
+
+  namespace :publish do
+    desc 'Publish prerelease version'
+    task :prerelease do
+      Rake::Task['library:version:bump'].invoke('prerelease')
+      Rake::Task['library:publish'].invoke
+    end
+
+    desc 'Publish release version'
+    task :release do
+      Rake::Task['library:version:bump'].invoke('patch')
+      Rake::Task['library:publish'].invoke
     end
   end
 end
 
-def invoke_python_task(task_name)
+def invoke_poetry_task(task_name)
+  invoke_poetry_command('run', 'poe', task_name)
+end
+
+def invoke_poetry_command(command, *args)
   Lino
     .builder_for_command('poetry')
-    .with_subcommands(%W[run poe #{task_name}])
+    .with_subcommands([command, *args])
     .build
     .execute
 end

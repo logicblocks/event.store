@@ -40,6 +40,8 @@ GEM
       logger
     faraday-net_http (3.3.0)
       net-http
+    faraday-retry (2.2.1)
+      faraday (~> 2.0)
     getsource (0.2.2)
     git (1.19.1)
       addressable (~> 2.8)
@@ -157,6 +159,7 @@ PLATFORMS
 
 DEPENDENCIES
   confidante
+  faraday-retry
   lino
   rake
   rake_circle_ci

@@ -3,7 +3,7 @@ requires-python = ">=3.11"
 
 [tool.poetry]
 name = "logicblocks.event.store"
-version = "0.1.0"
+version = "0.1.2a0"
 description = "Event store for event sourced architectures."
 authors = ["Toby Clemson <tobyclemson@gmail.com>"]
 license = "MIT"
@@ -37,8 +37,8 @@ pythonpath = ["src"]
 addopts = ["--import-mode=importlib"]
 
 [tool.poe.tasks]
-lint-check = "ruff check --config ./pyproject.toml"
-lint-fix = "ruff check --fix --config ./pyproject.toml"
+lint-check = "ruff check"
+lint-fix = "ruff check --fix"
 format-check = "ruff format --check"
 format-fix = "ruff format"
 type-check = "pyright"

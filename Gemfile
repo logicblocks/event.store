@@ -3,6 +3,7 @@
 source 'https://rubygems.org'
 
 gem 'confidante'
+gem 'faraday-retry'
 gem 'lino'
 gem 'rake'
 gem 'rake_circle_ci'

@@ -1,3 +1,6 @@
+[project]
+requires-python = ">=3.11"
+
 [tool.poetry]
 name = "event.store"
 version = "0.1.0"
@@ -5,7 +8,9 @@ description = "Event store for event sourced architectures."
 authors = ["Toby Clemson <tobyclemson@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{ include = "event", from = "src" }]
+packages = [
+    { include = "event", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -14,18 +19,30 @@ python = "^3.11"
 ruff = "^0.6.9"
 poethepoet = "^0.29.0"
 pyright = "^1.1.383"
+pytest = "^8.3.3"
 
 [tool.pyright]
 include = ["src", "tests/unit"]
 exclude = ["**/__pycache__"]
-pythonVersion = "3.11"
+
+[tool.ruff]
+namespace-packages = ["event"]
+line-length = 79
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = ["--import-mode=importlib"]
 
 [tool.poe.tasks]
-lint-check = "ruff check"
-lint-fix = "ruff check --fix"
+lint-check = "ruff check --config ./pyproject.toml"
+lint-fix = "ruff check --fix --config ./pyproject.toml"
 format-check = "ruff format --check"
 format-fix = "ruff format"
 type-check = "pyright"
+test-unit = "pytest tests/unit"
 
 [build-system]
 requires = ["poetry-core"]

@@ -109,6 +109,7 @@ commands:
       - run: ./scripts/ci/common/install-asdf.sh
       - run: ./scripts/ci/common/configure-asdf.sh
       - run: ./scripts/ci/common/install-asdf-dependencies.sh
+      - run: ./scripts/ci/common/configure-nodejs.sh
       - save_cache:
           key: asdf-dependencies-{{ arch }}-v2-{{ checksum ".tool-versions" }}
           paths:

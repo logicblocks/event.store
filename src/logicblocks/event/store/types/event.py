@@ -48,7 +48,7 @@ class NewEvent(object):
         return (
             f"NewEvent("
             f"name={self.name}, "
-            f"payload={self.payload}, "
+            f"payload={dict(self.payload)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )

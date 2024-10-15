@@ -1,1 +1,2 @@
-from .in_memory import InMemoryEventStoreAdapter
+from .base import StorageAdapter as StorageAdapter
+from .in_memory import InMemoryStorageAdapter as InMemoryStorageAdapter

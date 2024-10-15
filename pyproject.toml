@@ -14,6 +14,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.11"
+frozendict = "^2.4.6"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.9"
@@ -23,14 +24,12 @@ pytest = "^8.3.3"
 
 [tool.pyright]
 include = ["src", "tests/unit"]
-exclude = ["**/__pycache__"]
+strict = ["src"]
+reportMissingTypeStubs = "error"
 
 [tool.ruff]
 namespace-packages = ["logicblocks/event"]
 line-length = 79
-
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -92,6 +92,47 @@ class TestEventStore(unittest.TestCase):
 
         self.assertEqual(events, stored_events)
 
+    def test_reads_events_in_multiple_streams_in_same_category(self):
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(5)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(5)]
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream_1 = store.stream(category=category_name, stream=stream_1_name)
+        stream_2 = store.stream(category=category_name, stream=stream_2_name)
+
+        stream_1.publish(events=stream_1_new_events)
+        stream_2.publish(events=stream_2_new_events)
+
+        stream_1_events = stream_1.read()
+        stream_2_events = stream_2.read()
+
+        self.assertEqual(
+            {
+                "stream_1": [
+                    (event.name, stream_1_name, category_name)
+                    for event in stream_1_new_events
+                ],
+                "stream_2": [
+                    (event.name, stream_2_name, category_name)
+                    for event in stream_2_new_events
+                ],
+            },
+            {
+                "stream_1": [
+                    (event.name, event.stream, event.category)
+                    for event in stream_1_events
+                ],
+                "stream_2": [
+                    (event.name, event.stream, event.category)
+                    for event in stream_2_events
+                ],
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

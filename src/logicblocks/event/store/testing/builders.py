@@ -5,6 +5,7 @@ from typing import Mapping, Any, Optional, Unpack, TypedDict
 from frozendict import frozendict
 
 from .data import (
+    random_event_id,
     random_event_name,
     random_event_payload,
     random_event_stream_name,
@@ -73,6 +74,7 @@ class NewEventBuilder:
 
 
 class StoredEventBuilderParams(TypedDict, total=False):
+    id: str
     name: str
     stream: str
     category: str
@@ -84,6 +86,7 @@ class StoredEventBuilderParams(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class StoredEventBuilder(object):
+    id: str
     name: str
     stream: str
     category: str
@@ -95,6 +98,7 @@ class StoredEventBuilder(object):
     def __init__(
         self,
         *,
+        id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[str] = None,
         category: Optional[str] = None,
@@ -109,6 +113,7 @@ class StoredEventBuilder(object):
         if occurred_at is None:
             occurred_at = observed_at
 
+        object.__setattr__(self, "id", id or random_event_id())
         object.__setattr__(self, "name", name or random_event_name())
         object.__setattr__(
             self, "stream", stream or random_event_stream_name()
@@ -125,6 +130,7 @@ class StoredEventBuilder(object):
 
     def _clone(self, **kwargs: Unpack[StoredEventBuilderParams]):
         return StoredEventBuilder(
+            id=kwargs.get("id", self.id),
             name=kwargs.get("name", self.name),
             stream=kwargs.get("stream", self.stream),
             category=kwargs.get("category", self.category),
@@ -141,6 +147,9 @@ class StoredEventBuilder(object):
             occurred_at=event.occurred_at,
             observed_at=event.observed_at,
         )
+
+    def with_id(self, id: str):
+        return self._clone(id=id)
 
     def with_name(self, name: str):
         return self._clone(name=name)
@@ -165,6 +174,7 @@ class StoredEventBuilder(object):
 
     def build(self):
         return StoredEvent(
+            id=self.id,
             name=self.name,
             stream=self.stream,
             category=self.category,

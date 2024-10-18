@@ -8,7 +8,7 @@ class StorageAdapter(ABC):
     @abstractmethod
     def save(
         self, *, category: str, stream: str, events: Sequence[NewEvent]
-    ) -> None:
+    ) -> Sequence[StoredEvent]:
         raise NotImplementedError()
 
     @abstractmethod

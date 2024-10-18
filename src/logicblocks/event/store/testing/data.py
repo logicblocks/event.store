@@ -1,6 +1,7 @@
 import string
 import random
 
+from uuid import uuid4
 from typing import Mapping, Any, Sequence
 
 
@@ -41,6 +42,10 @@ def random_hyphenated_lowercase_ascii_alphabetics_string(
     return first + rest + last
 
 
+def random_uuid4_string() -> str:
+    return uuid4().hex
+
+
 def random_event_category_name() -> str:
     return random_hyphenated_lowercase_ascii_alphabetics_string(length=10)
 
@@ -51,6 +56,10 @@ def random_event_stream_name() -> str:
 
 def random_event_name() -> str:
     return random_hyphenated_lowercase_ascii_alphabetics_string(length=15)
+
+
+def random_event_id() -> str:
+    return random_uuid4_string()
 
 
 def random_event_payload() -> Mapping[str, Any]:

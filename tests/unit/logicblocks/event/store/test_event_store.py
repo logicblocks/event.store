@@ -32,7 +32,7 @@ class TestEventStoreStreamBasics(unittest.TestCase):
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(
+        stored_events = stream.publish(
             events=[
                 NewEvent(
                     name=event_name,
@@ -49,6 +49,7 @@ class TestEventStoreStreamBasics(unittest.TestCase):
             events,
             [
                 StoredEvent(
+                    id=stored_events[0].id,
                     name=event_name,
                     category=category_name,
                     stream=stream_name,
@@ -71,8 +72,17 @@ class TestEventStoreStreamBasics(unittest.TestCase):
             .build()
             for _ in range(10)
         ]
-        stored_events = [
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = stream.publish(events=new_events)
+
+        events = stream.read()
+
+        expected_stored_events = [
             StoredEvent(
+                id=stored_events[position].id,
                 name=event.name,
                 category=category_name,
                 stream=stream_name,
@@ -84,14 +94,7 @@ class TestEventStoreStreamBasics(unittest.TestCase):
             for event, position in zip(new_events, range(len(new_events)))
         ]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
-        stream = store.stream(category=category_name, stream=stream_name)
-
-        stream.publish(events=new_events)
-
-        events = stream.read()
-
-        self.assertEqual(events, stored_events)
+        self.assertEqual(events, expected_stored_events)
 
     def test_reads_events_in_multiple_streams_in_same_category(self):
         category_name = data.random_event_category_name()
@@ -233,7 +236,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         category = store.category(category=category_name)
         stream = category.stream(stream=stream_name)
 
-        stream.publish(events=[new_event])
+        stored_events = stream.publish(events=[new_event])
 
         events = category.read()
 
@@ -241,6 +244,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             events,
             [
                 StoredEvent(
+                    id=stored_events[0].id,
                     name=new_event.name,
                     category=category_name,
                     stream=stream_name,
@@ -258,8 +262,18 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
-        stored_events = [
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        category = store.category(category=category_name)
+        stream = category.stream(stream=stream_name)
+
+        stored_events = stream.publish(events=new_events)
+
+        events = category.read()
+
+        expected_stored_events = [
             StoredEvent(
+                id=stored_events[position].id,
                 name=event.name,
                 category=category_name,
                 stream=stream_name,
@@ -271,15 +285,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             for event, position in zip(new_events, range(len(new_events)))
         ]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
-        category = store.category(category=category_name)
-        stream = category.stream(stream=stream_name)
-
-        stream.publish(events=new_events)
-
-        events = category.read()
-
-        self.assertEqual(events, stored_events)
+        self.assertEqual(events, expected_stored_events)
 
     def test_reads_for_different_streams_in_category_in_publish_order(
         self,
@@ -298,41 +304,61 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         stream_1 = category.stream(stream=stream_1_name)
         stream_2 = category.stream(stream=stream_2_name)
 
-        stream_1.publish(events=[stream_1_new_event_1])
-        stream_2.publish(events=[stream_2_new_event_1])
-        stream_2.publish(events=[stream_2_new_event_2])
-        stream_1.publish(events=[stream_1_new_event_2])
+        stream_1_stored_events_1 = stream_1.publish(
+            events=[stream_1_new_event_1]
+        )
+        stream_2_stored_events_1 = stream_2.publish(
+            events=[stream_2_new_event_1]
+        )
+        stream_2_stored_events_2 = stream_2.publish(
+            events=[stream_2_new_event_2]
+        )
+        stream_1_stored_events_2 = stream_1.publish(
+            events=[stream_1_new_event_2]
+        )
 
         events = category.read()
 
-        stream_1_stored_event_builder = (
+        stream_1_expected_stored_event_builder = (
             StoredEventBuilder()
             .with_category(category_name)
             .with_stream(stream_1_name)
         )
-        stream_2_stored_event_builder = (
+        stream_2_expected_stored_event_builder = (
             StoredEventBuilder()
             .with_category(category_name)
             .with_stream(stream_2_name)
         )
 
-        stream_1_stored_event_1 = (
-            stream_1_stored_event_builder.from_new_event(stream_1_new_event_1)
+        stream_1_expected_stored_events_1 = (
+            stream_1_expected_stored_event_builder.from_new_event(
+                stream_1_new_event_1
+            )
+            .with_id(stream_1_stored_events_1[0].id)
             .with_position(0)
             .build()
         )
-        stream_2_stored_event_1 = (
-            stream_2_stored_event_builder.from_new_event(stream_2_new_event_1)
+        stream_2_expected_stored_events_1 = (
+            stream_2_expected_stored_event_builder.from_new_event(
+                stream_2_new_event_1
+            )
+            .with_id(stream_2_stored_events_1[0].id)
             .with_position(0)
             .build()
         )
-        stream_2_stored_event_2 = (
-            stream_2_stored_event_builder.from_new_event(stream_2_new_event_2)
+        stream_2_expected_stored_events_2 = (
+            stream_2_expected_stored_event_builder.from_new_event(
+                stream_2_new_event_2
+            )
+            .with_id(stream_2_stored_events_2[0].id)
             .with_position(1)
             .build()
         )
-        stream_1_stored_event_2 = (
-            stream_1_stored_event_builder.from_new_event(stream_1_new_event_2)
+        stream_1_expected_stored_events_2 = (
+            stream_1_expected_stored_event_builder.from_new_event(
+                stream_1_new_event_2
+            )
+            .with_id(stream_1_stored_events_2[0].id)
             .with_position(1)
             .build()
         )
@@ -340,10 +366,10 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         self.assertEqual(
             events,
             [
-                stream_1_stored_event_1,
-                stream_2_stored_event_1,
-                stream_2_stored_event_2,
-                stream_1_stored_event_2,
+                stream_1_expected_stored_events_1,
+                stream_2_expected_stored_events_1,
+                stream_2_expected_stored_events_2,
+                stream_1_expected_stored_events_2,
             ],
         )
 
@@ -353,7 +379,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         new_event = NewEventBuilder().build()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
-        store.stream(category=category, stream=stream).publish(
+        stored_events = store.stream(category=category, stream=stream).publish(
             events=[new_event]
         )
         store.stream(
@@ -368,6 +394,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
         expected_stored_event = (
             StoredEventBuilder()
             .from_new_event(new_event)
+            .with_id(stored_events[0].id)
             .with_category(category)
             .with_stream(stream)
             .with_position(0)
@@ -378,6 +405,37 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             category_events,
             [expected_stored_event],
         )
+
+
+class TestEventStoreCategoryIteration(unittest.TestCase):
+    def test_iterates_over_all_events_in_stream(self):
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_event = NewEventBuilder().build()
+        stream_2_new_event = NewEventBuilder().build()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+
+        category = store.category(category=category_name)
+
+        category.stream(stream=stream_1_name).publish(
+            events=[stream_1_new_event]
+        )
+        category.stream(stream=stream_2_name).publish(
+            events=[stream_2_new_event]
+        )
+
+        new_event_keys = [
+            (stream_1_new_event.name, stream_1_name, category_name),
+            (stream_2_new_event.name, stream_2_name, category_name),
+        ]
+        category_event_keys = [
+            (event.name, event.stream, event.category) for event in category
+        ]
+
+        self.assertEqual(category_event_keys, new_event_keys)
 
 
 if __name__ == "__main__":

@@ -59,6 +59,7 @@ class NewEvent(object):
 
 @dataclass(frozen=True)
 class StoredEvent(object):
+    id: str
     name: str
     stream: str
     category: str
@@ -70,6 +71,7 @@ class StoredEvent(object):
     def __init__(
         self,
         *,
+        id: str,
         name: str,
         stream: str,
         category: str,
@@ -78,6 +80,7 @@ class StoredEvent(object):
         observed_at: datetime,
         occurred_at: datetime,
     ):
+        object.__setattr__(self, "id", id)
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "stream", stream)
         object.__setattr__(self, "category", category)
@@ -89,6 +92,7 @@ class StoredEvent(object):
     def json(self):
         return json.dumps(
             {
+                "id": self.id,
                 "name": self.name,
                 "stream": self.stream,
                 "category": self.category,
@@ -103,6 +107,7 @@ class StoredEvent(object):
     def __repr__(self):
         return (
             f"StoredEvent("
+            f"id={self.id}, "
             f"name={self.name}, "
             f"stream={self.stream}, "
             f"category={self.category}, "

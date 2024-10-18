@@ -32,9 +32,9 @@ class StreamEventStore(object):
             category=self.category, stream=self.stream
         )
 
-    def publish(self, *, events: Sequence[NewEvent]) -> None:
+    def publish(self, *, events: Sequence[NewEvent]) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
-        self.adapter.save(
+        return self.adapter.save(
             category=self.category, stream=self.stream, events=events
         )
 

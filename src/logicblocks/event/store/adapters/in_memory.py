@@ -1,3 +1,4 @@
+from uuid import uuid4
 from collections.abc import Iterator
 from typing import Sequence, Tuple, DefaultDict, List, NewType, TypeVar
 from collections import defaultdict
@@ -24,7 +25,7 @@ class InMemoryStorageAdapter(StorageAdapter):
 
     def save(
         self, *, category: str, stream: str, events: Sequence[NewEvent]
-    ) -> None:
+    ) -> Sequence[StoredEvent]:
         category_key = CategoryKey(category)
         stream_key = StreamKey((category, stream))
 
@@ -40,9 +41,9 @@ class InMemoryStorageAdapter(StorageAdapter):
         new_global_positions = [
             last_global_position + i for i in range(len(events))
         ]
-
-        self._events += [
+        new_stored_events = [
             StoredEvent(
+                id=uuid4().hex,
                 name=event.name,
                 stream=stream,
                 category=category,
@@ -53,8 +54,12 @@ class InMemoryStorageAdapter(StorageAdapter):
             )
             for event, count in zip(events, range(len(events)))
         ]
+
+        self._events += new_stored_events
         self._stream_index[stream_key] += new_global_positions
         self._category_index[category_key] += new_global_positions
+
+        return new_stored_events
 
     def scan_stream(
         self, *, category: str, stream: str

@@ -16,25 +16,27 @@ class TestInMemoryStorageAdapter(unittest.TestCase):
         event_observed_at = datetime.now()
         event_occurred_at = datetime.now()
 
-        event = NewEvent(
+        new_event = NewEvent(
             name=event_name,
             payload=event_payload,
             observed_at=event_observed_at,
             occurred_at=event_occurred_at,
         )
 
-        adapter.save(
-            category=event_category, stream=event_stream, events=[event]
+        stored_events = adapter.save(
+            category=event_category, stream=event_stream, events=[new_event]
         )
+        stored_event = stored_events[0]
 
-        events = list(
+        found_events = list(
             adapter.scan_stream(category=event_category, stream=event_stream)
         )
 
         self.assertEqual(
-            events,
+            found_events,
             [
                 StoredEvent(
+                    id=stored_event.id,
                     name=event_name,
                     stream=event_stream,
                     category=event_category,

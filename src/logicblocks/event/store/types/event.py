@@ -107,7 +107,7 @@ class StoredEvent(object):
             f"stream={self.stream}, "
             f"category={self.category}, "
             f"position={self.position}, "
-            f"payload={self.payload}, "
+            f"payload={dict(self.payload)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )

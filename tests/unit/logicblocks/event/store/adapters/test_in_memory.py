@@ -27,12 +27,12 @@ class TestInMemoryStorageAdapter(unittest.TestCase):
             category=event_category, stream=event_stream, events=[event]
         )
 
-        stream = adapter.get_for_stream(
-            category=event_category, stream=event_stream
+        events = list(
+            adapter.scan_stream(category=event_category, stream=event_stream)
         )
 
         self.assertEqual(
-            stream,
+            events,
             [
                 StoredEvent(
                     name=event_name,

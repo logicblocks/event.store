@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Sequence, Iterator
 
 from ..types import NewEvent, StoredEvent
 
@@ -12,15 +12,15 @@ class StorageAdapter(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_for_stream(
+    def scan_stream(
         self, *, category: str, stream: str
-    ) -> Sequence[StoredEvent]:
+    ) -> Iterator[StoredEvent]:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_for_category(self, *, category: str) -> Sequence[StoredEvent]:
+    def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
         raise NotImplementedError()
 
     @abstractmethod
-    def get_all(self) -> Sequence[StoredEvent]:
+    def scan_all(self) -> Iterator[StoredEvent]:
         raise NotImplementedError()

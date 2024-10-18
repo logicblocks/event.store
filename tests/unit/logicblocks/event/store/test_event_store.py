@@ -305,8 +305,6 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
 
         events = category.read()
 
-        self.maxDiff = 5000
-
         stream_1_stored_event_builder = (
             StoredEventBuilder()
             .with_category(category_name)
@@ -347,6 +345,38 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
                 stream_2_stored_event_2,
                 stream_1_stored_event_2,
             ],
+        )
+
+    def test_ignores_events_in_other_categories(self):
+        category = data.random_event_category_name()
+        stream = data.random_event_stream_name()
+        new_event = NewEventBuilder().build()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        store.stream(category=category, stream=stream).publish(
+            events=[new_event]
+        )
+        store.stream(
+            category=(data.random_event_category_name()),
+            stream=(data.random_event_stream_name()),
+        ).publish(events=[(NewEventBuilder().build())])
+
+        category_to_read = store.category(category=category)
+
+        category_events = category_to_read.read()
+
+        expected_stored_event = (
+            StoredEventBuilder()
+            .from_new_event(new_event)
+            .with_category(category)
+            .with_stream(stream)
+            .with_position(0)
+            .build()
+        )
+
+        self.assertEqual(
+            category_events,
+            [expected_stored_event],
         )
 
 

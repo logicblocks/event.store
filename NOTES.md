@@ -15,3 +15,9 @@ Notes
        - key could be stream name, category name, whole log
     - trail head of log by time, t
     - label events with their sequence asynchronously
+
+* expected position
+* postgres adapter
+* ---
+* concurrency testing
+* projection capability

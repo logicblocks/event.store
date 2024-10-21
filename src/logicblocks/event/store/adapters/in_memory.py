@@ -1,16 +1,26 @@
 from uuid import uuid4
-from collections.abc import Iterator
-from typing import Sequence, Tuple, DefaultDict, List, NewType, TypeVar
 from collections import defaultdict
+from collections.abc import Iterator, Sequence, Set
+from typing import Any
 
 from .base import StorageAdapter
+from ..conditions import WriteCondition
+from ..exceptions import UnmetWriteConditionError
 from ..types import NewEvent, StoredEvent
 
-StreamKey = NewType("StreamKey", Tuple[str, str])
-CategoryKey = NewType("CategoryKey", str)
-EventPositionList = NewType("EventPositionList", List[int])
-KeyType = TypeVar("KeyType")
-EventIndexDict = DefaultDict[KeyType, EventPositionList]
+type StreamKey = tuple[str, str]
+type CategoryKey = str
+type EventPositionList = list[int]
+type EventIndexDict[T] = defaultdict[T, EventPositionList]
+
+
+def _check_condition(
+    condition: WriteCondition[Any], events: Sequence[StoredEvent]
+) -> None:
+    if condition.attribute == "position" and condition.operator == "equals":
+        if events[-1].position == condition.value:
+            return
+    raise UnmetWriteConditionError(condition)
 
 
 class InMemoryStorageAdapter(StorageAdapter):
@@ -20,22 +30,29 @@ class InMemoryStorageAdapter(StorageAdapter):
 
     def __init__(self):
         self._events = []
-        self._stream_index = defaultdict(lambda: EventPositionList([]))
-        self._category_index = defaultdict(lambda: EventPositionList([]))
+        self._stream_index = defaultdict(lambda: [])
+        self._category_index = defaultdict(lambda: [])
 
     def save(
-        self, *, category: str, stream: str, events: Sequence[NewEvent]
+        self,
+        *,
+        category: str,
+        stream: str,
+        events: Sequence[NewEvent],
+        conditions: Set[WriteCondition[Any]] = frozenset(),
     ) -> Sequence[StoredEvent]:
-        category_key = CategoryKey(category)
-        stream_key = StreamKey((category, stream))
+        category_key = category
+        stream_key = (category, stream)
 
         stream_indices = self._stream_index[stream_key]
+        stream_events = [self._events[i] for i in stream_indices]
+
+        for condition in conditions:
+            _check_condition(condition, stream_events)
 
         last_global_position = len(self._events)
         last_stream_position = (
-            -1
-            if len(stream_indices) == 0
-            else self._events[stream_indices[-1]].position
+            -1 if len(stream_events) == 0 else stream_events[-1].position
         )
 
         new_global_positions = [
@@ -64,13 +81,11 @@ class InMemoryStorageAdapter(StorageAdapter):
     def scan_stream(
         self, *, category: str, stream: str
     ) -> Iterator[StoredEvent]:
-        for global_position in self._stream_index[
-            StreamKey((category, stream))
-        ]:
+        for global_position in self._stream_index[(category, stream)]:
             yield self._events[global_position]
 
     def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
-        for global_position in self._category_index[CategoryKey(category)]:
+        for global_position in self._category_index[category]:
             yield self._events[global_position]
 
     def scan_all(self) -> Iterator[StoredEvent]:

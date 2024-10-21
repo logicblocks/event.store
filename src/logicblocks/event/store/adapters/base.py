@@ -1,13 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, Iterator
+from collections.abc import Sequence, Set, Iterator
+from typing import Any
 
+from ..conditions import WriteCondition
 from ..types import NewEvent, StoredEvent
 
 
 class StorageAdapter(ABC):
     @abstractmethod
     def save(
-        self, *, category: str, stream: str, events: Sequence[NewEvent]
+        self,
+        *,
+        category: str,
+        stream: str,
+        events: Sequence[NewEvent],
+        conditions: Set[WriteCondition[Any]],
     ) -> Sequence[StoredEvent]:
         raise NotImplementedError()
 

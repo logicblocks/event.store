@@ -3,8 +3,10 @@ import unittest
 from datetime import datetime
 
 import logicblocks.event.store.testing.data as data
-from logicblocks.event.store import EventStore
+
+from logicblocks.event.store import EventStore, conditions
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
+from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.store.testing import NewEventBuilder
 from logicblocks.event.store.testing.builders import StoredEventBuilder
 from logicblocks.event.store.types import NewEvent, StoredEvent
@@ -214,6 +216,43 @@ class TestEventStoreStreamIteration(unittest.TestCase):
         ]
 
         self.assertEqual(stream_event_keys, new_event_keys)
+
+
+class TestEventStoreStreamPublishing(unittest.TestCase):
+    def test_publishes_if_current_position_is_as_specified(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stream.publish(events=[NewEventBuilder().build() for _ in range(10)])
+
+        new_event = NewEventBuilder().build()
+
+        stored_events = stream.publish(
+            events=[new_event], conditions={conditions.position_is(9)}
+        )
+
+        found_events = stream.read()
+
+        self.assertEqual(found_events[-1], stored_events[-1])
+
+    def test_raises_exception_if_current_position_already_present(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stream.publish(events=[NewEventBuilder().build() for _ in range(10)])
+
+        new_event = NewEventBuilder().build()
+
+        with self.assertRaises(UnmetWriteConditionError):
+            stream.publish(
+                events=[new_event], conditions={conditions.position_is(5)}
+            )
 
 
 class TestEventStoreCategoryBasics(unittest.TestCase):

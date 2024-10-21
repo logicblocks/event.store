@@ -1,6 +1,7 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, UTC
-from typing import Mapping, Any, Optional, Unpack, TypedDict
+from typing import Any, Unpack, TypedDict
 
 from frozendict import frozendict
 
@@ -18,24 +19,24 @@ from ..utils import Clock, SystemClock
 class NewEventBuilderParams(TypedDict, total=False):
     name: str
     payload: Mapping[str, Any]
-    occurred_at: Optional[datetime]
-    observed_at: Optional[datetime]
+    occurred_at: datetime | None
+    observed_at: datetime | None
 
 
 @dataclass(frozen=True)
 class NewEventBuilder:
     name: str
     payload: Mapping[str, Any]
-    occurred_at: Optional[datetime]
-    observed_at: Optional[datetime]
+    occurred_at: datetime | None
+    observed_at: datetime | None
 
     def __init__(
         self,
         *,
-        name: Optional[str] = None,
-        payload: Optional[Mapping[str, Any]] = None,
-        occurred_at: Optional[datetime] = None,
-        observed_at: Optional[datetime] = None,
+        name: str | None = None,
+        payload: Mapping[str, Any] | None = None,
+        occurred_at: datetime | None = None,
+        observed_at: datetime | None = None,
     ):
         object.__setattr__(self, "name", name or random_event_name())
         object.__setattr__(
@@ -58,10 +59,10 @@ class NewEventBuilder:
     def with_payload(self, payload: Mapping[str, Any]):
         return self._clone(payload=payload)
 
-    def with_occurred_at(self, occurred_at: datetime):
+    def with_occurred_at(self, occurred_at: datetime | None):
         return self._clone(occurred_at=occurred_at)
 
-    def with_observed_at(self, observed_at: datetime):
+    def with_observed_at(self, observed_at: datetime | None):
         return self._clone(observed_at=observed_at)
 
     def build(self):
@@ -80,8 +81,8 @@ class StoredEventBuilderParams(TypedDict, total=False):
     category: str
     position: int
     payload: Mapping[str, Any]
-    occurred_at: datetime
-    observed_at: datetime
+    occurred_at: datetime | None
+    observed_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -98,14 +99,14 @@ class StoredEventBuilder(object):
     def __init__(
         self,
         *,
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        stream: Optional[str] = None,
-        category: Optional[str] = None,
-        position: Optional[int] = None,
-        payload: Optional[Mapping[str, Any]] = None,
-        occurred_at: Optional[datetime] = None,
-        observed_at: Optional[datetime] = None,
+        id: str | None = None,
+        name: str | None = None,
+        stream: str | None = None,
+        category: str | None = None,
+        position: int | None = None,
+        payload: Mapping[str, Any] | None = None,
+        occurred_at: datetime | None = None,
+        observed_at: datetime | None = None,
         clock: Clock = SystemClock(),
     ):
         if observed_at is None:
@@ -166,10 +167,10 @@ class StoredEventBuilder(object):
     def with_payload(self, payload: Mapping[str, Any]):
         return self._clone(payload=payload)
 
-    def with_occurred_at(self, occurred_at: datetime):
+    def with_occurred_at(self, occurred_at: datetime | None):
         return self._clone(occurred_at=occurred_at)
 
-    def with_observed_at(self, observed_at: datetime):
+    def with_observed_at(self, observed_at: datetime | None):
         return self._clone(observed_at=observed_at)
 
     def build(self):

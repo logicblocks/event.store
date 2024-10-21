@@ -1,8 +1,9 @@
 import string
 import random
 
+from collections.abc import Sequence, Mapping
 from uuid import uuid4
-from typing import Mapping, Any, Sequence
+from typing import Any
 
 
 def _join_strings(chars: Sequence[str]) -> str:

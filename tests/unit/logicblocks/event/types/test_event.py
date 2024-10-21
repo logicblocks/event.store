@@ -3,7 +3,6 @@ import unittest
 from collections import namedtuple
 
 from datetime import datetime, tzinfo, UTC, timedelta
-from typing import Optional
 
 from logicblocks.event.store.types import NewEvent, StoredEvent
 from logicblocks.event.store.utils import StaticClock
@@ -12,13 +11,13 @@ from logicblocks.event.store.utils import StaticClock
 class VerifyingStaticClock(StaticClock):
     def __init__(self, now: datetime):
         super().__init__(now)
-        self._expected_timezone: Optional[tzinfo] = None
+        self._expected_timezone: tzinfo | None = None
 
     def expect_timezone(self, tz: tzinfo):
         self._expected_timezone = tz
         return self
 
-    def now(self, tz: Optional[tzinfo] = None) -> datetime:
+    def now(self, tz: tzinfo | None = None) -> datetime:
         if self._expected_timezone is not None:
             assert tz == self._expected_timezone
         return super().now(tz)

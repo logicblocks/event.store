@@ -1,6 +1,7 @@
 import json
 
-from typing import Mapping, Any, Optional
+from collections.abc import Mapping
+from typing import Any
 from datetime import datetime, UTC
 from dataclasses import dataclass
 
@@ -19,8 +20,8 @@ class NewEvent(object):
         *,
         name: str,
         payload: Mapping[str, Any],
-        observed_at: Optional[datetime] = None,
-        occurred_at: Optional[datetime] = None,
+        observed_at: datetime | None = None,
+        occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),
     ):
         if observed_at is None:

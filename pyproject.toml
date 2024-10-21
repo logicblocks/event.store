@@ -1,5 +1,5 @@
 [project]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 
 [tool.poetry]
 name = "logicblocks.event.store"
@@ -13,7 +13,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12"
 frozendict = "^2.4.6"
 
 [tool.poetry.group.dev.dependencies]

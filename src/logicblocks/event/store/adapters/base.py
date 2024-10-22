@@ -13,7 +13,7 @@ class StorageAdapter(ABC):
         category: str,
         stream: str,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition[object]],
+        conditions: Set[WriteCondition],
     ) -> Sequence[StoredEvent]:
         raise NotImplementedError()
 

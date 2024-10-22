@@ -37,7 +37,7 @@ class StreamEventStore(object):
         self,
         *,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition[object]] = frozenset(),
+        conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
         return self.adapter.save(

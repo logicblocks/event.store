@@ -1,18 +1,66 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, TypeVar, Literal
+from typing import Literal, Self
 
-T = TypeVar("T", covariant=True)
 type Operator = Literal["equals"]
+type Target = Literal["last_event", "stream"]
+
+
+class WriteConditionDescriptor(ABC):
+    @abstractmethod
+    def target(self, target: Target) -> Self:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def attribute(self, attribute: str) -> Self:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def operator(self, operator: Operator) -> Self:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def value(self, value: object) -> Self:
+        raise NotImplementedError()
+
+
+class WriteCondition(ABC):
+    @abstractmethod
+    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
-class WriteCondition(Generic[T]):
+class LastStreamEventAttributeCondition(WriteCondition):
     attribute: str
     operator: Operator
-    value: T
+    value: object
+
+    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
+        return (
+            descriptor.target("last_event")
+            .attribute(self.attribute)
+            .operator(self.operator)
+            .value(self.value)
+        )
 
 
-def position_is(position: int) -> WriteCondition[int]:
-    return WriteCondition(
+@dataclass(frozen=True)
+class EmptyStreamCondition(WriteCondition):
+    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
+        return (
+            descriptor.target("stream")
+            .attribute("length")
+            .operator("equals")
+            .value(0)
+        )
+
+
+def position_is(position: int) -> WriteCondition:
+    return LastStreamEventAttributeCondition(
         attribute="position", operator="equals", value=position
     )
+
+
+def stream_is_empty() -> WriteCondition:
+    return EmptyStreamCondition()

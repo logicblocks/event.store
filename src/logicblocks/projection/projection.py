@@ -11,7 +11,6 @@ class ProjectionResult:
 
 
 class Projection:
-
     def call_handler_func(self, state: Dict[str, Any], event: StoredEvent):
         handler_function = getattr(self, event.name)
 
@@ -19,6 +18,7 @@ class Projection:
 
     def project(self, state: Dict[str, Any], events: List[StoredEvent]):
         result = ProjectionResult(
-            functools.reduce(self.call_handler_func, events, state))
+            functools.reduce(self.call_handler_func, events, state)
+        )
 
         return result

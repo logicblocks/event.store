@@ -1,9 +1,15 @@
+from typing import Self
 from uuid import uuid4
 from collections import defaultdict
 from collections.abc import Iterator, Sequence, Set
 
 from .base import StorageAdapter
-from ..conditions import WriteCondition
+from ..conditions import (
+    WriteCondition,
+    Target,
+    Operator,
+    WriteConditionDescriptor,
+)
 from ..exceptions import UnmetWriteConditionError
 from ..types import NewEvent, StoredEvent
 
@@ -11,15 +17,6 @@ type StreamKey = tuple[str, str]
 type CategoryKey = str
 type EventPositionList = list[int]
 type EventIndexDict[T] = defaultdict[T, EventPositionList]
-
-
-def _check_condition(
-    condition: WriteCondition[object], events: Sequence[StoredEvent]
-) -> None:
-    if condition.attribute == "position" and condition.operator == "equals":
-        if events[-1].position == condition.value:
-            return
-    raise UnmetWriteConditionError(condition)
 
 
 class InMemoryStorageAdapter(StorageAdapter):
@@ -38,7 +35,7 @@ class InMemoryStorageAdapter(StorageAdapter):
         category: str,
         stream: str,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition[object]] = frozenset(),
+        conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         category_key = category
         stream_key = (category, stream)
@@ -47,7 +44,7 @@ class InMemoryStorageAdapter(StorageAdapter):
         stream_events = [self._events[i] for i in stream_indices]
 
         for condition in conditions:
-            _check_condition(condition, stream_events)
+            _assert_condition_met(condition, stream_events)
 
         last_global_position = len(self._events)
         last_stream_position = (
@@ -89,3 +86,66 @@ class InMemoryStorageAdapter(StorageAdapter):
 
     def scan_all(self) -> Iterator[StoredEvent]:
         return iter(self._events)
+
+
+def _assert_condition_met(
+    condition: WriteCondition, events: Sequence[StoredEvent]
+) -> None:
+    (condition.describe(_InMemoryWriteConditionDescriptor()).check(events))
+
+
+class _InMemoryWriteConditionDescriptor(WriteConditionDescriptor):
+    _target: Target | None = None
+    _attribute: str | None = None
+    _operator: Operator | None = None
+    _value: object | None = None
+
+    def __init__(self):
+        self._target = None
+        self._attribute = None
+        self._operator = None
+
+    def target(self, target: Target) -> Self:
+        self._target = target
+        return self
+
+    def attribute(self, attribute: str) -> Self:
+        self._attribute = attribute
+        return self
+
+    def operator(self, operator: Operator) -> Self:
+        self._operator = operator
+        return self
+
+    def value(self, value: object) -> Self:
+        self._value = value
+        return self
+
+    def check(self, events: Sequence[StoredEvent]) -> None:
+        if not self._target:
+            raise ValueError("target not set")
+        if (
+            self._attribute is None
+            or self._operator is None
+            or self._value is None
+        ):
+            raise ValueError("attribute, operator, or value not set")
+        if not self._operator == "equals":
+            raise ValueError("unsupported operator")
+
+        match self._target:
+            case "last_event":
+                if len(events) == 0:
+                    raise UnmetWriteConditionError("no events")
+                if not getattr(events[-1], self._attribute) == self._value:
+                    raise UnmetWriteConditionError(
+                        "last event does not satisfy condition"
+                    )
+                return
+            case "stream":
+                if not self._attribute == "length":
+                    raise ValueError("unsupported stream attribute")
+                if not len(events) == self._value:
+                    raise UnmetWriteConditionError(
+                        "last event does not satisfy condition"
+                    )

@@ -219,7 +219,7 @@ class TestEventStoreStreamIteration(unittest.TestCase):
 
 
 class TestEventStoreStreamPublishing(unittest.TestCase):
-    def test_publishes_if_current_position_is_as_specified(self):
+    def test_publishes_if_stream_position_matches_position_condition(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
@@ -238,7 +238,7 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
 
         self.assertEqual(found_events[-1], stored_events[-1])
 
-    def test_raises_exception_if_current_position_already_present(self):
+    def test_raises_if_stream_position_beyond_position_condition(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
@@ -252,6 +252,51 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
         with self.assertRaises(UnmetWriteConditionError):
             stream.publish(
                 events=[new_event], conditions={conditions.position_is(5)}
+            )
+
+    def test_raises_if_stream_position_before_condition_position(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stream.publish(events=[NewEventBuilder().build() for _ in range(5)])
+
+        new_event = NewEventBuilder().build()
+
+        with self.assertRaises(UnmetWriteConditionError):
+            stream.publish(
+                events=[new_event], conditions={conditions.position_is(10)}
+            )
+
+    def test_publishes_if_stream_empty_and_empty_condition_specified(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_event = NewEventBuilder().build()
+
+        stream.publish(
+            events=[new_event], conditions={conditions.stream_is_empty()}
+        )
+
+    def test_raises_if_stream_not_empty_and_empty_condition_specified(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stream.publish(events=[NewEventBuilder().build() for _ in range(5)])
+
+        new_event = NewEventBuilder().build()
+
+        with self.assertRaises(UnmetWriteConditionError):
+            stream.publish(
+                events=[new_event], conditions={conditions.stream_is_empty()}
             )
 
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Generic, TypeVar, Literal
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 type Operator = Literal["equals"]
 
 

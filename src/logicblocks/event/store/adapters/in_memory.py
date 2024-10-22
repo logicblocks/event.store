@@ -1,7 +1,6 @@
 from uuid import uuid4
 from collections import defaultdict
 from collections.abc import Iterator, Sequence, Set
-from typing import Any
 
 from .base import StorageAdapter
 from ..conditions import WriteCondition
@@ -15,7 +14,7 @@ type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 
 def _check_condition(
-    condition: WriteCondition[Any], events: Sequence[StoredEvent]
+    condition: WriteCondition[object], events: Sequence[StoredEvent]
 ) -> None:
     if condition.attribute == "position" and condition.operator == "equals":
         if events[-1].position == condition.value:
@@ -39,7 +38,7 @@ class InMemoryStorageAdapter(StorageAdapter):
         category: str,
         stream: str,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition[Any]] = frozenset(),
+        conditions: Set[WriteCondition[object]] = frozenset(),
     ) -> Sequence[StoredEvent]:
         category_key = category
         stream_key = (category, stream)

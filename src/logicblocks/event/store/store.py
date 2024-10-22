@@ -1,5 +1,4 @@
 from collections.abc import Set, Sequence
-from typing import Any
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
@@ -38,7 +37,7 @@ class StreamEventStore(object):
         self,
         *,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition[Any]] = frozenset(),
+        conditions: Set[WriteCondition[object]] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
         return self.adapter.save(

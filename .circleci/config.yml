@@ -113,14 +113,14 @@ commands:
       - run: ./scripts/ci/common/install-slack-deps.sh
       - restore_cache:
           keys:
-            - asdf-dependencies-{{ arch }}-v2-{{ checksum ".tool-versions" }}
-            - asdf-dependencies-{{ arch }}-v2-
+            - asdf-dependencies-{{ arch }}-v3-{{ checksum ".tool-versions" }}
+            - asdf-dependencies-{{ arch }}-v3-
       - run: ./scripts/ci/common/install-asdf.sh
       - run: ./scripts/ci/common/configure-asdf.sh
       - run: ./scripts/ci/common/install-asdf-dependencies.sh
       - run: ./scripts/ci/common/configure-nodejs.sh
       - save_cache:
-          key: asdf-dependencies-{{ arch }}-v2-{{ checksum ".tool-versions" }}
+          key: asdf-dependencies-{{ arch }}-v3-{{ checksum ".tool-versions" }}
           paths:
             - ~/.asdf
 
@@ -134,7 +134,7 @@ commands:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:L5jPjoqlMrpCO/DaUKyDCD9X047SvfPE0sFjj71omcE"
+            - "SHA256:AFEm89FB9Oa3D7j0UnA7kl0VnL46Z3rgN5wlXYaeJBY"
       - run: ./scripts/ci/common/configure-git.sh
 
 jobs:

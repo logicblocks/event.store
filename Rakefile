@@ -255,6 +255,7 @@ namespace :library do
     desc 'Run integration tests'
     task integration: %i[dependencies:install] do
       Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
+      Rake::Task['database:test:migrate'].invoke
 
       invoke_poetry_task('test-integration')
     end

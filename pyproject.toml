@@ -15,15 +15,17 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.12"
 frozendict = "^2.4.6"
+psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.9"
 poethepoet = "^0.29.0"
 pyright = "^1.1.383"
 pytest = "^8.3.3"
+alembic = "^1.13.3"
 
 [tool.pyright]
-include = ["src", "tests/unit"]
+include = ["src", "tests/unit", "tests/integration"]
 strict = ["src"]
 reportMissingTypeStubs = "error"
 
@@ -42,6 +44,8 @@ format-check = "ruff format --check"
 format-fix = "ruff format"
 type-check = "pyright"
 test-unit = "pytest tests/unit"
+test-integration = "pytest tests/integration"
+database-test-migrate = "alembic upgrade head"
 
 [build-system]
 requires = ["poetry-core"]

@@ -48,7 +48,11 @@ class StreamEventStore(object):
         )
 
     def read(self) -> Sequence[StoredEvent]:
-        """Read all events from the stream."""
+        """Read all events from the stream.
+
+        All events will be read into memory so stream iteration should be
+        preferred in order to give storage adapters the opportunity to page
+        events as they are read from the underlying persistence."""
         return list(iter(self))
 
 
@@ -91,6 +95,11 @@ class CategoryEventStore(object):
         )
 
     def read(self) -> Sequence[StoredEvent]:
+        """Read all events from the category.
+
+        All events will be read into memory so stream iteration should be
+        preferred in order to give storage adapters the opportunity to page
+        events as they are read from the underlying persistence."""
         return list(iter(self))
 
 

@@ -3,6 +3,7 @@
 require 'confidante'
 require 'lino'
 require 'rake_circle_ci'
+require 'rake_docker'
 require 'rake_git'
 require 'rake_git_crypt'
 require 'rake_github'
@@ -18,7 +19,7 @@ task default: %i[
   library:type:check
   library:format:fix
   library:build
-  library:test:unit
+  library:test:all
 ]
 
 task check: %i[
@@ -28,7 +29,7 @@ task check: %i[
   library:type:check
   library:format:check
   library:build
-  library:test:unit
+  library:test:all
 ]
 
 RakeGitCrypt.define_standard_tasks(
@@ -250,6 +251,16 @@ namespace :library do
     task unit: %i[dependencies:install] do
       invoke_poetry_task('test-unit')
     end
+
+    desc 'Run integration tests'
+    task integration: %i[dependencies:install] do
+      Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
+
+      invoke_poetry_task('test-integration')
+    end
+
+    desc 'Run all tests'
+    task all: %i[unit integration]
   end
 
   namespace :version do
@@ -276,6 +287,27 @@ namespace :library do
     task :release do
       Rake::Task['library:version:bump'].invoke('patch')
       Rake::Task['library:publish'].invoke
+    end
+  end
+end
+
+namespace :database do
+  namespace :test do
+    RakeDocker.define_container_tasks(
+      container_name: 'event-store-postgres-test-database'
+    ) do |t|
+      t.image = 'postgres:16.3'
+      t.ports = ['5432:5432']
+      t.environment = %w[
+        POSTGRES_DB=some-database
+        POSTGRES_PASSWORD=super-secret
+        POSTGRES_USER=admin
+      ]
+    end
+
+    desc 'Run migrations against the test database'
+    task :migrate do
+      invoke_poetry_task('database-test-migrate')
     end
   end
 end

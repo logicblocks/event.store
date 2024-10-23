@@ -5,6 +5,14 @@ orbs:
 
 base_container: &base_container
   image: buildpack-deps:bookworm
+  
+postgres_container: &postgres_container
+  image: circleci/postgres:16.3-alpine
+  environment:
+    POSTGRES_DB: some-database
+    POSTGRES_PASSWORD: super-secret
+    POSTGRES_USER: admin
+    PGPORT: 5432
 
 build_containers: &build_containers
   docker:
@@ -13,6 +21,7 @@ build_containers: &build_containers
 test_containers: &test_containers
   docker:
     - <<: *base_container
+    - <<: *postgres_container
 
 slack_context: &slack_context
   context:

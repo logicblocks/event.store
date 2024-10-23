@@ -17,3 +17,4 @@ fi
 
 # shellcheck disable=SC2016
 echo '. "$HOME/.asdf/asdf.sh"' >> "$BASH_ENV"
+. "$HOME/.asdf/asdf.sh"

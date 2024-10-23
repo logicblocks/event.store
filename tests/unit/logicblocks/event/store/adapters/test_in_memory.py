@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 
-from logicblocks.event.store.types import NewEvent, StoredEvent
+from logicblocks.event.types import NewEvent, StoredEvent
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
 
 

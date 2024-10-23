@@ -3,15 +3,15 @@ from uuid import uuid4
 from collections import defaultdict
 from collections.abc import Iterator, Sequence, Set
 
-from .base import StorageAdapter
-from ..conditions import (
+from logicblocks.event.store.adapters.base import StorageAdapter
+from logicblocks.event.store.conditions import (
     WriteCondition,
     Target,
     Operator,
     WriteConditionDescriptor,
 )
-from ..exceptions import UnmetWriteConditionError
-from ..types import NewEvent, StoredEvent
+from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from logicblocks.event.types import NewEvent, StoredEvent
 
 type StreamKey = tuple[str, str]
 type CategoryKey = str

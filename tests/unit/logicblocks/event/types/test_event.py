@@ -4,8 +4,8 @@ from collections import namedtuple
 
 from datetime import datetime, tzinfo, UTC, timedelta
 
-from logicblocks.event.store.types import NewEvent, StoredEvent
-from logicblocks.event.store.utils import StaticClock
+from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.utils import StaticClock
 
 
 class VerifyingStaticClock(StaticClock):

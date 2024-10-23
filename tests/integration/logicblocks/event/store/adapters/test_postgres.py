@@ -4,7 +4,7 @@ from datetime import datetime
 from psycopg import Connection
 from psycopg_pool import ConnectionPool
 
-from logicblocks.event.store.types import NewEvent
+from logicblocks.event.types import NewEvent
 from logicblocks.event.store.adapters import PostgresStorageAdapter
 
 

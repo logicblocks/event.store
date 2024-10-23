@@ -2,14 +2,11 @@ import unittest
 
 from datetime import datetime
 
-import logicblocks.event.store.testing.data as data
-
 from logicblocks.event.store import EventStore, conditions
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.store.testing import NewEventBuilder
-from logicblocks.event.store.testing.builders import StoredEventBuilder
-from logicblocks.event.store.types import NewEvent, StoredEvent
+from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
+from logicblocks.event.types import NewEvent, StoredEvent
 
 
 class TestEventStoreStreamBasics(unittest.TestCase):

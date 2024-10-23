@@ -2,7 +2,7 @@ import functools
 
 from typing import Any, Dict, List
 
-from logicblocks.event.store.types import StoredEvent
+from logicblocks.event.types import StoredEvent
 
 
 class ProjectionResult:

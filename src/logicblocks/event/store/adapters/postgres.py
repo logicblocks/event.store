@@ -8,7 +8,7 @@ from psycopg_pool import ConnectionPool
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.store.types import NewEvent, StoredEvent
+from logicblocks.event.types import NewEvent, StoredEvent
 
 
 class PostgresStorageAdapter(StorageAdapter):

@@ -2,8 +2,8 @@ import unittest
 
 from datetime import datetime, UTC
 
-from logicblocks.event.store.testing.builders import StoredEventBuilder
-from logicblocks.projection import Projection
+from logicblocks.event.testing.builders import StoredEventBuilder
+from logicblocks.event.projection import Projection
 
 generic_event = (
     StoredEventBuilder()

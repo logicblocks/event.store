@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set, Iterator
 
-from ..conditions import WriteCondition
-from ..types import NewEvent, StoredEvent
+from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.types import NewEvent, StoredEvent
 
 
 class StorageAdapter(ABC):

@@ -12,8 +12,8 @@ from .data import (
     random_event_stream_name,
     random_event_category_name,
 )
-from ..types.event import NewEvent, StoredEvent
-from ..utils import Clock, SystemClock
+from logicblocks.event.types.event import NewEvent, StoredEvent
+from logicblocks.event.utils import Clock, SystemClock
 
 
 class NewEventBuilderParams(TypedDict, total=False):

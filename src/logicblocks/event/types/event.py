@@ -5,7 +5,7 @@ from typing import Any
 from datetime import datetime, UTC
 from dataclasses import dataclass
 
-from ..utils import SystemClock, Clock
+from logicblocks.event.utils import SystemClock, Clock
 
 
 @dataclass(frozen=True)

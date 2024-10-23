@@ -2,7 +2,7 @@ from collections.abc import Set, Sequence
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.store.types import NewEvent, StoredEvent
+from logicblocks.event.types import NewEvent, StoredEvent
 
 
 class StreamEventStore(object):

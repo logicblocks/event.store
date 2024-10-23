@@ -7,7 +7,7 @@ base_container: &base_container
   image: buildpack-deps:bookworm
   
 postgres_container: &postgres_container
-  image: circleci/postgres:16.3-alpine
+  image: postgres:16.3-alpine
   environment:
     POSTGRES_DB: some-database
     POSTGRES_PASSWORD: super-secret

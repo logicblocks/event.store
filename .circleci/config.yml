@@ -143,6 +143,7 @@ jobs:
     steps:
       - checkout
       - configure_build_tools
+      - run: cat "$BASH_ENV"
       - restore_dependency_caches
       - configure_secrets_tools
       - run: ./scripts/ci/steps/build.sh

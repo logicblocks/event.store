@@ -66,6 +66,33 @@ class TestProjection(unittest.TestCase):
             ).projection,
         )
 
+    def test_projection_can_overwrite_fields(self):
+        something_event = (
+            generic_event.with_name("something_occurred")
+            .with_occurred_at(datetime.now(UTC))
+            .build()
+        )
+
+        something_occurred_at = datetime.now(UTC)
+        something_event_new = (
+            generic_event.with_name("something_occurred")
+            .with_occurred_at(something_occurred_at)
+            .build()
+        )
+
+        projection = MyTestProjection()
+
+        expected_projection = {
+            "something_occurred_at": something_occurred_at,
+        }
+
+        self.assertEqual(
+            expected_projection,
+            projection.project(
+                {}, [something_event, something_event_new]
+            ).projection,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

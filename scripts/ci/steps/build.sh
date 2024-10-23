@@ -9,7 +9,4 @@ PROJECT_DIR="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 
 cd "$PROJECT_DIR"
 
-poetry env list
-poetry env info
-
 ./go library:check

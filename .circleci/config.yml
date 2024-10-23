@@ -119,6 +119,7 @@ commands:
       - run: ./scripts/ci/common/configure-asdf.sh
       - run: ./scripts/ci/common/install-asdf-dependencies.sh
       - run: ./scripts/ci/common/configure-nodejs.sh
+      - run: ./scripts/ci/common/configure-poetry.sh
       - save_cache:
           key: asdf-dependencies-{{ arch }}-v3-{{ checksum ".tool-versions" }}
           paths:

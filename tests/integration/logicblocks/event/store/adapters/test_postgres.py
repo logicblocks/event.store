@@ -83,12 +83,12 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                     ],
                 )
 
-    def test_stores_multiple_events_for_later_retrieval(self):
+    def test_stores_multiple_events_in_same_stream(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
         event_name_1 = random_event_name()
-        event_category_1 = random_event_category_name()
-        event_stream_1 = random_event_stream_name()
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
         event_payload_1 = random_event_payload()
         event_observed_at_1 = datetime.now()
         event_occurred_at_1 = datetime.now()
@@ -102,16 +102,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             .build()
         )
 
-        stored_events_1 = adapter.save(
-            category=event_category_1,
-            stream=event_stream_1,
-            events=[new_event_1],
-        )
-        stored_event_1 = stored_events_1[0]
-
         event_name_2 = random_event_name()
-        event_category_2 = random_event_category_name()
-        event_stream_2 = random_event_stream_name()
         event_payload_2 = random_event_payload()
         event_observed_at_2 = datetime.now()
         event_occurred_at_2 = datetime.now()
@@ -125,16 +116,17 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             .build()
         )
 
-        stored_events_2 = adapter.save(
-            category=event_category_2,
-            stream=event_stream_2,
-            events=[new_event_2],
+        stored_events = adapter.save(
+            category=event_category,
+            stream=event_stream,
+            events=[new_event_1, new_event_2],
         )
-        stored_event_2 = stored_events_2[0]
+        stored_event_1 = stored_events[0]
+        stored_event_2 = stored_events[1]
 
         with self.pool.connection() as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT * FROM events")
+                cursor.execute("SELECT * FROM events ORDER BY position ASC")
                 records = cursor.fetchall()
 
                 self.assertEqual(
@@ -143,8 +135,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                         (
                             stored_event_1.id,
                             event_name_1,
-                            event_stream_1,
-                            event_category_1,
+                            event_stream,
+                            event_category,
                             0,
                             event_payload_1,
                             event_observed_at_1,
@@ -153,9 +145,9 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                         (
                             stored_event_2.id,
                             event_name_2,
-                            event_stream_2,
-                            event_category_2,
-                            0,
+                            event_stream,
+                            event_category,
+                            1,
                             event_payload_2,
                             event_observed_at_2,
                             event_occurred_at_2,

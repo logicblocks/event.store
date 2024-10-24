@@ -10,6 +10,7 @@
 .idea/**/shelf
 .idea/vcs.xml
 .idea/misc.xml
+.idea/dataSources.xml
 .idea/.gitignore
 
 # AWS User-specific

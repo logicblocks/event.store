@@ -3,6 +3,7 @@ from typing import Sequence, Iterator
 from uuid import uuid4
 
 from psycopg import Connection, Cursor
+from psycopg.rows import TupleRow
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
@@ -67,9 +68,17 @@ class PostgresStorageAdapter(StorageAdapter):
     ) -> Sequence[StoredEvent]:
         with self.connection_pool.connection() as connection:
             with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT position FROM events ORDER BY position DESC LIMIT 1;
+                    """
+                )
+                latest: TupleRow | None = cursor.fetchone()
+                current_position = latest[0] + 1 if latest else 0
+
                 return [
                     insert_event(cursor, stream, category, event, position)
-                    for position, event in enumerate(events)
+                    for position, event in enumerate(events, current_position)
                 ]
 
     def scan_stream(

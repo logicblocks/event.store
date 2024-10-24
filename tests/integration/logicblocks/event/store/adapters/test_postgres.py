@@ -126,7 +126,85 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         with self.pool.connection() as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT * FROM events ORDER BY position ASC")
+                cursor.execute("SELECT * FROM events")
+                records = cursor.fetchall()
+
+                self.assertEqual(
+                    records,
+                    [
+                        (
+                            stored_event_1.id,
+                            event_name_1,
+                            event_stream,
+                            event_category,
+                            0,
+                            event_payload_1,
+                            event_observed_at_1,
+                            event_occurred_at_1,
+                        ),
+                        (
+                            stored_event_2.id,
+                            event_name_2,
+                            event_stream,
+                            event_category,
+                            1,
+                            event_payload_2,
+                            event_observed_at_2,
+                            event_occurred_at_2,
+                        ),
+                    ],
+                )
+
+    def test_stores_multiple_events_in_sequential_saves(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        event_name_1 = random_event_name()
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+        event_payload_1 = random_event_payload()
+        event_observed_at_1 = datetime.now()
+        event_occurred_at_1 = datetime.now()
+
+        new_event_1 = (
+            NewEventBuilder()
+            .with_name(event_name_1)
+            .with_payload(event_payload_1)
+            .with_observed_at(event_observed_at_1)
+            .with_occurred_at(event_occurred_at_1)
+            .build()
+        )
+
+        event_name_2 = random_event_name()
+        event_payload_2 = random_event_payload()
+        event_observed_at_2 = datetime.now()
+        event_occurred_at_2 = datetime.now()
+
+        new_event_2 = (
+            NewEventBuilder()
+            .with_name(event_name_2)
+            .with_payload(event_payload_2)
+            .with_observed_at(event_observed_at_2)
+            .with_occurred_at(event_occurred_at_2)
+            .build()
+        )
+
+        stored_events_1 = adapter.save(
+            category=event_category,
+            stream=event_stream,
+            events=[new_event_1],
+        )
+        stored_event_1 = stored_events_1[0]
+
+        stored_events_2 = adapter.save(
+            category=event_category,
+            stream=event_stream,
+            events=[new_event_2],
+        )
+        stored_event_2 = stored_events_2[0]
+
+        with self.pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(

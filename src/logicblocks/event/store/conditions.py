@@ -1,65 +1,38 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal, Self
+from typing import Literal
+
+from logicblocks.event.types import StoredEvent
+from logicblocks.event.store.exceptions import UnmetWriteConditionError
 
 type Operator = Literal["equals"]
 type Target = Literal["last_event", "stream"]
 
 
-class WriteConditionDescriptor(ABC):
-    @abstractmethod
-    def target(self, target: Target) -> Self:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def attribute(self, attribute: str) -> Self:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def operator(self, operator: Operator) -> Self:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def value(self, value: object) -> Self:
-        raise NotImplementedError()
-
-
 class WriteCondition(ABC):
     @abstractmethod
-    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
+    def evaluate(self, last_event: StoredEvent | None) -> None:
         raise NotImplementedError()
 
 
 @dataclass(frozen=True)
-class LastStreamEventAttributeCondition(WriteCondition):
-    attribute: str
-    operator: Operator
-    value: object
+class PositionIsCondition(WriteCondition):
+    position: int
 
-    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
-        return (
-            descriptor.target("last_event")
-            .attribute(self.attribute)
-            .operator(self.operator)
-            .value(self.value)
-        )
+    def evaluate(self, last_event: StoredEvent | None):
+        if last_event is None or last_event.position is not self.position:
+            raise UnmetWriteConditionError("unexpected stream position")
 
 
 @dataclass(frozen=True)
 class EmptyStreamCondition(WriteCondition):
-    def describe[T: WriteConditionDescriptor](self, descriptor: T) -> T:
-        return (
-            descriptor.target("stream")
-            .attribute("length")
-            .operator("equals")
-            .value(0)
-        )
+    def evaluate(self, last_event: StoredEvent | None):
+        if last_event is not None:
+            raise UnmetWriteConditionError("stream is not empty")
 
 
 def position_is(position: int) -> WriteCondition:
-    return LastStreamEventAttributeCondition(
-        attribute="position", operator="equals", value=position
-    )
+    return PositionIsCondition(position=position)
 
 
 def stream_is_empty() -> WriteCondition:

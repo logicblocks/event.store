@@ -95,7 +95,10 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT * FROM events ORDER BY position DESC LIMIT 1;
+                    SELECT * 
+                    FROM events
+                    ORDER BY position
+                    DESC LIMIT 1;
                     """
                 )
                 last_event_row = cursor.fetchone()
@@ -116,14 +119,30 @@ class PostgresStorageAdapter(StorageAdapter):
     def scan_stream(
         self, *, category: str, stream: str
     ) -> Iterator[StoredEvent]:
-        return iter([])
+        with self.connection_pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * 
+                    FROM events
+                    WHERE category = (%s)
+                    AND stream = (%s)
+                    ORDER BY position;
+                    """,
+                    [category, stream],
+                )
+
+                return iter(map(to_event, cursor.fetchall()))
 
     def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT * FROM events WHERE category = (%s) ORDER BY position;
+                    SELECT * 
+                    FROM events
+                    WHERE category = (%s)
+                    ORDER BY position;
                     """,
                     [category],
                 )
@@ -135,7 +154,9 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT * FROM events ORDER BY position;
+                    SELECT * 
+                    FROM events
+                    ORDER BY position;
                     """
                 )
 

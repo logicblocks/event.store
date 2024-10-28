@@ -54,6 +54,32 @@ def insert_event(
     )
 
 
+def to_event(event_row: TupleRow | None) -> StoredEvent | None:
+    if event_row:
+        (
+            id,
+            name,
+            stream,
+            category,
+            position,
+            payload,
+            observed_at,
+            occurred_at,
+        ) = event_row
+        return StoredEvent(
+            id=id,
+            name=name,
+            stream=stream,
+            category=category,
+            position=position,
+            payload=payload,
+            observed_at=observed_at,
+            occurred_at=occurred_at,
+        )
+    else:
+        return None
+
+
 class PostgresStorageAdapter(StorageAdapter):
     def __init__(self, *, connection_pool: ConnectionPool[Connection]):
         self.connection_pool = connection_pool
@@ -70,11 +96,15 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT position FROM events ORDER BY position DESC LIMIT 1;
+                    SELECT * FROM events ORDER BY position DESC LIMIT 1;
                     """
                 )
-                latest: TupleRow | None = cursor.fetchone()
-                current_position = latest[0] + 1 if latest else 0
+                last_event: StoredEvent | None = to_event(cursor.fetchone())
+
+                for condition in conditions:
+                    condition.evaluate(last_event)
+
+                current_position = last_event.position + 1 if last_event else 0
 
                 return [
                     insert_event(cursor, stream, category, event, position)

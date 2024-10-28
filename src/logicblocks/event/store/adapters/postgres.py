@@ -119,7 +119,16 @@ class PostgresStorageAdapter(StorageAdapter):
         return iter([])
 
     def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
-        return iter([])
+        with self.connection_pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * FROM events WHERE category = (%s) ORDER BY position;
+                    """,
+                    [category],
+                )
+
+                return iter(map(to_event, cursor.fetchall()))
 
     def scan_all(self) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:

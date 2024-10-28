@@ -400,7 +400,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                 conditions={conditions.position_is(1)},
             )
 
-    def test_has_no_events_in_stream_initially(self):
+    def test_has_no_events_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
         events = list(adapter.scan_all())
@@ -432,6 +432,39 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         loaded_events = list(adapter.scan_all())
 
         self.assertEqual(stored_events, loaded_events)
+
+    def test_has_no_events_in_category_initially(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        events = list(
+            adapter.scan_category(category=random_event_category_name())
+        )
+
+        self.assertEqual(events, [])
+
+    def test_reads_multiple_published_events_by_category(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        category = random_event_category_name()
+
+        event_to_find_1 = NewEventBuilder().build()
+        event_to_find_2 = NewEventBuilder().build()
+
+        stored_events_in_category = adapter.save(
+            category=category,
+            stream=random_event_stream_name(),
+            events=[event_to_find_1, event_to_find_2],
+        )
+
+        adapter.save(
+            category=random_event_category_name(),
+            stream=random_event_stream_name(),
+            events=[NewEventBuilder().build()],
+        )
+
+        loaded_events = list(adapter.scan_category(category=category))
+
+        self.assertEqual(stored_events_in_category, loaded_events)
 
 
 if __name__ == "__main__":

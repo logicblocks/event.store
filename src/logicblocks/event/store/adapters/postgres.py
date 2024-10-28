@@ -1,6 +1,7 @@
 from collections.abc import Set
 from typing import Sequence, Iterator
 from uuid import uuid4
+from datetime import timezone
 
 from psycopg import Connection, Cursor
 from psycopg.rows import TupleRow
@@ -54,30 +55,28 @@ def insert_event(
     )
 
 
-def to_event(event_row: TupleRow | None) -> StoredEvent | None:
-    if event_row:
-        (
-            id,
-            name,
-            stream,
-            category,
-            position,
-            payload,
-            observed_at,
-            occurred_at,
-        ) = event_row
-        return StoredEvent(
-            id=id,
-            name=name,
-            stream=stream,
-            category=category,
-            position=position,
-            payload=payload,
-            observed_at=observed_at,
-            occurred_at=occurred_at,
-        )
-    else:
-        return None
+def to_event(event_row: TupleRow) -> StoredEvent:
+    (
+        id,
+        name,
+        stream,
+        category,
+        position,
+        payload,
+        observed_at,
+        occurred_at,
+    ) = event_row
+
+    return StoredEvent(
+        id=id,
+        name=name,
+        stream=stream,
+        category=category,
+        position=position,
+        payload=payload,
+        observed_at=observed_at.replace(tzinfo=timezone.utc),
+        occurred_at=occurred_at.replace(tzinfo=timezone.utc),
+    )
 
 
 class PostgresStorageAdapter(StorageAdapter):
@@ -99,7 +98,10 @@ class PostgresStorageAdapter(StorageAdapter):
                     SELECT * FROM events ORDER BY position DESC LIMIT 1;
                     """
                 )
-                last_event: StoredEvent | None = to_event(cursor.fetchone())
+                last_event_row = cursor.fetchone()
+                last_event: StoredEvent | None = (
+                    to_event(last_event_row) if last_event_row else None
+                )
 
                 for condition in conditions:
                     condition.evaluate(last_event)
@@ -120,4 +122,12 @@ class PostgresStorageAdapter(StorageAdapter):
         return iter([])
 
     def scan_all(self) -> Iterator[StoredEvent]:
-        return iter([])
+        with self.connection_pool.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT * FROM events ORDER BY position;
+                    """
+                )
+
+                return iter(map(to_event, cursor.fetchall()))

@@ -383,9 +383,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                     ],
                 )
 
-    def test_raises_if_unmet_position_condition(
-        self,
-    ):
+    def test_raises_if_unmet_position_condition(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
         adapter.save(
@@ -401,6 +399,39 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                 events=[NewEventBuilder().build()],
                 conditions={conditions.position_is(1)},
             )
+
+    def test_has_no_events_in_stream_initially(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        events = list(adapter.scan_all())
+
+        self.assertEqual(events, [])
+
+    def test_reads_single_published_event(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        stored_events = adapter.save(
+            category=random_event_category_name(),
+            stream=random_event_stream_name(),
+            events=[NewEventBuilder().build()],
+        )
+
+        loaded_events = list(adapter.scan_all())
+
+        self.assertEqual(stored_events, loaded_events)
+
+    def test_reads_multiple_published_events(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        stored_events = adapter.save(
+            category=random_event_category_name(),
+            stream=random_event_stream_name(),
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        loaded_events = list(adapter.scan_all())
+
+        self.assertEqual(stored_events, loaded_events)
 
 
 if __name__ == "__main__":

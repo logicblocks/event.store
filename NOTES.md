@@ -25,3 +25,5 @@ Notes
   - add position (from last event)
   - refactor into Projection and Projector (think about how to model and pass "state" of projection)
   - think about how to add Snapshotting (decorator on Projector class?)
+
+[] allow JSON serialisation / deserialisation to be overridden

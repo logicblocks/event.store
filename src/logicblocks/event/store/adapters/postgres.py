@@ -4,7 +4,7 @@ from uuid import uuid4
 from datetime import timezone
 
 from psycopg import Connection, Cursor
-from psycopg.rows import TupleRow
+from psycopg.rows import TupleRow, class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
@@ -120,44 +120,71 @@ class PostgresStorageAdapter(StorageAdapter):
         self, *, category: str, stream: str
     ) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
+                for record in cursor.execute(
                     """
-                    SELECT * 
+                    SELECT 
+                      id, 
+                      name, 
+                      stream, 
+                      category, 
+                      position, 
+                      payload, 
+                      observed_at::timestamptz, 
+                      occurred_at::timestamptz 
                     FROM events
                     WHERE category = (%s)
                     AND stream = (%s)
                     ORDER BY position;
                     """,
                     [category, stream],
-                )
-
-                return iter(map(to_event, cursor.fetchall()))
+                ):
+                    yield record
 
     def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
+                for record in cursor.execute(
                     """
-                    SELECT * 
+                    SELECT
+                      id, 
+                      name, 
+                      stream, 
+                      category, 
+                      position, 
+                      payload, 
+                      observed_at::timestamptz, 
+                      occurred_at::timestamptz  
                     FROM events
                     WHERE category = (%s)
                     ORDER BY position;
                     """,
                     [category],
-                )
-
-                return iter(map(to_event, cursor.fetchall()))
+                ):
+                    yield record
 
     def scan_all(self) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
+                for record in cursor.execute(
                     """
-                    SELECT * 
+                    SELECT 
+                      id, 
+                      name, 
+                      stream, 
+                      category, 
+                      position, 
+                      payload, 
+                      observed_at::timestamptz, 
+                      occurred_at::timestamptz  
                     FROM events
                     ORDER BY position;
                     """
-                )
-
-                return iter(map(to_event, cursor.fetchall()))
+                ):
+                    yield record

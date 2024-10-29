@@ -3,7 +3,8 @@ Notes
 
 [x] position: within stream, similar to version (of aggregate / entity),
   zero based, contiguous, in and of itself not monotonically increasing,
-[] sequence_number: at level of whole log, in and of itself not strictly increasing, could have gaps
+[] sequence_number: at level of whole log, in and of itself not strictly 
+  increasing, could have gaps
 [] external control to ensure totally ordered events as seen by an external
   observer
     - serializable transaction isolation level - throw exception if DB detects
@@ -23,7 +24,8 @@ Notes
 [] concurrency testing
 [] projection capability
   - add position (from last event)
-  - refactor into Projection and Projector (think about how to model and pass "state" of projection)
+  - refactor into Projection and Projector (think about how to model and pass 
+    "state" of projection)
   - think about how to add Snapshotting (decorator on Projector class?)
 
 [] allow JSON serialisation / deserialisation to be overridden

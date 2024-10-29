@@ -3,8 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from typing import Any, Unpack, TypedDict
 
-from frozendict import frozendict
-
 from .data import (
     random_event_id,
     random_event_name,
@@ -39,9 +37,7 @@ class NewEventBuilder:
         observed_at: datetime | None = None,
     ):
         object.__setattr__(self, "name", name or random_event_name())
-        object.__setattr__(
-            self, "payload", frozendict(payload or random_event_payload())
-        )
+        object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
@@ -123,9 +119,7 @@ class StoredEventBuilder(object):
             self, "category", category or random_event_category_name()
         )
         object.__setattr__(self, "position", position or 0)
-        object.__setattr__(
-            self, "payload", frozendict(payload or random_event_payload())
-        )
+        object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 

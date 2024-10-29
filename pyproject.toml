@@ -17,7 +17,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-frozendict = "^2.4.6"
 psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 
 [tool.poetry.group.dev.dependencies]

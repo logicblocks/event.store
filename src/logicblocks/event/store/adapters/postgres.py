@@ -1,10 +1,9 @@
 from collections.abc import Set
-from datetime import timezone
 from typing import Sequence, Iterator
 from uuid import uuid4
 
 from psycopg import Connection, Cursor
-from psycopg.rows import class_row, TupleRow
+from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
@@ -14,7 +13,11 @@ from logicblocks.event.types import NewEvent, StoredEvent
 
 
 def insert_event(
-    cursor: Cursor, stream: str, category: str, event: NewEvent, position: int
+    cursor: Cursor[StoredEvent],
+    stream: str,
+    category: str,
+    event: NewEvent,
+    position: int,
 ):
     event_id = uuid4().hex
     cursor.execute(
@@ -55,30 +58,6 @@ def insert_event(
     )
 
 
-def to_event(event_row: TupleRow) -> StoredEvent:
-    (
-        id,
-        name,
-        stream,
-        category,
-        position,
-        payload,
-        observed_at,
-        occurred_at,
-    ) = event_row
-
-    return StoredEvent(
-        id=id,
-        name=name,
-        stream=stream,
-        category=category,
-        position=position,
-        payload=payload,
-        observed_at=observed_at.replace(tzinfo=timezone.utc),
-        occurred_at=occurred_at.replace(tzinfo=timezone.utc),
-    )
-
-
 class PostgresStorageAdapter(StorageAdapter):
     def __init__(self, *, connection_pool: ConnectionPool[Connection]):
         self.connection_pool = connection_pool
@@ -92,7 +71,9 @@ class PostgresStorageAdapter(StorageAdapter):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         with self.connection_pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute(
                     """
                     SELECT * 
@@ -101,10 +82,7 @@ class PostgresStorageAdapter(StorageAdapter):
                     DESC LIMIT 1;
                     """
                 )
-                last_event_row = cursor.fetchone()
-                last_event: StoredEvent | None = (
-                    to_event(last_event_row) if last_event_row else None
-                )
+                last_event = cursor.fetchone()
 
                 for condition in conditions:
                     condition.evaluate(last_event)

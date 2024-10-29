@@ -1,10 +1,10 @@
 from collections.abc import Set
+from datetime import timezone
 from typing import Sequence, Iterator
 from uuid import uuid4
-from datetime import timezone
 
 from psycopg import Connection, Cursor
-from psycopg.rows import TupleRow, class_row
+from psycopg.rows import class_row, TupleRow
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 

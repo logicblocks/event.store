@@ -1,7 +1,8 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from psycopg import Connection
+from psycopg.rows import class_row
 from psycopg_pool import ConnectionPool
 
 from logicblocks.event.store.adapters import PostgresStorageAdapter
@@ -18,6 +19,8 @@ from logicblocks.event.testing.data import (
 from logicblocks.event.store import conditions
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
+
+from logicblocks.event.types import StoredEvent
 
 
 def conninfo(
@@ -49,8 +52,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
         event_payload = random_event_payload()
-        event_observed_at = datetime.now()
-        event_occurred_at = datetime.now()
+        event_observed_at = datetime.now(timezone.utc)
+        event_occurred_at = datetime.now(timezone.utc)
 
         new_event = (
             NewEventBuilder()
@@ -67,22 +70,24 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         stored_event = stored_events[0]
 
         with self.pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(
                     records,
                     [
-                        (
-                            stored_event.id,
-                            event_name,
-                            event_stream,
-                            event_category,
-                            0,
-                            event_payload,
-                            event_observed_at,
-                            event_occurred_at,
+                        StoredEvent(
+                            id=stored_event.id,
+                            name=event_name,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload,
+                            position=0,
+                            observed_at=event_observed_at,
+                            occurred_at=event_occurred_at,
                         )
                     ],
                 )
@@ -94,8 +99,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
         event_payload_1 = random_event_payload()
-        event_observed_at_1 = datetime.now()
-        event_occurred_at_1 = datetime.now()
+        event_observed_at_1 = datetime.now(timezone.utc)
+        event_occurred_at_1 = datetime.now(timezone.utc)
 
         new_event_1 = (
             NewEventBuilder()
@@ -108,8 +113,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         event_name_2 = random_event_name()
         event_payload_2 = random_event_payload()
-        event_observed_at_2 = datetime.now()
-        event_occurred_at_2 = datetime.now()
+        event_observed_at_2 = datetime.now(timezone.utc)
+        event_occurred_at_2 = datetime.now(timezone.utc)
 
         new_event_2 = (
             NewEventBuilder()
@@ -129,32 +134,34 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         stored_event_2 = stored_events[1]
 
         with self.pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(
                     records,
                     [
-                        (
-                            stored_event_1.id,
-                            event_name_1,
-                            event_stream,
-                            event_category,
-                            0,
-                            event_payload_1,
-                            event_observed_at_1,
-                            event_occurred_at_1,
+                        StoredEvent(
+                            id=stored_event_1.id,
+                            name=event_name_1,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_1,
+                            position=0,
+                            observed_at=event_observed_at_1,
+                            occurred_at=event_occurred_at_1,
                         ),
-                        (
-                            stored_event_2.id,
-                            event_name_2,
-                            event_stream,
-                            event_category,
-                            1,
-                            event_payload_2,
-                            event_observed_at_2,
-                            event_occurred_at_2,
+                        StoredEvent(
+                            id=stored_event_2.id,
+                            name=event_name_2,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_2,
+                            position=1,
+                            observed_at=event_observed_at_2,
+                            occurred_at=event_occurred_at_2,
                         ),
                     ],
                 )
@@ -166,8 +173,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
         event_payload_1 = random_event_payload()
-        event_observed_at_1 = datetime.now()
-        event_occurred_at_1 = datetime.now()
+        event_observed_at_1 = datetime.now(timezone.utc)
+        event_occurred_at_1 = datetime.now(timezone.utc)
 
         new_event_1 = (
             NewEventBuilder()
@@ -180,8 +187,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         event_name_2 = random_event_name()
         event_payload_2 = random_event_payload()
-        event_observed_at_2 = datetime.now()
-        event_occurred_at_2 = datetime.now()
+        event_observed_at_2 = datetime.now(timezone.utc)
+        event_occurred_at_2 = datetime.now(timezone.utc)
 
         new_event_2 = (
             NewEventBuilder()
@@ -207,32 +214,34 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         stored_event_2 = stored_events_2[0]
 
         with self.pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(
                     records,
                     [
-                        (
-                            stored_event_1.id,
-                            event_name_1,
-                            event_stream,
-                            event_category,
-                            0,
-                            event_payload_1,
-                            event_observed_at_1,
-                            event_occurred_at_1,
+                        StoredEvent(
+                            id=stored_event_1.id,
+                            name=event_name_1,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_1,
+                            position=0,
+                            observed_at=event_observed_at_1,
+                            occurred_at=event_occurred_at_1,
                         ),
-                        (
-                            stored_event_2.id,
-                            event_name_2,
-                            event_stream,
-                            event_category,
-                            1,
-                            event_payload_2,
-                            event_observed_at_2,
-                            event_occurred_at_2,
+                        StoredEvent(
+                            id=stored_event_2.id,
+                            name=event_name_2,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_2,
+                            position=1,
+                            observed_at=event_observed_at_2,
+                            occurred_at=event_occurred_at_2,
                         ),
                     ],
                 )
@@ -244,8 +253,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
         event_payload = random_event_payload()
-        event_observed_at = datetime.now()
-        event_occurred_at = datetime.now()
+        event_observed_at = datetime.now(timezone.utc)
+        event_occurred_at = datetime.now(timezone.utc)
 
         new_event = (
             NewEventBuilder()
@@ -265,22 +274,24 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         stored_event = stored_events[0]
 
         with self.pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(
                     records,
                     [
-                        (
-                            stored_event.id,
-                            event_name,
-                            event_stream,
-                            event_category,
-                            0,
-                            event_payload,
-                            event_observed_at,
-                            event_occurred_at,
+                        StoredEvent(
+                            id=stored_event.id,
+                            name=event_name,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload,
+                            position=0,
+                            observed_at=event_observed_at,
+                            occurred_at=event_occurred_at,
                         )
                     ],
                 )
@@ -310,8 +321,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
         event_payload_1 = random_event_payload()
-        event_observed_at_1 = datetime.now()
-        event_occurred_at_1 = datetime.now()
+        event_observed_at_1 = datetime.now(timezone.utc)
+        event_occurred_at_1 = datetime.now(timezone.utc)
 
         new_event_1 = (
             NewEventBuilder()
@@ -324,8 +335,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         event_name_2 = random_event_name()
         event_payload_2 = random_event_payload()
-        event_observed_at_2 = datetime.now()
-        event_occurred_at_2 = datetime.now()
+        event_observed_at_2 = datetime.now(timezone.utc)
+        event_occurred_at_2 = datetime.now(timezone.utc)
 
         new_event_2 = (
             NewEventBuilder()
@@ -353,32 +364,34 @@ class TestPostgresStorageAdapter(unittest.TestCase):
         stored_event_2 = stored_events_2[0]
 
         with self.pool.connection() as connection:
-            with connection.cursor() as cursor:
+            with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
                 cursor.execute("SELECT * FROM events")
                 records = cursor.fetchall()
 
                 self.assertEqual(
                     records,
                     [
-                        (
-                            stored_event_1.id,
-                            event_name_1,
-                            event_stream,
-                            event_category,
-                            0,
-                            event_payload_1,
-                            event_observed_at_1,
-                            event_occurred_at_1,
+                        StoredEvent(
+                            id=stored_event_1.id,
+                            name=event_name_1,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_1,
+                            position=0,
+                            observed_at=event_observed_at_1,
+                            occurred_at=event_occurred_at_1,
                         ),
-                        (
-                            stored_event_2.id,
-                            event_name_2,
-                            event_stream,
-                            event_category,
-                            1,
-                            event_payload_2,
-                            event_observed_at_2,
-                            event_occurred_at_2,
+                        StoredEvent(
+                            id=stored_event_2.id,
+                            name=event_name_2,
+                            category=event_category,
+                            stream=event_stream,
+                            payload=event_payload_2,
+                            position=1,
+                            observed_at=event_observed_at_2,
+                            occurred_at=event_occurred_at_2,
                         ),
                     ],
                 )

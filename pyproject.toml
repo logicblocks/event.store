@@ -25,6 +25,9 @@ poethepoet = "^0.29.0"
 pyright = "^1.1.383"
 pytest = "^8.3.3"
 alembic = "^1.13.3"
+pytest-pretty = "^1.2.0"
+assertpy = "^1.1"
+pytest-diff = "^0.1.14"
 
 [tool.pyright]
 include = ["src", "tests/unit", "tests/integration"]
@@ -45,8 +48,8 @@ lint-fix = "ruff check --fix"
 format-check = "ruff format --check"
 format-fix = "ruff format"
 type-check = "pyright"
-test-unit = "pytest tests/unit"
-test-integration = "pytest tests/integration"
+test-unit = "pytest -vv tests/unit"
+test-integration = "pytest -vv tests/integration"
 database-test-migrate = "alembic upgrade head"
 
 [build-system]

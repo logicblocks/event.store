@@ -1,23 +1,20 @@
-import unittest
-from datetime import datetime, timezone
+import sys
+
+import pytest
 
 from psycopg import Connection
 from psycopg.rows import class_row
 from psycopg_pool import ConnectionPool
 
+from logicblocks.event.store import conditions
 from logicblocks.event.store.adapters import PostgresStorageAdapter
+from logicblocks.event.store.exceptions import UnmetWriteConditionError
 
 from logicblocks.event.testing import NewEventBuilder
-
 from logicblocks.event.testing.data import (
     random_event_stream_name,
     random_event_category_name,
 )
-
-from logicblocks.event.store import conditions
-
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
-
 from logicblocks.event.types import StoredEvent
 
 
@@ -33,9 +30,7 @@ def conninfo(
 
 def read_events_table(pool: ConnectionPool[Connection]) -> list[StoredEvent]:
     with pool.connection() as connection:
-        with connection.cursor(
-            row_factory=class_row(StoredEvent)
-        ) as cursor:
+        with connection.cursor(row_factory=class_row(StoredEvent)) as cursor:
             return cursor.execute(
                 """
                 SELECT
@@ -52,16 +47,16 @@ def read_events_table(pool: ConnectionPool[Connection]) -> list[StoredEvent]:
             ).fetchall()
 
 
-class TestPostgresStorageAdapter(unittest.TestCase):
+class TestPostgresStorageAdapter(object):
     pool: ConnectionPool[Connection]
 
-    def setUp(self):
+    def setup_method(self):
         pool = ConnectionPool[Connection](conninfo(), open=True)
         with pool.connection() as connection:
             connection.execute("TRUNCATE events")
         self.pool = pool
 
-    def tearDown(self):
+    def teardown_method(self):
         self.pool.close()
 
     def test_stores_single_event_for_later_retrieval(self):
@@ -90,7 +85,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(actual_records, expected_records)
+        assert actual_records == expected_records
 
     def test_stores_multiple_events_in_same_stream(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -130,9 +125,9 @@ class TestPostgresStorageAdapter(unittest.TestCase):
                 observed_at=new_event_2.observed_at,
                 occurred_at=new_event_2.occurred_at,
             ),
-        ],
+        ]
 
-        self.assertEqual(actual_records, expected_records)
+        assert actual_records == expected_records
 
     def test_stores_multiple_events_in_sequential_saves(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -181,7 +176,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             ),
         ]
 
-        self.assertEqual(actual_records, expected_records)
+        assert actual_records == expected_records
 
     def test_stores_event_with_empty_stream_condition(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -212,7 +207,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             )
         ]
 
-        self.assertEqual(actual_records, expected_records)
+        assert actual_records == expected_records
 
     def test_raises_if_unmet_stream_is_empty_condition(
         self,
@@ -225,7 +220,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             events=[NewEventBuilder().build()],
         )
 
-        with self.assertRaises(UnmetWriteConditionError):
+        with pytest.raises(UnmetWriteConditionError):
             adapter.save(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -281,7 +276,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             ),
         ]
 
-        self.assertEqual(actual_records, expected_records)
+        assert actual_records == expected_records
 
     def test_raises_if_unmet_position_condition(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -292,7 +287,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             events=[NewEventBuilder().build()],
         )
 
-        with self.assertRaises(UnmetWriteConditionError):
+        with pytest.raises(UnmetWriteConditionError):
             adapter.save(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -305,7 +300,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         events = list(adapter.scan_all())
 
-        self.assertEqual(events, [])
+        assert events == []
 
     def test_reads_single_published_event(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -318,7 +313,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         loaded_events = list(adapter.scan_all())
 
-        self.assertEqual(stored_events, loaded_events)
+        assert stored_events == loaded_events
 
     def test_reads_multiple_published_events(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -331,7 +326,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         loaded_events = list(adapter.scan_all())
 
-        self.assertEqual(stored_events, loaded_events)
+        assert stored_events == loaded_events
 
     def test_has_no_events_in_category_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -340,7 +335,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             adapter.scan_category(category=random_event_category_name())
         )
 
-        self.assertEqual(events, [])
+        assert events == []
 
     def test_reads_multiple_published_events_by_category(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -364,7 +359,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
 
         loaded_events = list(adapter.scan_category(category=category))
 
-        self.assertEqual(stored_events_in_category, loaded_events)
+        assert stored_events_in_category == loaded_events
 
     def test_has_no_events_in_stream_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -376,7 +371,7 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             )
         )
 
-        self.assertEqual(events, [])
+        assert events == []
 
     def test_reads_multiple_published_events_by_stream(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -409,8 +404,8 @@ class TestPostgresStorageAdapter(unittest.TestCase):
             adapter.scan_stream(category=category, stream=stream)
         )
 
-        self.assertEqual(stored_events_in_category, loaded_events)
+        assert stored_events_in_category == loaded_events
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(pytest.main([__file__]))

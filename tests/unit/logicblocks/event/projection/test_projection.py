@@ -1,4 +1,5 @@
-import unittest
+import sys
+import pytest
 
 from datetime import datetime, UTC
 
@@ -21,7 +22,7 @@ class MyTestProjection(Projection):
         return {**state, "something_else_occurred_at": event.occurred_at}
 
 
-class TestProjection(unittest.TestCase):
+class TestProjection(object):
     def test_projection_with_one_event(self):
         occurred_at = datetime.now(UTC)
         event = (
@@ -31,11 +32,10 @@ class TestProjection(unittest.TestCase):
         )
         projection = MyTestProjection()
 
+        actual_projection = projection.project({}, [event]).projection
         expected_projection = {"something_occurred_at": occurred_at}
 
-        self.assertEqual(
-            expected_projection, projection.project({}, [event]).projection
-        )
+        assert expected_projection == actual_projection
 
     def test_projection_with_two_events(self):
         something_occurred_at = datetime.now(UTC)
@@ -59,12 +59,11 @@ class TestProjection(unittest.TestCase):
             "something_else_occurred_at": something_else_occurred_at,
         }
 
-        self.assertEqual(
-            expected_projection,
-            projection.project(
-                {}, [something_event, something_else_event]
-            ).projection,
-        )
+        actual_projection = projection.project(
+            {}, [something_event, something_else_event]
+        ).projection
+
+        assert expected_projection == actual_projection
 
     def test_projection_can_overwrite_fields(self):
         something_event = (
@@ -86,13 +85,12 @@ class TestProjection(unittest.TestCase):
             "something_occurred_at": something_occurred_at,
         }
 
-        self.assertEqual(
-            expected_projection,
-            projection.project(
-                {}, [something_event, something_event_new]
-            ).projection,
-        )
+        actual_projection = projection.project(
+            {}, [something_event, something_event_new]
+        ).projection
+
+        assert expected_projection == actual_projection
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(pytest.main([__file__]))

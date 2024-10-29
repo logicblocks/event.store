@@ -1,6 +1,7 @@
-import unittest
-
+import sys
 from datetime import datetime
+
+import pytest
 
 from logicblocks.event.store import EventStore, conditions
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
@@ -9,7 +10,7 @@ from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import NewEvent, StoredEvent
 
 
-class TestEventStoreStreamBasics(unittest.TestCase):
+class TestEventStoreStreamBasics(object):
     def test_has_no_events_in_stream_initially(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -19,7 +20,7 @@ class TestEventStoreStreamBasics(unittest.TestCase):
 
         events = stream.read()
 
-        self.assertEqual(events, [])
+        assert events == []
 
     def test_reads_single_published_event(self):
         now = datetime.now()
@@ -42,23 +43,21 @@ class TestEventStoreStreamBasics(unittest.TestCase):
             ],
         )
 
-        events = stream.read()
+        read_events = stream.read()
+        expected_events = [
+            StoredEvent(
+                id=stored_events[0].id,
+                name=event_name,
+                category=category_name,
+                stream=stream_name,
+                payload=payload,
+                position=0,
+                occurred_at=now,
+                observed_at=now,
+            )
+        ]
 
-        self.assertEqual(
-            events,
-            [
-                StoredEvent(
-                    id=stored_events[0].id,
-                    name=event_name,
-                    category=category_name,
-                    stream=stream_name,
-                    payload=payload,
-                    position=0,
-                    occurred_at=now,
-                    observed_at=now,
-                )
-            ],
-        )
+        assert read_events == expected_events
 
     def test_reads_multiple_published_events(self):
         now = datetime.now()
@@ -77,9 +76,8 @@ class TestEventStoreStreamBasics(unittest.TestCase):
 
         stored_events = stream.publish(events=new_events)
 
-        events = stream.read()
-
-        expected_stored_events = [
+        read_events = stream.read()
+        expected_events = [
             StoredEvent(
                 id=stored_events[position].id,
                 name=event.name,
@@ -93,7 +91,7 @@ class TestEventStoreStreamBasics(unittest.TestCase):
             for event, position in zip(new_events, range(len(new_events)))
         ]
 
-        self.assertEqual(events, expected_stored_events)
+        assert read_events == expected_events
 
     def test_reads_events_in_multiple_streams_in_same_category(self):
         category_name = data.random_event_category_name()
@@ -113,28 +111,28 @@ class TestEventStoreStreamBasics(unittest.TestCase):
         stream_1_events = stream_1.read()
         stream_2_events = stream_2.read()
 
-        self.assertEqual(
-            {
-                "stream_1": [
-                    (event.name, stream_1_name, category_name)
-                    for event in stream_1_new_events
-                ],
-                "stream_2": [
-                    (event.name, stream_2_name, category_name)
-                    for event in stream_2_new_events
-                ],
-            },
-            {
-                "stream_1": [
-                    (event.name, event.stream, event.category)
-                    for event in stream_1_events
-                ],
-                "stream_2": [
-                    (event.name, event.stream, event.category)
-                    for event in stream_2_events
-                ],
-            },
-        )
+        actual_streams = {
+            "stream_1": [
+                (event.name, event.stream, event.category)
+                for event in stream_1_events
+            ],
+            "stream_2": [
+                (event.name, event.stream, event.category)
+                for event in stream_2_events
+            ],
+        }
+        expected_streams = {
+            "stream_1": [
+                (event.name, stream_1_name, category_name)
+                for event in stream_1_new_events
+            ],
+            "stream_2": [
+                (event.name, stream_2_name, category_name)
+                for event in stream_2_new_events
+            ],
+        }
+
+        assert actual_streams == expected_streams
 
     def test_reads_events_in_streams_in_different_categories(self):
         category_1_name = data.random_event_category_name()
@@ -163,31 +161,31 @@ class TestEventStoreStreamBasics(unittest.TestCase):
         category_1_stream_events = category_1_stream.read()
         category_2_stream_events = category_2_stream.read()
 
-        self.assertEqual(
-            {
-                "stream_1": [
-                    (event.name, category_1_stream_name, category_1_name)
-                    for event in category_1_stream_new_events
-                ],
-                "stream_2": [
-                    (event.name, category_2_stream_name, category_2_name)
-                    for event in category_2_stream_new_events
-                ],
-            },
-            {
-                "stream_1": [
-                    (event.name, event.stream, event.category)
-                    for event in category_1_stream_events
-                ],
-                "stream_2": [
-                    (event.name, event.stream, event.category)
-                    for event in category_2_stream_events
-                ],
-            },
-        )
+        actual_streams = {
+            "stream_1": [
+                (event.name, event.stream, event.category)
+                for event in category_1_stream_events
+            ],
+            "stream_2": [
+                (event.name, event.stream, event.category)
+                for event in category_2_stream_events
+            ],
+        }
+        expected_streams = {
+            "stream_1": [
+                (event.name, category_1_stream_name, category_1_name)
+                for event in category_1_stream_new_events
+            ],
+            "stream_2": [
+                (event.name, category_2_stream_name, category_2_name)
+                for event in category_2_stream_new_events
+            ],
+        }
+
+        assert actual_streams == expected_streams
 
 
-class TestEventStoreStreamIteration(unittest.TestCase):
+class TestEventStoreStreamIteration(object):
     def test_iterates_over_all_events_in_stream(self):
         now = datetime.now()
         category_name = data.random_event_category_name()
@@ -212,10 +210,10 @@ class TestEventStoreStreamIteration(unittest.TestCase):
             (event.name, event.stream, event.category) for event in stream
         ]
 
-        self.assertEqual(stream_event_keys, new_event_keys)
+        assert stream_event_keys == new_event_keys
 
 
-class TestEventStoreStreamPublishing(unittest.TestCase):
+class TestEventStoreStreamPublishing(object):
     def test_publishes_if_stream_position_matches_position_condition(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -233,7 +231,7 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
 
         found_events = stream.read()
 
-        self.assertEqual(found_events[-1], stored_events[-1])
+        assert found_events[-1] == stored_events[-1]
 
     def test_raises_if_stream_position_beyond_position_condition(self):
         category_name = data.random_event_category_name()
@@ -246,7 +244,7 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
 
         new_event = NewEventBuilder().build()
 
-        with self.assertRaises(UnmetWriteConditionError):
+        with pytest.raises(UnmetWriteConditionError):
             stream.publish(
                 events=[new_event], conditions={conditions.position_is(5)}
             )
@@ -262,7 +260,7 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
 
         new_event = NewEventBuilder().build()
 
-        with self.assertRaises(UnmetWriteConditionError):
+        with pytest.raises(UnmetWriteConditionError):
             stream.publish(
                 events=[new_event], conditions={conditions.position_is(10)}
             )
@@ -291,13 +289,13 @@ class TestEventStoreStreamPublishing(unittest.TestCase):
 
         new_event = NewEventBuilder().build()
 
-        with self.assertRaises(UnmetWriteConditionError):
+        with pytest.raises(UnmetWriteConditionError):
             stream.publish(
                 events=[new_event], conditions={conditions.stream_is_empty()}
             )
 
 
-class TestEventStoreCategoryBasics(unittest.TestCase):
+class TestEventStoreCategoryBasics(object):
     def test_has_no_events_in_category_initially(self):
         category_name = data.random_event_category_name()
 
@@ -306,7 +304,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
 
         events = category.read()
 
-        self.assertEqual(events, [])
+        assert events == []
 
     def test_reads_single_published_event_for_single_stream_in_category(self):
         category_name = data.random_event_category_name()
@@ -319,23 +317,21 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
 
         stored_events = stream.publish(events=[new_event])
 
-        events = category.read()
+        read_events = category.read()
+        expected_events = [
+            StoredEvent(
+                id=stored_events[0].id,
+                name=new_event.name,
+                category=category_name,
+                stream=stream_name,
+                payload=new_event.payload,
+                position=0,
+                occurred_at=new_event.occurred_at,
+                observed_at=new_event.observed_at,
+            )
+        ]
 
-        self.assertEqual(
-            events,
-            [
-                StoredEvent(
-                    id=stored_events[0].id,
-                    name=new_event.name,
-                    category=category_name,
-                    stream=stream_name,
-                    payload=new_event.payload,
-                    position=0,
-                    occurred_at=new_event.occurred_at,
-                    observed_at=new_event.observed_at,
-                )
-            ],
-        )
+        assert read_events == expected_events
 
     def test_reads_multiple_published_events_for_single_stream_in_category(
         self,
@@ -350,9 +346,8 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
 
         stored_events = stream.publish(events=new_events)
 
-        events = category.read()
-
-        expected_stored_events = [
+        read_events = category.read()
+        expected_events = [
             StoredEvent(
                 id=stored_events[position].id,
                 name=event.name,
@@ -366,7 +361,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             for event, position in zip(new_events, range(len(new_events)))
         ]
 
-        self.assertEqual(events, expected_stored_events)
+        assert read_events == expected_events
 
     def test_reads_for_different_streams_in_category_in_publish_order(
         self,
@@ -398,7 +393,7 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             events=[stream_1_new_event_2]
         )
 
-        events = category.read()
+        read_events = category.read()
 
         stream_1_expected_stored_event_builder = (
             StoredEventBuilder()
@@ -444,15 +439,14 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             .build()
         )
 
-        self.assertEqual(
-            events,
-            [
-                stream_1_expected_stored_events_1,
-                stream_2_expected_stored_events_1,
-                stream_2_expected_stored_events_2,
-                stream_1_expected_stored_events_2,
-            ],
-        )
+        expected_events = [
+            stream_1_expected_stored_events_1,
+            stream_2_expected_stored_events_1,
+            stream_2_expected_stored_events_2,
+            stream_1_expected_stored_events_2,
+        ]
+
+        assert read_events == expected_events
 
     def test_ignores_events_in_other_categories(self):
         category = data.random_event_category_name()
@@ -470,9 +464,8 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
 
         category_to_read = store.category(category=category)
 
-        category_events = category_to_read.read()
-
-        expected_stored_event = (
+        read_events = category_to_read.read()
+        expected_events = [
             StoredEventBuilder()
             .from_new_event(new_event)
             .with_id(stored_events[0].id)
@@ -480,15 +473,12 @@ class TestEventStoreCategoryBasics(unittest.TestCase):
             .with_stream(stream)
             .with_position(0)
             .build()
-        )
+        ]
 
-        self.assertEqual(
-            category_events,
-            [expected_stored_event],
-        )
+        assert read_events == expected_events
 
 
-class TestEventStoreCategoryIteration(unittest.TestCase):
+class TestEventStoreCategoryIteration(object):
     def test_iterates_over_all_events_in_stream(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -516,8 +506,8 @@ class TestEventStoreCategoryIteration(unittest.TestCase):
             (event.name, event.stream, event.category) for event in category
         ]
 
-        self.assertEqual(category_event_keys, new_event_keys)
+        assert category_event_keys == new_event_keys
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(pytest.main([__file__]))

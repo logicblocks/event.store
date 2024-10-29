@@ -1,4 +1,5 @@
-import unittest
+import sys
+import pytest
 
 from collections import namedtuple
 
@@ -23,7 +24,7 @@ class VerifyingStaticClock(StaticClock):
         return super().now(tz)
 
 
-class TestNewEvent(unittest.TestCase):
+class TestNewEvent(object):
     def test_uses_occurred_at_when_provided(self):
         occurred_at = datetime.now(UTC)
         event = NewEvent(
@@ -32,7 +33,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=occurred_at,
         )
 
-        self.assertEqual(event.occurred_at, occurred_at)
+        assert event.occurred_at == occurred_at
 
     def test_uses_observed_at_when_provided(self):
         observed_at = datetime.now(UTC)
@@ -42,7 +43,7 @@ class TestNewEvent(unittest.TestCase):
             observed_at=observed_at,
         )
 
-        self.assertEqual(event.observed_at, observed_at)
+        assert event.observed_at, observed_at
 
     def test_defaults_occurred_at_to_observed_at(self):
         observed_at = datetime.now(UTC)
@@ -52,7 +53,7 @@ class TestNewEvent(unittest.TestCase):
             observed_at=observed_at,
         )
 
-        self.assertEqual(event.occurred_at, observed_at)
+        assert event.occurred_at == observed_at
 
     def test_defaults_observed_at_to_now_in_utc(self):
         now = datetime.now(UTC)
@@ -61,7 +62,7 @@ class TestNewEvent(unittest.TestCase):
             name="something-happened", payload={"foo": "bar"}, clock=clock
         )
 
-        self.assertEqual(event.observed_at, now)
+        assert event.observed_at == now
 
     def test_uses_same_observed_at_and_occurred_at_if_neither_provided(self):
         now = datetime.now(UTC)
@@ -70,8 +71,7 @@ class TestNewEvent(unittest.TestCase):
             name="something-happened", payload={"foo": "bar"}, clock=clock
         )
 
-        self.assertEqual(event.observed_at, now)
-        self.assertEqual(event.occurred_at, now)
+        assert event.observed_at == now and event.occurred_at == now
 
     def test_includes_all_attributes_in_representation(self):
         now = datetime.now(UTC)
@@ -82,13 +82,12 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(
-            str(event),
+        assert str(event) == (
             "NewEvent("
             "name=something-happened, "
             "payload={'foo': 'bar'}, "
             f"observed_at={now}, "
-            f"occurred_at={now})",
+            f"occurred_at={now})"
         )
 
     def test_is_equal_when_all_attributes_equal_and_same_type(self):
@@ -106,7 +105,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(event1, event2)
+        assert event1 == event2
 
     def test_is_not_equal_when_event_name_different(self):
         now = datetime.now(UTC)
@@ -123,7 +122,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_payload_different(self):
         now = datetime.now(UTC)
@@ -140,7 +139,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_observed_at_different(self):
         now = datetime.now(UTC)
@@ -158,7 +157,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_occurred_at_different(self):
         now = datetime.now(UTC)
@@ -176,7 +175,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=past,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_different_type(self):
         now = datetime.now(UTC)
@@ -197,7 +196,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_has_same_hashcode_when_same_attributes(self):
         now = datetime.now(UTC)
@@ -214,7 +213,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(hash(event1), hash(event2))
+        assert hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_name(self):
         now = datetime.now(UTC)
@@ -231,7 +230,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_payload(self):
         now = datetime.now(UTC)
@@ -248,7 +247,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_observed_at(self):
         now = datetime.now(UTC)
@@ -266,7 +265,7 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_occurred_at(self):
         now = datetime.now(UTC)
@@ -284,10 +283,10 @@ class TestNewEvent(unittest.TestCase):
             occurred_at=past,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
 
-class TestStoredEvent(unittest.TestCase):
+class TestStoredEvent(object):
     def test_includes_all_attributes_in_representation(self):
         now = datetime.now(UTC)
         stored_event = StoredEvent(
@@ -301,8 +300,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(
-            str(stored_event),
+        assert str(stored_event) == (
             "StoredEvent("
             "id=some-id, "
             "name=something-happened, "
@@ -311,7 +309,7 @@ class TestStoredEvent(unittest.TestCase):
             "position=0, "
             "payload={'foo': 'bar'}, "
             f"observed_at={now}, "
-            f"occurred_at={now})",
+            f"occurred_at={now})"
         )
 
     def test_is_equal_when_all_attributes_equal_and_same_type(self):
@@ -337,7 +335,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(event1, event2)
+        assert event1 == event2
 
     def test_is_not_equal_when_event_id_different(self):
         now = datetime.now(UTC)
@@ -362,7 +360,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_name_different(self):
         now = datetime.now(UTC)
@@ -387,7 +385,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_payload_different(self):
         now = datetime.now(UTC)
@@ -412,7 +410,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_observed_at_different(self):
         now = datetime.now(UTC)
@@ -438,7 +436,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_event_occurred_at_different(self):
         now = datetime.now(UTC)
@@ -464,7 +462,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=past,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_is_not_equal_when_different_type(self):
         OtherStoredEvent = namedtuple(
@@ -503,7 +501,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(event1, event2)
+        assert not event1 == event2
 
     def test_has_same_hashcode_when_same_attributes(self):
         now = datetime.now(UTC)
@@ -528,7 +526,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertEqual(hash(event1), hash(event2))
+        assert hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_name(self):
         now = datetime.now(UTC)
@@ -553,7 +551,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_id(self):
         now = datetime.now(UTC)
@@ -578,7 +576,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_stream(self):
         now = datetime.now(UTC)
@@ -603,7 +601,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_category(self):
         now = datetime.now(UTC)
@@ -628,7 +626,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_position(self):
         now = datetime.now(UTC)
@@ -653,7 +651,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_payload(self):
         now = datetime.now(UTC)
@@ -678,7 +676,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_observed_at(self):
         now = datetime.now(UTC)
@@ -704,7 +702,7 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=now,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
     def test_has_different_hashcode_when_different_event_occurred_at(self):
         now = datetime.now(UTC)
@@ -730,8 +728,8 @@ class TestStoredEvent(unittest.TestCase):
             occurred_at=past,
         )
 
-        self.assertNotEqual(hash(event1), hash(event2))
+        assert not hash(event1) == hash(event2)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(pytest.main([__file__]))

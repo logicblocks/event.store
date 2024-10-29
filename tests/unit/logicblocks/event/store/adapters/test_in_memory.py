@@ -1,11 +1,13 @@
-import unittest
+import sys
+import pytest
+
 from datetime import datetime
 
 from logicblocks.event.types import NewEvent, StoredEvent
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
 
 
-class TestInMemoryStorageAdapter(unittest.TestCase):
+class TestInMemoryStorageAdapter:
     def test_stores_single_event_for_later_retrieval(self):
         adapter = InMemoryStorageAdapter()
 
@@ -31,23 +33,21 @@ class TestInMemoryStorageAdapter(unittest.TestCase):
         found_events = list(
             adapter.scan_stream(category=event_category, stream=event_stream)
         )
+        expected_events = [
+            StoredEvent(
+                id=stored_event.id,
+                name=event_name,
+                stream=event_stream,
+                category=event_category,
+                payload=event_payload,
+                position=0,
+                observed_at=event_observed_at,
+                occurred_at=event_occurred_at,
+            )
+        ]
 
-        self.assertEqual(
-            found_events,
-            [
-                StoredEvent(
-                    id=stored_event.id,
-                    name=event_name,
-                    stream=event_stream,
-                    category=event_category,
-                    payload=event_payload,
-                    position=0,
-                    observed_at=event_observed_at,
-                    occurred_at=event_occurred_at,
-                )
-            ],
-        )
+        assert found_events == expected_events
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(pytest.main([__file__]))

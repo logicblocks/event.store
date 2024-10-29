@@ -20,16 +20,6 @@ typing-extensions = ">=4"
 tz = ["backports.zoneinfo"]
 
 [[package]]
-name = "assertpy"
-version = "1.1"
-description = "Simple assertion library for unit testing in python with a fluent API"
-optional = false
-python-versions = "*"
-files = [
-    {file = "assertpy-1.1.tar.gz", hash = "sha256:acc64329934ad71a3221de185517a43af33e373bb44dc05b5a9b174394ef4833"},
-]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -803,4 +793,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "0d94a4df4d6b8abd70c4495f71328ef5029fc8460161007d10868613340d05fa"
+content-hash = "3e7197acee8fed91311def6112a53bb687ff8aa171fd34e0aa1c5fed98511469"

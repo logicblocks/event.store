@@ -3,7 +3,7 @@ requires-python = ">=3.12"
 
 [tool.poetry]
 name = "logicblocks.event.store"
-version = "0.1.3a22"
+version = "0.1.3a23"
 description = "Event store for event sourced architectures."
 authors = [
     "Toby Clemson <tobyclemson@gmail.com>",

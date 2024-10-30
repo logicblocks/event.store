@@ -52,6 +52,7 @@ class TestEventStoreStreamBasics(object):
                 stream=stream_name,
                 payload=payload,
                 position=0,
+                sequence_number=stored_events[0].sequence_number,
                 occurred_at=now,
                 observed_at=now,
             )
@@ -85,6 +86,7 @@ class TestEventStoreStreamBasics(object):
                 stream=stream_name,
                 payload=event.payload,
                 position=position,
+                sequence_number=stored_events[position].sequence_number,
                 occurred_at=event.occurred_at,
                 observed_at=event.observed_at,
             )
@@ -326,6 +328,7 @@ class TestEventStoreCategoryBasics(object):
                 stream=stream_name,
                 payload=new_event.payload,
                 position=0,
+                sequence_number=stored_events[0].sequence_number,
                 occurred_at=new_event.occurred_at,
                 observed_at=new_event.observed_at,
             )
@@ -355,6 +358,7 @@ class TestEventStoreCategoryBasics(object):
                 stream=stream_name,
                 payload=event.payload,
                 position=position,
+                sequence_number=stored_events[position].sequence_number,
                 occurred_at=event.occurred_at,
                 observed_at=event.observed_at,
             )
@@ -411,6 +415,7 @@ class TestEventStoreCategoryBasics(object):
                 stream_1_new_event_1
             )
             .with_id(stream_1_stored_events_1[0].id)
+            .with_sequence_number(stream_1_stored_events_1[0].sequence_number)
             .with_position(0)
             .build()
         )
@@ -419,6 +424,7 @@ class TestEventStoreCategoryBasics(object):
                 stream_2_new_event_1
             )
             .with_id(stream_2_stored_events_1[0].id)
+            .with_sequence_number(stream_2_stored_events_1[0].sequence_number)
             .with_position(0)
             .build()
         )
@@ -427,6 +433,7 @@ class TestEventStoreCategoryBasics(object):
                 stream_2_new_event_2
             )
             .with_id(stream_2_stored_events_2[0].id)
+            .with_sequence_number(stream_2_stored_events_2[0].sequence_number)
             .with_position(1)
             .build()
         )
@@ -435,6 +442,7 @@ class TestEventStoreCategoryBasics(object):
                 stream_1_new_event_2
             )
             .with_id(stream_1_stored_events_2[0].id)
+            .with_sequence_number(stream_1_stored_events_2[0].sequence_number)
             .with_position(1)
             .build()
         )

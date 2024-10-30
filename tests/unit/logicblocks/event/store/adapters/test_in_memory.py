@@ -41,6 +41,7 @@ class TestInMemoryStorageAdapter:
                 category=event_category,
                 payload=event_payload,
                 position=0,
+                sequence_number=stored_event.sequence_number,
                 observed_at=event_observed_at,
                 occurred_at=event_occurred_at,
             )

@@ -76,6 +76,7 @@ class StoredEventBuilderParams(TypedDict, total=False):
     stream: str
     category: str
     position: int
+    sequence_number: int
     payload: Mapping[str, Any]
     occurred_at: datetime | None
     observed_at: datetime | None
@@ -88,6 +89,7 @@ class StoredEventBuilder(object):
     stream: str
     category: str
     position: int
+    sequence_number: int
     payload: Mapping[str, Any]
     occurred_at: datetime
     observed_at: datetime
@@ -100,6 +102,7 @@ class StoredEventBuilder(object):
         stream: str | None = None,
         category: str | None = None,
         position: int | None = None,
+        sequence_number: int | None = None,
         payload: Mapping[str, Any] | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
@@ -119,6 +122,7 @@ class StoredEventBuilder(object):
             self, "category", category or random_event_category_name()
         )
         object.__setattr__(self, "position", position or 0)
+        object.__setattr__(self, "sequence_number", sequence_number or 0)
         object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
@@ -130,6 +134,9 @@ class StoredEventBuilder(object):
             stream=kwargs.get("stream", self.stream),
             category=kwargs.get("category", self.category),
             position=kwargs.get("position", self.position),
+            sequence_number=kwargs.get(
+                "sequence_number", self.sequence_number
+            ),
             payload=kwargs.get("payload", self.payload),
             occurred_at=kwargs.get("occurred_at", self.occurred_at),
             observed_at=kwargs.get("observed_at", self.observed_at),
@@ -158,6 +165,9 @@ class StoredEventBuilder(object):
     def with_position(self, position: int):
         return self._clone(position=position)
 
+    def with_sequence_number(self, sequence_number: int):
+        return self._clone(sequence_number=sequence_number)
+
     def with_payload(self, payload: Mapping[str, Any]):
         return self._clone(payload=payload)
 
@@ -174,6 +184,7 @@ class StoredEventBuilder(object):
             stream=self.stream,
             category=self.category,
             position=self.position,
+            sequence_number=self.sequence_number,
             payload=self.payload,
             occurred_at=self.occurred_at,
             observed_at=self.observed_at,

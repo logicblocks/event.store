@@ -2,7 +2,7 @@ Notes
 =====
 
 [x] position: within stream, similar to version (of aggregate / entity),
-  zero based, contiguous, in and of itself not monotonically increasing,
+  zero based, contiguous, strictly monotonically increasing.
 [] sequence_number: at level of whole log, in and of itself not strictly 
   increasing, could have gaps
 [] external control to ensure totally ordered events as seen by an external
@@ -17,10 +17,10 @@ Notes
     - label events with their sequence asynchronously
     - decision for now is to use advisory lock on whole log
 
-[] expected position
+[x] expected position
   - Explicitly test undefined position case
   - Refactor WriteCondition implementation to be function based
-[] postgres adapter
+[x] postgres adapter
 [] concurrency testing
 [] projection capability
   - add position (from last event)

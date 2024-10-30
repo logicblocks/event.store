@@ -58,6 +58,7 @@ class InMemoryStorageAdapter(StorageAdapter):
                 stream=stream,
                 category=category,
                 position=last_stream_position + count + 1,
+                sequence_number=last_global_position + count,
                 payload=event.payload,
                 observed_at=event.observed_at,
                 occurred_at=event.occurred_at,

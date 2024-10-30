@@ -33,6 +33,7 @@ def insert_event(
           occurred_at
       )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *
         """,
         (
             event_id,
@@ -45,17 +46,11 @@ def insert_event(
             event.occurred_at,
         ),
     )
+    stored_event = cursor.fetchone()
 
-    return StoredEvent(
-        id=event_id,
-        name=event.name,
-        stream=stream,
-        category=category,
-        position=position,
-        payload=event.payload,
-        observed_at=event.observed_at,
-        occurred_at=event.occurred_at,
-    )
+    if not stored_event:
+        raise Exception("Insert failed")
+    return stored_event
 
 
 class PostgresStorageAdapter(StorageAdapter):
@@ -109,6 +104,7 @@ class PostgresStorageAdapter(StorageAdapter):
                       stream, 
                       category, 
                       position, 
+                      sequence_number,
                       payload, 
                       observed_at::timestamptz, 
                       occurred_at::timestamptz 
@@ -133,7 +129,8 @@ class PostgresStorageAdapter(StorageAdapter):
                       name, 
                       stream, 
                       category, 
-                      position, 
+                      position,
+                      sequence_number,
                       payload, 
                       observed_at::timestamptz, 
                       occurred_at::timestamptz  
@@ -158,6 +155,7 @@ class PostgresStorageAdapter(StorageAdapter):
                       stream, 
                       category, 
                       position, 
+                      sequence_number,
                       payload, 
                       observed_at::timestamptz, 
                       occurred_at::timestamptz  

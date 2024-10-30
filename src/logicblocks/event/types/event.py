@@ -65,6 +65,7 @@ class StoredEvent(object):
     stream: str
     category: str
     position: int
+    sequence_number: int
     payload: Mapping[str, Any]
     observed_at: datetime
     occurred_at: datetime
@@ -77,6 +78,7 @@ class StoredEvent(object):
         stream: str,
         category: str,
         position: int,
+        sequence_number: int,
         payload: Mapping[str, Any],
         observed_at: datetime,
         occurred_at: datetime,
@@ -86,6 +88,7 @@ class StoredEvent(object):
         object.__setattr__(self, "stream", stream)
         object.__setattr__(self, "category", category)
         object.__setattr__(self, "position", position)
+        object.__setattr__(self, "sequence_number", sequence_number)
         object.__setattr__(self, "payload", payload)
         object.__setattr__(self, "observed_at", observed_at)
         object.__setattr__(self, "occurred_at", occurred_at)
@@ -98,6 +101,7 @@ class StoredEvent(object):
                 "stream": self.stream,
                 "category": self.category,
                 "position": self.position,
+                "sequence_number": self.sequence_number,
                 "payload": self.payload,
                 "observedAt": self.observed_at.isoformat(),
                 "occurredAt": self.occurred_at.isoformat(),
@@ -113,6 +117,7 @@ class StoredEvent(object):
             f"stream={self.stream}, "
             f"category={self.category}, "
             f"position={self.position}, "
+            f"sequence_number={self.sequence_number}, "
             f"payload={dict(self.payload)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"

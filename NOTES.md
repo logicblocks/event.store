@@ -3,7 +3,7 @@ Notes
 
 [x] position: within stream, similar to version (of aggregate / entity),
   zero based, contiguous, strictly monotonically increasing.
-[] sequence_number: at level of whole log, in and of itself not strictly 
+[x] sequence_number: at level of whole log, in and of itself not strictly 
   increasing, could have gaps
 [] external control to ensure totally ordered events as seen by an external
   observer

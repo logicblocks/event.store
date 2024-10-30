@@ -1,1 +1,1 @@
-from .projection import Projection as Projection
+from .projector import Projector as Projector

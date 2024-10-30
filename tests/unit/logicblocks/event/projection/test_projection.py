@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime, UTC
 
 from logicblocks.event.testing.builders import StoredEventBuilder
-from logicblocks.event.projection import Projection
+from logicblocks.event.projection import Projector
 
 generic_event = (
     StoredEventBuilder()
@@ -14,7 +14,7 @@ generic_event = (
 )
 
 
-class MyTestProjection(Projection):
+class MyTestProjector(Projector):
     def something_occurred(self, state, event):
         return {**state, "something_occurred_at": event.occurred_at}
 
@@ -22,7 +22,7 @@ class MyTestProjection(Projection):
         return {**state, "something_else_occurred_at": event.occurred_at}
 
 
-class TestProjection(object):
+class TestProjector(object):
     def test_projection_with_one_event(self):
         occurred_at = datetime.now(UTC)
         event = (
@@ -30,9 +30,9 @@ class TestProjection(object):
             .with_occurred_at(occurred_at)
             .build()
         )
-        projection = MyTestProjection()
+        projector = MyTestProjector()
 
-        actual_projection = projection.project({}, [event]).projection
+        actual_projection = projector.project({}, [event]).state
         expected_projection = {"something_occurred_at": occurred_at}
 
         assert expected_projection == actual_projection
@@ -52,16 +52,16 @@ class TestProjection(object):
             .build()
         )
 
-        projection = MyTestProjection()
+        projector = MyTestProjector()
 
         expected_projection = {
             "something_occurred_at": something_occurred_at,
             "something_else_occurred_at": something_else_occurred_at,
         }
 
-        actual_projection = projection.project(
+        actual_projection = projector.project(
             {}, [something_event, something_else_event]
-        ).projection
+        ).state
 
         assert expected_projection == actual_projection
 
@@ -79,15 +79,15 @@ class TestProjection(object):
             .build()
         )
 
-        projection = MyTestProjection()
+        projector = MyTestProjector()
 
         expected_projection = {
             "something_occurred_at": something_occurred_at,
         }
 
-        actual_projection = projection.project(
+        actual_projection = projector.project(
             {}, [something_event, something_event_new]
-        ).projection
+        ).state
 
         assert expected_projection == actual_projection
 

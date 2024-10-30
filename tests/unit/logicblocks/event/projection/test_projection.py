@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.projection import Projector
+from logicblocks.event.types import Projection
 
 generic_event = (
     StoredEventBuilder()
@@ -32,8 +33,10 @@ class TestProjector(object):
         )
         projector = MyTestProjector()
 
-        actual_projection = projector.project({}, [event]).state
-        expected_projection = {"something_occurred_at": occurred_at}
+        actual_projection = projector.project({}, [event])
+        expected_projection = Projection(
+            state={"something_occurred_at": occurred_at}
+        )
 
         assert expected_projection == actual_projection
 
@@ -54,14 +57,16 @@ class TestProjector(object):
 
         projector = MyTestProjector()
 
-        expected_projection = {
-            "something_occurred_at": something_occurred_at,
-            "something_else_occurred_at": something_else_occurred_at,
-        }
+        expected_projection = Projection(
+            state={
+                "something_occurred_at": something_occurred_at,
+                "something_else_occurred_at": something_else_occurred_at,
+            }
+        )
 
         actual_projection = projector.project(
             {}, [something_event, something_else_event]
-        ).state
+        )
 
         assert expected_projection == actual_projection
 
@@ -81,13 +86,15 @@ class TestProjector(object):
 
         projector = MyTestProjector()
 
-        expected_projection = {
-            "something_occurred_at": something_occurred_at,
-        }
+        expected_projection = Projection(
+            state={
+                "something_occurred_at": something_occurred_at,
+            }
+        )
 
         actual_projection = projector.project(
             {}, [something_event, something_event_new]
-        ).state
+        )
 
         assert expected_projection == actual_projection
 

@@ -2,12 +2,7 @@ import functools
 
 from typing import Any, Dict, List
 
-from logicblocks.event.types import StoredEvent
-
-
-class Projection:
-    def __init__(self, state: Dict[str, Any]):
-        self.state = state
+from logicblocks.event.types import StoredEvent, Projection
 
 
 class Projector:
@@ -18,5 +13,5 @@ class Projector:
 
     def project(self, state: Dict[str, Any], events: List[StoredEvent]):
         return Projection(
-            functools.reduce(self.call_handler_func, events, state)
+            state=functools.reduce(self.call_handler_func, events, state)
         )

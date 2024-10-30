@@ -13,5 +13,6 @@ class Projector:
 
     def project(self, state: Dict[str, Any], events: List[StoredEvent]):
         return Projection(
-            state=functools.reduce(self.call_handler_func, events, state)
+            state=functools.reduce(self.call_handler_func, events, state),
+            position=events[-1].position,
         )

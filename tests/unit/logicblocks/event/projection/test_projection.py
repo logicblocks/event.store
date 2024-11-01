@@ -1,4 +1,6 @@
 import sys
+from typing import Mapping, Callable, Any
+
 import pytest
 
 from datetime import datetime, UTC
@@ -9,6 +11,10 @@ from logicblocks.event.types import Projection
 
 from logicblocks.event.testing.data import random_int
 
+from logicblocks.event.types import StoredEvent
+
+from logicblocks.event.projection.exceptions import MissingHandlerError
+
 generic_event = (
     StoredEventBuilder()
     .with_category("category")
@@ -16,13 +22,18 @@ generic_event = (
     .with_payload({})
 )
 
-
-class MyTestProjector(Projector):
-    def something_occurred(self, state, event):
-        return {**state, "something_occurred_at": event.occurred_at}
-
-    def something_else_occurred(self, state, event):
-        return {**state, "something_else_occurred_at": event.occurred_at}
+handlers: Mapping[
+    str, Callable[[Mapping[str, Any], StoredEvent], Mapping[str, Any]]
+] = {
+    "something-occurred": lambda state, event: {
+        **state,
+        "something_occurred_at": event.occurred_at,
+    },
+    "something-else-occurred": lambda state, event: {
+        **state,
+        "something_else_occurred_at": event.occurred_at,
+    },
+}
 
 
 class TestProjector(object):
@@ -30,12 +41,12 @@ class TestProjector(object):
         occurred_at = datetime.now(UTC)
         position = random_int()
         event = (
-            generic_event.with_name("something_occurred")
+            generic_event.with_name("something-occurred")
             .with_position(position)
             .with_occurred_at(occurred_at)
             .build()
         )
-        projector = MyTestProjector()
+        projector = Projector(handlers=handlers)
 
         actual_projection = projector.project({}, [event])
         expected_projection = Projection(
@@ -47,7 +58,7 @@ class TestProjector(object):
     def test_projection_with_two_events(self):
         something_occurred_at = datetime.now(UTC)
         something_event = (
-            generic_event.with_name("something_occurred")
+            generic_event.with_name("something-occurred")
             .with_position(1)
             .with_occurred_at(something_occurred_at)
             .build()
@@ -56,13 +67,13 @@ class TestProjector(object):
         something_else_occurred_at = datetime.now(UTC)
         second_position = 2
         something_else_event = (
-            generic_event.with_name("something_else_occurred")
+            generic_event.with_name("something-else-occurred")
             .with_position(second_position)
             .with_occurred_at(something_else_occurred_at)
             .build()
         )
 
-        projector = MyTestProjector()
+        projector = Projector(handlers=handlers)
 
         expected_projection = Projection(
             state={
@@ -80,7 +91,7 @@ class TestProjector(object):
 
     def test_projection_can_overwrite_fields(self):
         something_event = (
-            generic_event.with_name("something_occurred")
+            generic_event.with_name("something-occurred")
             .with_position(1)
             .with_occurred_at(datetime.now(UTC))
             .build()
@@ -89,13 +100,13 @@ class TestProjector(object):
         second_position = 2
         something_occurred_at = datetime.now(UTC)
         something_event_new = (
-            generic_event.with_name("something_occurred")
+            generic_event.with_name("something-occurred")
             .with_position(second_position)
             .with_occurred_at(something_occurred_at)
             .build()
         )
 
-        projector = MyTestProjector()
+        projector = Projector(handlers=handlers)
 
         expected_projection = Projection(
             state={
@@ -109,6 +120,13 @@ class TestProjector(object):
         )
 
         assert expected_projection == actual_projection
+
+    def test_raises_on_missing_handler(self):
+        event = generic_event.with_name("something-occurred").build()
+        projector = Projector(handlers={})
+
+        with pytest.raises(MissingHandlerError):
+            projector.project({}, [event])
 
 
 if __name__ == "__main__":

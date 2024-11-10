@@ -38,7 +38,7 @@ class InMemoryStorageAdapter(StorageAdapter):
         stream_indices = self._stream_index[stream_key]
         stream_events = [self._events[i] for i in stream_indices]
 
-        last_event = self._events[-1] if self._events else None
+        last_event = stream_events[-1] if stream_events else None
 
         for condition in conditions:
             condition.evaluate(last_event)

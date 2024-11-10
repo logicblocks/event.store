@@ -12,7 +12,7 @@ from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.types import NewEvent, StoredEvent
 
 
-def insert_event(
+def _insert(
     cursor: Cursor[StoredEvent],
     stream: str,
     category: str,
@@ -53,6 +53,25 @@ def insert_event(
     return stored_event
 
 
+def _read_last(
+    cursor: Cursor[StoredEvent],
+    *,
+    category: str,
+    stream: str,
+):
+    return cursor.execute(
+        """
+            SELECT * 
+            FROM events
+            WHERE category = (%s)
+            AND stream = (%s)
+            ORDER BY position DESC 
+            LIMIT 1;
+            """,
+        [category, stream],
+    ).fetchone()
+
+
 class PostgresStorageAdapter(StorageAdapter):
     def __init__(self, *, connection_pool: ConnectionPool[Connection]):
         self.connection_pool = connection_pool
@@ -69,15 +88,9 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                cursor.execute(
-                    """
-                    SELECT * 
-                    FROM events
-                    ORDER BY position
-                    DESC LIMIT 1;
-                    """
+                last_event = _read_last(
+                    cursor, category=category, stream=stream
                 )
-                last_event = cursor.fetchone()
 
                 for condition in conditions:
                     condition.evaluate(last_event)
@@ -85,7 +98,7 @@ class PostgresStorageAdapter(StorageAdapter):
                 current_position = last_event.position + 1 if last_event else 0
 
                 return [
-                    insert_event(cursor, stream, category, event, position)
+                    _insert(cursor, stream, category, event, position)
                     for position, event in enumerate(events, current_position)
                 ]
 
@@ -98,21 +111,12 @@ class PostgresStorageAdapter(StorageAdapter):
             ) as cursor:
                 for record in cursor.execute(
                     """
-                    SELECT 
-                      id, 
-                      name, 
-                      stream, 
-                      category, 
-                      position, 
-                      sequence_number,
-                      payload, 
-                      observed_at::timestamptz, 
-                      occurred_at::timestamptz 
-                    FROM events
-                    WHERE category = (%s)
-                    AND stream = (%s)
-                    ORDER BY position;
-                    """,
+                        SELECT *
+                        FROM events
+                        WHERE category = (%s)
+                        AND stream = (%s)
+                        ORDER BY position;
+                        """,
                     [category, stream],
                 ):
                     yield record
@@ -124,20 +128,11 @@ class PostgresStorageAdapter(StorageAdapter):
             ) as cursor:
                 for record in cursor.execute(
                     """
-                    SELECT
-                      id, 
-                      name, 
-                      stream, 
-                      category, 
-                      position,
-                      sequence_number,
-                      payload, 
-                      observed_at::timestamptz, 
-                      occurred_at::timestamptz  
-                    FROM events
-                    WHERE category = (%s)
-                    ORDER BY position;
-                    """,
+                        SELECT *  
+                        FROM events
+                        WHERE category = (%s)
+                        ORDER BY position;
+                        """,
                     [category],
                 ):
                     yield record
@@ -149,18 +144,9 @@ class PostgresStorageAdapter(StorageAdapter):
             ) as cursor:
                 for record in cursor.execute(
                     """
-                    SELECT 
-                      id, 
-                      name, 
-                      stream, 
-                      category, 
-                      position, 
-                      sequence_number,
-                      payload, 
-                      observed_at::timestamptz, 
-                      occurred_at::timestamptz  
-                    FROM events
-                    ORDER BY position;
-                    """
+                        SELECT *  
+                        FROM events
+                        ORDER BY position;
+                        """
                 ):
                     yield record

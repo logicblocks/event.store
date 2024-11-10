@@ -28,27 +28,34 @@ def conninfo(
     return f"postgresql://{username}:{password}@{host}:{port}/{database}"
 
 
-def read_events_table(pool: ConnectionPool[Connection]) -> list[StoredEvent]:
+def read_events_table(
+    pool: ConnectionPool[Connection],
+    category: str | None = None,
+    stream: str | None = None,
+) -> list[StoredEvent]:
     with pool.connection() as connection:
         with connection.cursor(row_factory=class_row(StoredEvent)) as cursor:
-            return cursor.execute(
+            events = cursor.execute(
                 """
-                SELECT
-                  id,
-                  name,
-                  stream,
-                  category,
-                  position,
-                  sequence_number,
-                  payload,
-                  observed_at::timestamptz,
-                  occurred_at::timestamptz
+                SELECT *
                 FROM events
                 """
             ).fetchall()
+            events = (
+                [event for event in events if event.category == category]
+                if category
+                else events
+            )
+            events = (
+                [event for event in events if event.stream == stream]
+                if stream
+                else events
+            )
+
+            return events
 
 
-class TestPostgresStorageAdapter(object):
+class TestBase(object):
     pool: ConnectionPool[Connection]
 
     def setup_method(self):
@@ -60,6 +67,8 @@ class TestPostgresStorageAdapter(object):
     def teardown_method(self):
         self.pool.close()
 
+
+class TestSave(TestBase):
     def test_stores_single_event_for_later_retrieval(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
@@ -72,8 +81,8 @@ class TestPostgresStorageAdapter(object):
         )
         stored_event = stored_events[0]
 
-        actual_records = read_events_table(self.pool)
-        expected_records = [
+        actual_events = read_events_table(self.pool)
+        expected_events = [
             StoredEvent(
                 id=stored_event.id,
                 name=new_event.name,
@@ -87,7 +96,7 @@ class TestPostgresStorageAdapter(object):
             )
         ]
 
-        assert actual_records == expected_records
+        assert actual_events == expected_events
 
     def test_stores_multiple_events_in_same_stream(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
@@ -184,11 +193,14 @@ class TestPostgresStorageAdapter(object):
 
         assert actual_records == expected_records
 
-    def test_stores_event_with_empty_stream_condition(self):
+
+class TestWriteConditions(TestBase):
+    def test_writes_when_empty_stream_condition_and_stream_empty(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
+
         new_event = NewEventBuilder().build()
 
         stored_events = adapter.save(
@@ -199,7 +211,9 @@ class TestPostgresStorageAdapter(object):
         )
         stored_event = stored_events[0]
 
-        actual_records = read_events_table(self.pool)
+        actual_records = read_events_table(
+            self.pool, category=event_category, stream=event_stream
+        )
         expected_records = [
             StoredEvent(
                 id=stored_event.id,
@@ -216,21 +230,109 @@ class TestPostgresStorageAdapter(object):
 
         assert actual_records == expected_records
 
-    def test_raises_if_unmet_stream_is_empty_condition(
-        self,
-    ):
+    def test_writes_when_empty_stream_condition_and_category_not_empty(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
+        event_category = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        new_event_1 = NewEventBuilder().build()
+        new_event_2 = NewEventBuilder().build()
+
         adapter.save(
-            category=random_event_category_name(),
-            stream=random_event_stream_name(),
+            category=event_category,
+            stream=event_stream_1,
+            events=[new_event_1],
+        )
+
+        stored_events = adapter.save(
+            category=event_category,
+            stream=event_stream_2,
+            events=[new_event_2],
+            conditions={conditions.stream_is_empty()},
+        )
+        stored_event = stored_events[0]
+
+        actual_records = read_events_table(
+            self.pool, category=event_category, stream=event_stream_2
+        )
+        expected_records = [
+            StoredEvent(
+                id=stored_event.id,
+                name=new_event_2.name,
+                category=event_category,
+                stream=event_stream_2,
+                position=0,
+                sequence_number=stored_event.sequence_number,
+                payload=new_event_2.payload,
+                observed_at=new_event_2.observed_at,
+                occurred_at=new_event_2.occurred_at,
+            )
+        ]
+
+        assert actual_records == expected_records
+
+    def test_writes_when_empty_stream_condition_and_log_not_empty(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        new_event_1 = NewEventBuilder().build()
+        new_event_2 = NewEventBuilder().build()
+
+        adapter.save(
+            category=event_category_1,
+            stream=event_stream_1,
+            events=[new_event_1],
+        )
+
+        stored_events = adapter.save(
+            category=event_category_2,
+            stream=event_stream_2,
+            events=[new_event_2],
+            conditions={conditions.stream_is_empty()},
+        )
+        stored_event = stored_events[0]
+
+        actual_records = read_events_table(
+            self.pool, category=event_category_2, stream=event_stream_2
+        )
+        expected_records = [
+            StoredEvent(
+                id=stored_event.id,
+                name=new_event_2.name,
+                category=event_category_2,
+                stream=event_stream_2,
+                position=0,
+                sequence_number=stored_event.sequence_number,
+                payload=new_event_2.payload,
+                observed_at=new_event_2.observed_at,
+                occurred_at=new_event_2.occurred_at,
+            )
+        ]
+
+        assert actual_records == expected_records
+
+    def test_raises_when_empty_stream_condition_and_stream_not_empty(self):
+        adapter = PostgresStorageAdapter(connection_pool=self.pool)
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        adapter.save(
+            category=event_category,
+            stream=event_stream,
             events=[NewEventBuilder().build()],
         )
 
         with pytest.raises(UnmetWriteConditionError):
             adapter.save(
-                category=random_event_category_name(),
-                stream=random_event_stream_name(),
+                category=event_category,
+                stream=event_stream,
                 events=[NewEventBuilder().build()],
                 conditions={conditions.stream_is_empty()},
             )
@@ -304,6 +406,8 @@ class TestPostgresStorageAdapter(object):
                 conditions={conditions.position_is(1)},
             )
 
+
+class TestScanLog(TestBase):
     def test_has_no_events_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
@@ -337,6 +441,8 @@ class TestPostgresStorageAdapter(object):
 
         assert stored_events == loaded_events
 
+
+class TestScanCategory(TestBase):
     def test_has_no_events_in_category_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 
@@ -370,6 +476,8 @@ class TestPostgresStorageAdapter(object):
 
         assert stored_events_in_category == loaded_events
 
+
+class TestScanStream(TestBase):
     def test_has_no_events_in_stream_initially(self):
         adapter = PostgresStorageAdapter(connection_pool=self.pool)
 

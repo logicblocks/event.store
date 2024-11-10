@@ -10,7 +10,7 @@ from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import NewEvent, StoredEvent
 
 
-class TestEventStoreStreamBasics(object):
+class TestStreamBasics(object):
     def test_has_no_events_in_stream_initially(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -187,7 +187,7 @@ class TestEventStoreStreamBasics(object):
         assert actual_streams == expected_streams
 
 
-class TestEventStoreStreamIteration(object):
+class TestStreamIteration(object):
     def test_iterates_over_all_events_in_stream(self):
         now = datetime.now()
         category_name = data.random_event_category_name()
@@ -215,7 +215,7 @@ class TestEventStoreStreamIteration(object):
         assert stream_event_keys == new_event_keys
 
 
-class TestEventStoreStreamPublishing(object):
+class TestStreamPublishing(object):
     def test_publishes_if_stream_position_matches_position_condition(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -297,7 +297,7 @@ class TestEventStoreStreamPublishing(object):
             )
 
 
-class TestEventStoreCategoryBasics(object):
+class TestCategoryBasics(object):
     def test_has_no_events_in_category_initially(self):
         category_name = data.random_event_category_name()
 
@@ -486,7 +486,7 @@ class TestEventStoreCategoryBasics(object):
         assert read_events == expected_events
 
 
-class TestEventStoreCategoryIteration(object):
+class TestCategoryIteration(object):
     def test_iterates_over_all_events_in_stream(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()

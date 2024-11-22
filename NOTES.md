@@ -18,14 +18,35 @@ Notes
     - decision for now is to use advisory lock on whole log
 
 [x] expected position
-  - Explicitly test undefined position case
-  - Refactor WriteCondition implementation to be function based
+  [] explicitly test undefined position case
+  [x] refactor WriteCondition implementation to be function based
 [x] postgres adapter
 [] concurrency testing
 [x] projection capability
   - add position (from last event)
   - refactor into Projection and Projector (think about how to model and pass 
     "state" of projection)
-[] Add Snapshotting (decorator on Projector class?)
+[] add snapshotting (decorator on Projector class?)
+
+[] expose sequence number on events
+[] add metadata on events
+
+[] allow table name to be configured
+[] add pre, persist and post hooks on event write
+[] add support for cryptographic signing to make stream/category/log tamper 
+   proof
+
+[] add example DDL including indexes
 
 [] allow JSON serialisation / deserialisation to be overridden
+
+[] make event scanning paged
+[] add whole log scanning to store
+
+[] split into multiple published packages
+
+[] add in-process consumer support
+
+[] add event schema support
+
+[] move adapter tests into published package

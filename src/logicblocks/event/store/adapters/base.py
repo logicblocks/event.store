@@ -2,7 +2,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set, Iterator
 
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import identifier, NewEvent, StoredEvent
+
+# Listable = identifier.Categories | identifier.Streams
+# Readable = identifier.Log | identifier.Category | identifier.Stream
+Saveable = identifier.Stream
+Scannable = identifier.Log | identifier.Category | identifier.Stream
 
 
 class StorageAdapter(ABC):
@@ -10,23 +15,16 @@ class StorageAdapter(ABC):
     def save(
         self,
         *,
-        category: str,
-        stream: str,
+        target: Saveable,
         events: Sequence[NewEvent],
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         raise NotImplementedError()
 
     @abstractmethod
-    def scan_stream(
-        self, *, category: str, stream: str
+    def scan(
+        self,
+        *,
+        target: Scannable = identifier.Log(),
     ) -> Iterator[StoredEvent]:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def scan_all(self) -> Iterator[StoredEvent]:
         raise NotImplementedError()

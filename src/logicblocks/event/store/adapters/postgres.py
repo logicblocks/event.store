@@ -1,5 +1,6 @@
 from collections.abc import Set
-from typing import Sequence, Iterator
+from functools import singledispatch
+from typing import Sequence, Iterator, Any, Tuple, LiteralString
 from uuid import uuid4
 
 from psycopg import Connection, Cursor
@@ -8,19 +9,72 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from logicblocks.event.store.adapters import StorageAdapter
+from logicblocks.event.store.adapters.base import Scannable, Saveable
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import (
+    NewEvent,
+    StoredEvent,
+    identifier,
+)
 
 
-def _insert(
-    cursor: Cursor[StoredEvent],
-    stream: str,
-    category: str,
-    event: NewEvent,
-    position: int,
-):
-    event_id = uuid4().hex
-    cursor.execute(
+Query = Tuple[LiteralString, Sequence[Any]]
+
+
+@singledispatch
+def scan_query(
+    target: Scannable,
+) -> Query:
+    raise TypeError(f"No scan query for target: {target}")
+
+
+@scan_query.register(identifier.Log)
+def scan_query_log(
+    _target: identifier.Log,
+) -> Query:
+    return (
+        """
+        SELECT * 
+        FROM events
+        ORDER BY sequence_number;
+        """,
+        [],
+    )
+
+
+@scan_query.register(identifier.Category)
+def scan_query_category(
+    target: identifier.Category,
+) -> Query:
+    return (
+        """
+        SELECT * 
+        FROM events
+        WHERE category = (%s)
+        ORDER BY sequence_number;
+        """,
+        [target.category],
+    )
+
+
+@scan_query.register(identifier.Stream)
+def scan_query_stream(
+    target: identifier.Stream,
+) -> Query:
+    return (
+        """
+        SELECT * 
+        FROM events
+        WHERE category = (%s)
+        AND stream = (%s)
+        ORDER BY sequence_number;
+        """,
+        [target.category, target.stream],
+    )
+
+
+def insert_query(target: Saveable, event: NewEvent, position: int) -> Query:
+    return (
         """
         INSERT INTO events (
           id, 
@@ -35,41 +89,56 @@ def _insert(
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING *
         """,
-        (
-            event_id,
+        [
+            uuid4().hex,
             event.name,
-            stream,
-            category,
+            target.stream,
+            target.category,
             position,
             Jsonb(event.payload),
             event.observed_at,
             event.occurred_at,
-        ),
+        ],
     )
+
+
+def read_last_query(target: identifier.Stream) -> Query:
+    return (
+        """
+        SELECT * 
+        FROM events
+        WHERE category = (%s)
+        AND stream = (%s)
+        ORDER BY position DESC 
+        LIMIT 1;
+        """,
+        [target.category, target.stream],
+    )
+
+
+def insert(
+    cursor: Cursor[StoredEvent],
+    *,
+    target: Saveable,
+    event: NewEvent,
+    position: int,
+):
+    cursor.execute(*insert_query(target, event, position))
     stored_event = cursor.fetchone()
 
     if not stored_event:
         raise Exception("Insert failed")
+
     return stored_event
 
 
-def _read_last(
+def read_last(
     cursor: Cursor[StoredEvent],
     *,
-    category: str,
-    stream: str,
+    target: identifier.Stream,
 ):
-    return cursor.execute(
-        """
-            SELECT * 
-            FROM events
-            WHERE category = (%s)
-            AND stream = (%s)
-            ORDER BY position DESC 
-            LIMIT 1;
-            """,
-        [category, stream],
-    ).fetchone()
+    cursor.execute(*read_last_query(target))
+    return cursor.fetchone()
 
 
 class PostgresStorageAdapter(StorageAdapter):
@@ -79,8 +148,7 @@ class PostgresStorageAdapter(StorageAdapter):
     def save(
         self,
         *,
-        category: str,
-        stream: str,
+        target: Saveable,
         events: Sequence[NewEvent],
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
@@ -88,9 +156,7 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                last_event = _read_last(
-                    cursor, category=category, stream=stream
-                )
+                last_event = read_last(cursor, target=target)
 
                 for condition in conditions:
                     condition.evaluate(last_event)
@@ -98,55 +164,20 @@ class PostgresStorageAdapter(StorageAdapter):
                 current_position = last_event.position + 1 if last_event else 0
 
                 return [
-                    _insert(cursor, stream, category, event, position)
+                    insert(
+                        cursor, target=target, event=event, position=position
+                    )
                     for position, event in enumerate(events, current_position)
                 ]
 
-    def scan_stream(
-        self, *, category: str, stream: str
+    def scan(
+        self,
+        *,
+        target: Scannable = identifier.Log(),
     ) -> Iterator[StoredEvent]:
         with self.connection_pool.connection() as connection:
             with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                for record in cursor.execute(
-                    """
-                        SELECT *
-                        FROM events
-                        WHERE category = (%s)
-                        AND stream = (%s)
-                        ORDER BY position;
-                        """,
-                    [category, stream],
-                ):
-                    yield record
-
-    def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
-        with self.connection_pool.connection() as connection:
-            with connection.cursor(
-                row_factory=class_row(StoredEvent)
-            ) as cursor:
-                for record in cursor.execute(
-                    """
-                        SELECT *  
-                        FROM events
-                        WHERE category = (%s)
-                        ORDER BY position;
-                        """,
-                    [category],
-                ):
-                    yield record
-
-    def scan_all(self) -> Iterator[StoredEvent]:
-        with self.connection_pool.connection() as connection:
-            with connection.cursor(
-                row_factory=class_row(StoredEvent)
-            ) as cursor:
-                for record in cursor.execute(
-                    """
-                        SELECT *  
-                        FROM events
-                        ORDER BY position;
-                        """
-                ):
+                for record in cursor.execute(*scan_query(target)):
                     yield record

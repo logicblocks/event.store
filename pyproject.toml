@@ -29,7 +29,8 @@ pytest-pretty = "^1.2.0"
 pytest-diff = "^0.1.14"
 
 [tool.pyright]
-include = ["src", "tests/unit", "tests/integration"]
+include = ["src", "tests/shared", "tests/unit", "tests/integration"]
+extraPaths = ["src", "tests/shared"]
 strict = ["src"]
 reportMissingTypeStubs = "error"
 
@@ -38,7 +39,7 @@ namespace-packages = ["logicblocks/event"]
 line-length = 79
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests/shared"]
 addopts = ["--import-mode=importlib"]
 
 [tool.poe.tasks]

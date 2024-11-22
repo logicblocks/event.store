@@ -2,7 +2,7 @@ from collections.abc import Set, Sequence
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 
 class StreamEventStore(object):
@@ -29,8 +29,10 @@ class StreamEventStore(object):
 
     def __iter__(self):
         """Iterate over the events in the stream from position 0 to the end."""
-        return self.adapter.scan_stream(
-            category=self.category, stream=self.stream
+        return self.adapter.scan(
+            target=identifier.Stream(
+                category=self.category, stream=self.stream
+            )
         )
 
     def publish(
@@ -40,9 +42,10 @@ class StreamEventStore(object):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
+        target = identifier.Stream(category=self.category, stream=self.stream)
+
         return self.adapter.save(
-            category=self.category,
-            stream=self.stream,
+            target=target,
             events=events,
             conditions=conditions,
         )
@@ -79,7 +82,9 @@ class CategoryEventStore(object):
 
     def __iter__(self):
         """Iterate over the events in the category."""
-        return self.adapter.scan_category(category=self.category)
+        return self.adapter.scan(
+            target=identifier.Category(category=self.category)
+        )
 
     def stream(self, *, stream: str) -> StreamEventStore:
         """Get a stream of events in the category.

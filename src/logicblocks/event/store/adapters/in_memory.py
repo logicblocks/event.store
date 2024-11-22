@@ -2,11 +2,19 @@ from uuid import uuid4
 from collections import defaultdict
 from collections.abc import Iterator, Sequence, Set
 
-from logicblocks.event.store.adapters.base import StorageAdapter
+from logicblocks.event.store.adapters.base import (
+    StorageAdapter,
+    Scannable,
+    Saveable,
+)
 from logicblocks.event.store.conditions import (
     WriteCondition,
 )
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import (
+    NewEvent,
+    StoredEvent,
+    identifier,
+)
 
 type StreamKey = tuple[str, str]
 type CategoryKey = str
@@ -16,24 +24,25 @@ type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 class InMemoryStorageAdapter(StorageAdapter):
     _events: list[StoredEvent]
+    _log_index: EventPositionList
     _stream_index: EventIndexDict[StreamKey]
     _category_index: EventIndexDict[CategoryKey]
 
     def __init__(self):
         self._events = []
+        self._log_index = []
         self._stream_index = defaultdict(lambda: [])
         self._category_index = defaultdict(lambda: [])
 
     def save(
         self,
         *,
-        category: str,
-        stream: str,
+        target: Saveable,
         events: Sequence[NewEvent],
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
-        category_key = category
-        stream_key = (category, stream)
+        category_key = target.category
+        stream_key = (target.category, target.stream)
 
         stream_indices = self._stream_index[stream_key]
         stream_events = [self._events[i] for i in stream_indices]
@@ -43,22 +52,22 @@ class InMemoryStorageAdapter(StorageAdapter):
         for condition in conditions:
             condition.evaluate(last_event)
 
-        last_global_position = len(self._events)
+        last_sequence_number = len(self._events)
         last_stream_position = (
             -1 if len(stream_events) == 0 else stream_events[-1].position
         )
 
-        new_global_positions = [
-            last_global_position + i for i in range(len(events))
+        new_sequence_numbers = [
+            last_sequence_number + i for i in range(len(events))
         ]
         new_stored_events = [
             StoredEvent(
                 id=uuid4().hex,
                 name=event.name,
-                stream=stream,
-                category=category,
+                stream=target.stream,
+                category=target.category,
                 position=last_stream_position + count + 1,
-                sequence_number=last_global_position + count,
+                sequence_number=last_sequence_number + count,
                 payload=event.payload,
                 observed_at=event.observed_at,
                 occurred_at=event.occurred_at,
@@ -67,20 +76,24 @@ class InMemoryStorageAdapter(StorageAdapter):
         ]
 
         self._events += new_stored_events
-        self._stream_index[stream_key] += new_global_positions
-        self._category_index[category_key] += new_global_positions
+        self._log_index += new_sequence_numbers
+        self._stream_index[stream_key] += new_sequence_numbers
+        self._category_index[category_key] += new_sequence_numbers
 
         return new_stored_events
 
-    def scan_stream(
-        self, *, category: str, stream: str
+    def scan(
+        self, *, target: Scannable = identifier.Log()
     ) -> Iterator[StoredEvent]:
-        for global_position in self._stream_index[(category, stream)]:
-            yield self._events[global_position]
+        index = self._select_index(target)
+        for sequence_number in index:
+            yield self._events[sequence_number]
 
-    def scan_category(self, *, category: str) -> Iterator[StoredEvent]:
-        for global_position in self._category_index[category]:
-            yield self._events[global_position]
+    def _select_index(self, target: Scannable) -> EventPositionList:
+        if isinstance(target, identifier.Category):
+            return self._category_index[target.category]
 
-    def scan_all(self) -> Iterator[StoredEvent]:
-        return iter(self._events)
+        if isinstance(target, identifier.Stream):
+            return self._stream_index[(target.category, target.stream)]
+
+        return self._log_index

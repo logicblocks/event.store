@@ -73,6 +73,29 @@ def scan_query_stream(
     )
 
 
+def lock_query() -> Query:
+    return (
+        """
+        LOCK TABLE ONLY events IN EXCLUSIVE MODE;
+        """,
+        [],
+    )
+
+
+def read_last_query(target: identifier.Stream) -> Query:
+    return (
+        """
+        SELECT * 
+        FROM events
+        WHERE category = (%s)
+        AND stream = (%s)
+        ORDER BY position DESC 
+        LIMIT 1;
+        """,
+        [target.category, target.stream],
+    )
+
+
 def insert_query(target: Saveable, event: NewEvent, position: int) -> Query:
     return (
         """
@@ -102,18 +125,17 @@ def insert_query(target: Saveable, event: NewEvent, position: int) -> Query:
     )
 
 
-def read_last_query(target: identifier.Stream) -> Query:
-    return (
-        """
-        SELECT * 
-        FROM events
-        WHERE category = (%s)
-        AND stream = (%s)
-        ORDER BY position DESC 
-        LIMIT 1;
-        """,
-        [target.category, target.stream],
-    )
+def lock_table(cursor: Cursor[StoredEvent]):
+    cursor.execute(*lock_query())
+
+
+def read_last(
+    cursor: Cursor[StoredEvent],
+    *,
+    target: identifier.Stream,
+):
+    cursor.execute(*read_last_query(target))
+    return cursor.fetchone()
 
 
 def insert(
@@ -132,15 +154,6 @@ def insert(
     return stored_event
 
 
-def read_last(
-    cursor: Cursor[StoredEvent],
-    *,
-    target: identifier.Stream,
-):
-    cursor.execute(*read_last_query(target))
-    return cursor.fetchone()
-
-
 class PostgresStorageAdapter(StorageAdapter):
     def __init__(self, *, connection_pool: ConnectionPool[Connection]):
         self.connection_pool = connection_pool
@@ -156,10 +169,12 @@ class PostgresStorageAdapter(StorageAdapter):
             with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
+                lock_table(cursor)
+
                 last_event = read_last(cursor, target=target)
 
                 for condition in conditions:
-                    condition.evaluate(last_event)
+                    condition.ensure(last_event)
 
                 current_position = last_event.position + 1 if last_event else 0
 

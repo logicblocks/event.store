@@ -27,6 +27,7 @@ pytest = "^8.3.3"
 alembic = "^1.13.3"
 pytest-pretty = "^1.2.0"
 pytest-diff = "^0.1.14"
+pytest-repeat = "^0.9.3"
 
 [tool.pyright]
 include = ["src", "tests/shared", "tests/unit", "tests/integration"]

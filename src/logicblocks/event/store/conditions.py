@@ -11,7 +11,7 @@ type Target = Literal["last_event", "stream"]
 
 class WriteCondition(ABC):
     @abstractmethod
-    def evaluate(self, last_event: StoredEvent | None) -> None:
+    def ensure(self, last_event: StoredEvent | None) -> None:
         raise NotImplementedError()
 
 
@@ -19,14 +19,14 @@ class WriteCondition(ABC):
 class PositionIsCondition(WriteCondition):
     position: int
 
-    def evaluate(self, last_event: StoredEvent | None):
+    def ensure(self, last_event: StoredEvent | None):
         if last_event is None or last_event.position is not self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
 
 @dataclass(frozen=True)
 class EmptyStreamCondition(WriteCondition):
-    def evaluate(self, last_event: StoredEvent | None):
+    def ensure(self, last_event: StoredEvent | None):
         if last_event is not None:
             raise UnmetWriteConditionError("stream is not empty")
 

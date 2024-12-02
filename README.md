@@ -1,13 +1,13 @@
 logicblocks.event.store
 =======================
 
-Eventing infrastructure for event sourced architectures:
+Eventing infrastructure for event sourced architectures.
 
 Table of Contents
 -----------------
 
 - [Installation](#installation)
-- [Example Usage](#example-usage)
+- [Usage](#usage)
 - [Features](#features)
 - [Development](#development)
 - [Contributing](#contributing)
@@ -20,8 +20,10 @@ Installation
 pip install logicblocks.event.store
 ```
 
-Example Usage
--------------
+Usage
+-----
+
+### Basic Example
 
 ```python
 from logicblocks.event.store import EventStore, adapters
@@ -174,7 +176,10 @@ Contributing
 ------------
 
 Bug reports and pull requests are welcome on GitHub at 
-https://github.com/logicblocks/event.store.
+https://github.com/logicblocks/event.store. This project is intended to be a 
+safe, welcoming space for collaboration, and contributors are expected to 
+adhere to the [Contributor Covenant](http://contributor-covenant.org) code of 
+conduct.
 
 License
 -------

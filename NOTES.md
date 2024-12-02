@@ -5,23 +5,25 @@ Notes
   zero based, contiguous, strictly monotonically increasing.
 [x] sequence_number: at level of whole log, in and of itself not strictly 
   increasing, could have gaps
-[] external control to ensure totally ordered events as seen by an external
+[~] external control to ensure totally ordered events as seen by an external
   observer
     - serializable transaction isolation level - throw exception if DB detects
       non-linearizable transaction
-    - advisory locks - lock on a key, other transactions wait on lock, with
+    - locks - lock on a key, other transactions wait on lock, with
       optional timeout
        - key is application defined
-       - key could be stream name, category name, whole log
+       - key could be: 
+         [] stream name, 
+         [] category name, 
+         [x] log table
     - trail head of log by time, t
     - label events with their sequence asynchronously
-    - decision for now is to use advisory lock on whole log
 
 [x] expected position
   [] explicitly test undefined position case
   [x] refactor WriteCondition implementation to be function based
 [x] postgres adapter
-[] concurrency testing
+[x] concurrency testing
 [x] projection capability
   - add position (from last event)
   - refactor into Projection and Projector (think about how to model and pass 
@@ -33,8 +35,8 @@ Notes
 
 [] allow table name to be configured
 [] add pre, persist and post hooks on event write
-[] add support for cryptographic signing to make stream/category/log tamper 
-   proof
+[] add support for cryptographic signing to make stream/category/log 
+   tamper-proof
 
 [] add example DDL including indexes
 

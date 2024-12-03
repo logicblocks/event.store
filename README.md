@@ -13,6 +13,7 @@ Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
 - [Features](#features)
+- [Documentation](#documentation)
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
@@ -126,6 +127,11 @@ Features
     attributes.
   - _Storage adapter tests_: includes tests for storage adapters to ensure
     consistency across implementations.
+
+Documentation
+-------------
+
+- [API docs](https://eventstore.readthedocs.io/en/latest/)
 
 Development
 -----------

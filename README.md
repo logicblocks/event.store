@@ -3,6 +3,7 @@ logicblocks.event.store
 
 ![PyPI - Version](https://img.shields.io/pypi/v/logicblocks.event.store)
 ![Python - Version](https://img.shields.io/pypi/pyversions/logicblocks.event.store)
+![Documentation Status](https://readthedocs.org/projects/eventstore/badge/?version=latest)
 ![CircleCI](https://img.shields.io/circleci/build/github/logicblocks/event.store)
 
 Eventing infrastructure for event sourced architectures.

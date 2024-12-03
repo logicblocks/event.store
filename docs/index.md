@@ -57,8 +57,8 @@ profile = projector.project({}, stream.read())
 ### ::: logicblocks.event.store
 
 ::: logicblocks.event.store.EventStore
-::: logicblocks.event.store.CategoryEventStore
-::: logicblocks.event.store.StreamEventStore
+::: logicblocks.event.store.EventCategory
+::: logicblocks.event.store.EventStream
 ::: logicblocks.event.store.adapters.StorageAdapter
 ::: logicblocks.event.store.adapters.InMemoryStorageAdapter
 ::: logicblocks.event.store.adapters.PostgresStorageAdapter

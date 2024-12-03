@@ -5,7 +5,7 @@ from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 
-class StreamEventStore(object):
+class EventStream(object):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
@@ -59,7 +59,7 @@ class StreamEventStore(object):
         return list(iter(self))
 
 
-class CategoryEventStore(object):
+class EventCategory(object):
     """A class for interacting with a specific category of events.
 
     Since a category consists of zero or more streams, the category
@@ -86,7 +86,7 @@ class CategoryEventStore(object):
             target=identifier.Category(category=self.category)
         )
 
-    def stream(self, *, stream: str) -> StreamEventStore:
+    def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.
 
         Args:
@@ -95,7 +95,7 @@ class CategoryEventStore(object):
         Returns:
             an event store scoped to the specified stream.
         """
-        return StreamEventStore(
+        return EventStream(
             adapter=self.adapter, category=self.category, stream=stream
         )
 
@@ -133,7 +133,7 @@ class EventStore(object):
     def __init__(self, adapter: StorageAdapter):
         self.adapter = adapter
 
-    def stream(self, *, category: str, stream: str) -> StreamEventStore:
+    def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped
@@ -151,11 +151,11 @@ class EventStore(object):
         Returns:
             an event store scoped to the specified stream.
         """
-        return StreamEventStore(
+        return EventStream(
             adapter=self.adapter, category=category, stream=stream
         )
 
-    def category(self, *, category: str) -> CategoryEventStore:
+    def category(self, *, category: str) -> EventCategory:
         """Get a category of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped
@@ -171,4 +171,4 @@ class EventStore(object):
         Returns:
             an event store scoped to the specified category.
         """
-        return CategoryEventStore(adapter=self.adapter, category=category)
+        return EventCategory(adapter=self.adapter, category=category)

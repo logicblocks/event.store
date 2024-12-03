@@ -111,23 +111,21 @@ class CategoryEventStore(object):
 class EventStore(object):
     """The primary interface into the store of events.
 
-    An EventStore is backed by a StorageAdapter which implements event
-    storage. Typically, events are stored in an immutable append only log, the
-    details of which are storage implementation specific.
+    An [`EventStore`][logicblocks.event.store.EventStore] is backed by a
+    [`StorageAdapter`][logicblocks.event.store.adapters.StorageAdapter]
+    which implements event storage. Typically, events are stored in an immutable
+    append only log, the details of which are storage implementation specific.
 
-    The event store is partitioned into:
-
-        * streams - a sequence of events relating to the same "thing", such as
-          an entity, a process or a state machine.
-        * categories - a logical grouping of streams that share some
-          characteristics.
+    The event store is partitioned into _streams_, a sequence of events relating
+    to the same "thing", such as an entity, a process or a state machine, and
+    _categories_, a logical grouping of streams that share some characteristics.
 
     For example, a stream might exist for each order in a commerce system, with
     the category of such streams being "orders".
 
-    Streams and categories are each identified by a string name. The composition
-    of the category and the stream names acts as a key for the specific stream
-    of events.
+    Streams and categories are each identified by a string name. The combination
+    of a category name and a stream name acts as an identifier for a specific
+    stream of events.
     """
 
     adapter: StorageAdapter

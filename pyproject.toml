@@ -16,7 +16,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12"
 psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 
 [tool.poetry.group.dev.dependencies]
@@ -28,6 +28,11 @@ alembic = "^1.13.3"
 pytest-pretty = "^1.2.0"
 pytest-diff = "^0.1.14"
 pytest-repeat = "^0.9.3"
+
+[tool.poetry.group.docs.dependencies]
+mkdocs-material = "^9.5.47"
+mkdocstrings = {extras = ["python"], version = "^0.27.0"}
+black = "^24.10.0"
 
 [tool.pyright]
 include = ["src", "tests/shared", "tests/unit", "tests/integration"]
@@ -52,6 +57,8 @@ type-check = "pyright"
 test-unit = "pytest -vv tests/unit"
 test-integration = "pytest -vv tests/integration"
 database-test-migrate = "alembic upgrade head"
+docs-serve = "mkdocs serve"
+docs-build = "mkdocs build"
 
 [build-system]
 requires = ["poetry-core"]

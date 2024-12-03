@@ -1,0 +1,62 @@
+site_name: logicblocks.event.store Documentation
+site_url: !ENV READTHEDOCS_CANONICAL_URL
+
+theme:
+  name: material
+  font:
+    text: Inter
+    code: Source Code Pro
+  icon:
+    logo: material/queue-first-in-last-out
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Light mode
+      primary: blue
+      accent: light blue
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Dark mode
+      primary: deep purple
+      accent: purple
+  custom_dir: docs/overrides
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            heading_level: 4
+            line_length: 60
+            separate_signature: true
+            show_root_heading: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            relative_crossrefs: true
+            docstring_style: google
+
+markdown_extensions:
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+extra_javascript:
+  - javascript/readthedocs.js
+
+extra_css:
+  - stylesheets/readthedocs.css
+
+watch:
+  - src

@@ -36,6 +36,7 @@ class Base(ABC):
     @abstractmethod
     def retrieve_events(
         self,
+        *,
         adapter: StorageAdapter,
         category: str | None = None,
         stream: str | None = None,

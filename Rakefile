@@ -255,7 +255,6 @@ namespace :library do
     desc 'Run integration tests'
     task integration: %i[dependencies:install] do
       Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
-      Rake::Task['database:test:migrate'].invoke
 
       invoke_poetry_task('test-integration')
     end
@@ -304,11 +303,6 @@ namespace :database do
         POSTGRES_PASSWORD=super-secret
         POSTGRES_USER=admin
       ]
-    end
-
-    desc 'Run migrations against the test database'
-    task :migrate do
-      invoke_poetry_task('database-test-migrate')
     end
   end
 end

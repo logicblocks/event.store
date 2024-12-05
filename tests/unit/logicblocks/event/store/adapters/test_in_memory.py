@@ -12,12 +12,12 @@ from logicblocks.event.store.adapters import (
 )
 
 
-class TestInMemoryStorageAdapter(cases.StorageAdapterCases):
+class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):
     @property
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=40, repeats=200)
 
-    def reset_storage(self) -> None:
+    def clear_storage(self) -> None:
         pass
 
     def construct_storage_adapter(self) -> StorageAdapter:

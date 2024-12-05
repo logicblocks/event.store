@@ -26,7 +26,7 @@ class ConcurrencyParameters(object):
 
 class Base(ABC):
     @abstractmethod
-    def reset_storage(self) -> None:
+    def clear_storage(self) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -498,7 +498,7 @@ class ConcurrencyCases(Base, ABC):
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.reset_storage()
+            self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 
@@ -589,7 +589,7 @@ class ConcurrencyCases(Base, ABC):
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.reset_storage()
+            self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 
@@ -700,7 +700,7 @@ class ConcurrencyCases(Base, ABC):
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.reset_storage()
+            self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 

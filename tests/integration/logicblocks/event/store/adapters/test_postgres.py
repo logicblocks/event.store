@@ -74,7 +74,7 @@ def create_table(pool: ConnectionPool[Connection], table: str) -> None:
         connection.execute(create_indices_query(table))
 
 
-def reset_table(pool: ConnectionPool[Connection], table: str) -> None:
+def clear_table(pool: ConnectionPool[Connection], table: str) -> None:
     with pool.connection() as connection:
         connection.execute(truncate_table_query(table))
         connection.execute(reset_sequence_query(table, "sequence_number"))
@@ -108,95 +108,124 @@ def read_events(
             return events
 
 
-class TestPostgresStorageAdapter(cases.StorageAdapterCases):
+class TestPostgresStorageAdapterCommonCases(cases.StorageAdapterCases):
     pool: ConnectionPool[Connection]
 
     def setup_method(self):
-        self.pool = ConnectionPool[Connection](
-            connection_parameters.to_connection_string(), open=True
-        )
+        self.create_connection_pool()
         self.destroy_storage()
         self.initialise_storage()
 
     def teardown_method(self):
-        self.pool.close()
+        self.destroy_connection_pool()
 
     @property
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=3, repeats=5)
 
-    def initialise_storage(
-        self,
-        table_parameters: PostgresTableParameters = PostgresTableParameters(),
-    ) -> None:
-        create_table(self.pool, table_parameters.events_table_name)
-
-    def reset_storage(
-        self,
-        table_parameters: PostgresTableParameters = PostgresTableParameters(),
-    ) -> None:
-        reset_table(self.pool, table_parameters.events_table_name)
-
-    def destroy_storage(
-        self,
-        table_parameters: PostgresTableParameters = PostgresTableParameters(),
-    ) -> None:
-        drop_table(self.pool, table_parameters.events_table_name)
-
-    def construct_storage_adapter(
-        self,
-        table_parameters: PostgresTableParameters = PostgresTableParameters(),
-    ) -> StorageAdapter:
-        return PostgresStorageAdapter(
-            connection_source=self.pool, table_parameters=table_parameters
+    def create_connection_pool(self):
+        self.pool = ConnectionPool[Connection](
+            connection_parameters.to_connection_string(), open=True
         )
+
+    def destroy_connection_pool(self):
+        self.pool.close()
+
+    def initialise_storage(self) -> None:
+        create_table(self.pool, "events")
+
+    def clear_storage(self) -> None:
+        clear_table(self.pool, "events")
+
+    def destroy_storage(self) -> None:
+        drop_table(self.pool, "events")
+
+    def construct_storage_adapter(self) -> StorageAdapter:
+        return PostgresStorageAdapter(connection_source=self.pool)
 
     def retrieve_events(
         self,
         *,
         adapter: StorageAdapter,
-        table_parameters: PostgresTableParameters = PostgresTableParameters(),
         category: str | None = None,
         stream: str | None = None,
     ) -> Sequence[StoredEvent]:
         return read_events(
             self.pool,
-            table=table_parameters.events_table_name,
+            table="events",
             category=category,
             stream=stream,
         )
 
-    def test_allows_events_table_name_to_be_overridden(self):
-        table_parameters = PostgresTableParameters(
-            events_table_name="event_log"
+
+class TestPostgresStorageAdapterCustomTableName(object):
+    def setup_method(self):
+        self.connection_pool = ConnectionPool[Connection](
+            connection_parameters.to_connection_string(), open=True
         )
 
-        try:
-            self.initialise_storage(table_parameters=table_parameters)
+    def teardown_method(self):
+        self.connection_pool.close()
 
-            adapter = self.construct_storage_adapter(
-                table_parameters=table_parameters
-            )
+    def test_uses_table_name_of_events_by_default(self):
+        drop_table(pool=self.connection_pool, table="events")
+        create_table(pool=self.connection_pool, table="events")
 
-            event_category = random_event_category_name()
-            event_stream = random_event_stream_name()
+        adapter = PostgresStorageAdapter(
+            connection_source=self.connection_pool
+        )
 
-            new_event = NewEventBuilder().build()
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
 
-            stored_events = adapter.save(
-                target=identifier.Stream(
-                    category=event_category, stream=event_stream
-                ),
-                events=[new_event],
-            )
+        new_event = NewEventBuilder().build()
 
-            retrieved_events = self.retrieve_events(
-                adapter=adapter, table_parameters=table_parameters
-            )
+        stored_events = adapter.save(
+            target=identifier.Stream(
+                category=event_category, stream=event_stream
+            ),
+            events=[new_event],
+        )
 
-            assert retrieved_events == stored_events
-        finally:
-            self.destroy_storage(table_parameters=table_parameters)
+        retrieved_events = read_events(
+            pool=self.connection_pool, table="events"
+        )
+
+        assert retrieved_events == stored_events
+
+    def test_allows_events_table_name_to_be_overridden(self):
+        connection_pool = ConnectionPool[Connection](
+            connection_parameters.to_connection_string(), open=True
+        )
+
+        table_name = "event_log"
+        table_parameters = PostgresTableParameters(
+            events_table_name=table_name
+        )
+
+        drop_table(pool=connection_pool, table="event_log")
+        create_table(pool=connection_pool, table="event_log")
+
+        adapter = PostgresStorageAdapter(
+            connection_source=connection_pool,
+            table_parameters=table_parameters,
+        )
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        new_event = NewEventBuilder().build()
+
+        stored_events = adapter.save(
+            target=identifier.Stream(
+                category=event_category, stream=event_stream
+            ),
+            events=[new_event],
+        )
+
+        retrieved_events = read_events(pool=connection_pool, table=table_name)
+
+        assert retrieved_events == stored_events
 
 
 if __name__ == "__main__":

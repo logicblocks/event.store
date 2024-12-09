@@ -45,7 +45,7 @@ line-length = 79
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests/shared"]
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "--strict-markers"]
 
 [tool.poe.tasks]
 lint-check = "ruff check"

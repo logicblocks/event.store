@@ -95,10 +95,10 @@ class InMemoryStorageAdapter(StorageAdapter):
             yield self._events[sequence_number]
 
     def _select_index(self, target: Scannable) -> EventPositionList:
-        if isinstance(target, identifier.Category):
-            return self._category_index[target.category]
-
-        if isinstance(target, identifier.Stream):
-            return self._stream_index[(target.category, target.stream)]
-
-        return self._log_index
+        match target:
+            case identifier.Log():
+                return self._log_index
+            case identifier.Category(category):
+                return self._category_index[category]
+            case identifier.Stream(category, stream):
+                return self._stream_index[(category, stream)]

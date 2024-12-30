@@ -1,5 +1,4 @@
-import concurrent.futures
-import threading
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from itertools import batched
@@ -25,7 +24,7 @@ class ConcurrencyParameters(object):
 
 class Base(ABC):
     @abstractmethod
-    def clear_storage(self) -> None:
+    async def clear_storage(self) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -33,7 +32,7 @@ class Base(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def retrieve_events(
+    async def retrieve_events(
         self,
         *,
         adapter: StorageAdapter,
@@ -49,7 +48,7 @@ class Base(ABC):
 
 
 class SaveCases(Base, ABC):
-    def test_stores_single_event_for_later_retrieval(self):
+    async def test_stores_single_event_for_later_retrieval(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -57,7 +56,7 @@ class SaveCases(Base, ABC):
 
         new_event = NewEventBuilder().build()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -65,7 +64,7 @@ class SaveCases(Base, ABC):
         )
         stored_event = stored_events[0]
 
-        actual_events = self.retrieve_events(adapter=adapter)
+        actual_events = await self.retrieve_events(adapter=adapter)
         expected_events = [
             StoredEvent(
                 id=stored_event.id,
@@ -82,7 +81,7 @@ class SaveCases(Base, ABC):
 
         assert actual_events == expected_events
 
-    def test_stores_multiple_events_in_same_stream(self):
+    async def test_stores_multiple_events_in_same_stream(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -91,7 +90,7 @@ class SaveCases(Base, ABC):
         new_event_1 = NewEventBuilder().build()
         new_event_2 = NewEventBuilder().build()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -100,7 +99,7 @@ class SaveCases(Base, ABC):
         stored_event_1 = stored_events[0]
         stored_event_2 = stored_events[1]
 
-        actual_events = self.retrieve_events(adapter=adapter)
+        actual_events = await self.retrieve_events(adapter=adapter)
         expected_events = [
             StoredEvent(
                 id=stored_event_1.id,
@@ -128,7 +127,7 @@ class SaveCases(Base, ABC):
 
         assert actual_events == expected_events
 
-    def test_stores_multiple_events_in_sequential_saves(self):
+    async def test_stores_multiple_events_in_sequential_saves(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -137,7 +136,7 @@ class SaveCases(Base, ABC):
         new_event_1 = NewEventBuilder().build()
         new_event_2 = NewEventBuilder().build()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -145,7 +144,7 @@ class SaveCases(Base, ABC):
         )
         stored_event_1 = stored_events_1[0]
 
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -153,7 +152,7 @@ class SaveCases(Base, ABC):
         )
         stored_event_2 = stored_events_2[0]
 
-        actual_events = self.retrieve_events(adapter=adapter)
+        actual_events = await self.retrieve_events(adapter=adapter)
         expected_events = [
             StoredEvent(
                 id=stored_event_1.id,
@@ -183,7 +182,7 @@ class SaveCases(Base, ABC):
 
 
 class WriteConditionCases(Base, ABC):
-    def test_writes_if_empty_stream_condition_and_stream_empty(self):
+    async def test_writes_if_empty_stream_condition_and_stream_empty(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -191,7 +190,7 @@ class WriteConditionCases(Base, ABC):
 
         new_event = NewEventBuilder().build()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -200,7 +199,7 @@ class WriteConditionCases(Base, ABC):
         )
         stored_event = stored_events[0]
 
-        actual_events = self.retrieve_events(
+        actual_events = await self.retrieve_events(
             adapter=adapter, category=event_category, stream=event_stream
         )
         expected_events = [
@@ -219,7 +218,9 @@ class WriteConditionCases(Base, ABC):
 
         assert actual_events == expected_events
 
-    def test_writes_if_empty_stream_condition_and_category_not_empty(self):
+    async def test_writes_if_empty_stream_condition_and_category_not_empty(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -229,14 +230,14 @@ class WriteConditionCases(Base, ABC):
         new_event_1 = NewEventBuilder().build()
         new_event_2 = NewEventBuilder().build()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
             events=[new_event_1],
         )
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -245,7 +246,7 @@ class WriteConditionCases(Base, ABC):
         )
         stored_event = stored_events[0]
 
-        actual_records = self.retrieve_events(
+        actual_records = await self.retrieve_events(
             adapter=adapter, category=event_category, stream=event_stream_2
         )
         expected_records = [
@@ -264,7 +265,7 @@ class WriteConditionCases(Base, ABC):
 
         assert actual_records == expected_records
 
-    def test_writes_if_empty_stream_condition_and_log_not_empty(self):
+    async def test_writes_if_empty_stream_condition_and_log_not_empty(self):
         adapter = self.construct_storage_adapter()
 
         event_category_1 = random_event_category_name()
@@ -275,14 +276,14 @@ class WriteConditionCases(Base, ABC):
         new_event_1 = NewEventBuilder().build()
         new_event_2 = NewEventBuilder().build()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[new_event_1],
         )
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream_2
             ),
@@ -291,7 +292,7 @@ class WriteConditionCases(Base, ABC):
         )
         stored_event = stored_events[0]
 
-        actual_records = self.retrieve_events(
+        actual_records = await self.retrieve_events(
             adapter=adapter, category=event_category_2, stream=event_stream_2
         )
         expected_records = [
@@ -310,13 +311,13 @@ class WriteConditionCases(Base, ABC):
 
         assert actual_records == expected_records
 
-    def test_raises_if_empty_stream_condition_and_stream_not_empty(self):
+    async def test_raises_if_empty_stream_condition_and_stream_not_empty(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -324,7 +325,7 @@ class WriteConditionCases(Base, ABC):
         )
 
         with pytest.raises(UnmetWriteConditionError):
-            adapter.save(
+            await adapter.save(
                 target=identifier.Stream(
                     category=event_category, stream=event_stream
                 ),
@@ -332,7 +333,7 @@ class WriteConditionCases(Base, ABC):
                 conditions={writeconditions.stream_is_empty()},
             )
 
-    def test_writes_if_position_condition_and_correct_position(self):
+    async def test_writes_if_position_condition_and_correct_position(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
@@ -341,7 +342,7 @@ class WriteConditionCases(Base, ABC):
         new_event_1 = NewEventBuilder().build()
         new_event_2 = NewEventBuilder().build()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -349,7 +350,7 @@ class WriteConditionCases(Base, ABC):
         )
         stored_event_1 = stored_events_1[0]
 
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -359,7 +360,7 @@ class WriteConditionCases(Base, ABC):
 
         stored_event_2 = stored_events_2[0]
 
-        actual_records = self.retrieve_events(adapter=adapter)
+        actual_records = await self.retrieve_events(adapter=adapter)
         expected_records = [
             StoredEvent(
                 id=stored_event_1.id,
@@ -387,10 +388,10 @@ class WriteConditionCases(Base, ABC):
 
         assert actual_records == expected_records
 
-    def test_raises_if_position_condition_and_less_than_expected(self):
+    async def test_raises_if_position_condition_and_less_than_expected(self):
         adapter = self.construct_storage_adapter()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -399,7 +400,7 @@ class WriteConditionCases(Base, ABC):
         )
 
         with pytest.raises(UnmetWriteConditionError):
-            adapter.save(
+            await adapter.save(
                 target=identifier.Stream(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
@@ -408,10 +409,12 @@ class WriteConditionCases(Base, ABC):
                 conditions={writeconditions.position_is(1)},
             )
 
-    def test_raises_if_position_condition_and_greater_than_expected(self):
+    async def test_raises_if_position_condition_and_greater_than_expected(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -424,7 +427,7 @@ class WriteConditionCases(Base, ABC):
         )
 
         with pytest.raises(UnmetWriteConditionError):
-            adapter.save(
+            await adapter.save(
                 target=identifier.Stream(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
@@ -433,11 +436,11 @@ class WriteConditionCases(Base, ABC):
                 conditions={writeconditions.position_is(1)},
             )
 
-    def test_raises_if_position_condition_and_stream_empty(self):
+    async def test_raises_if_position_condition_and_stream_empty(self):
         adapter = self.construct_storage_adapter()
 
         with pytest.raises(UnmetWriteConditionError):
-            adapter.save(
+            await adapter.save(
                 target=identifier.Stream(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
@@ -468,11 +471,11 @@ class StorageAdapterSaveTask(object):
         self.events = events
         self.conditions = frozenset() if conditions is None else conditions
 
-    def execute(
+    async def execute(
         self,
     ) -> None:
         try:
-            self.result = self.adapter.save(
+            self.result = await self.adapter.save(
                 target=self.target,
                 events=self.events,
                 conditions=self.conditions,
@@ -490,14 +493,16 @@ class StorageAdapterSaveTask(object):
 #       be made more reliable still but it would potentially leak implementation
 #       details.
 class ConcurrencyCases(Base, ABC):
-    def test_simultaneous_checked_writes_to_empty_stream_write_once(self):
+    async def test_simultaneous_checked_writes_to_empty_stream_write_once(
+        self,
+    ):
         test_concurrency = self.concurrency_parameters.concurrent_writes
         test_repeats = self.concurrency_parameters.repeats
 
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.clear_storage()
+            await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 
@@ -529,11 +534,9 @@ class ConcurrencyCases(Base, ABC):
                 for thread_id in range(test_concurrency)
             ]
 
-            threads = [threading.Thread(target=task.execute) for task in tasks]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
+            await asyncio.gather(
+                *[task.execute() for task in tasks], return_exceptions=True
+            )
 
             failed_saves = [
                 task.exception for task in tasks if task.exception is not None
@@ -550,7 +553,7 @@ class ConcurrencyCases(Base, ABC):
                 is_single_successful_save and is_all_others_failed_saves
             )
 
-            actual_records = self.retrieve_events(
+            actual_records = await self.retrieve_events(
                 adapter=adapter, category=event_category, stream=event_stream
             )
             expected_records = None
@@ -581,21 +584,23 @@ class ConcurrencyCases(Base, ABC):
             f"{failing_tests}"
         )
 
-    def test_simultaneous_checked_writes_to_existing_stream_write_once(self):
+    async def test_simultaneous_checked_writes_to_existing_stream_write_once(
+        self,
+    ):
         test_concurrency = self.concurrency_parameters.concurrent_writes
         test_repeats = self.concurrency_parameters.repeats
 
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.clear_storage()
+            await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 
             event_category = random_event_category_name()
             event_stream = random_event_stream_name()
 
-            preexisting_events = adapter.save(
+            preexisting_events = await adapter.save(
                 target=identifier.Stream(
                     category=event_category, stream=event_stream
                 ),
@@ -638,11 +643,9 @@ class ConcurrencyCases(Base, ABC):
                 for thread_id in range(test_concurrency)
             ]
 
-            threads = [threading.Thread(target=task.execute) for task in tasks]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
+            await asyncio.gather(
+                *[task.execute() for task in tasks], return_exceptions=True
+            )
 
             failed_saves = [
                 task.exception for task in tasks if task.exception is not None
@@ -659,7 +662,7 @@ class ConcurrencyCases(Base, ABC):
                 is_single_successful_save and is_all_others_failed_saves
             )
 
-            actual_records = self.retrieve_events(
+            actual_records = await self.retrieve_events(
                 adapter=adapter, category=event_category, stream=event_stream
             )
             expected_records = None
@@ -692,14 +695,14 @@ class ConcurrencyCases(Base, ABC):
             f"{failing_tests}"
         )
 
-    def test_simultaneous_unchecked_writes_are_serialised(self):
+    async def test_simultaneous_unchecked_writes_are_serialised(self):
         test_concurrency = self.concurrency_parameters.concurrent_writes
         test_repeats = self.concurrency_parameters.repeats
 
         test_results = []
 
         for test_repeat in range(test_repeats):
-            self.clear_storage()
+            await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
 
@@ -732,10 +735,11 @@ class ConcurrencyCases(Base, ABC):
                 for events in event_writes
             ]
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                executor.map(lambda task: task.execute(), tasks)
+            await asyncio.gather(
+                *[task.execute() for task in tasks], return_exceptions=True
+            )
 
-            actual_events = self.retrieve_events(
+            actual_events = await self.retrieve_events(
                 adapter=adapter,
                 category=event_category,
                 stream=event_stream,
@@ -784,17 +788,19 @@ class ConcurrencyCases(Base, ABC):
 
 
 class ScanCases(Base, ABC):
-    def test_log_scan_scans_no_events_when_store_empty(self):
+    async def test_log_scan_scans_no_events_when_store_empty(self):
         adapter = self.construct_storage_adapter()
 
-        scanned_events = list(adapter.scan(target=identifier.Log()))
+        scanned_events = [
+            event async for event in adapter.scan(target=identifier.Log())
+        ]
 
         assert scanned_events == []
 
-    def test_log_scan_scans_single_event_in_single_stream(self):
+    async def test_log_scan_scans_single_event_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -802,14 +808,16 @@ class ScanCases(Base, ABC):
             events=[NewEventBuilder().build()],
         )
 
-        scanned_events = list(adapter.scan(target=identifier.Log()))
+        scanned_events = [
+            event async for event in adapter.scan(target=identifier.Log())
+        ]
 
         assert scanned_events == stored_events
 
-    def test_log_scan_scans_multiple_events_in_single_stream(self):
+    async def test_log_scan_scans_multiple_events_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
@@ -821,18 +829,22 @@ class ScanCases(Base, ABC):
             ],
         )
 
-        scanned_events = list(adapter.scan(target=identifier.Log()))
+        scanned_events = [
+            event async for event in adapter.scan(target=identifier.Log())
+        ]
 
         assert scanned_events == stored_events
 
-    def test_log_scan_scans_events_across_streams_in_sequence_order(self):
+    async def test_log_scan_scans_events_across_streams_in_sequence_order(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream_1 = random_event_stream_name()
         event_stream_2 = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
@@ -841,13 +853,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -856,7 +868,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_4 = adapter.save(
+        stored_events_4 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -869,11 +881,15 @@ class ScanCases(Base, ABC):
             + list(stored_events_3)
             + list(stored_events_4)
         )
-        scanned_events = list(adapter.scan(target=identifier.Log()))
+        scanned_events = [
+            event async for event in adapter.scan(target=identifier.Log())
+        ]
 
         assert scanned_events == stored_events
 
-    def test_log_scan_scans_events_across_categories_in_sequence_order(self):
+    async def test_log_scan_scans_events_across_categories_in_sequence_order(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
         event_category_1 = random_event_category_name()
@@ -881,7 +897,7 @@ class ScanCases(Base, ABC):
         event_stream_1 = random_event_stream_name()
         event_stream_2 = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream_1
             ),
@@ -890,13 +906,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream_2
             ),
@@ -905,7 +921,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_4 = adapter.save(
+        stored_events_4 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream_2
             ),
@@ -918,30 +934,33 @@ class ScanCases(Base, ABC):
             + list(stored_events_3)
             + list(stored_events_4)
         )
-        scanned_events = list(adapter.scan(target=identifier.Log()))
+        scanned_events = [
+            event async for event in adapter.scan(target=identifier.Log())
+        ]
 
         assert scanned_events == stored_events
 
-    def test_category_scan_scans_no_events_when_store_empty(self):
+    async def test_category_scan_scans_no_events_when_store_empty(self):
         adapter = self.construct_storage_adapter()
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Category(
                     category=random_event_category_name()
                 )
             )
-        )
+        ]
 
         assert scanned_events == []
 
-    def test_category_scan_scans_no_events_when_category_empty(self):
+    async def test_category_scan_scans_no_events_when_category_empty(self):
         adapter = self.construct_storage_adapter()
 
         scan_event_category = random_event_category_name()
         other_event_category = random_event_category_name()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=other_event_category,
                 stream=random_event_stream_name(),
@@ -949,40 +968,44 @@ class ScanCases(Base, ABC):
             events=[NewEventBuilder().build()],
         )
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Category(category=scan_event_category)
             )
-        )
+        ]
 
         assert scanned_events == []
 
-    def test_category_scan_scans_single_event_in_single_stream(self):
+    async def test_category_scan_scans_single_event_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
 
-        scanned_events = list(
-            adapter.scan(target=identifier.Category(category=event_category))
-        )
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Category(category=event_category)
+            )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_category_scan_scans_multiple_events_in_single_stream(self):
+    async def test_category_scan_scans_multiple_events_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category,
                 stream=event_stream,
@@ -994,20 +1017,25 @@ class ScanCases(Base, ABC):
             ],
         )
 
-        scanned_events = list(
-            adapter.scan(target=identifier.Category(category=event_category))
-        )
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Category(category=event_category)
+            )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_category_scan_scans_events_across_streams_in_sequence_order(self):
+    async def test_category_scan_scans_events_across_streams_in_sequence_order(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream_1 = random_event_stream_name()
         event_stream_2 = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
@@ -1016,13 +1044,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -1031,7 +1059,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_4 = adapter.save(
+        stored_events_4 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -1044,13 +1072,16 @@ class ScanCases(Base, ABC):
             + list(stored_events_3)
             + list(stored_events_4)
         )
-        scanned_events = list(
-            adapter.scan(target=identifier.Category(category=event_category))
-        )
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Category(category=event_category)
+            )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_category_scan_ignores_events_in_other_categories(self):
+    async def test_category_scan_ignores_events_in_other_categories(self):
         adapter = self.construct_storage_adapter()
 
         event_category_1 = random_event_category_name()
@@ -1058,7 +1089,7 @@ class ScanCases(Base, ABC):
         event_stream_1 = random_event_stream_name()
         event_stream_2 = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream_1
             ),
@@ -1067,7 +1098,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream_2
             ),
@@ -1076,13 +1107,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream_2
             ),
@@ -1090,81 +1121,88 @@ class ScanCases(Base, ABC):
         )
 
         stored_events = list(stored_events_1) + list(stored_events_3)
-        scanned_events = list(
-            adapter.scan(target=identifier.Category(category=event_category_1))
-        )
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Category(category=event_category_1)
+            )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_stream_scan_scans_no_events_when_store_empty(self):
+    async def test_stream_scan_scans_no_events_when_store_empty(self):
         adapter = self.construct_storage_adapter()
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
                 )
             )
-        )
+        ]
 
         assert scanned_events == []
 
-    def test_stream_scan_scans_no_events_when_stream_empty(self):
+    async def test_stream_scan_scans_no_events_when_stream_empty(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         scan_event_stream = random_event_stream_name()
         other_event_stream = random_event_stream_name()
 
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=other_event_stream
             ),
             events=[NewEventBuilder().build()],
         )
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
                     category=event_category,
                     stream=scan_event_stream,
                 )
             )
-        )
+        ]
 
         assert scanned_events == []
 
-    def test_stream_scan_scans_single_event_in_single_stream(self):
+    async def test_stream_scan_scans_single_event_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
-                    category=event_category, stream=event_stream
+                    category=event_category,
+                    stream=event_stream,
                 )
             )
-        )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_stream_scan_scans_multiple_events_in_single_stream(self):
+    async def test_stream_scan_scans_multiple_events_in_single_stream(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events = adapter.save(
+        stored_events = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -1175,23 +1213,27 @@ class ScanCases(Base, ABC):
             ],
         )
 
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
-                    category=event_category, stream=event_stream
+                    category=event_category,
+                    stream=event_stream,
                 )
             )
-        )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_stream_scan_scans_events_within_stream_in_sequence_order(self):
+    async def test_stream_scan_scans_events_within_stream_in_sequence_order(
+        self,
+    ):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -1200,13 +1242,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_2 = adapter.save(
+        stored_events_2 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -1215,7 +1257,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_4 = adapter.save(
+        stored_events_4 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream
             ),
@@ -1228,24 +1270,26 @@ class ScanCases(Base, ABC):
             + list(stored_events_3)
             + list(stored_events_4)
         )
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
-                    category=event_category, stream=event_stream
+                    category=event_category,
+                    stream=event_stream,
                 )
             )
-        )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_stream_scan_ignores_events_in_other_streams(self):
+    async def test_stream_scan_ignores_events_in_other_streams(self):
         adapter = self.construct_storage_adapter()
 
         event_category = random_event_category_name()
         event_stream_1 = random_event_stream_name()
         event_stream_2 = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
@@ -1254,7 +1298,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -1263,13 +1307,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category, stream=event_stream_2
             ),
@@ -1277,24 +1321,26 @@ class ScanCases(Base, ABC):
         )
 
         stored_events = list(stored_events_1) + list(stored_events_3)
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
-                    category=event_category, stream=event_stream_1
+                    category=event_category,
+                    stream=event_stream_1,
                 )
             )
-        )
+        ]
 
         assert scanned_events == stored_events
 
-    def test_stream_scan_ignores_events_in_other_categories(self):
+    async def test_stream_scan_ignores_events_in_other_categories(self):
         adapter = self.construct_storage_adapter()
 
         event_category_1 = random_event_category_name()
         event_category_2 = random_event_category_name()
         event_stream = random_event_stream_name()
 
-        stored_events_1 = adapter.save(
+        stored_events_1 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream
             ),
@@ -1303,7 +1349,7 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream
             ),
@@ -1312,13 +1358,13 @@ class ScanCases(Base, ABC):
                 NewEventBuilder().build(),
             ],
         )
-        stored_events_3 = adapter.save(
+        stored_events_3 = await adapter.save(
             target=identifier.Stream(
                 category=event_category_1, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
-        adapter.save(
+        await adapter.save(
             target=identifier.Stream(
                 category=event_category_2, stream=event_stream
             ),
@@ -1326,13 +1372,15 @@ class ScanCases(Base, ABC):
         )
 
         stored_events = list(stored_events_1) + list(stored_events_3)
-        scanned_events = list(
-            adapter.scan(
+        scanned_events = [
+            event
+            async for event in adapter.scan(
                 target=identifier.Stream(
-                    category=event_category_1, stream=event_stream
+                    category=event_category_1,
+                    stream=event_stream,
                 )
             )
-        )
+        ]
 
         assert scanned_events == stored_events
 

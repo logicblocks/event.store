@@ -1,4 +1,4 @@
-from collections.abc import Sequence, Set
+from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
@@ -27,7 +27,7 @@ class EventStream(object):
         self.category = category
         self.stream = stream
 
-    def __iter__(self):
+    def __aiter__(self) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream from position 0 to the end."""
         return self.adapter.scan(
             target=identifier.Stream(
@@ -35,7 +35,7 @@ class EventStream(object):
             )
         )
 
-    def publish(
+    async def publish(
         self,
         *,
         events: Sequence[NewEvent],
@@ -44,19 +44,19 @@ class EventStream(object):
         """Publish a sequence of events into the stream."""
         target = identifier.Stream(category=self.category, stream=self.stream)
 
-        return self.adapter.save(
+        return await self.adapter.save(
             target=target,
             events=events,
             conditions=conditions,
         )
 
-    def read(self) -> Sequence[StoredEvent]:
+    async def read(self) -> Sequence[StoredEvent]:
         """Read all events from the stream.
 
         All events will be read into memory so stream iteration should be
         preferred in order to give storage adapters the opportunity to page
         events as they are read from the underlying persistence."""
-        return list(iter(self))
+        return [event async for event in aiter(self)]
 
 
 class EventCategory(object):
@@ -80,7 +80,7 @@ class EventCategory(object):
         self.adapter = adapter
         self.category = category
 
-    def __iter__(self):
+    def __aiter__(self) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the category."""
         return self.adapter.scan(
             target=identifier.Category(category=self.category)
@@ -99,13 +99,13 @@ class EventCategory(object):
             adapter=self.adapter, category=self.category, stream=stream
         )
 
-    def read(self) -> Sequence[StoredEvent]:
+    async def read(self) -> Sequence[StoredEvent]:
         """Read all events from the category.
 
         All events will be read into memory so stream iteration should be
         preferred in order to give storage adapters the opportunity to page
         events as they are read from the underlying persistence."""
-        return list(iter(self))
+        return [event async for event in aiter(self)]
 
 
 class EventStore(object):

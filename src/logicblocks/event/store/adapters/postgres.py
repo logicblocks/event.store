@@ -1,13 +1,13 @@
-from collections.abc import Set
+from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Any, Iterator, Sequence, Tuple
+from typing import Any, Sequence, Tuple
 from uuid import uuid4
 
-from psycopg import Connection, Cursor, abc, sql
+from psycopg import AsyncConnection, AsyncCursor, abc, sql
 from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
-from psycopg_pool import ConnectionPool
+from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.adapters.base import Saveable, Scannable
@@ -52,7 +52,7 @@ class ConnectionParameters(object):
         return f"postgresql://{userspec}@{hostspec}/{self.dbname}"
 
 
-ConnectionSource = ConnectionParameters | ConnectionPool[Connection]
+ConnectionSource = ConnectionParameters | AsyncConnectionPool[AsyncConnection]
 
 
 @dataclass(frozen=True)
@@ -189,32 +189,34 @@ def insert_query(
     )
 
 
-def lock_table(
-    cursor: Cursor[StoredEvent], *, table_parameters: TableParameters
+async def lock_table(
+    cursor: AsyncCursor[StoredEvent], *, table_parameters: TableParameters
 ):
-    cursor.execute(*lock_query(table_parameters))
+    await cursor.execute(*lock_query(table_parameters))
 
 
-def read_last(
-    cursor: Cursor[StoredEvent],
+async def read_last(
+    cursor: AsyncCursor[StoredEvent],
     *,
     target: identifier.Stream,
     table_parameters: TableParameters,
 ):
-    cursor.execute(*read_last_query(target, table_parameters))
-    return cursor.fetchone()
+    await cursor.execute(*read_last_query(target, table_parameters))
+    return await cursor.fetchone()
 
 
-def insert(
-    cursor: Cursor[StoredEvent],
+async def insert(
+    cursor: AsyncCursor[StoredEvent],
     *,
     target: Saveable,
     event: NewEvent,
     position: int,
     table_parameters: TableParameters,
 ):
-    cursor.execute(*insert_query(target, event, position, table_parameters))
-    stored_event = cursor.fetchone()
+    await cursor.execute(
+        *insert_query(target, event, position, table_parameters)
+    )
+    stored_event = await cursor.fetchone()
 
     if not stored_event:
         raise Exception("Insert failed")
@@ -223,7 +225,7 @@ def insert(
 
 
 class PostgresStorageAdapter(StorageAdapter):
-    connection_pool: ConnectionPool[Connection]
+    connection_pool: AsyncConnectionPool[AsyncConnection]
     connection_pool_owner: bool
     table_parameters: TableParameters
 
@@ -235,8 +237,8 @@ class PostgresStorageAdapter(StorageAdapter):
     ):
         if isinstance(connection_source, ConnectionParameters):
             self.connection_pool_owner = True
-            self.connection_pool = ConnectionPool[Connection](
-                connection_source.to_connection_string(), open=True
+            self.connection_pool = AsyncConnectionPool[AsyncConnection](
+                connection_source.to_connection_string(), open=False
             )
         else:
             self.connection_pool_owner = False
@@ -244,24 +246,30 @@ class PostgresStorageAdapter(StorageAdapter):
 
         self.table_parameters = table_parameters
 
-    def close(self) -> None:
+    async def open(self) -> None:
         if self.connection_pool_owner:
-            self.connection_pool.close()
+            await self.connection_pool.open()
 
-    def save(
+    async def close(self) -> None:
+        if self.connection_pool_owner:
+            await self.connection_pool.close()
+
+    async def save(
         self,
         *,
         target: Saveable,
         events: Sequence[NewEvent],
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
-        with self.connection_pool.connection() as connection:
-            with connection.cursor(
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                lock_table(cursor, table_parameters=self.table_parameters)
+                await lock_table(
+                    cursor, table_parameters=self.table_parameters
+                )
 
-                last_event = read_last(
+                last_event = await read_last(
                     cursor,
                     target=target,
                     table_parameters=self.table_parameters,
@@ -273,7 +281,7 @@ class PostgresStorageAdapter(StorageAdapter):
                 current_position = last_event.position + 1 if last_event else 0
 
                 return [
-                    insert(
+                    await insert(
                         cursor,
                         target=target,
                         event=event,
@@ -283,16 +291,16 @@ class PostgresStorageAdapter(StorageAdapter):
                     for position, event in enumerate(events, current_position)
                 ]
 
-    def scan(
+    async def scan(
         self,
         *,
         target: Scannable = identifier.Log(),
-    ) -> Iterator[StoredEvent]:
-        with self.connection_pool.connection() as connection:
-            with connection.cursor(
+    ) -> AsyncIterator[StoredEvent]:
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                for record in cursor.execute(
+                async for record in await cursor.execute(
                     *scan_query(target, table_parameters=self.table_parameters)
                 ):
                     yield record

@@ -1,6 +1,6 @@
 import threading
 from collections import defaultdict
-from collections.abc import Iterator, Sequence, Set
+from collections.abc import AsyncIterator, Sequence, Set
 from uuid import uuid4
 
 from logicblocks.event.store.adapters.base import (
@@ -37,7 +37,7 @@ class InMemoryStorageAdapter(StorageAdapter):
         self._stream_index = defaultdict(lambda: [])
         self._category_index = defaultdict(lambda: [])
 
-    def save(
+    async def save(
         self,
         *,
         target: Saveable,
@@ -86,9 +86,9 @@ class InMemoryStorageAdapter(StorageAdapter):
 
             return new_stored_events
 
-    def scan(
+    async def scan(
         self, *, target: Scannable = identifier.Log()
-    ) -> Iterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent]:
         index = self._select_index(target)
         for sequence_number in index:
             yield self._events[sequence_number]

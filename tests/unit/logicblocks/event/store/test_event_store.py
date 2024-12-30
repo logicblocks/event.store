@@ -11,18 +11,18 @@ from logicblocks.event.types import NewEvent, StoredEvent
 
 
 class TestStreamBasics(object):
-    def test_has_no_events_in_stream_initially(self):
+    async def test_has_no_events_in_stream_initially(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        events = stream.read()
+        events = await stream.read()
 
         assert events == []
 
-    def test_reads_single_published_event(self):
+    async def test_reads_single_published_event(self):
         now = datetime.now()
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -32,7 +32,7 @@ class TestStreamBasics(object):
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stored_events = stream.publish(
+        stored_events = await stream.publish(
             events=[
                 NewEvent(
                     name=event_name,
@@ -43,7 +43,7 @@ class TestStreamBasics(object):
             ],
         )
 
-        read_events = stream.read()
+        read_events = await stream.read()
         expected_events = [
             StoredEvent(
                 id=stored_events[0].id,
@@ -60,7 +60,7 @@ class TestStreamBasics(object):
 
         assert read_events == expected_events
 
-    def test_reads_multiple_published_events(self):
+    async def test_reads_multiple_published_events(self):
         now = datetime.now()
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -75,9 +75,9 @@ class TestStreamBasics(object):
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stored_events = stream.publish(events=new_events)
+        stored_events = await stream.publish(events=new_events)
 
-        read_events = stream.read()
+        read_events = await stream.read()
         expected_events = [
             StoredEvent(
                 id=stored_events[position].id,
@@ -95,7 +95,7 @@ class TestStreamBasics(object):
 
         assert read_events == expected_events
 
-    def test_reads_events_in_multiple_streams_in_same_category(self):
+    async def test_reads_events_in_multiple_streams_in_same_category(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
         stream_2_name = data.random_event_stream_name()
@@ -107,11 +107,11 @@ class TestStreamBasics(object):
         stream_1 = store.stream(category=category_name, stream=stream_1_name)
         stream_2 = store.stream(category=category_name, stream=stream_2_name)
 
-        stream_1.publish(events=stream_1_new_events)
-        stream_2.publish(events=stream_2_new_events)
+        await stream_1.publish(events=stream_1_new_events)
+        await stream_2.publish(events=stream_2_new_events)
 
-        stream_1_events = stream_1.read()
-        stream_2_events = stream_2.read()
+        stream_1_events = await stream_1.read()
+        stream_2_events = await stream_2.read()
 
         actual_streams = {
             "stream_1": [
@@ -136,7 +136,7 @@ class TestStreamBasics(object):
 
         assert actual_streams == expected_streams
 
-    def test_reads_events_in_streams_in_different_categories(self):
+    async def test_reads_events_in_streams_in_different_categories(self):
         category_1_name = data.random_event_category_name()
         category_2_name = data.random_event_category_name()
         category_1_stream_name = data.random_event_stream_name()
@@ -157,11 +157,11 @@ class TestStreamBasics(object):
             category=category_2_name, stream=category_2_stream_name
         )
 
-        category_1_stream.publish(events=category_1_stream_new_events)
-        category_2_stream.publish(events=category_2_stream_new_events)
+        await category_1_stream.publish(events=category_1_stream_new_events)
+        await category_2_stream.publish(events=category_2_stream_new_events)
 
-        category_1_stream_events = category_1_stream.read()
-        category_2_stream_events = category_2_stream.read()
+        category_1_stream_events = await category_1_stream.read()
+        category_2_stream_events = await category_2_stream.read()
 
         actual_streams = {
             "stream_1": [
@@ -188,7 +188,7 @@ class TestStreamBasics(object):
 
 
 class TestStreamIteration(object):
-    def test_iterates_over_all_events_in_stream(self):
+    async def test_iterates_over_all_events_in_stream(self):
         now = datetime.now()
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -203,71 +203,82 @@ class TestStreamIteration(object):
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(events=new_events)
+        await stream.publish(events=new_events)
 
         new_event_keys = [
             (event.name, stream_name, category_name) for event in new_events
         ]
         stream_event_keys = [
-            (event.name, event.stream, event.category) for event in stream
+            (event.name, event.stream, event.category)
+            async for event in stream
         ]
 
         assert stream_event_keys == new_event_keys
 
 
 class TestStreamPublishing(object):
-    def test_publishes_if_stream_position_matches_position_condition(self):
+    async def test_publishes_if_stream_position_matches_position_condition(
+        self,
+    ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(events=[NewEventBuilder().build() for _ in range(10)])
+        await stream.publish(
+            events=[NewEventBuilder().build() for _ in range(10)]
+        )
 
         new_event = NewEventBuilder().build()
 
-        stored_events = stream.publish(
+        stored_events = await stream.publish(
             events=[new_event], conditions={conditions.position_is(9)}
         )
 
-        found_events = stream.read()
+        found_events = await stream.read()
 
         assert found_events[-1] == stored_events[-1]
 
-    def test_raises_if_stream_position_beyond_position_condition(self):
+    async def test_raises_if_stream_position_beyond_position_condition(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(events=[NewEventBuilder().build() for _ in range(10)])
+        await stream.publish(
+            events=[NewEventBuilder().build() for _ in range(10)]
+        )
 
         new_event = NewEventBuilder().build()
 
         with pytest.raises(UnmetWriteConditionError):
-            stream.publish(
+            await stream.publish(
                 events=[new_event], conditions={conditions.position_is(5)}
             )
 
-    def test_raises_if_stream_position_before_condition_position(self):
+    async def test_raises_if_stream_position_before_condition_position(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(events=[NewEventBuilder().build() for _ in range(5)])
+        await stream.publish(
+            events=[NewEventBuilder().build() for _ in range(5)]
+        )
 
         new_event = NewEventBuilder().build()
 
         with pytest.raises(UnmetWriteConditionError):
-            stream.publish(
+            await stream.publish(
                 events=[new_event], conditions={conditions.position_is(10)}
             )
 
-    def test_publishes_if_stream_empty_and_empty_condition_specified(self):
+    async def test_publishes_if_stream_empty_and_empty_condition_specified(
+        self,
+    ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
@@ -276,39 +287,49 @@ class TestStreamPublishing(object):
 
         new_event = NewEventBuilder().build()
 
-        stream.publish(
+        stored_events = await stream.publish(
             events=[new_event], conditions={conditions.stream_is_empty()}
         )
 
-    def test_raises_if_stream_not_empty_and_empty_condition_specified(self):
+        found_events = await stream.read()
+
+        assert found_events[-1] == stored_events[-1]
+
+    async def test_raises_if_stream_not_empty_and_empty_condition_specified(
+        self,
+    ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        stream.publish(events=[NewEventBuilder().build() for _ in range(5)])
+        await stream.publish(
+            events=[NewEventBuilder().build() for _ in range(5)]
+        )
 
         new_event = NewEventBuilder().build()
 
         with pytest.raises(UnmetWriteConditionError):
-            stream.publish(
+            await stream.publish(
                 events=[new_event], conditions={conditions.stream_is_empty()}
             )
 
 
 class TestCategoryBasics(object):
-    def test_has_no_events_in_category_initially(self):
+    async def test_has_no_events_in_category_initially(self):
         category_name = data.random_event_category_name()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
         category = store.category(category=category_name)
 
-        events = category.read()
+        events = await category.read()
 
         assert events == []
 
-    def test_reads_single_published_event_for_single_stream_in_category(self):
+    async def test_reads_single_published_event_for_single_stream_in_category(
+        self,
+    ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
         new_event = NewEventBuilder().build()
@@ -317,9 +338,9 @@ class TestCategoryBasics(object):
         category = store.category(category=category_name)
         stream = category.stream(stream=stream_name)
 
-        stored_events = stream.publish(events=[new_event])
+        stored_events = await stream.publish(events=[new_event])
 
-        read_events = category.read()
+        read_events = await category.read()
         expected_events = [
             StoredEvent(
                 id=stored_events[0].id,
@@ -336,7 +357,7 @@ class TestCategoryBasics(object):
 
         assert read_events == expected_events
 
-    def test_reads_multiple_published_events_for_single_stream_in_category(
+    async def test_reads_multiple_published_events_for_single_stream_in_category(
         self,
     ):
         category_name = data.random_event_category_name()
@@ -347,9 +368,9 @@ class TestCategoryBasics(object):
         category = store.category(category=category_name)
         stream = category.stream(stream=stream_name)
 
-        stored_events = stream.publish(events=new_events)
+        stored_events = await stream.publish(events=new_events)
 
-        read_events = category.read()
+        read_events = await category.read()
         expected_events = [
             StoredEvent(
                 id=stored_events[position].id,
@@ -367,7 +388,7 @@ class TestCategoryBasics(object):
 
         assert read_events == expected_events
 
-    def test_reads_for_different_streams_in_category_in_publish_order(
+    async def test_reads_for_different_streams_in_category_in_publish_order(
         self,
     ):
         category_name = data.random_event_category_name()
@@ -384,20 +405,20 @@ class TestCategoryBasics(object):
         stream_1 = category.stream(stream=stream_1_name)
         stream_2 = category.stream(stream=stream_2_name)
 
-        stream_1_stored_events_1 = stream_1.publish(
+        stream_1_stored_events_1 = await stream_1.publish(
             events=[stream_1_new_event_1]
         )
-        stream_2_stored_events_1 = stream_2.publish(
+        stream_2_stored_events_1 = await stream_2.publish(
             events=[stream_2_new_event_1]
         )
-        stream_2_stored_events_2 = stream_2.publish(
+        stream_2_stored_events_2 = await stream_2.publish(
             events=[stream_2_new_event_2]
         )
-        stream_1_stored_events_2 = stream_1.publish(
+        stream_1_stored_events_2 = await stream_1.publish(
             events=[stream_1_new_event_2]
         )
 
-        read_events = category.read()
+        read_events = await category.read()
 
         stream_1_expected_stored_event_builder = (
             StoredEventBuilder()
@@ -456,23 +477,23 @@ class TestCategoryBasics(object):
 
         assert read_events == expected_events
 
-    def test_ignores_events_in_other_categories(self):
+    async def test_ignores_events_in_other_categories(self):
         category = data.random_event_category_name()
         stream = data.random_event_stream_name()
         new_event = NewEventBuilder().build()
 
         store = EventStore(adapter=InMemoryStorageAdapter())
-        stored_events = store.stream(category=category, stream=stream).publish(
-            events=[new_event]
-        )
-        store.stream(
+        stored_events = await store.stream(
+            category=category, stream=stream
+        ).publish(events=[new_event])
+        await store.stream(
             category=(data.random_event_category_name()),
             stream=(data.random_event_stream_name()),
         ).publish(events=[(NewEventBuilder().build())])
 
         category_to_read = store.category(category=category)
 
-        read_events = category_to_read.read()
+        read_events = await category_to_read.read()
         expected_events = [
             StoredEventBuilder()
             .from_new_event(new_event)
@@ -487,7 +508,7 @@ class TestCategoryBasics(object):
 
 
 class TestCategoryIteration(object):
-    def test_iterates_over_all_events_in_stream(self):
+    async def test_iterates_over_all_events_in_stream(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
         stream_2_name = data.random_event_stream_name()
@@ -499,10 +520,10 @@ class TestCategoryIteration(object):
 
         category = store.category(category=category_name)
 
-        category.stream(stream=stream_1_name).publish(
+        await category.stream(stream=stream_1_name).publish(
             events=[stream_1_new_event]
         )
-        category.stream(stream=stream_2_name).publish(
+        await category.stream(stream=stream_2_name).publish(
             events=[stream_2_new_event]
         )
 
@@ -511,7 +532,8 @@ class TestCategoryIteration(object):
             (stream_2_new_event.name, stream_2_name, category_name),
         ]
         category_event_keys = [
-            (event.name, event.stream, event.category) for event in category
+            (event.name, event.stream, event.category)
+            async for event in category
         ]
 
         assert category_event_keys == new_event_keys

@@ -17,24 +17,25 @@ class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=40, repeats=200)
 
-    def clear_storage(self) -> None:
-        pass
-
     def construct_storage_adapter(self) -> StorageAdapter:
         return InMemoryStorageAdapter()
 
-    def retrieve_events(
+    async def clear_storage(self) -> None:
+        pass
+
+    async def retrieve_events(
         self,
         *,
         adapter: StorageAdapter,
         category: str | None = None,
         stream: str | None = None,
     ) -> Sequence[StoredEvent]:
-        return list(
-            adapter.scan(
+        return [
+            event
+            async for event in adapter.scan(
                 target=identifier.target(category=category, stream=stream)
             )
-        )
+        ]
 
 
 if __name__ == "__main__":

@@ -10,9 +10,9 @@ from contextlib import contextmanager
 import pytest
 
 from logicblocks.event.processing.services import (
-    AsyncService,
     ExecutionMode,
     IsolationMode,
+    Service,
     ServiceManager,
 )
 
@@ -26,7 +26,7 @@ class TestServiceManagerExecutionModes(object):
     async def test_foreground_execution_mode_waits_for_completion(self):
         times = {}
 
-        class TimeCapturingService(AsyncService):
+        class TimeCapturingService(Service):
             async def execute(self):
                 times["during"] = time.monotonic_ns()
 
@@ -49,7 +49,7 @@ class TestServiceManagerExecutionModes(object):
         times = {}
         control = asyncio.Event()
 
-        class TimeCapturingService(AsyncService):
+        class TimeCapturingService(Service):
             async def execute(self):
                 await asyncio.wait_for(control.wait(), timeout=0.1)
                 times["during"] = time.monotonic_ns()
@@ -78,7 +78,7 @@ class TestServiceManagerIsolationModes(object):
     ):
         thread_ids = {}
 
-        class ThreadCapturingService(AsyncService):
+        class ThreadCapturingService(Service):
             def __init__(self, name: str):
                 self.name = name
 
@@ -109,7 +109,7 @@ class TestServiceManagerIsolationModes(object):
     ):
         thread_ids = {}
 
-        class ThreadCapturingService(AsyncService):
+        class ThreadCapturingService(Service):
             def __init__(self, name: str):
                 self.name = name
 
@@ -141,7 +141,7 @@ class TestServiceManagerIsolationModes(object):
     ):
         thread_ids = {}
 
-        class ThreadCapturingService(AsyncService):
+        class ThreadCapturingService(Service):
             def __init__(self, name: str):
                 self.name = name
 
@@ -173,11 +173,11 @@ class TestServiceManagerExceptionHandling(object):
     async def test_exception_in_background_service_allows_other_services_to_execute(
         self,
     ):
-        class ExceptionalService(AsyncService[bool]):
+        class ExceptionalService(Service[bool]):
             async def execute(self) -> bool:
                 raise Exception("Service raised")
 
-        class WorkingService(AsyncService[int]):
+        class WorkingService(Service[int]):
             async def execute(self) -> int:
                 await asyncio.sleep(0)
                 return 10
@@ -202,11 +202,11 @@ class TestServiceManagerExceptionHandling(object):
     async def test_exception_in_foreground_service_allows_other_services_to_execute(
         self,
     ):
-        class ExceptionalService(AsyncService[bool]):
+        class ExceptionalService(Service[bool]):
             async def execute(self) -> bool:
                 raise Exception("Service raised")
 
-        class WorkingService(AsyncService[int]):
+        class WorkingService(Service[int]):
             async def execute(self) -> int:
                 await asyncio.sleep(0)
                 return 10
@@ -229,11 +229,11 @@ class TestServiceManagerExceptionHandling(object):
     async def test_exception_in_shared_thread_service_allows_other_services_to_execute(
         self,
     ):
-        class ExceptionalService(AsyncService[bool]):
+        class ExceptionalService(Service[bool]):
             async def execute(self) -> bool:
                 raise Exception("Service raised")
 
-        class WorkingService(AsyncService[int]):
+        class WorkingService(Service[int]):
             async def execute(self) -> int:
                 await asyncio.sleep(0)
                 return 10
@@ -257,11 +257,11 @@ class TestServiceManagerExceptionHandling(object):
     async def test_exception_in_dedicated_thread_service_allows_other_services_to_execute(
         self,
     ):
-        class ExceptionalService(AsyncService[bool]):
+        class ExceptionalService(Service[bool]):
             async def execute(self) -> bool:
                 raise Exception("Service raised")
 
-        class WorkingService(AsyncService[int]):
+        class WorkingService(Service[int]):
             async def execute(self) -> int:
                 await asyncio.sleep(0)
                 return 10
@@ -290,14 +290,14 @@ class TestServiceManagerLongRunningServices(object):
         long_running_iteration_count = 0
         short_running_ran = True
 
-        class LongRunningService(AsyncService):
+        class LongRunningService(Service):
             async def execute(self):
                 nonlocal long_running_iteration_count
                 while True:
                     long_running_iteration_count += 1
                     await asyncio.sleep(0)
 
-        class ShortRunningService(AsyncService):
+        class ShortRunningService(Service):
             async def execute(self):
                 nonlocal short_running_ran
                 await asyncio.sleep(0)
@@ -341,14 +341,14 @@ class TestServiceManagerLongRunningServices(object):
         long_running_iteration_count = 0
         short_running_ran = True
 
-        class LongRunningService(AsyncService):
+        class LongRunningService(Service):
             async def execute(self):
                 nonlocal long_running_iteration_count
                 while True:
                     long_running_iteration_count += 1
                     await asyncio.sleep(0)
 
-        class ShortRunningService(AsyncService):
+        class ShortRunningService(Service):
             async def execute(self):
                 nonlocal short_running_ran
                 await asyncio.sleep(0)
@@ -392,14 +392,14 @@ class TestServiceManagerLongRunningServices(object):
         long_running_iteration_count = 0
         short_running_ran = True
 
-        class LongRunningService(AsyncService):
+        class LongRunningService(Service):
             async def execute(self):
                 nonlocal long_running_iteration_count
                 while True:
                     long_running_iteration_count += 1
                     await asyncio.sleep(0)
 
-        class ShortRunningService(AsyncService):
+        class ShortRunningService(Service):
             async def execute(self):
                 nonlocal short_running_ran
                 await asyncio.sleep(0)
@@ -443,7 +443,7 @@ class TestServiceManagerLongRunningServices(object):
     ):
         iteration_counts = {}
 
-        class LongRunningService(AsyncService):
+        class LongRunningService(Service):
             def __init__(self, name: str):
                 self.name = name
 
@@ -519,7 +519,7 @@ class TestServiceManagerCancellation(object):
         service_running = False
         service_cancelled = False
 
-        class CancelCapturingService(AsyncService):
+        class CancelCapturingService(Service):
             async def execute(self):
                 nonlocal service_cancelled, service_running
                 try:
@@ -558,7 +558,7 @@ class TestServiceManagerCancellation(object):
             "service2": False,
         }
 
-        class CancelCapturingService(AsyncService):
+        class CancelCapturingService(Service):
             def __init__(self, name: str):
                 self.name = name
 
@@ -602,7 +602,7 @@ class TestServiceManagerCancellation(object):
         service_running = False
         service_cancelled = False
 
-        class CancelCapturingService(AsyncService):
+        class CancelCapturingService(Service):
             async def execute(self):
                 nonlocal service_cancelled, service_running
                 try:
@@ -636,8 +636,7 @@ class TestServiceManagerCancellation(object):
 def signal_ignored(sig: int):
     original_handler = signal.getsignal(sig)
 
-    def handle(sig: int, _2):
-        print("Got signal:", sig)  #
+    def handle(_1, _2):
         pass
 
     signal.signal(sig, handle)
@@ -665,7 +664,7 @@ class TestServiceManagerSignalHandling(object):
                 "service3": False,
             }
 
-            class CancelCapturingService(AsyncService):
+            class CancelCapturingService(Service):
                 def __init__(self, name: str):
                     self.name = name
 

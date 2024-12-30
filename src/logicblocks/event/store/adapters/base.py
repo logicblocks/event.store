@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence, Set
+from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
@@ -12,7 +12,7 @@ Scannable = identifier.Log | identifier.Category | identifier.Stream
 
 class StorageAdapter(ABC):
     @abstractmethod
-    def save(
+    async def save(
         self,
         *,
         target: Saveable,
@@ -26,5 +26,5 @@ class StorageAdapter(ABC):
         self,
         *,
         target: Scannable = identifier.Log(),
-    ) -> Iterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent]:
         raise NotImplementedError()

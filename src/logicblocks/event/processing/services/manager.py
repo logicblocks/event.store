@@ -8,7 +8,7 @@ from typing import Any, Generic, Self, TypeVar
 
 import uvloop
 
-from .types import AsyncService
+from .types import Service
 
 
 class ExecutionMode(Enum):
@@ -28,7 +28,7 @@ T = TypeVar("T", default=Any)
 class ServiceDefinition(Generic[T]):
     def __init__(
         self,
-        service: AsyncService[T],
+        service: Service[T],
         execution_mode: ExecutionMode,
         isolation_mode: IsolationMode,
     ):
@@ -156,7 +156,7 @@ class ServiceManager(object):
 
     def register(
         self,
-        service: AsyncService,
+        service: Service,
         *,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,

@@ -332,3 +332,7 @@ cython_debug/
 ### direnv template
 .direnv
 .envrc
+
+### project specific
+# Test reports
+reports

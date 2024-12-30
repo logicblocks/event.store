@@ -1,19 +1,14 @@
 import sys
-from typing import Mapping, Callable, Any
+from datetime import UTC, datetime
+from typing import Any, Callable, Mapping
 
 import pytest
 
-from datetime import datetime, UTC
-
-from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.projection import Projector
-from logicblocks.event.types import Projection
-
-from logicblocks.event.testing.data import random_int
-
-from logicblocks.event.types import StoredEvent
-
 from logicblocks.event.projection.exceptions import MissingHandlerError
+from logicblocks.event.testing.builders import StoredEventBuilder
+from logicblocks.event.testing.data import random_int
+from logicblocks.event.types import Projection, StoredEvent
 
 generic_event = (
     StoredEventBuilder()

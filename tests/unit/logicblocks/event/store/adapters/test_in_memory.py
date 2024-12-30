@@ -5,11 +5,11 @@ import pytest
 
 from logicblocks.event.adaptertests import cases
 from logicblocks.event.adaptertests.cases import ConcurrencyParameters
-from logicblocks.event.types import StoredEvent, identifier
 from logicblocks.event.store.adapters import (
     InMemoryStorageAdapter,
     StorageAdapter,
 )
+from logicblocks.event.types import StoredEvent, identifier
 
 
 class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):

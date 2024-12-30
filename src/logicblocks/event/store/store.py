@@ -1,4 +1,4 @@
-from collections.abc import Set, Sequence
+from collections.abc import Sequence, Set
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition

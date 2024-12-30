@@ -1,9 +1,8 @@
 import sys
-import pytest
-
 from collections import namedtuple
+from datetime import UTC, datetime, timedelta, tzinfo
 
-from datetime import datetime, tzinfo, UTC, timedelta
+import pytest
 
 from logicblocks.event.types import NewEvent, StoredEvent
 from logicblocks.event.utils import StaticClock

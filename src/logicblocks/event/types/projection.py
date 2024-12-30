@@ -1,8 +1,7 @@
 import json
-
 from collections.abc import Mapping
-from typing import Any
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)

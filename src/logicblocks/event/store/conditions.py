@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
-from logicblocks.event.types import StoredEvent
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from logicblocks.event.types import StoredEvent
 
 type Operator = Literal["equals"]
 type Target = Literal["last_event", "stream"]

@@ -1,9 +1,8 @@
 import sys
-import pytest
-
 from collections.abc import Sequence
 
-from psycopg import Connection, sql, abc
+import pytest
+from psycopg import Connection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import ConnectionPool
 
@@ -11,8 +10,8 @@ from logicblocks.event.adaptertests import cases
 from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
     PostgresConnectionParameters,
-    PostgresTableParameters,
     PostgresStorageAdapter,
+    PostgresTableParameters,
     StorageAdapter,
 )
 from logicblocks.event.testing import NewEventBuilder
@@ -20,7 +19,6 @@ from logicblocks.event.testing.data import (
     random_event_category_name,
     random_event_stream_name,
 )
-
 from logicblocks.event.types import StoredEvent, identifier
 
 connection_parameters = PostgresConnectionParameters(

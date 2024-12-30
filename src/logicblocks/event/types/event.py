@@ -1,11 +1,10 @@
 import json
-
 from collections.abc import Mapping
-from typing import Any
-from datetime import datetime, UTC
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
-from logicblocks.event.utils import SystemClock, Clock
+from logicblocks.event.utils import Clock, SystemClock
 
 
 @dataclass(frozen=True)

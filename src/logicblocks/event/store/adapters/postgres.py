@@ -1,16 +1,16 @@
 from collections.abc import Set
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Sequence, Iterator, Any, Tuple
+from typing import Any, Iterator, Sequence, Tuple
 from uuid import uuid4
 
-from psycopg import Connection, Cursor, sql, abc
+from psycopg import Connection, Cursor, abc, sql
 from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from logicblocks.event.store.adapters import StorageAdapter
-from logicblocks.event.store.adapters.base import Scannable, Saveable
+from logicblocks.event.store.adapters.base import Saveable, Scannable
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.types import (
     NewEvent,

@@ -1,13 +1,12 @@
 import threading
-
-from uuid import uuid4
 from collections import defaultdict
 from collections.abc import Iterator, Sequence, Set
+from uuid import uuid4
 
 from logicblocks.event.store.adapters.base import (
-    StorageAdapter,
-    Scannable,
     Saveable,
+    Scannable,
+    StorageAdapter,
 )
 from logicblocks.event.store.conditions import (
     WriteCondition,

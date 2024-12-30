@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set, Iterator
+from collections.abc import Iterator, Sequence, Set
 
 from logicblocks.event.store.conditions import WriteCondition
-from logicblocks.event.types import identifier, NewEvent, StoredEvent
+from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 # Listable = identifier.Categories | identifier.Streams
 # Readable = identifier.Log | identifier.Category | identifier.Stream

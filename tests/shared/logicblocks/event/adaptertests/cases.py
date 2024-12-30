@@ -1,11 +1,10 @@
-import pytest
-
-import threading
 import concurrent.futures
-
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from itertools import batched
+
+import pytest
 
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store.adapters import StorageAdapter
@@ -15,7 +14,7 @@ from logicblocks.event.testing.data import (
     random_event_category_name,
     random_event_stream_name,
 )
-from logicblocks.event.types import StoredEvent, identifier, NewEvent
+from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 
 class ConcurrencyParameters(object):

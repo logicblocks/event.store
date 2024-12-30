@@ -1,11 +1,9 @@
 import functools
 from dataclasses import dataclass
-
-from typing import Any, List, Callable, Mapping
-
-from logicblocks.event.types import StoredEvent, Projection
+from typing import Any, Callable, List, Mapping
 
 from logicblocks.event.projection.exceptions import MissingHandlerError
+from logicblocks.event.types import Projection, StoredEvent
 
 
 @dataclass(frozen=True)

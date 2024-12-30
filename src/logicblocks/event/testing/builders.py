@@ -1,17 +1,18 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, UTC
-from typing import Any, Unpack, TypedDict
+from datetime import UTC, datetime
+from typing import Any, TypedDict, Unpack
+
+from logicblocks.event.types.event import NewEvent, StoredEvent
+from logicblocks.event.utils import Clock, SystemClock
 
 from .data import (
+    random_event_category_name,
     random_event_id,
     random_event_name,
     random_event_payload,
     random_event_stream_name,
-    random_event_category_name,
 )
-from logicblocks.event.types.event import NewEvent, StoredEvent
-from logicblocks.event.utils import Clock, SystemClock
 
 
 class NewEventBuilderParams(TypedDict, total=False):

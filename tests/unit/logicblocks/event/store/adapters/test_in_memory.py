@@ -17,6 +17,10 @@ class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=40, repeats=200)
 
+    @property
+    def default_page_size(self) -> int:
+        return 100
+
     def construct_storage_adapter(self) -> StorageAdapter:
         return InMemoryStorageAdapter()
 

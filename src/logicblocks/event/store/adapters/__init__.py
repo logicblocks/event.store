@@ -1,13 +1,15 @@
 from .base import StorageAdapter as StorageAdapter
 from .in_memory import InMemoryStorageAdapter as InMemoryStorageAdapter
-from .postgres import ConnectionParameters as PostgresConnectionParameters
+from .postgres import ConnectionSettings as PostgresConnectionSettings
 from .postgres import PostgresStorageAdapter as PostgresStorageAdapter
-from .postgres import TableParameters as PostgresTableParameters
+from .postgres import QuerySettings as PostgresQuerySettings
+from .postgres import TableSettings as PostgresTableSettings
 
 __all__ = [
     "StorageAdapter",
     "InMemoryStorageAdapter",
     "PostgresStorageAdapter",
-    "PostgresConnectionParameters",
-    "PostgresTableParameters",
+    "PostgresConnectionSettings",
+    "PostgresQuerySettings",
+    "PostgresTableSettings",
 ]

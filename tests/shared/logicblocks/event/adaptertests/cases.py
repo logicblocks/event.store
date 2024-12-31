@@ -24,11 +24,11 @@ class ConcurrencyParameters(object):
 
 class Base(ABC):
     @abstractmethod
-    async def clear_storage(self) -> None:
+    def construct_storage_adapter(self) -> StorageAdapter:
         raise NotImplementedError()
 
     @abstractmethod
-    def construct_storage_adapter(self) -> StorageAdapter:
+    async def clear_storage(self) -> None:
         raise NotImplementedError()
 
     @abstractmethod

@@ -707,6 +707,14 @@ class TestServiceManagerSignalHandling(object):
 
             await asyncio.gather(*futures, return_exceptions=True)
 
+            tasks = [
+                task
+                for task in asyncio.all_tasks()
+                if task != asyncio.current_task()
+            ]
+
+            await asyncio.gather(*tasks, return_exceptions=True)
+
             assert (
                 services_cancelled["service1"]
                 and services_cancelled["service2"]

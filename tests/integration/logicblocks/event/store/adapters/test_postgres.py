@@ -1,5 +1,7 @@
+import asyncio
+import random
 import sys
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 
 import pytest
 import pytest_asyncio
@@ -10,9 +12,10 @@ from psycopg_pool import AsyncConnectionPool
 from logicblocks.event.adaptertests import cases
 from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
-    PostgresConnectionParameters,
+    PostgresConnectionSettings,
+    PostgresQuerySettings,
     PostgresStorageAdapter,
-    PostgresTableParameters,
+    PostgresTableSettings,
     StorageAdapter,
 )
 from logicblocks.event.testing import NewEventBuilder
@@ -22,7 +25,7 @@ from logicblocks.event.testing.data import (
 )
 from logicblocks.event.types import StoredEvent, identifier
 
-connection_parameters = PostgresConnectionParameters(
+connection_settings = PostgresConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",
@@ -118,9 +121,34 @@ async def read_events(
             return events
 
 
+async def save_random_events(
+    *,
+    adapter: StorageAdapter,
+    number_of_events: int,
+    streams: Sequence[tuple[str, str]],
+) -> Sequence[StoredEvent]:
+    return [
+        event
+        for _ in range(number_of_events)
+        for event_category, event_stream in [random.choice(streams)]
+        for event in await adapter.save(
+            target=identifier.Stream(
+                category=event_category, stream=event_stream
+            ),
+            events=[NewEventBuilder().build()],
+        )
+    ]
+
+
+async def read_iterator_events(
+    *, iterator: AsyncIterator[StoredEvent], number_of_events: int
+):
+    return [await anext(iterator) for _ in range(number_of_events)]
+
+
 @pytest_asyncio.fixture
 async def open_connection_pool():
-    conninfo = connection_parameters.to_connection_string()
+    conninfo = connection_settings.to_connection_string()
     pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
 
     await pool.open()
@@ -146,6 +174,10 @@ class TestPostgresStorageAdapterCommonCases(cases.StorageAdapterCases):
     @property
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=3, repeats=5)
+
+    @property
+    def default_page_size(self) -> int:
+        return PostgresQuerySettings().scan_query_page_size
 
     def construct_storage_adapter(self) -> StorageAdapter:
         return PostgresStorageAdapter(connection_source=self.pool)
@@ -197,16 +229,14 @@ class TestPostgresStorageAdapterCustomTableName(object):
 
     async def test_allows_events_table_name_to_be_overridden(self):
         table_name = "event_log"
-        table_parameters = PostgresTableParameters(
-            events_table_name=table_name
-        )
+        table_settings = PostgresTableSettings(events_table_name=table_name)
 
         await drop_table(pool=self.pool, table="event_log")
         await create_table(pool=self.pool, table="event_log")
 
         adapter = PostgresStorageAdapter(
             connection_source=self.pool,
-            table_parameters=table_parameters,
+            table_settings=table_settings,
         )
 
         event_category = random_event_category_name()
@@ -224,6 +254,400 @@ class TestPostgresStorageAdapterCustomTableName(object):
         retrieved_events = await read_events(pool=self.pool, table=table_name)
 
         assert retrieved_events == stored_events
+
+
+class TestPostgresStorageAdapterScanPaging(object):
+    pool: AsyncConnectionPool[AsyncConnection]
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def store_connection_pool(self, open_connection_pool):
+        self.pool = open_connection_pool
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await drop_table(open_connection_pool, "events")
+        await create_table(open_connection_pool, "events")
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def shutdown_async_generators(self):
+        yield
+
+        await asyncio.get_event_loop().shutdown_asyncgens()
+
+    async def test_pages_log_scan_using_default_page_size(self):
+        default_page_size = PostgresQuerySettings().scan_query_page_size
+
+        adapter = PostgresStorageAdapter(connection_source=self.pool)
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        streams = [
+            (event_category_1, event_stream_1),
+            (event_category_2, event_stream_2),
+        ]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(target=identifier.Log())
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+        second_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=int(default_page_size / 2),
+            adapter=adapter,
+            streams=streams,
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=int(default_page_size / 2), iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
+
+    async def test_pages_log_scan_using_overridden_page_size(self):
+        page_size = 25
+
+        adapter = PostgresStorageAdapter(
+            connection_source=self.pool,
+            query_settings=PostgresQuerySettings(
+                scan_query_page_size=page_size
+            ),
+        )
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        streams = [
+            (event_category_1, event_stream_1),
+            (event_category_2, event_stream_2),
+        ]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(target=identifier.Log())
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+        second_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=int(page_size / 2),
+            adapter=adapter,
+            streams=streams,
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=int(page_size / 2), iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
+
+    async def test_pages_category_scan_using_default_page_size(self):
+        default_page_size = PostgresQuerySettings().scan_query_page_size
+
+        adapter = PostgresStorageAdapter(connection_source=self.pool)
+
+        event_category = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        streams = [
+            (event_category, event_stream_1),
+            (event_category, event_stream_2),
+        ]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(
+            target=identifier.Category(category=event_category)
+        )
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+
+        second_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=20, adapter=adapter, streams=streams
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=20, iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
+
+    async def test_pages_category_scan_using_overridden_page_size(self):
+        page_size = 25
+
+        adapter = PostgresStorageAdapter(
+            connection_source=self.pool,
+            query_settings=PostgresQuerySettings(
+                scan_query_page_size=page_size
+            ),
+        )
+
+        event_category = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        streams = [
+            (event_category, event_stream_1),
+            (event_category, event_stream_2),
+        ]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(
+            target=identifier.Category(category=event_category)
+        )
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+
+        second_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=int(page_size / 2),
+            adapter=adapter,
+            streams=streams,
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=int(page_size / 2), iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
+
+    async def test_pages_stream_scan_using_default_page_size(self):
+        default_page_size = PostgresQuerySettings().scan_query_page_size
+
+        adapter = PostgresStorageAdapter(connection_source=self.pool)
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        streams = [(event_category, event_stream)]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(
+            target=identifier.Stream(
+                category=event_category, stream=event_stream
+            )
+        )
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+
+        second_page_stored_events = await save_random_events(
+            number_of_events=default_page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=default_page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=20, adapter=adapter, streams=streams
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=20, iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
+
+    async def test_pages_stream_scan_using_overridden_page_size(self):
+        page_size = 25
+
+        adapter = PostgresStorageAdapter(
+            connection_source=self.pool,
+            query_settings=PostgresQuerySettings(
+                scan_query_page_size=page_size
+            ),
+        )
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        streams = [(event_category, event_stream)]
+
+        first_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+
+        iterator = adapter.scan(
+            target=identifier.Stream(
+                category=event_category, stream=event_stream
+            )
+        )
+
+        first_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+
+        second_page_stored_events = await save_random_events(
+            number_of_events=page_size,
+            adapter=adapter,
+            streams=streams,
+        )
+        second_page_scanned_events = await read_iterator_events(
+            number_of_events=page_size, iterator=iterator
+        )
+
+        last_page_stored_events = await save_random_events(
+            number_of_events=int(page_size / 2),
+            adapter=adapter,
+            streams=streams,
+        )
+        last_page_scanned_events = await read_iterator_events(
+            number_of_events=int(page_size / 2), iterator=iterator
+        )
+
+        stored_events = (
+            list(first_page_stored_events)
+            + list(second_page_stored_events)
+            + list(last_page_stored_events)
+        )
+        scanned_events = (
+            first_page_scanned_events
+            + second_page_scanned_events
+            + last_page_scanned_events
+        )
+
+        with pytest.raises(StopAsyncIteration):
+            await anext(iterator)
+
+        assert scanned_events == stored_events
 
 
 if __name__ == "__main__":

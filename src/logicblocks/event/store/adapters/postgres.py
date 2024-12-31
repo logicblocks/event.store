@@ -1,6 +1,5 @@
 from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
-from functools import singledispatch
 from typing import Any, Sequence, Tuple
 from uuid import uuid4
 
@@ -20,7 +19,7 @@ from logicblocks.event.types import (
 
 
 @dataclass(frozen=True)
-class ConnectionParameters(object):
+class ConnectionSettings(object):
     host: str
     port: int
     dbname: str
@@ -52,91 +51,141 @@ class ConnectionParameters(object):
         return f"postgresql://{userspec}@{hostspec}/{self.dbname}"
 
 
-ConnectionSource = ConnectionParameters | AsyncConnectionPool[AsyncConnection]
+ConnectionSource = ConnectionSettings | AsyncConnectionPool[AsyncConnection]
 
 
 @dataclass(frozen=True)
-class TableParameters(object):
+class TableSettings(object):
     events_table_name: str
 
     def __init__(self, *, events_table_name: str = "events"):
         object.__setattr__(self, "events_table_name", events_table_name)
 
 
+@dataclass(frozen=True)
+class QuerySettings(object):
+    scan_query_page_size: int
+
+    def __init__(self, *, scan_query_page_size: int = 100):
+        object.__setattr__(self, "scan_query_page_size", scan_query_page_size)
+
+
+@dataclass(frozen=True)
+class ScanQueryParameters(object):
+    target: Scannable
+    page_size: int
+    last_sequence_number: int | None
+
+    def __init__(
+        self,
+        *,
+        target: Scannable,
+        page_size: int,
+        last_sequence_number: int | None = None,
+    ):
+        object.__setattr__(self, "target", target)
+        object.__setattr__(self, "page_size", page_size)
+        object.__setattr__(self, "last_sequence_number", last_sequence_number)
+
+    @property
+    def category(self) -> str | None:
+        match self.target:
+            case identifier.Category(category):
+                return category
+            case identifier.Stream(category, _):
+                return category
+            case _:
+                return None
+
+    @property
+    def stream(self) -> str | None:
+        match self.target:
+            case identifier.Stream(_, stream):
+                return stream
+            case _:
+                return None
+
+
 ParameterisedQuery = Tuple[abc.Query, Sequence[Any]]
 
 
-@singledispatch
 def scan_query(
-    target: Scannable, table_parameters: TableParameters
+    parameters: ScanQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
-    raise TypeError(f"No scan query for target: {target}")
+    table = table_settings.events_table_name
 
-
-@scan_query.register(identifier.Log)
-def scan_query_log(
-    _target: identifier.Log, table_parameters: TableParameters
-) -> ParameterisedQuery:
-    return (
-        sql.SQL(
-            """
-            SELECT * 
-            FROM {0}
-            ORDER BY sequence_number;
-            """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
-        [],
+    category_condition = (
+        sql.SQL("category = %s") if parameters.category is not None else None
+    )
+    stream_condition = (
+        sql.SQL("stream = %s") if parameters.stream is not None else None
+    )
+    sequence_number_condition = (
+        sql.SQL("sequence_number > %s")
+        if parameters.last_sequence_number is not None
+        else None
     )
 
+    conditions = [
+        condition
+        for condition in [
+            category_condition,
+            stream_condition,
+            sequence_number_condition,
+        ]
+        if condition is not None
+    ]
 
-@scan_query.register(identifier.Category)
-def scan_query_category(
-    target: identifier.Category, table_parameters: TableParameters
-) -> ParameterisedQuery:
-    return (
-        sql.SQL(
-            """
-            SELECT * 
-            FROM {0}
-            WHERE category = (%s)
-            ORDER BY sequence_number;
-            """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
-        [target.category],
+    select_clause = sql.SQL("SELECT *")
+    from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
+    where_clause = (
+        sql.SQL("WHERE ") + sql.SQL(" AND ").join(conditions)
+        if len(conditions) > 0
+        else None
     )
+    order_by_clause = sql.SQL("ORDER BY sequence_number ASC")
+    limit_clause = sql.SQL("LIMIT %s")
+
+    clauses = [
+        clause
+        for clause in [
+            select_clause,
+            from_clause,
+            where_clause,
+            order_by_clause,
+            limit_clause,
+        ]
+        if clause is not None
+    ]
+
+    query = sql.SQL(" ").join(clauses)
+    params = [
+        param
+        for param in [
+            parameters.category,
+            parameters.stream,
+            parameters.last_sequence_number,
+            parameters.page_size,
+        ]
+        if param is not None
+    ]
+
+    return (query, params)
 
 
-@scan_query.register(identifier.Stream)
-def scan_query_stream(
-    target: identifier.Stream, table_parameters: TableParameters
-) -> ParameterisedQuery:
-    return (
-        sql.SQL(
-            """
-            SELECT * 
-            FROM {0}
-            WHERE category = (%s)
-            AND stream = (%s)
-            ORDER BY sequence_number;
-            """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
-        [target.category, target.stream],
-    )
-
-
-def lock_query(table_parameters: TableParameters) -> ParameterisedQuery:
+def lock_query(table_settings: TableSettings) -> ParameterisedQuery:
     return (
         sql.SQL(
             """
             LOCK TABLE ONLY {0} IN EXCLUSIVE MODE;
             """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
+        ).format(sql.Identifier(table_settings.events_table_name)),
         [],
     )
 
 
 def read_last_query(
-    target: identifier.Stream, table_parameters: TableParameters
+    target: identifier.Stream, table_settings: TableSettings
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -148,7 +197,7 @@ def read_last_query(
             ORDER BY position DESC 
             LIMIT 1;
             """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
+        ).format(sql.Identifier(table_settings.events_table_name)),
         [target.category, target.stream],
     )
 
@@ -157,7 +206,7 @@ def insert_query(
     target: Saveable,
     event: NewEvent,
     position: int,
-    table_parameters: TableParameters,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -175,7 +224,7 @@ def insert_query(
               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
               RETURNING *;
             """
-        ).format(sql.Identifier(table_parameters.events_table_name)),
+        ).format(sql.Identifier(table_settings.events_table_name)),
         [
             uuid4().hex,
             event.name,
@@ -190,18 +239,18 @@ def insert_query(
 
 
 async def lock_table(
-    cursor: AsyncCursor[StoredEvent], *, table_parameters: TableParameters
+    cursor: AsyncCursor[StoredEvent], *, table_settings: TableSettings
 ):
-    await cursor.execute(*lock_query(table_parameters))
+    await cursor.execute(*lock_query(table_settings))
 
 
 async def read_last(
     cursor: AsyncCursor[StoredEvent],
     *,
     target: identifier.Stream,
-    table_parameters: TableParameters,
+    table_settings: TableSettings,
 ):
-    await cursor.execute(*read_last_query(target, table_parameters))
+    await cursor.execute(*read_last_query(target, table_settings))
     return await cursor.fetchone()
 
 
@@ -211,10 +260,10 @@ async def insert(
     target: Saveable,
     event: NewEvent,
     position: int,
-    table_parameters: TableParameters,
+    table_settings: TableSettings,
 ):
     await cursor.execute(
-        *insert_query(target, event, position, table_parameters)
+        *insert_query(target, event, position, table_settings)
     )
     stored_event = await cursor.fetchone()
 
@@ -227,15 +276,18 @@ async def insert(
 class PostgresStorageAdapter(StorageAdapter):
     connection_pool: AsyncConnectionPool[AsyncConnection]
     connection_pool_owner: bool
-    table_parameters: TableParameters
+
+    query_settings: QuerySettings
+    table_settings: TableSettings
 
     def __init__(
         self,
         *,
         connection_source: ConnectionSource,
-        table_parameters: TableParameters = TableParameters(),
+        query_settings: QuerySettings = QuerySettings(),
+        table_settings: TableSettings = TableSettings(),
     ):
-        if isinstance(connection_source, ConnectionParameters):
+        if isinstance(connection_source, ConnectionSettings):
             self.connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False
@@ -244,7 +296,8 @@ class PostgresStorageAdapter(StorageAdapter):
             self.connection_pool_owner = False
             self.connection_pool = connection_source
 
-        self.table_parameters = table_parameters
+        self.query_settings = query_settings
+        self.table_settings = table_settings
 
     async def open(self) -> None:
         if self.connection_pool_owner:
@@ -265,14 +318,12 @@ class PostgresStorageAdapter(StorageAdapter):
             async with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                await lock_table(
-                    cursor, table_parameters=self.table_parameters
-                )
+                await lock_table(cursor, table_settings=self.table_settings)
 
                 last_event = await read_last(
                     cursor,
                     target=target,
-                    table_parameters=self.table_parameters,
+                    table_settings=self.table_settings,
                 )
 
                 for condition in conditions:
@@ -286,7 +337,7 @@ class PostgresStorageAdapter(StorageAdapter):
                         target=target,
                         event=event,
                         position=position,
-                        table_parameters=self.table_parameters,
+                        table_settings=self.table_settings,
                     )
                     for position, event in enumerate(events, current_position)
                 ]
@@ -300,7 +351,25 @@ class PostgresStorageAdapter(StorageAdapter):
             async with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                async for record in await cursor.execute(
-                    *scan_query(target, table_parameters=self.table_parameters)
-                ):
-                    yield record
+                page_size = self.query_settings.scan_query_page_size
+                last_sequence_number = None
+                keep_querying = True
+
+                while keep_querying:
+                    parameters = ScanQueryParameters(
+                        target=target,
+                        page_size=page_size,
+                        last_sequence_number=last_sequence_number,
+                    )
+                    results = await cursor.execute(
+                        *scan_query(
+                            parameters=parameters,
+                            table_settings=self.table_settings,
+                        )
+                    )
+
+                    keep_querying = results.rowcount == page_size
+
+                    async for event in results:
+                        yield event
+                        last_sequence_number = event.sequence_number

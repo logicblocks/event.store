@@ -30,11 +30,7 @@ class EventStream(object):
 
     def __aiter__(self) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream from position 0 to the end."""
-        return self.adapter.scan(
-            target=identifier.Stream(
-                category=self.category, stream=self.stream
-            )
-        )
+        return self.iterate()
 
     async def publish(
         self,
@@ -52,12 +48,12 @@ class EventStream(object):
         )
 
     def iterate(
-        self, *, query: Set[QueryConstraint] = frozenset()
+        self, *, constraints: Set[QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream.
 
         Args:
-            query: A set of query constraints defining which events to
+            constraints: A set of query constraints defining which events to
                    include in the iteration
 
         Returns:
@@ -67,20 +63,20 @@ class EventStream(object):
             target=identifier.Stream(
                 category=self.category, stream=self.stream
             ),
-            constraints=query,
+            constraints=constraints,
         )
 
     async def read(
         self,
         *,
-        query: Set[QueryConstraint] = frozenset(),
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Read all events from the stream.
 
         All events will be read into memory so stream iteration should be
         preferred in order to give storage adapters the opportunity to page
         events as they are read from the underlying persistence."""
-        return [event async for event in self.iterate(query=query)]
+        return [event async for event in self.iterate(constraints=constraints)]
 
 
 class EventCategory(object):
@@ -106,9 +102,7 @@ class EventCategory(object):
 
     def __aiter__(self) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the category."""
-        return self.adapter.scan(
-            target=identifier.Category(category=self.category)
-        )
+        return self.iterate()
 
     def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.
@@ -123,13 +117,34 @@ class EventCategory(object):
             adapter=self.adapter, category=self.category, stream=stream
         )
 
-    async def read(self) -> Sequence[StoredEvent]:
+    def iterate(
+            self, *, constraints: Set[QueryConstraint] = frozenset()
+    ) -> AsyncIterator[StoredEvent]:
+        """Iterate over the events in the category.
+
+        Args:
+            constraints: A set of query constraints defining which events to
+                   include in the iteration
+
+        Returns:
+            an async iterator over the events in the category.
+        """
+        return self.adapter.scan(
+            target=identifier.Category(category=self.category),
+            constraints=constraints,
+        )
+
+    async def read(
+            self,
+            *,
+            constraints: Set[QueryConstraint] = frozenset(),
+    ) -> Sequence[StoredEvent]:
         """Read all events from the category.
 
         All events will be read into memory so stream iteration should be
         preferred in order to give storage adapters the opportunity to page
         events as they are read from the underlying persistence."""
-        return [event async for event in aiter(self)]
+        return [event async for event in self.iterate(constraints=constraints)]
 
 
 class EventStore(object):

@@ -960,17 +960,6 @@ pyyaml = "*"
 extra = ["pygments (>=2.12)"]
 
 [[package]]
-name = "pypika-fork"
-version = "0.49.0"
-description = "A SQL query builder API for Python"
-optional = false
-python-versions = ">=3.10"
-files = [
-    {file = "pypika_fork-0.49.0-py3-none-any.whl", hash = "sha256:881eb8071db2a47db6d7fc84f06239a243227d3cf76e1847bb1a3b31fadd02c1"},
-    {file = "pypika_fork-0.49.0.tar.gz", hash = "sha256:dd76b87ad90c378d0a0f1dd280c53a010e4325d89c466947cfbd3c923ff3cbd2"},
-]
-
-[[package]]
 name = "pyright"
 version = "1.1.391"
 description = "Command line wrapper for pyright"
@@ -1498,4 +1487,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.13,<4.0"
-content-hash = "c3cd3ddc93075fbd7c0d8146dd608e7bc94b82fb7628c18f92163d31c5200a1b"
+content-hash = "0c4f706afc1a373e1a2316fb8b69b4520890b69677d73238ea01747d31df15c5"

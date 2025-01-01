@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 
@@ -9,8 +10,8 @@ class EventStream(object):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
-    then entire stream can be read using the `read` method. Streams are also
-    iterable, supporting `iter`.
+    the entire stream can be read using the `read` method. Streams are also
+    iterable, supporting `aiter`.
 
     Attributes:
         adapter: The storage adapter to use for interacting with the stream.
@@ -50,13 +51,36 @@ class EventStream(object):
             conditions=conditions,
         )
 
-    async def read(self) -> Sequence[StoredEvent]:
+    def iterate(
+        self, *, query: Set[QueryConstraint] = frozenset()
+    ) -> AsyncIterator[StoredEvent]:
+        """Iterate over the events in the stream.
+
+        Args:
+            query: A set of query constraints defining which events to
+                   include in the iteration
+
+        Returns:
+            an async iterator over the events in the stream.
+        """
+        return self.adapter.scan(
+            target=identifier.Stream(
+                category=self.category, stream=self.stream
+            ),
+            constraints=query,
+        )
+
+    async def read(
+        self,
+        *,
+        query: Set[QueryConstraint] = frozenset(),
+    ) -> Sequence[StoredEvent]:
         """Read all events from the stream.
 
         All events will be read into memory so stream iteration should be
         preferred in order to give storage adapters the opportunity to page
         events as they are read from the underlying persistence."""
-        return [event async for event in aiter(self)]
+        return [event async for event in self.iterate(query=query)]
 
 
 class EventCategory(object):

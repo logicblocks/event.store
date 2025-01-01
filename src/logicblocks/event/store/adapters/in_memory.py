@@ -11,6 +11,7 @@ from logicblocks.event.store.adapters.base import (
 from logicblocks.event.store.conditions import (
     WriteCondition,
 )
+from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
     NewEvent,
     StoredEvent,
@@ -54,7 +55,7 @@ class InMemoryStorageAdapter(StorageAdapter):
             last_event = stream_events[-1] if stream_events else None
 
             for condition in conditions:
-                condition.ensure(last_event)
+                condition.assert_met_by(last_event=last_event)
 
             last_sequence_number = len(self._events)
             last_stream_position = (
@@ -87,10 +88,18 @@ class InMemoryStorageAdapter(StorageAdapter):
             return new_stored_events
 
     async def scan(
-        self, *, target: Scannable = identifier.Log()
+        self,
+        *,
+        target: Scannable = identifier.Log(),
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         index = self._select_index(target)
         for sequence_number in index:
+            event = self._events[sequence_number]
+            if not all(
+                constraint.met_by(event=event) for constraint in constraints
+            ):
+                continue
             yield self._events[sequence_number]
 
     def _select_index(self, target: Scannable) -> EventPositionList:

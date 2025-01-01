@@ -19,7 +19,6 @@ packages = [
 python = ">=3.13,<4.0"
 psycopg = { extras = ["binary", "pool"], version = "^3.2.3" }
 uvloop = "^0.21.0"
-pypika-fork = "^0.49.0"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.5.4"

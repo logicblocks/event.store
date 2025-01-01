@@ -25,9 +25,6 @@ class Log(Identifier):
 class Category(Identifier):
     category: str
 
-    def __init__(self, *, category: str):
-        object.__setattr__(self, "category", category)
-
     def json(self) -> str:
         return json.dumps(
             {
@@ -47,10 +44,6 @@ class Category(Identifier):
 class Stream(Identifier):
     category: str
     stream: str
-
-    def __init__(self, *, category: str, stream: str):
-        object.__setattr__(self, "category", category)
-        object.__setattr__(self, "stream", stream)
 
     def json(self) -> str:
         return json.dumps(

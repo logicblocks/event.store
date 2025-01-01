@@ -69,29 +69,6 @@ class StoredEvent(object):
     observed_at: datetime
     occurred_at: datetime
 
-    def __init__(
-        self,
-        *,
-        id: str,
-        name: str,
-        stream: str,
-        category: str,
-        position: int,
-        sequence_number: int,
-        payload: Mapping[str, Any],
-        observed_at: datetime,
-        occurred_at: datetime,
-    ):
-        object.__setattr__(self, "id", id)
-        object.__setattr__(self, "name", name)
-        object.__setattr__(self, "stream", stream)
-        object.__setattr__(self, "category", category)
-        object.__setattr__(self, "position", position)
-        object.__setattr__(self, "sequence_number", sequence_number)
-        object.__setattr__(self, "payload", payload)
-        object.__setattr__(self, "observed_at", observed_at)
-        object.__setattr__(self, "occurred_at", occurred_at)
-
     def json(self):
         return json.dumps(
             {

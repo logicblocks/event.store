@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
+from functools import singledispatch
 from typing import Any, Sequence, Tuple
 from uuid import uuid4
 
@@ -11,6 +12,10 @@ from psycopg_pool import AsyncConnectionPool
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.adapters.base import Saveable, Scannable
 from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.store.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.types import (
     NewEvent,
     StoredEvent,
@@ -73,19 +78,19 @@ class QuerySettings(object):
 @dataclass(frozen=True)
 class ScanQueryParameters(object):
     target: Scannable
+    constraints: Set[QueryConstraint]
     page_size: int
-    last_sequence_number: int | None
 
     def __init__(
         self,
         *,
         target: Scannable,
+        constraints: Set[QueryConstraint] = frozenset(),
         page_size: int,
-        last_sequence_number: int | None = None,
     ):
         object.__setattr__(self, "target", target)
+        object.__setattr__(self, "constraints", constraints)
         object.__setattr__(self, "page_size", page_size)
-        object.__setattr__(self, "last_sequence_number", last_sequence_number)
 
     @property
     def category(self) -> str | None:
@@ -106,7 +111,22 @@ class ScanQueryParameters(object):
                 return None
 
 
-ParameterisedQuery = Tuple[abc.Query, Sequence[Any]]
+type ParameterisedQuery = Tuple[abc.Query, Sequence[Any]]
+type ParameterisedQueryFragment = Tuple[sql.SQL, Sequence[Any]]
+
+
+@singledispatch
+def query_constraint_as_sql(
+    constraint: QueryConstraint,
+) -> ParameterisedQueryFragment:
+    raise TypeError(f"No SQL converter for query constraint: {constraint}")
+
+
+@query_constraint_as_sql.register(SequenceNumberAfterConstraint)
+def sequence_number_after_query_constraint_as_sql(
+    constraint: SequenceNumberAfterConstraint,
+) -> ParameterisedQueryFragment:
+    return (sql.SQL("sequence_number > %s"), [constraint.sequence_number])
 
 
 def scan_query(
@@ -114,33 +134,35 @@ def scan_query(
 ) -> ParameterisedQuery:
     table = table_settings.events_table_name
 
-    category_condition = (
+    category_where_clause = (
         sql.SQL("category = %s") if parameters.category is not None else None
     )
-    stream_condition = (
+    stream_where_clause = (
         sql.SQL("stream = %s") if parameters.stream is not None else None
     )
-    sequence_number_condition = (
-        sql.SQL("sequence_number > %s")
-        if parameters.last_sequence_number is not None
-        else None
-    )
 
-    conditions = [
-        condition
-        for condition in [
-            category_condition,
-            stream_condition,
-            sequence_number_condition,
+    extra_where_clauses: list[sql.SQL] = []
+    extra_parameters: list[Any] = []
+    for constraint in parameters.constraints:
+        clause, params = query_constraint_as_sql(constraint)
+        extra_where_clauses.append(clause)
+        extra_parameters.extend(params)
+
+    where_clauses = [
+        clause
+        for clause in [
+            category_where_clause,
+            stream_where_clause,
+            *extra_where_clauses,
         ]
-        if condition is not None
+        if clause is not None
     ]
 
     select_clause = sql.SQL("SELECT *")
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
     where_clause = (
-        sql.SQL("WHERE ") + sql.SQL(" AND ").join(conditions)
-        if len(conditions) > 0
+        sql.SQL("WHERE ") + sql.SQL(" AND ").join(where_clauses)
+        if len(where_clauses) > 0
         else None
     )
     order_by_clause = sql.SQL("ORDER BY sequence_number ASC")
@@ -164,7 +186,7 @@ def scan_query(
         for param in [
             parameters.category,
             parameters.stream,
-            parameters.last_sequence_number,
+            *extra_parameters,
             parameters.page_size,
         ]
         if param is not None
@@ -327,7 +349,7 @@ class PostgresStorageAdapter(StorageAdapter):
                 )
 
                 for condition in conditions:
-                    condition.ensure(last_event)
+                    condition.assert_met_by(last_event=last_event)
 
                 current_position = last_event.position + 1 if last_event else 0
 
@@ -346,6 +368,7 @@ class PostgresStorageAdapter(StorageAdapter):
         self,
         *,
         target: Scannable = identifier.Log(),
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
@@ -356,10 +379,23 @@ class PostgresStorageAdapter(StorageAdapter):
                 keep_querying = True
 
                 while keep_querying:
+                    sequence_number_constraint = (
+                        SequenceNumberAfterConstraint(
+                            sequence_number=last_sequence_number
+                        )
+                        if last_sequence_number is not None
+                        else None
+                    )
+                    constraints = (
+                        {*constraints, sequence_number_constraint}
+                        if sequence_number_constraint
+                        else constraints
+                    )
+
                     parameters = ScanQueryParameters(
                         target=target,
                         page_size=page_size,
-                        last_sequence_number=last_sequence_number,
+                        constraints=constraints,
                     )
                     results = await cursor.execute(
                         *scan_query(

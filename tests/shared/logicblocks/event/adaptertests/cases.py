@@ -6,6 +6,7 @@ from itertools import batched
 import pytest
 
 from logicblocks.event.store import conditions as writeconditions
+from logicblocks.event.store import constraints
 from logicblocks.event.store.adapters import StorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder
@@ -940,6 +941,60 @@ class ScanCases(Base, ABC):
 
         assert scanned_events == stored_events
 
+    async def test_log_scan_resumes_after_provided_sequence_number(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream_1
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        stored_events_2 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream_2
+            ),
+            events=[NewEventBuilder().build()],
+        )
+        stored_events_3 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream_2
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        stored_events_4 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream_1
+            ),
+            events=[NewEventBuilder().build()],
+        )
+
+        sequence_number = stored_events_2[0].sequence_number
+
+        expected_events = list(stored_events_3) + list(stored_events_4)
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Log(),
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                },
+            )
+        ]
+
+        assert scanned_events == expected_events
+
     async def test_category_scan_scans_no_events_when_store_empty(self):
         adapter = self.construct_storage_adapter()
 
@@ -1129,6 +1184,60 @@ class ScanCases(Base, ABC):
         ]
 
         assert scanned_events == stored_events
+
+    async def test_category_scan_resumes_after_provided_sequence_number(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream_1 = random_event_stream_name()
+        event_stream_2 = random_event_stream_name()
+
+        stored_events_1 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream_1
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream_2
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        stored_events_3 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream_1
+            ),
+            events=[NewEventBuilder().build()],
+        )
+        await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream_2
+            ),
+            events=[NewEventBuilder().build()],
+        )
+
+        sequence_number = stored_events_1[1].sequence_number
+
+        expected_events = list(stored_events_3)
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Category(category=event_category_1),
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                },
+            )
+        ]
+
+        assert scanned_events == expected_events
 
     async def test_stream_scan_scans_no_events_when_store_empty(self):
         adapter = self.construct_storage_adapter()
@@ -1383,6 +1492,62 @@ class ScanCases(Base, ABC):
         ]
 
         assert scanned_events == stored_events
+
+    async def test_stream_scan_resumes_after_provided_sequence_number(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category_1 = random_event_category_name()
+        event_category_2 = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events_1 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+        stored_events_3 = await adapter.save(
+            target=identifier.Stream(
+                category=event_category_1, stream=event_stream
+            ),
+            events=[NewEventBuilder().build()],
+        )
+        await adapter.save(
+            target=identifier.Stream(
+                category=event_category_2, stream=event_stream
+            ),
+            events=[NewEventBuilder().build()],
+        )
+
+        sequence_number = stored_events_1[1].sequence_number
+
+        expected_events = list(stored_events_3)
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Stream(
+                    category=event_category_1,
+                    stream=event_stream,
+                ),
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                },
+            )
+        ]
+
+        assert scanned_events == expected_events
 
 
 class StorageAdapterCases(

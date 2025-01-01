@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from logicblocks.event.store import EventStore, conditions
+from logicblocks.event.store import EventStore, conditions, constraints
 from logicblocks.event.store.adapters import InMemoryStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
@@ -185,6 +185,40 @@ class TestStreamBasics(object):
         }
 
         assert actual_streams == expected_streams
+
+
+class TestStreamRead(object):
+    async def test_reads_all_events_in_stream_by_default(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(events=new_events)
+
+        read_events = await stream.read()
+
+        assert len(read_events) == 10
+
+    async def test_reads_events_in_stream_after_sequence_number(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(events=new_events)
+
+        sequence_number = stored_events[4].sequence_number
+
+        read_events = await stream.read(
+            query={constraints.sequence_number_after(sequence_number)}
+        )
+
+        assert read_events == stored_events[5:]
 
 
 class TestStreamIteration(object):

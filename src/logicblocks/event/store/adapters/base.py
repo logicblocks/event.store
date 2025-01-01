@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 # Listable = identifier.Categories | identifier.Streams
@@ -26,5 +27,6 @@ class StorageAdapter(ABC):
         self,
         *,
         target: Scannable = identifier.Log(),
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         raise NotImplementedError()

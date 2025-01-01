@@ -9,15 +9,6 @@ class Projection(object):
     state: Mapping[str, Any]
     position: int
 
-    def __init__(
-        self,
-        *,
-        state: Mapping[str, Any],
-        position: int,
-    ):
-        object.__setattr__(self, "state", state)
-        object.__setattr__(self, "position", position)
-
     def json(self):
         return json.dumps(
             {

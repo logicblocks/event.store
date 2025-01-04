@@ -70,5 +70,9 @@ def target(
         return Stream(category=category, stream=stream)
     elif category is not None:
         return Category(category=category)
+    elif stream is not None:
+        raise ValueError(
+            "Invalid target, if stream provided, category must also be provided"
+        )
     else:
         return Log()

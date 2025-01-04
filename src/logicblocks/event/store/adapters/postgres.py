@@ -116,13 +116,13 @@ type ParameterisedQueryFragment = Tuple[sql.SQL, Sequence[Any]]
 
 
 @singledispatch
-def query_constraint_as_sql(
+def query_constraint_to_sql(
     constraint: QueryConstraint,
 ) -> ParameterisedQueryFragment:
     raise TypeError(f"No SQL converter for query constraint: {constraint}")
 
 
-@query_constraint_as_sql.register(SequenceNumberAfterConstraint)
+@query_constraint_to_sql.register(SequenceNumberAfterConstraint)
 def sequence_number_after_query_constraint_as_sql(
     constraint: SequenceNumberAfterConstraint,
 ) -> ParameterisedQueryFragment:
@@ -144,7 +144,7 @@ def scan_query(
     extra_where_clauses: list[sql.SQL] = []
     extra_parameters: list[Any] = []
     for constraint in parameters.constraints:
-        clause, params = query_constraint_as_sql(constraint)
+        clause, params = query_constraint_to_sql(constraint)
         extra_where_clauses.append(clause)
         extra_parameters.extend(params)
 
@@ -289,19 +289,13 @@ async def insert(
     )
     stored_event = await cursor.fetchone()
 
-    if not stored_event:
-        raise Exception("Insert failed")
+    if stored_event is None:  # pragma: no cover
+        raise RuntimeError("Insert failed")
 
     return stored_event
 
 
 class PostgresStorageAdapter(StorageAdapter):
-    connection_pool: AsyncConnectionPool[AsyncConnection]
-    connection_pool_owner: bool
-
-    query_settings: QuerySettings
-    table_settings: TableSettings
-
     def __init__(
         self,
         *,
@@ -310,23 +304,23 @@ class PostgresStorageAdapter(StorageAdapter):
         table_settings: TableSettings = TableSettings(),
     ):
         if isinstance(connection_source, ConnectionSettings):
-            self.connection_pool_owner = True
+            self._connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False
             )
         else:
-            self.connection_pool_owner = False
+            self._connection_pool_owner = False
             self.connection_pool = connection_source
 
-        self.query_settings = query_settings
-        self.table_settings = table_settings
+        self.query_settings: QuerySettings = query_settings
+        self.table_settings: TableSettings = table_settings
 
     async def open(self) -> None:
-        if self.connection_pool_owner:
+        if self._connection_pool_owner:
             await self.connection_pool.open()
 
     async def close(self) -> None:
-        if self.connection_pool_owner:
+        if self._connection_pool_owner:
             await self.connection_pool.close()
 
     async def save(

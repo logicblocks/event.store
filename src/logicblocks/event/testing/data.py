@@ -43,7 +43,7 @@ def random_hyphenated_lowercase_ascii_alphabetics_string(
 
 
 def random_uuid4_string() -> str:
-    return uuid4().hex
+    return str(uuid4())
 
 
 def random_event_category_name() -> str:
@@ -60,6 +60,14 @@ def random_event_name() -> str:
 
 def random_event_id() -> str:
     return random_uuid4_string()
+
+
+def random_event_position() -> int:
+    return random_int(0, 9999999)
+
+
+def random_event_sequence_number() -> int:
+    return random_int(0, 999999999999999999)
 
 
 def random_event_payload() -> Mapping[str, Any]:

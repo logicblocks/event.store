@@ -18,6 +18,11 @@ from logicblocks.event.store.adapters import (
     PostgresTableSettings,
     StorageAdapter,
 )
+from logicblocks.event.store.adapters.postgres import (
+    ParameterisedQueryFragment,
+    query_constraint_to_sql,
+)
+from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.testing import NewEventBuilder
 from logicblocks.event.testing.data import (
     random_event_category_name,
@@ -648,6 +653,57 @@ class TestPostgresStorageAdapterScanPaging(object):
             await anext(iterator)
 
         assert scanned_events == stored_events
+
+
+class TestPostgresStorageAdapterQueryConstraints(object):
+    pool: AsyncConnectionPool[AsyncConnection]
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def store_connection_pool(self, open_connection_pool):
+        self.pool = open_connection_pool
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await drop_table(open_connection_pool, "events")
+        await create_table(open_connection_pool, "events")
+
+    async def test_raises_when_using_unknown_query_constraint(self):
+        adapter = PostgresStorageAdapter(connection_source=self.pool)
+
+        class UnknownQueryConstraint(QueryConstraint):
+            def met_by(self, *, event: StoredEvent) -> bool:
+                return False
+
+        with pytest.raises(TypeError):
+            _ = [
+                _
+                async for _ in adapter.scan(
+                    target=identifier.Log(),
+                    constraints={UnknownQueryConstraint()},
+                )
+            ]
+
+    async def test_allows_custom_query_constraints_to_be_registered(self):
+        adapter = PostgresStorageAdapter(connection_source=self.pool)
+
+        class CustomQueryConstraint(QueryConstraint):
+            def met_by(self, *, event: StoredEvent) -> bool:
+                return True
+
+        @query_constraint_to_sql.register(CustomQueryConstraint)
+        def custom_query_constraint_to_sql(
+            _constraint: CustomQueryConstraint,
+        ) -> ParameterisedQueryFragment:
+            return sql.SQL("sequence_number = 5"), []
+
+        result = [
+            event
+            async for event in adapter.scan(
+                target=identifier.Log(), constraints={CustomQueryConstraint()}
+            )
+        ]
+
+        assert result == []
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ from .data import (
     random_event_id,
     random_event_name,
     random_event_payload,
+    random_event_position,
+    random_event_sequence_number,
     random_event_stream_name,
 )
 
@@ -122,8 +124,18 @@ class StoredEventBuilder(object):
         object.__setattr__(
             self, "category", category or random_event_category_name()
         )
-        object.__setattr__(self, "position", position or 0)
-        object.__setattr__(self, "sequence_number", sequence_number or 0)
+        object.__setattr__(
+            self,
+            "position",
+            position if position is not None else random_event_position(),
+        )
+        object.__setattr__(
+            self,
+            "sequence_number",
+            sequence_number
+            if sequence_number is not None
+            else random_event_sequence_number(),
+        )
         object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)

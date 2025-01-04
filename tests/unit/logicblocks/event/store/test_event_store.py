@@ -574,6 +574,7 @@ class TestCategoryBasics(object):
             .with_id(stored_events[0].id)
             .with_category(category)
             .with_stream(stream)
+            .with_sequence_number(0)
             .with_position(0)
             .build()
         ]

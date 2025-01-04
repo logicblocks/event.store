@@ -11,7 +11,7 @@ from logicblocks.event.projection import (
     Projector,
 )
 from logicblocks.event.store import EventStore
-from logicblocks.event.store.adapters import InMemoryStorageAdapter
+from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import Projection, StoredEvent
@@ -256,7 +256,7 @@ class TestProjectorProjection(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         something_occurred_at = datetime.now(UTC)

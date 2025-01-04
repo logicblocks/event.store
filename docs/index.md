@@ -7,41 +7,41 @@ from logicblocks.event.store import EventStore, adapters
 from logicblocks.event.types import NewEvent
 from logicblocks.event.projection import Projector
 
-adapter = adapters.InMemoryStorageAdapter()
+adapter = adapters.InMemoryEventStorageAdapter()
 store = EventStore(adapter)
 
 stream = store.stream(category="profiles", stream="joe.bloggs")
 stream.publish(
-  events = [
-    NewEvent(
-      name="profile-created",
-      payload={
-        "name": "Joe Bloggs",
-        "email": "joe.bloggs@example.com"
-      }
-    )
-  ])
+    events=[
+        NewEvent(
+            name="profile-created",
+            payload={
+                "name": "Joe Bloggs",
+                "email": "joe.bloggs@example.com"
+            }
+        )
+    ])
 stream.publish(
-  events = [
-    NewEvent(
-      name="date-of-birth-set",
-      payload={
-          "dob": "1992-07-10"
-      }
-    )
-  ]
+    events=[
+        NewEvent(
+            name="date-of-birth-set",
+            payload={
+                "dob": "1992-07-10"
+            }
+        )
+    ]
 )
 
 projector = Projector(
-  handlers={
-    "profile-created": lambda state, event: state.merge({
-      "name": event.payload["name"],
-      "email": event.payload["email"]
-    }),
-    "date-of-birth-set": lambda state, event: state.merge({
-      "dob": event.payload["dob"]
-    })
-  }
+    handlers={
+        "profile-created": lambda state, event: state.merge({
+            "name": event.payload["name"],
+            "email": event.payload["email"]
+        }),
+        "date-of-birth-set": lambda state, event: state.merge({
+            "dob": event.payload["dob"]
+        })
+    }
 )
 profile = projector.project({}, stream.read())
 

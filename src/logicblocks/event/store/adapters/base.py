@@ -11,7 +11,7 @@ Saveable = identifier.Stream
 Scannable = identifier.Log | identifier.Category | identifier.Stream
 
 
-class StorageAdapter(ABC):
+class EventStorageAdapter(ABC):
     @abstractmethod
     async def save(
         self,

@@ -9,7 +9,7 @@ from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.store.adapters import StorageAdapter
+from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.adapters.base import Saveable, Scannable
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import (
@@ -295,7 +295,7 @@ async def insert(
     return stored_event
 
 
-class PostgresStorageAdapter(StorageAdapter):
+class PostgresEventStorageAdapter(EventStorageAdapter):
     def __init__(
         self,
         *,

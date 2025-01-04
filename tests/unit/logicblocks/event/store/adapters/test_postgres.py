@@ -6,7 +6,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.store.adapters import (
     PostgresConnectionSettings,
-    PostgresStorageAdapter,
+    PostgresEventStorageAdapter,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -55,7 +55,9 @@ class TestPostgresConnectionSettings(object):
 
 class TestPostgresStorageAdapter(object):
     def test_creates_connection_pool_when_connection_settings_provided(self):
-        adapter = PostgresStorageAdapter(connection_source=connection_settings)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_settings
+        )
 
         assert adapter.connection_pool is not None
 
@@ -64,7 +66,9 @@ class TestPostgresStorageAdapter(object):
             connection_settings.to_connection_string(), open=False
         )
 
-        adapter = PostgresStorageAdapter(connection_source=connection_pool)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_pool
+        )
 
         assert adapter.connection_pool is connection_pool
 
@@ -79,7 +83,9 @@ class TestPostgresStorageAdapter(object):
 
         monkeypatch.setattr(AsyncConnectionPool, "open", mock_open)
 
-        adapter = PostgresStorageAdapter(connection_source=connection_settings)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_settings
+        )
         await adapter.open()
 
         assert opened
@@ -98,7 +104,9 @@ class TestPostgresStorageAdapter(object):
         connection_pool = AsyncConnectionPool[AsyncConnection](
             connection_settings.to_connection_string(), open=False
         )
-        adapter = PostgresStorageAdapter(connection_source=connection_pool)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_pool
+        )
         await adapter.open()
 
         assert not opened
@@ -114,7 +122,9 @@ class TestPostgresStorageAdapter(object):
 
         monkeypatch.setattr(AsyncConnectionPool, "close", mock_close)
 
-        adapter = PostgresStorageAdapter(connection_source=connection_settings)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_settings
+        )
         await adapter.close()
 
         assert closed
@@ -133,7 +143,9 @@ class TestPostgresStorageAdapter(object):
         connection_pool = AsyncConnectionPool[AsyncConnection](
             connection_settings.to_connection_string(), open=False
         )
-        adapter = PostgresStorageAdapter(connection_source=connection_pool)
+        adapter = PostgresEventStorageAdapter(
+            connection_source=connection_pool
+        )
 
         await adapter.close()
 

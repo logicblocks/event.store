@@ -7,7 +7,7 @@ import pytest
 
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store import constraints
-from logicblocks.event.store.adapters import StorageAdapter
+from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder
 from logicblocks.event.testing.data import (
@@ -25,7 +25,7 @@ class ConcurrencyParameters(object):
 
 class Base(ABC):
     @abstractmethod
-    def construct_storage_adapter(self) -> StorageAdapter:
+    def construct_storage_adapter(self) -> EventStorageAdapter:
         raise NotImplementedError()
 
     @abstractmethod
@@ -36,7 +36,7 @@ class Base(ABC):
     async def retrieve_events(
         self,
         *,
-        adapter: StorageAdapter,
+        adapter: EventStorageAdapter,
         category: str | None = None,
         stream: str | None = None,
     ) -> Sequence[StoredEvent]:
@@ -452,7 +452,7 @@ class WriteConditionCases(Base, ABC):
 
 
 class StorageAdapterSaveTask(object):
-    adapter: StorageAdapter
+    adapter: EventStorageAdapter
     target: identifier.Stream
     events: Sequence[NewEvent]
     conditions: Set[writeconditions.WriteCondition]
@@ -462,7 +462,7 @@ class StorageAdapterSaveTask(object):
     def __init__(
         self,
         *,
-        adapter: StorageAdapter,
+        adapter: EventStorageAdapter,
         target: identifier.Stream,
         events: Sequence[NewEvent],
         conditions: Set[writeconditions.WriteCondition] | None = None,
@@ -1550,7 +1550,7 @@ class ScanCases(Base, ABC):
         assert scanned_events == expected_events
 
 
-class StorageAdapterCases(
+class EventStorageAdapterCases(
     SaveCases, WriteConditionCases, ConcurrencyCases, ScanCases, ABC
 ):
     pass

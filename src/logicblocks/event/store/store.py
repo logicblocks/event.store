@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 
-from logicblocks.event.store.adapters import StorageAdapter
+from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
@@ -38,11 +38,13 @@ class EventStream(EventSource):
         stream: The name of the stream.
     """
 
-    adapter: StorageAdapter
+    adapter: EventStorageAdapter
     category: str
     stream: str
 
-    def __init__(self, adapter: StorageAdapter, category: str, stream: str):
+    def __init__(
+        self, adapter: EventStorageAdapter, category: str, stream: str
+    ):
         self.adapter = adapter
         self.category = category
         self.stream = stream
@@ -96,10 +98,10 @@ class EventCategory(EventSource):
         category: the name of the category.
     """
 
-    adapter: StorageAdapter
+    adapter: EventStorageAdapter
     category: str
 
-    def __init__(self, adapter: StorageAdapter, category: str):
+    def __init__(self, adapter: EventStorageAdapter, category: str):
         self.adapter = adapter
         self.category = category
 
@@ -154,9 +156,9 @@ class EventStore(object):
     stream of events.
     """
 
-    adapter: StorageAdapter
+    adapter: EventStorageAdapter
 
-    def __init__(self, adapter: StorageAdapter):
+    def __init__(self, adapter: EventStorageAdapter):
         self.adapter = adapter
 
     def stream(self, *, category: str, stream: str) -> EventStream:

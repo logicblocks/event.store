@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 
 from logicblocks.event.store import EventStore, conditions, constraints
-from logicblocks.event.store.adapters import InMemoryStorageAdapter
+from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import NewEvent, StoredEvent
@@ -15,7 +15,7 @@ class TestStreamBasics(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         events = await stream.read()
@@ -29,7 +29,7 @@ class TestStreamBasics(object):
         event_name = data.random_event_name()
         payload = data.random_event_payload()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         stored_events = await stream.publish(
@@ -72,7 +72,7 @@ class TestStreamBasics(object):
             for _ in range(10)
         ]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         stored_events = await stream.publish(events=new_events)
@@ -103,7 +103,7 @@ class TestStreamBasics(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(5)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(5)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream_1 = store.stream(category=category_name, stream=stream_1_name)
         stream_2 = store.stream(category=category_name, stream=stream_2_name)
 
@@ -149,7 +149,7 @@ class TestStreamBasics(object):
             NewEventBuilder().build() for _ in range(5)
         ]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category_1_stream = store.stream(
             category=category_1_name, stream=category_1_stream_name
         )
@@ -193,7 +193,7 @@ class TestStreamRead(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(events=new_events)
@@ -207,7 +207,7 @@ class TestStreamRead(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         stored_events = await stream.publish(events=new_events)
@@ -227,7 +227,7 @@ class TestStreamIteration(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(events=new_events)
@@ -247,7 +247,7 @@ class TestStreamIteration(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(events=new_events)
@@ -267,7 +267,7 @@ class TestStreamIteration(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         stored_events = await stream.publish(events=new_events)
@@ -297,7 +297,7 @@ class TestStreamPublishing(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(
@@ -318,7 +318,7 @@ class TestStreamPublishing(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(
@@ -336,7 +336,7 @@ class TestStreamPublishing(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(
@@ -356,7 +356,7 @@ class TestStreamPublishing(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         new_event = NewEventBuilder().build()
@@ -375,7 +375,7 @@ class TestStreamPublishing(object):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
         await stream.publish(
@@ -394,7 +394,7 @@ class TestCategoryBasics(object):
     async def test_has_no_events_in_category_initially(self):
         category_name = data.random_event_category_name()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
 
         events = await category.read()
@@ -408,7 +408,7 @@ class TestCategoryBasics(object):
         stream_name = data.random_event_stream_name()
         new_event = NewEventBuilder().build()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
         stream = category.stream(stream=stream_name)
 
@@ -438,7 +438,7 @@ class TestCategoryBasics(object):
         stream_name = data.random_event_stream_name()
         new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
         stream = category.stream(stream=stream_name)
 
@@ -474,7 +474,7 @@ class TestCategoryBasics(object):
         stream_2_new_event_1 = NewEventBuilder().build()
         stream_2_new_event_2 = NewEventBuilder().build()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
         stream_1 = category.stream(stream=stream_1_name)
         stream_2 = category.stream(stream=stream_2_name)
@@ -556,7 +556,7 @@ class TestCategoryBasics(object):
         stream = data.random_event_stream_name()
         new_event = NewEventBuilder().build()
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         stored_events = await store.stream(
             category=category, stream=stream
         ).publish(events=[new_event])
@@ -591,7 +591,7 @@ class TestCategoryRead(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
 
         category = store.category(category=category_name)
 
@@ -615,7 +615,7 @@ class TestCategoryRead(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
 
         category = store.category(category=category_name)
 
@@ -645,7 +645,7 @@ class TestCategoryIteration(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
 
         await category.stream(stream=stream_1_name).publish(
@@ -677,7 +677,7 @@ class TestCategoryIteration(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
 
         await category.stream(stream=stream_1_name).publish(
@@ -709,7 +709,7 @@ class TestCategoryIteration(object):
         stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
         stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
 
-        store = EventStore(adapter=InMemoryStorageAdapter())
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
 
         stream_1_stored_events = await category.stream(

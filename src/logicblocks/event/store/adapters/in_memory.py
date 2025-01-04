@@ -4,9 +4,9 @@ from collections.abc import AsyncIterator, Sequence, Set
 from uuid import uuid4
 
 from logicblocks.event.store.adapters.base import (
+    EventStorageAdapter,
     Saveable,
     Scannable,
-    StorageAdapter,
 )
 from logicblocks.event.store.conditions import (
     WriteCondition,
@@ -24,7 +24,7 @@ type EventPositionList = list[int]
 type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 
-class InMemoryStorageAdapter(StorageAdapter):
+class InMemoryEventStorageAdapter(EventStorageAdapter):
     _lock: threading.Lock
     _events: list[StoredEvent]
     _log_index: EventPositionList

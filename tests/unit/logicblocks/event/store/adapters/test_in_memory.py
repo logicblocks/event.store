@@ -6,19 +6,21 @@ import pytest
 from logicblocks.event.adaptertests import cases
 from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
-    InMemoryStorageAdapter,
-    StorageAdapter,
+    EventStorageAdapter,
+    InMemoryEventStorageAdapter,
 )
 from logicblocks.event.types import StoredEvent, identifier
 
 
-class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):
+class TestInMemoryEventStorageAdapterCommonCases(
+    cases.EventStorageAdapterCases
+):
     @property
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=40, repeats=200)
 
-    def construct_storage_adapter(self) -> StorageAdapter:
-        return InMemoryStorageAdapter()
+    def construct_storage_adapter(self) -> EventStorageAdapter:
+        return InMemoryEventStorageAdapter()
 
     async def clear_storage(self) -> None:
         pass
@@ -26,7 +28,7 @@ class TestInMemoryStorageAdapterCommonCases(cases.StorageAdapterCases):
     async def retrieve_events(
         self,
         *,
-        adapter: StorageAdapter,
+        adapter: EventStorageAdapter,
         category: str | None = None,
         stream: str | None = None,
     ) -> Sequence[StoredEvent]:

@@ -12,11 +12,11 @@ from psycopg_pool import AsyncConnectionPool
 from logicblocks.event.adaptertests import cases
 from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
+    EventStorageAdapter,
     PostgresConnectionSettings,
+    PostgresEventStorageAdapter,
     PostgresQuerySettings,
-    PostgresStorageAdapter,
     PostgresTableSettings,
-    StorageAdapter,
 )
 from logicblocks.event.store.adapters.postgres import (
     ParameterisedQueryFragment,
@@ -128,7 +128,7 @@ async def read_events(
 
 async def save_random_events(
     *,
-    adapter: StorageAdapter,
+    adapter: EventStorageAdapter,
     number_of_events: int,
     streams: Sequence[tuple[str, str]],
 ) -> Sequence[StoredEvent]:
@@ -164,7 +164,9 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresStorageAdapterCommonCases(cases.StorageAdapterCases):
+class TestPostgresEventStorageAdapterCommonCases(
+    cases.EventStorageAdapterCases
+):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -184,8 +186,8 @@ class TestPostgresStorageAdapterCommonCases(cases.StorageAdapterCases):
     def default_page_size(self) -> int:
         return PostgresQuerySettings().scan_query_page_size
 
-    def construct_storage_adapter(self) -> StorageAdapter:
-        return PostgresStorageAdapter(connection_source=self.pool)
+    def construct_storage_adapter(self) -> EventStorageAdapter:
+        return PostgresEventStorageAdapter(connection_source=self.pool)
 
     async def clear_storage(self) -> None:
         await clear_table(self.pool, "events")
@@ -193,7 +195,7 @@ class TestPostgresStorageAdapterCommonCases(cases.StorageAdapterCases):
     async def retrieve_events(
         self,
         *,
-        adapter: StorageAdapter,
+        adapter: EventStorageAdapter,
         category: str | None = None,
         stream: str | None = None,
     ) -> Sequence[StoredEvent]:
@@ -214,7 +216,7 @@ class TestPostgresStorageAdapterCustomTableName(object):
         await drop_table(pool=self.pool, table="events")
         await create_table(pool=self.pool, table="events")
 
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
@@ -239,7 +241,7 @@ class TestPostgresStorageAdapterCustomTableName(object):
         await drop_table(pool=self.pool, table="event_log")
         await create_table(pool=self.pool, table="event_log")
 
-        adapter = PostgresStorageAdapter(
+        adapter = PostgresEventStorageAdapter(
             connection_source=self.pool,
             table_settings=table_settings,
         )
@@ -282,7 +284,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_log_scan_using_default_page_size(self):
         default_page_size = PostgresQuerySettings().scan_query_page_size
 
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         event_category_1 = random_event_category_name()
         event_category_2 = random_event_category_name()
@@ -342,7 +344,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_log_scan_using_overridden_page_size(self):
         page_size = 25
 
-        adapter = PostgresStorageAdapter(
+        adapter = PostgresEventStorageAdapter(
             connection_source=self.pool,
             query_settings=PostgresQuerySettings(
                 scan_query_page_size=page_size
@@ -407,7 +409,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_category_scan_using_default_page_size(self):
         default_page_size = PostgresQuerySettings().scan_query_page_size
 
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         event_category = random_event_category_name()
         event_stream_1 = random_event_stream_name()
@@ -467,7 +469,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_category_scan_using_overridden_page_size(self):
         page_size = 25
 
-        adapter = PostgresStorageAdapter(
+        adapter = PostgresEventStorageAdapter(
             connection_source=self.pool,
             query_settings=PostgresQuerySettings(
                 scan_query_page_size=page_size
@@ -534,7 +536,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_stream_scan_using_default_page_size(self):
         default_page_size = PostgresQuerySettings().scan_query_page_size
 
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         event_category = random_event_category_name()
         event_stream = random_event_stream_name()
@@ -592,7 +594,7 @@ class TestPostgresStorageAdapterScanPaging(object):
     async def test_pages_stream_scan_using_overridden_page_size(self):
         page_size = 25
 
-        adapter = PostgresStorageAdapter(
+        adapter = PostgresEventStorageAdapter(
             connection_source=self.pool,
             query_settings=PostgresQuerySettings(
                 scan_query_page_size=page_size
@@ -668,7 +670,7 @@ class TestPostgresStorageAdapterQueryConstraints(object):
         await create_table(open_connection_pool, "events")
 
     async def test_raises_when_using_unknown_query_constraint(self):
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         class UnknownQueryConstraint(QueryConstraint):
             def met_by(self, *, event: StoredEvent) -> bool:
@@ -684,7 +686,7 @@ class TestPostgresStorageAdapterQueryConstraints(object):
             ]
 
     async def test_allows_custom_query_constraints_to_be_registered(self):
-        adapter = PostgresStorageAdapter(connection_source=self.pool)
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
         class CustomQueryConstraint(QueryConstraint):
             def met_by(self, *, event: StoredEvent) -> bool:

@@ -42,7 +42,7 @@ black = "^24.10.0"
 [tool.poe.tasks]
 lint-check = "ruff check src tests"
 lint-fix = "ruff check --fix src tests"
-format-check = "ruff format --check src tests"
+format-check = "ruff format --diff src tests"
 format-fix = "ruff format src tests"
 type-check = "pyright src tests"
 docs-serve = "mkdocs serve"

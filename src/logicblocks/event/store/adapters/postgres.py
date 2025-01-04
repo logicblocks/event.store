@@ -42,7 +42,7 @@ class ConnectionSettings(object):
 
     def __repr__(self):
         return (
-            f"ConnectionParameters("
+            f"ConnectionSettings("
             f"host={self.host}, "
             f"port={self.port}, "
             f"dbname={self.dbname}, "

@@ -110,3 +110,5 @@ class InMemoryStorageAdapter(StorageAdapter):
                 return self._category_index[category]
             case identifier.Stream(category, stream):
                 return self._stream_index[(category, stream)]
+            case _:  # pragma: no cover
+                raise ValueError(f"Unknown target: {target}")

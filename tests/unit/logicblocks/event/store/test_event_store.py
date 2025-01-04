@@ -275,12 +275,15 @@ class TestStreamIteration(object):
         sequence_number = stored_events[4].sequence_number
 
         new_event_keys = [
-            (event.name, stream_name, category_name) for event in new_events[5:]
+            (event.name, stream_name, category_name)
+            for event in new_events[5:]
         ]
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in stream.iterate(
-                constraints={constraints.sequence_number_after(sequence_number)}
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                }
             )
         ]
 
@@ -289,7 +292,7 @@ class TestStreamIteration(object):
 
 class TestStreamPublishing(object):
     async def test_publishes_if_stream_position_matches_position_condition(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -348,7 +351,7 @@ class TestStreamPublishing(object):
             )
 
     async def test_publishes_if_stream_empty_and_empty_condition_specified(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -367,7 +370,7 @@ class TestStreamPublishing(object):
         assert found_events[-1] == stored_events[-1]
 
     async def test_raises_if_stream_not_empty_and_empty_condition_specified(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -399,7 +402,7 @@ class TestCategoryBasics(object):
         assert events == []
 
     async def test_reads_single_published_event_for_single_stream_in_category(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -429,7 +432,7 @@ class TestCategoryBasics(object):
         assert read_events == expected_events
 
     async def test_reads_multiple_published_events_for_single_stream_in_category(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -460,7 +463,7 @@ class TestCategoryBasics(object):
         assert read_events == expected_events
 
     async def test_reads_for_different_streams_in_category_in_publish_order(
-            self,
+        self,
     ):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -598,7 +601,7 @@ class TestCategoryRead(object):
             events=stream_2_new_events
         )
 
-        expected_events = (list(stored_events_1) + list(stored_events_2))
+        expected_events = list(stored_events_1) + list(stored_events_2)
         read_events = await category.read()
 
         assert read_events == expected_events
@@ -624,7 +627,7 @@ class TestCategoryRead(object):
 
         sequence_number = stored_events_1[4].sequence_number
 
-        expected_events = (list(stored_events_1[5:]) + list(stored_events_2))
+        expected_events = list(stored_events_1[5:]) + list(stored_events_2)
         read_events = await category.read(
             constraints={constraints.sequence_number_after(sequence_number)}
         )
@@ -652,12 +655,12 @@ class TestCategoryIteration(object):
         )
 
         new_event_keys = [
-                             (event.name, stream_1_name, category_name)
-                             for event in stream_1_new_events
-                         ] + [
-                             (event.name, stream_2_name, category_name)
-                             for event in stream_2_new_events
-                         ]
+            (event.name, stream_1_name, category_name)
+            for event in stream_1_new_events
+        ] + [
+            (event.name, stream_2_name, category_name)
+            for event in stream_2_new_events
+        ]
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in category
@@ -684,12 +687,12 @@ class TestCategoryIteration(object):
         )
 
         new_event_keys = [
-                             (event.name, stream_1_name, category_name)
-                             for event in stream_1_new_events
-                         ] + [
-                             (event.name, stream_2_name, category_name)
-                             for event in stream_2_new_events
-                         ]
+            (event.name, stream_1_name, category_name)
+            for event in stream_1_new_events
+        ] + [
+            (event.name, stream_2_name, category_name)
+            for event in stream_2_new_events
+        ]
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in category.iterate()
@@ -708,28 +711,30 @@ class TestCategoryIteration(object):
         store = EventStore(adapter=InMemoryStorageAdapter())
         category = store.category(category=category_name)
 
-        stream_1_stored_events = (
-            await category.stream(stream=stream_1_name)
-            .publish(events=stream_1_new_events)
-        )
+        stream_1_stored_events = await category.stream(
+            stream=stream_1_name
+        ).publish(events=stream_1_new_events)
         (
-            await category.stream(stream=stream_2_name)
-            .publish(events=stream_2_new_events)
+            await category.stream(stream=stream_2_name).publish(
+                events=stream_2_new_events
+            )
         )
 
         sequence_number = stream_1_stored_events[4].sequence_number
 
         new_event_keys = [
-                             (event.name, stream_1_name, category_name)
-                             for event in stream_1_new_events[5:]
-                         ] + [
-                             (event.name, stream_2_name, category_name)
-                             for event in stream_2_new_events
-                         ]
+            (event.name, stream_1_name, category_name)
+            for event in stream_1_new_events[5:]
+        ] + [
+            (event.name, stream_2_name, category_name)
+            for event in stream_2_new_events
+        ]
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in category.iterate(
-                constraints={constraints.sequence_number_after(sequence_number)}
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                }
             )
         ]
 

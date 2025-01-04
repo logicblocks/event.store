@@ -4,7 +4,7 @@ import threading
 from asyncio import Future, Task
 from collections.abc import Coroutine
 from enum import Enum, auto
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Self
 
 import uvloop
 
@@ -22,10 +22,7 @@ class IsolationMode(Enum):
     DEDICATED_THREAD = auto()
 
 
-T = TypeVar("T", default=Any)
-
-
-class ServiceDefinition(Generic[T]):
+class ServiceDefinition[T]:
     def __init__(
         self,
         service: Service[T],

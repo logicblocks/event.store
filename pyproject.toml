@@ -32,7 +32,7 @@ pytest-cov = "^6.0.0"
 pytest-diff = "^0.1.14"
 pytest-pretty = "^1.2.0"
 pytest-repeat = "^0.9.3"
-ruff = "^0.8.5"
+ruff = "^0.8.6"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs-material = "^9.5.47"

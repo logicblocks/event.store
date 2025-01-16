@@ -8,7 +8,7 @@ from logicblocks.event.utils import Clock, SystemClock
 
 
 @dataclass(frozen=True)
-class NewEvent(object):
+class NewEvent:
     name: str
     payload: Mapping[str, Any]
     observed_at: datetime
@@ -58,7 +58,7 @@ class NewEvent(object):
 
 
 @dataclass(frozen=True)
-class StoredEvent(object):
+class StoredEvent:
     id: str
     name: str
     stream: str

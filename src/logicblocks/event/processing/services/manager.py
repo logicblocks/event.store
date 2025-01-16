@@ -37,7 +37,7 @@ class ServiceDefinition[T]:
         return self.service.execute()
 
 
-class MainThreadServiceExecutor(object):
+class MainThreadServiceExecutor:
     def __init__(self):
         self.service_tasks: set[Task[Any]] = set()
 
@@ -62,7 +62,7 @@ class MainThreadServiceExecutor(object):
         return self
 
 
-class IsolatedThreadServiceExecutor(object):
+class IsolatedThreadServiceExecutor:
     def __init__(self):
         self._loop = uvloop.new_event_loop()
         self._thread = threading.Thread(target=self._start_event_loop)
@@ -108,7 +108,7 @@ class IsolatedThreadServiceExecutor(object):
         await asyncio.gather(*service_tasks, return_exceptions=True)
 
 
-class IsolationModeAwareServiceExecutor(object):
+class IsolationModeAwareServiceExecutor:
     def __init__(self):
         self._main_executor = MainThreadServiceExecutor()
         self._shared_executor = IsolatedThreadServiceExecutor()
@@ -146,7 +146,7 @@ class IsolationModeAwareServiceExecutor(object):
         return executor
 
 
-class ServiceManager(object):
+class ServiceManager:
     def __init__(self):
         self._service_definitions: list[ServiceDefinition[Any]] = []
         self._service_executor = IsolationModeAwareServiceExecutor()

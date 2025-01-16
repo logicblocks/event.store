@@ -3,12 +3,18 @@ from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.types import NewEvent, StoredEvent, identifier
+from logicblocks.event.types import (
+    CategoryIdentifier,
+    LogIdentifier,
+    NewEvent,
+    StoredEvent,
+    StreamIdentifier,
+)
 
-# Listable = identifier.Categories | identifier.Streams
-# Readable = identifier.Log | identifier.Category | identifier.Stream
-Saveable = identifier.Stream
-Scannable = identifier.Log | identifier.Category | identifier.Stream
+# type Listable = identifier.Categories | identifier.Streams
+# type Readable = identifier.Log | identifier.Category | identifier.Stream
+type Saveable = StreamIdentifier
+type Scannable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 
 
 class EventStorageAdapter(ABC):
@@ -26,7 +32,7 @@ class EventStorageAdapter(ABC):
     def scan(
         self,
         *,
-        target: Scannable = identifier.Log(),
+        target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         raise NotImplementedError()

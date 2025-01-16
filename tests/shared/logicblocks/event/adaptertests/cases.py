@@ -17,7 +17,7 @@ from logicblocks.event.testing.data import (
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
 
 
-class ConcurrencyParameters(object):
+class ConcurrencyParameters:
     def __init__(self, *, concurrent_writes: int, repeats: int):
         self.concurrent_writes = concurrent_writes
         self.repeats = repeats
@@ -58,7 +58,7 @@ class SaveCases(Base, ABC):
         new_event = NewEventBuilder().build()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event],
@@ -92,7 +92,7 @@ class SaveCases(Base, ABC):
         new_event_2 = NewEventBuilder().build()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event_1, new_event_2],
@@ -138,7 +138,7 @@ class SaveCases(Base, ABC):
         new_event_2 = NewEventBuilder().build()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event_1],
@@ -146,7 +146,7 @@ class SaveCases(Base, ABC):
         stored_event_1 = stored_events_1[0]
 
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event_2],
@@ -192,7 +192,7 @@ class WriteConditionCases(Base, ABC):
         new_event = NewEventBuilder().build()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event],
@@ -232,14 +232,14 @@ class WriteConditionCases(Base, ABC):
         new_event_2 = NewEventBuilder().build()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[new_event_1],
         )
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[new_event_2],
@@ -278,14 +278,14 @@ class WriteConditionCases(Base, ABC):
         new_event_2 = NewEventBuilder().build()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[new_event_1],
         )
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[new_event_2],
@@ -319,7 +319,7 @@ class WriteConditionCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -327,7 +327,7 @@ class WriteConditionCases(Base, ABC):
 
         with pytest.raises(UnmetWriteConditionError):
             await adapter.save(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category, stream=event_stream
                 ),
                 events=[NewEventBuilder().build()],
@@ -344,7 +344,7 @@ class WriteConditionCases(Base, ABC):
         new_event_2 = NewEventBuilder().build()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event_1],
@@ -352,7 +352,7 @@ class WriteConditionCases(Base, ABC):
         stored_event_1 = stored_events_1[0]
 
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event_2],
@@ -393,7 +393,7 @@ class WriteConditionCases(Base, ABC):
         adapter = self.construct_storage_adapter()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
             ),
@@ -402,7 +402,7 @@ class WriteConditionCases(Base, ABC):
 
         with pytest.raises(UnmetWriteConditionError):
             await adapter.save(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
                 ),
@@ -416,7 +416,7 @@ class WriteConditionCases(Base, ABC):
         adapter = self.construct_storage_adapter()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
             ),
@@ -429,7 +429,7 @@ class WriteConditionCases(Base, ABC):
 
         with pytest.raises(UnmetWriteConditionError):
             await adapter.save(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
                 ),
@@ -442,7 +442,7 @@ class WriteConditionCases(Base, ABC):
 
         with pytest.raises(UnmetWriteConditionError):
             await adapter.save(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
                 ),
@@ -451,9 +451,9 @@ class WriteConditionCases(Base, ABC):
             )
 
 
-class StorageAdapterSaveTask(object):
+class StorageAdapterSaveTask:
     adapter: EventStorageAdapter
-    target: identifier.Stream
+    target: identifier.StreamIdentifier
     events: Sequence[NewEvent]
     conditions: Set[writeconditions.WriteCondition]
     result: Sequence[StoredEvent] | None = None
@@ -463,7 +463,7 @@ class StorageAdapterSaveTask(object):
         self,
         *,
         adapter: EventStorageAdapter,
-        target: identifier.Stream,
+        target: identifier.StreamIdentifier,
         events: Sequence[NewEvent],
         conditions: Set[writeconditions.WriteCondition] | None = None,
     ):
@@ -510,7 +510,7 @@ class ConcurrencyCases(Base, ABC):
             event_category = random_event_category_name()
             event_stream = random_event_stream_name()
 
-            target = identifier.Stream(
+            target = identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             )
 
@@ -602,7 +602,7 @@ class ConcurrencyCases(Base, ABC):
             event_stream = random_event_stream_name()
 
             preexisting_events = await adapter.save(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category, stream=event_stream
                 ),
                 events=[
@@ -619,7 +619,7 @@ class ConcurrencyCases(Base, ABC):
                 ],
             )
 
-            target = identifier.Stream(
+            target = identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             )
 
@@ -725,7 +725,7 @@ class ConcurrencyCases(Base, ABC):
                 for write_id in range(test_concurrency)
             ]
 
-            target = identifier.Stream(
+            target = identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             )
 
@@ -793,7 +793,8 @@ class ScanCases(Base, ABC):
         adapter = self.construct_storage_adapter()
 
         scanned_events = [
-            event async for event in adapter.scan(target=identifier.Log())
+            event
+            async for event in adapter.scan(target=identifier.LogIdentifier())
         ]
 
         assert scanned_events == []
@@ -802,7 +803,7 @@ class ScanCases(Base, ABC):
         adapter = self.construct_storage_adapter()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
             ),
@@ -810,7 +811,8 @@ class ScanCases(Base, ABC):
         )
 
         scanned_events = [
-            event async for event in adapter.scan(target=identifier.Log())
+            event
+            async for event in adapter.scan(target=identifier.LogIdentifier())
         ]
 
         assert scanned_events == stored_events
@@ -819,7 +821,7 @@ class ScanCases(Base, ABC):
         adapter = self.construct_storage_adapter()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=random_event_category_name(),
                 stream=random_event_stream_name(),
             ),
@@ -831,7 +833,8 @@ class ScanCases(Base, ABC):
         )
 
         scanned_events = [
-            event async for event in adapter.scan(target=identifier.Log())
+            event
+            async for event in adapter.scan(target=identifier.LogIdentifier())
         ]
 
         assert scanned_events == stored_events
@@ -846,7 +849,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[
@@ -855,13 +858,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[
@@ -870,7 +873,7 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_4 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -883,7 +886,8 @@ class ScanCases(Base, ABC):
             + list(stored_events_4)
         )
         scanned_events = [
-            event async for event in adapter.scan(target=identifier.Log())
+            event
+            async for event in adapter.scan(target=identifier.LogIdentifier())
         ]
 
         assert scanned_events == stored_events
@@ -899,7 +903,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[
@@ -908,13 +912,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[
@@ -923,7 +927,7 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_4 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -936,7 +940,8 @@ class ScanCases(Base, ABC):
             + list(stored_events_4)
         )
         scanned_events = [
-            event async for event in adapter.scan(target=identifier.Log())
+            event
+            async for event in adapter.scan(target=identifier.LogIdentifier())
         ]
 
         assert scanned_events == stored_events
@@ -950,7 +955,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[
@@ -959,13 +964,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[
@@ -974,7 +979,7 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_4 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
@@ -986,7 +991,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Log(),
+                target=identifier.LogIdentifier(),
                 constraints={
                     constraints.sequence_number_after(sequence_number)
                 },
@@ -1001,7 +1006,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(
+                target=identifier.CategoryIdentifier(
                     category=random_event_category_name()
                 )
             )
@@ -1016,7 +1021,7 @@ class ScanCases(Base, ABC):
         other_event_category = random_event_category_name()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=other_event_category,
                 stream=random_event_stream_name(),
             ),
@@ -1026,7 +1031,9 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=scan_event_category)
+                target=identifier.CategoryIdentifier(
+                    category=scan_event_category
+                )
             )
         ]
 
@@ -1039,7 +1046,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1048,7 +1055,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=event_category)
+                target=identifier.CategoryIdentifier(category=event_category)
             )
         ]
 
@@ -1061,7 +1068,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category,
                 stream=event_stream,
             ),
@@ -1075,7 +1082,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=event_category)
+                target=identifier.CategoryIdentifier(category=event_category)
             )
         ]
 
@@ -1091,7 +1098,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[
@@ -1100,13 +1107,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[
@@ -1115,7 +1122,7 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_4 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -1130,7 +1137,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=event_category)
+                target=identifier.CategoryIdentifier(category=event_category)
             )
         ]
 
@@ -1145,7 +1152,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[
@@ -1154,7 +1161,7 @@ class ScanCases(Base, ABC):
             ],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[
@@ -1163,13 +1170,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -1179,7 +1186,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=event_category_1)
+                target=identifier.CategoryIdentifier(category=event_category_1)
             )
         ]
 
@@ -1194,7 +1201,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[
@@ -1203,7 +1210,7 @@ class ScanCases(Base, ABC):
             ],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[
@@ -1212,13 +1219,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -1230,7 +1237,9 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Category(category=event_category_1),
+                target=identifier.CategoryIdentifier(
+                    category=event_category_1
+                ),
                 constraints={
                     constraints.sequence_number_after(sequence_number)
                 },
@@ -1245,7 +1254,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=random_event_category_name(),
                     stream=random_event_stream_name(),
                 )
@@ -1262,7 +1271,7 @@ class ScanCases(Base, ABC):
         other_event_stream = random_event_stream_name()
 
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=other_event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1271,7 +1280,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category,
                     stream=scan_event_stream,
                 )
@@ -1287,7 +1296,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1296,7 +1305,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category,
                     stream=event_stream,
                 )
@@ -1312,7 +1321,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[
@@ -1325,7 +1334,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category,
                     stream=event_stream,
                 )
@@ -1343,7 +1352,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[
@@ -1352,13 +1361,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_2 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[
@@ -1367,7 +1376,7 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_4 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1382,7 +1391,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category,
                     stream=event_stream,
                 )
@@ -1399,7 +1408,7 @@ class ScanCases(Base, ABC):
         event_stream_2 = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[
@@ -1408,7 +1417,7 @@ class ScanCases(Base, ABC):
             ],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[
@@ -1417,13 +1426,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_1
             ),
             events=[NewEventBuilder().build()],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream_2
             ),
             events=[NewEventBuilder().build()],
@@ -1433,7 +1442,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category,
                     stream=event_stream_1,
                 )
@@ -1450,7 +1459,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream
             ),
             events=[
@@ -1459,7 +1468,7 @@ class ScanCases(Base, ABC):
             ],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream
             ),
             events=[
@@ -1468,13 +1477,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1484,7 +1493,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category_1,
                     stream=event_stream,
                 )
@@ -1501,7 +1510,7 @@ class ScanCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         stored_events_1 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream
             ),
             events=[
@@ -1510,7 +1519,7 @@ class ScanCases(Base, ABC):
             ],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream
             ),
             events=[
@@ -1519,13 +1528,13 @@ class ScanCases(Base, ABC):
             ],
         )
         stored_events_3 = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_1, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
         )
         await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category_2, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -1537,7 +1546,7 @@ class ScanCases(Base, ABC):
         scanned_events = [
             event
             async for event in adapter.scan(
-                target=identifier.Stream(
+                target=identifier.StreamIdentifier(
                     category=event_category_1,
                     stream=event_stream,
                 ),

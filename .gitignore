@@ -45,11 +45,20 @@
 *.iml
 *.ipr
 
+# Code styles
+.idea/codeStyles
+
+# Inspection profiles
+.idea/inspectionProfiles
+
 # CMake
 cmake-build-*/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
+
+# git toolbox
+.idea/git_toolbox_blame.xml
 
 # File-based project format
 *.iws

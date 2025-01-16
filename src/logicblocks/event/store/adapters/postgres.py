@@ -17,14 +17,16 @@ from logicblocks.event.store.constraints import (
     SequenceNumberAfterConstraint,
 )
 from logicblocks.event.types import (
+    CategoryIdentifier,
+    LogIdentifier,
     NewEvent,
     StoredEvent,
-    identifier,
+    StreamIdentifier,
 )
 
 
 @dataclass(frozen=True)
-class ConnectionSettings(object):
+class ConnectionSettings:
     host: str
     port: int
     dbname: str
@@ -60,7 +62,7 @@ ConnectionSource = ConnectionSettings | AsyncConnectionPool[AsyncConnection]
 
 
 @dataclass(frozen=True)
-class TableSettings(object):
+class TableSettings:
     events_table_name: str
 
     def __init__(self, *, events_table_name: str = "events"):
@@ -68,7 +70,7 @@ class TableSettings(object):
 
 
 @dataclass(frozen=True)
-class QuerySettings(object):
+class QuerySettings:
     scan_query_page_size: int
 
     def __init__(self, *, scan_query_page_size: int = 100):
@@ -76,7 +78,7 @@ class QuerySettings(object):
 
 
 @dataclass(frozen=True)
-class ScanQueryParameters(object):
+class ScanQueryParameters:
     target: Scannable
     constraints: Set[QueryConstraint]
     page_size: int
@@ -95,9 +97,9 @@ class ScanQueryParameters(object):
     @property
     def category(self) -> str | None:
         match self.target:
-            case identifier.Category(category):
+            case CategoryIdentifier(category):
                 return category
-            case identifier.Stream(category, _):
+            case StreamIdentifier(category, _):
                 return category
             case _:
                 return None
@@ -105,7 +107,7 @@ class ScanQueryParameters(object):
     @property
     def stream(self) -> str | None:
         match self.target:
-            case identifier.Stream(_, stream):
+            case StreamIdentifier(_, stream):
                 return stream
             case _:
                 return None
@@ -123,10 +125,10 @@ def query_constraint_to_sql(
 
 
 @query_constraint_to_sql.register(SequenceNumberAfterConstraint)
-def sequence_number_after_query_constraint_as_sql(
+def sequence_number_after_query_constraint_to_sql(
     constraint: SequenceNumberAfterConstraint,
 ) -> ParameterisedQueryFragment:
-    return (sql.SQL("sequence_number > %s"), [constraint.sequence_number])
+    return sql.SQL("sequence_number > %s"), [constraint.sequence_number]
 
 
 def scan_query(
@@ -192,7 +194,7 @@ def scan_query(
         if param is not None
     ]
 
-    return (query, params)
+    return query, params
 
 
 def lock_query(table_settings: TableSettings) -> ParameterisedQuery:
@@ -207,7 +209,7 @@ def lock_query(table_settings: TableSettings) -> ParameterisedQuery:
 
 
 def read_last_query(
-    target: identifier.Stream, table_settings: TableSettings
+    target: Saveable, table_settings: TableSettings
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -269,7 +271,7 @@ async def lock_table(
 async def read_last(
     cursor: AsyncCursor[StoredEvent],
     *,
-    target: identifier.Stream,
+    target: StreamIdentifier,
     table_settings: TableSettings,
 ):
     await cursor.execute(*read_last_query(target, table_settings))
@@ -361,7 +363,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     async def scan(
         self,
         *,
-        target: Scannable = identifier.Log(),
+        target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         async with self.connection_pool.connection() as connection:

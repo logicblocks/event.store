@@ -14,7 +14,12 @@ from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
-from logicblocks.event.types import Projection, StoredEvent
+from logicblocks.event.types import (
+    EventSequenceIdentifier,
+    Projection,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 generic_event = (
     StoredEventBuilder()
@@ -25,7 +30,7 @@ generic_event = (
 
 
 @dataclass
-class Aggregate(object):
+class Aggregate:
     def __init__(
         self,
         something_occurred_at: datetime | None = None,
@@ -36,7 +41,17 @@ class Aggregate(object):
 
 
 class AggregateProjector(Projector[Aggregate]):
-    initial_state_factory = Aggregate
+    def initial_state_factory(self) -> Aggregate:
+        return Aggregate()
+
+    def id_factory(
+        self, state: Aggregate, coordinates: EventSequenceIdentifier
+    ) -> str:
+        match coordinates:
+            case StreamIdentifier(stream=stream):
+                return stream
+            case _:
+                raise ValueError("Unexpected coordinates.")
 
     @staticmethod
     def something_occurred(state: Aggregate, event: StoredEvent) -> Aggregate:
@@ -55,15 +70,7 @@ class AggregateProjector(Projector[Aggregate]):
         )
 
 
-class TestProjectorDefinition(object):
-    def test_requires_initial_state_factory(self):
-        with pytest.raises(TypeError):
-
-            class MissingInitialStateFactoryProjector(Projector):
-                pass
-
-
-class TestProjectorEventApplication(object):
+class TestProjectorEventApplication:
     def test_applies_one_event_when_handler_available(self):
         occurred_at = datetime.now(UTC)
         position = 0
@@ -251,7 +258,7 @@ class TestProjectorEventApplication(object):
         assert expected_state == actual_state
 
 
-class TestProjectorProjection(object):
+class TestProjectorProjection:
     async def test_projects_from_event_source(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -283,11 +290,71 @@ class TestProjectorProjection(object):
 
         actual_projection = await projector.project(source=stream)
         expected_projection = Projection[Aggregate](
+            id=stream_name,
             state=Aggregate(
                 something_occurred_at=something_occurred_at,
                 something_else_occurred_at=something_else_occurred_at,
             ),
             version=2,
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="aggregate",
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_uses_defined_type_when_property_overridden(self):
+        @dataclass
+        class Thing:
+            value: int = 5
+
+        class CustomTypeProjector(Projector[Thing]):
+            name = "specific-thing"
+
+            def initial_state_factory(self) -> Thing:
+                return Thing()
+
+            def id_factory(
+                self, state: Thing, coordinates: EventSequenceIdentifier
+            ):
+                match coordinates:
+                    case StreamIdentifier(stream=stream):
+                        return stream
+                    case _:
+                        raise ValueError("Unexpected coordinates.")
+
+            @staticmethod
+            def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
+                state.value = event.payload["value"]
+                return state
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_events = [
+            (
+                NewEventBuilder()
+                .with_name("thing-got-value")
+                .with_payload({"value": 42})
+                .build()
+            )
+        ]
+
+        await stream.publish(events=new_events)
+
+        projector = CustomTypeProjector()
+
+        actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[Thing](
+            id=stream_name,
+            state=Thing(value=42),
+            version=1,
+            source=stream.identifier,
+            name="specific-thing",
         )
 
         assert expected_projection == actual_projection

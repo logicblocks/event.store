@@ -3,10 +3,15 @@ from datetime import UTC, datetime
 
 import pytest
 
-from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder
+from logicblocks.event.testing import (
+    MappingProjectionBuilder,
+    NewEventBuilder,
+    StoredEventBuilder,
+)
+from logicblocks.event.types import StreamIdentifier
 
 
-class TestNewEventBuilder(object):
+class TestNewEventBuilder:
     def test_builds_new_event_with_defaults(self):
         builder = NewEventBuilder()
 
@@ -53,7 +58,7 @@ class TestNewEventBuilder(object):
         assert event.occurred_at == occurred_at
 
 
-class TestStoredEventBuilder(object):
+class TestStoredEventBuilder:
     def test_builds_stored_event_with_defaults(self):
         builder = StoredEventBuilder()
 
@@ -173,6 +178,89 @@ class TestStoredEventBuilder(object):
         assert event.payload == new_event.payload
         assert event.occurred_at == new_event.occurred_at
         assert event.observed_at == new_event.observed_at
+
+
+class TestMappingProjectionBuilder:
+    def test_builds_projection_with_defaults(self):
+        builder = MappingProjectionBuilder()
+
+        projection = builder.build()
+
+        assert projection.id is not None
+        assert projection.name is not None
+        assert projection.version is not None
+        assert projection.source is not None
+
+    def test_randomises_projection_id(self):
+        ids = [MappingProjectionBuilder().build().id for _ in range(100)]
+
+        assert len(set(ids)) == 100
+
+    def test_randomises_projection_name(self):
+        names = [MappingProjectionBuilder().build().name for _ in range(100)]
+
+        assert len(set(names)) == 100
+
+    def test_randomises_projection_state(self):
+        state_keys = [
+            map(str, MappingProjectionBuilder().build().state.keys())
+            for _ in range(100)
+        ]
+
+        assert len(set(state_keys)) == 100
+
+    def test_randomises_projection_version(self):
+        versions = [
+            MappingProjectionBuilder().build().version for _ in range(100)
+        ]
+
+        assert len(set(versions)) == 100
+
+    def test_randomises_projection_source(self):
+        sources = [
+            MappingProjectionBuilder().build().source for _ in range(100)
+        ]
+
+        assert len(set(sources)) == 100
+
+    def test_builds_projection_with_specified_id(self):
+        builder = MappingProjectionBuilder().with_id("projection-id")
+
+        projection = builder.build()
+
+        assert projection.id == "projection-id"
+
+    def test_builds_projection_with_specified_name(self):
+        builder = MappingProjectionBuilder().with_name("projection-name")
+
+        projection = builder.build()
+
+        assert projection.name == "projection-name"
+
+    def test_builds_projection_with_specified_state(self):
+        builder = MappingProjectionBuilder().with_state({"key": "value"})
+
+        projection = builder.build()
+
+        assert projection.state == {"key": "value"}
+
+    def test_builds_projection_with_specified_version(self):
+        builder = MappingProjectionBuilder().with_version(42)
+
+        projection = builder.build()
+
+        assert projection.version == 42
+
+    def test_builds_projection_with_specified_source(self):
+        builder = MappingProjectionBuilder().with_source(
+            StreamIdentifier(category="category", stream="stream")
+        )
+
+        projection = builder.build()
+
+        assert projection.source == StreamIdentifier(
+            category="category", stream="stream"
+        )
 
 
 if __name__ == "__main__":

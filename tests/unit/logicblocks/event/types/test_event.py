@@ -23,7 +23,7 @@ class VerifyingStaticClock(StaticClock):
         return super().now(tz)
 
 
-class TestNewEvent(object):
+class TestNewEvent:
     def test_uses_occurred_at_when_provided(self):
         occurred_at = datetime.now(UTC)
         event = NewEvent(
@@ -286,7 +286,7 @@ class TestNewEvent(object):
         assert not hash(event1) == hash(event2)
 
 
-class TestStoredEvent(object):
+class TestStoredEvent:
     def test_includes_all_attributes_in_representation(self):
         now = datetime.now(UTC)
         stored_event = StoredEvent(

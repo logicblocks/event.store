@@ -13,9 +13,11 @@ from logicblocks.event.store.conditions import (
 )
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
+    CategoryIdentifier,
+    LogIdentifier,
     NewEvent,
     StoredEvent,
-    identifier,
+    StreamIdentifier,
 )
 
 type StreamKey = tuple[str, str]
@@ -90,7 +92,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     async def scan(
         self,
         *,
-        target: Scannable = identifier.Log(),
+        target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
         index = self._select_index(target)
@@ -104,11 +106,11 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
 
     def _select_index(self, target: Scannable) -> EventPositionList:
         match target:
-            case identifier.Log():
+            case LogIdentifier():
                 return self._log_index
-            case identifier.Category(category):
+            case CategoryIdentifier(category):
                 return self._category_index[category]
-            case identifier.Stream(category, stream):
+            case StreamIdentifier(category, stream):
                 return self._stream_index[(category, stream)]
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown target: {target}")

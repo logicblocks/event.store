@@ -7,10 +7,41 @@ from logicblocks.event.store import EventStore, conditions, constraints
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import (
+    CategoryIdentifier,
+    NewEvent,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 
-class TestStreamBasics(object):
+class TestStreamIdentifier:
+    def test_exposes_identifier(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
+
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        assert stream.identifier == StreamIdentifier(
+            category=category_name, stream=stream_name
+        )
+
+
+class TestStreamBasics:
+    async def test_exposes_stream_identifier(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        assert stream.identifier == StreamIdentifier(
+            category=category_name, stream=stream_name
+        )
+
     async def test_has_no_events_in_stream_initially(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -187,7 +218,7 @@ class TestStreamBasics(object):
         assert actual_streams == expected_streams
 
 
-class TestStreamRead(object):
+class TestStreamRead:
     async def test_reads_all_events_in_stream_by_default(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -221,7 +252,7 @@ class TestStreamRead(object):
         assert read_events == stored_events[5:]
 
 
-class TestStreamIteration(object):
+class TestStreamIteration:
     async def test_can_treat_stream_as_iterable_over_all_events(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -290,7 +321,7 @@ class TestStreamIteration(object):
         assert stream_event_keys == new_event_keys
 
 
-class TestStreamPublishing(object):
+class TestStreamPublishing:
     async def test_publishes_if_stream_position_matches_position_condition(
         self,
     ):
@@ -390,7 +421,21 @@ class TestStreamPublishing(object):
             )
 
 
-class TestCategoryBasics(object):
+class TestCategoryIdentifier:
+    def test_exposes_identifier(self):
+        category_name = data.random_event_category_name()
+
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
+
+        category = store.category(category=category_name)
+
+        assert category.identifier == CategoryIdentifier(
+            category=category_name
+        )
+
+
+class TestCategoryBasics:
     async def test_has_no_events_in_category_initially(self):
         category_name = data.random_event_category_name()
 
@@ -582,7 +627,7 @@ class TestCategoryBasics(object):
         assert read_events == expected_events
 
 
-class TestCategoryRead(object):
+class TestCategoryRead:
     async def test_reads_all_events_in_category_by_default(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -636,7 +681,7 @@ class TestCategoryRead(object):
         assert read_events == expected_events
 
 
-class TestCategoryIteration(object):
+class TestCategoryIteration:
     async def test_can_treat_category_as_iterable_over_all_events(self):
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()

@@ -22,7 +22,7 @@ from logicblocks.event.processing.services import (
 # service start and stop?
 
 
-class TestServiceManagerExecutionModes(object):
+class TestServiceManagerExecutionModes:
     async def test_foreground_execution_mode_waits_for_completion(self):
         times = {}
 
@@ -72,7 +72,7 @@ class TestServiceManagerExecutionModes(object):
         assert times["during"] > times["after"]
 
 
-class TestServiceManagerIsolationModes(object):
+class TestServiceManagerIsolationModes:
     async def test_main_thread_isolation_mode_runs_services_on_main_thread(
         self,
     ):
@@ -169,7 +169,7 @@ class TestServiceManagerIsolationModes(object):
         assert thread_ids["service1:execute"] != thread_ids["service2:execute"]
 
 
-class TestServiceManagerExceptionHandling(object):
+class TestServiceManagerExceptionHandling:
     async def test_exception_in_background_service_allows_other_services_to_execute(
         self,
     ):
@@ -283,7 +283,7 @@ class TestServiceManagerExceptionHandling(object):
         assert futures[1].result() == 10
 
 
-class TestServiceManagerLongRunningServices(object):
+class TestServiceManagerLongRunningServices:
     async def test_long_and_short_running_services_can_coexist_on_main_thread(
         self,
     ):
@@ -514,7 +514,7 @@ class TestServiceManagerLongRunningServices(object):
         assert_correct_iteration_counts("dedicated")
 
 
-class TestServiceManagerCancellation(object):
+class TestServiceManagerCancellation:
     async def test_cancels_services_on_main_thread_on_stop(self):
         service_running = False
         service_cancelled = False
@@ -649,7 +649,7 @@ def signal_ignored(sig: int):
         signal.signal(sig, original_handler)
 
 
-class TestServiceManagerSignalHandling(object):
+class TestServiceManagerSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGINT, signal.SIGTERM])
     async def test_stops_services_on_all_threads_on_signal(self, sig):
         with signal_ignored(sig):

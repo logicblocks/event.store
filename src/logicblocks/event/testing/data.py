@@ -77,3 +77,24 @@ def random_event_payload() -> Mapping[str, Any]:
         ): random_ascii_alphanumerics_string(length=20)
         for _ in range(random_int(1, 10))
     }
+
+
+def random_projection_id() -> str:
+    return random_uuid4_string()
+
+
+def random_projection_name() -> str:
+    return random_hyphenated_lowercase_ascii_alphabetics_string(length=15)
+
+
+def random_projection_state() -> Mapping[str, Any]:
+    return {
+        random_lowercase_ascii_alphabetics_string(
+            length=10
+        ): random_ascii_alphanumerics_string(length=20)
+        for _ in range(random_int(1, 10))
+    }
+
+
+def random_projection_version() -> int:
+    return random_int(1, 100000)

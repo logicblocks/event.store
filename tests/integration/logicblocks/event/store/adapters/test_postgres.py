@@ -137,7 +137,7 @@ async def save_random_events(
         for _ in range(number_of_events)
         for event_category, event_stream in [random.choice(streams)]
         for event in await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[NewEventBuilder().build()],
@@ -207,7 +207,7 @@ class TestPostgresEventStorageAdapterCommonCases(
         )
 
 
-class TestPostgresStorageAdapterCustomTableName(object):
+class TestPostgresStorageAdapterCustomTableName:
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
@@ -224,7 +224,7 @@ class TestPostgresStorageAdapterCustomTableName(object):
         new_event = NewEventBuilder().build()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event],
@@ -252,7 +252,7 @@ class TestPostgresStorageAdapterCustomTableName(object):
         new_event = NewEventBuilder().build()
 
         stored_events = await adapter.save(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             ),
             events=[new_event],
@@ -263,7 +263,7 @@ class TestPostgresStorageAdapterCustomTableName(object):
         assert retrieved_events == stored_events
 
 
-class TestPostgresStorageAdapterScanPaging(object):
+class TestPostgresStorageAdapterScanPaging:
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -302,7 +302,7 @@ class TestPostgresStorageAdapterScanPaging(object):
             streams=streams,
         )
 
-        iterator = adapter.scan(target=identifier.Log())
+        iterator = adapter.scan(target=identifier.LogIdentifier())
 
         first_page_scanned_events = await read_iterator_events(
             number_of_events=default_page_size, iterator=iterator
@@ -367,7 +367,7 @@ class TestPostgresStorageAdapterScanPaging(object):
             streams=streams,
         )
 
-        iterator = adapter.scan(target=identifier.Log())
+        iterator = adapter.scan(target=identifier.LogIdentifier())
 
         first_page_scanned_events = await read_iterator_events(
             number_of_events=page_size, iterator=iterator
@@ -427,7 +427,7 @@ class TestPostgresStorageAdapterScanPaging(object):
         )
 
         iterator = adapter.scan(
-            target=identifier.Category(category=event_category)
+            target=identifier.CategoryIdentifier(category=event_category)
         )
 
         first_page_scanned_events = await read_iterator_events(
@@ -492,7 +492,7 @@ class TestPostgresStorageAdapterScanPaging(object):
         )
 
         iterator = adapter.scan(
-            target=identifier.Category(category=event_category)
+            target=identifier.CategoryIdentifier(category=event_category)
         )
 
         first_page_scanned_events = await read_iterator_events(
@@ -550,7 +550,7 @@ class TestPostgresStorageAdapterScanPaging(object):
         )
 
         iterator = adapter.scan(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             )
         )
@@ -613,7 +613,7 @@ class TestPostgresStorageAdapterScanPaging(object):
         )
 
         iterator = adapter.scan(
-            target=identifier.Stream(
+            target=identifier.StreamIdentifier(
                 category=event_category, stream=event_stream
             )
         )
@@ -657,7 +657,7 @@ class TestPostgresStorageAdapterScanPaging(object):
         assert scanned_events == stored_events
 
 
-class TestPostgresStorageAdapterQueryConstraints(object):
+class TestPostgresStorageAdapterQueryConstraints:
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -680,7 +680,7 @@ class TestPostgresStorageAdapterQueryConstraints(object):
             _ = [
                 _
                 async for _ in adapter.scan(
-                    target=identifier.Log(),
+                    target=identifier.LogIdentifier(),
                     constraints={UnknownQueryConstraint()},
                 )
             ]
@@ -701,7 +701,8 @@ class TestPostgresStorageAdapterQueryConstraints(object):
         result = [
             event
             async for event in adapter.scan(
-                target=identifier.Log(), constraints={CustomQueryConstraint()}
+                target=identifier.LogIdentifier(),
+                constraints={CustomQueryConstraint()},
             )
         ]
 

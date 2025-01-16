@@ -18,7 +18,7 @@ connection_settings = PostgresConnectionSettings(
 )
 
 
-class TestPostgresConnectionSettings(object):
+class TestPostgresConnectionSettings:
     def test_includes_all_settings_in_representation_obscuring_password(self):
         settings = PostgresConnectionSettings(
             host="localhost",
@@ -53,7 +53,7 @@ class TestPostgresConnectionSettings(object):
         )
 
 
-class TestPostgresStorageAdapter(object):
+class TestPostgresStorageAdapter:
     def test_creates_connection_pool_when_connection_settings_provided(self):
         adapter = PostgresEventStorageAdapter(
             connection_source=connection_settings

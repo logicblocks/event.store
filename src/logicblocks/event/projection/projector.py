@@ -1,11 +1,16 @@
-from collections.abc import Callable, Mapping
+from abc import ABC, abstractmethod
+from collections.abc import Callable
 from enum import StrEnum, auto
-from typing import Any
 
+from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
 
 from logicblocks.event.store import EventSource
-from logicblocks.event.types import Projection, StoredEvent
+from logicblocks.event.types import (
+    EventSequenceIdentifier,
+    Projection,
+    StoredEvent,
+)
 
 
 class MissingProjectionHandlerError(Exception):
@@ -21,21 +26,22 @@ class MissingHandlerBehaviour(StrEnum):
     IGNORE = auto()
 
 
-class Projector[T]:
-    initial_state_factory: Callable[[], T]
+class Projector[T](ABC):
+    name: str | None = None
+
     missing_handler_behaviour: MissingHandlerBehaviour = (
         MissingHandlerBehaviour.RAISE
     )
 
-    def __init_subclass__(cls, **kwargs: Mapping[Any, Any]) -> None:
-        for required in ("initial_state_factory",):
-            if getattr(cls, required, None) is None:
-                raise TypeError(
-                    f"Can't extend abstract class {Projector.__name__} "
-                    f"as {cls.__name__} without {required} attribute defined."
-                )
+    @abstractmethod
+    def initial_state_factory(self) -> T:
+        raise NotImplementedError()
 
-        return super().__init_subclass__(**kwargs)
+    @abstractmethod
+    def id_factory(
+        self, state: T, coordinates: EventSequenceIdentifier
+    ) -> str:
+        raise NotImplementedError()
 
     def apply(self, *, event: StoredEvent, state: T | None = None) -> T:
         state = self._resolve_state(state)
@@ -48,11 +54,18 @@ class Projector[T]:
     ) -> Projection[T]:
         state = self._resolve_state(state)
         version = 0
+
         async for event in source:
             state = self.apply(state=state, event=event)
             version = event.position + 1
 
-        return Projection[T](state=state, version=version)
+        return Projection[T](
+            id=self.id_factory(state, source.identifier),
+            state=state,
+            version=version,
+            source=source.identifier,
+            name=self._resolve_name(),
+        )
 
     def _resolve_state(self, state: T | None) -> T:
         if state is None:
@@ -70,6 +83,13 @@ class Projector[T]:
             if self.missing_handler_behaviour == MissingHandlerBehaviour.RAISE:
                 raise MissingProjectionHandlerError(event, self.__class__)
             else:
-                return lambda state, event: state
+                return lambda state, _: state
 
         return handler
+
+    def _resolve_name(self) -> str:
+        return self.name if self.name is not None else self._default_name()
+
+    def _default_name(self) -> str:
+        projector_name = self.__class__.__name__.replace("Projector", "")
+        return to_kebab_case(projector_name)

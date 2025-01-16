@@ -1,78 +1,83 @@
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 
 class Identifier(ABC):
     @abstractmethod
-    def json(self) -> str:
+    def dict(self) -> Mapping[str, Any]:
         raise NotImplementedError()
 
+    def json(self) -> str:
+        return json.dumps(self.dict())
+
 
 @dataclass(frozen=True)
-class Log(Identifier):
-    def json(self) -> str:
-        return json.dumps({"type": "log"})
+class LogIdentifier(Identifier):
+    def dict(self):
+        return {"type": "log"}
 
     def __repr__(self) -> str:
-        return "identifier.Log()"
+        return "LogIdentifier()"
 
     def __hash__(self):
         return hash(self.json())
 
 
 @dataclass(frozen=True)
-class Category(Identifier):
+class CategoryIdentifier(Identifier):
     category: str
 
-    def json(self) -> str:
-        return json.dumps(
-            {
-                "type": "category",
-                "category": self.category,
-            }
-        )
+    def dict(self):
+        return {"type": "category", "category": self.category}
 
     def __repr__(self) -> str:
-        return f"identifier.Category(category={self.category})"
+        return f"CategoryIdentifier(category='{self.category}')"
 
     def __hash__(self):
         return hash(self.json())
 
 
 @dataclass(frozen=True)
-class Stream(Identifier):
+class StreamIdentifier(Identifier):
     category: str
     stream: str
 
-    def json(self) -> str:
-        return json.dumps(
-            {
-                "type": "stream",
-                "category": self.category,
-                "stream": self.stream,
-            }
-        )
+    def dict(self):
+        return {
+            "type": "stream",
+            "category": self.category,
+            "stream": self.stream,
+        }
 
     def __repr__(self) -> str:
         return (
-            f"identifier.Stream(category={self.category},stream={self.stream})"
+            f"StreamIdentifier("
+            f"category='{self.category}',"
+            f"stream='{self.stream}')"
         )
 
     def __hash__(self):
         return hash(self.json())
+
+
+type EventSequenceIdentifier = (
+    LogIdentifier | CategoryIdentifier | StreamIdentifier
+)
 
 
 def target(
     *, category: str | None = None, stream: str | None = None
-) -> Log | Category | Stream:
+) -> EventSequenceIdentifier:
     if category is not None and stream is not None:
-        return Stream(category=category, stream=stream)
+        return StreamIdentifier(category=category, stream=stream)
     elif category is not None:
-        return Category(category=category)
+        return CategoryIdentifier(category=category)
     elif stream is not None:
         raise ValueError(
             "Invalid target, if stream provided, category must also be provided"
         )
     else:
-        return Log()
+        return LogIdentifier()

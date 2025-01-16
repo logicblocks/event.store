@@ -6,95 +6,111 @@ import pytest
 from logicblocks.event.types import identifier
 
 
-class TestLogIdentifier(object):
+class TestLogIdentifier:
     def test_returns_json_representation(self):
-        assert identifier.Log().json() == '{"type": "log"}'
+        assert identifier.LogIdentifier().json() == '{"type": "log"}'
 
     def test_returns_debug_representation(self):
-        assert repr(identifier.Log()) == "identifier.Log()"
+        assert repr(identifier.LogIdentifier()) == "LogIdentifier()"
 
     def test_hashes_identifier_using_json_representation(self):
-        assert isinstance(identifier.Log(), Hashable)
-        assert hash(identifier.Log()) == hash(identifier.Log().json())
+        assert isinstance(identifier.LogIdentifier(), Hashable)
+        assert hash(identifier.LogIdentifier()) == hash(
+            identifier.LogIdentifier().json()
+        )
 
 
-class TestCategoryIdentifier(object):
+class TestCategoryIdentifier:
     def test_returns_json_representation(self):
         assert (
-            identifier.Category(category="test").json()
+            identifier.CategoryIdentifier(category="test").json()
             == '{"type": "category", "category": "test"}'
         )
 
     def test_returns_debug_representation(self):
         assert (
-            repr(identifier.Category(category="test"))
-            == "identifier.Category(category=test)"
+            repr(identifier.CategoryIdentifier(category="test"))
+            == "CategoryIdentifier(category='test')"
         )
 
     def test_hashes_identifier_using_json_representation(self):
-        assert isinstance(identifier.Category("test"), Hashable)
-        assert hash(identifier.Category(category="test")) == hash(
-            identifier.Category(category="test").json()
+        assert isinstance(identifier.CategoryIdentifier("test"), Hashable)
+        assert hash(identifier.CategoryIdentifier(category="test")) == hash(
+            identifier.CategoryIdentifier(category="test").json()
         )
 
     def test_exposes_category(self):
-        assert identifier.Category(category="test").category == "test"
+        assert (
+            identifier.CategoryIdentifier(category="test").category == "test"
+        )
 
 
-class TestStreamIdentifier(object):
+class TestStreamIdentifier:
     def test_returns_json_representation(self):
         assert (
-            identifier.Stream(category="test", stream="stream").json()
+            identifier.StreamIdentifier(
+                category="test", stream="stream"
+            ).json()
             == '{"type": "stream", "category": "test", "stream": "stream"}'
         )
 
     def test_returns_debug_representation(self):
         assert (
-            repr(identifier.Stream(category="test", stream="stream"))
-            == "identifier.Stream(category=test,stream=stream)"
+            repr(identifier.StreamIdentifier(category="test", stream="stream"))
+            == "StreamIdentifier(category='test',stream='stream')"
         )
 
     def test_hashes_identifier_using_json_representation(self):
         assert isinstance(
-            identifier.Stream(category="test", stream="stream"), Hashable
+            identifier.StreamIdentifier(category="test", stream="stream"),
+            Hashable,
         )
         assert hash(
-            identifier.Stream(category="test", stream="stream")
-        ) == hash(identifier.Stream(category="test", stream="stream").json())
+            identifier.StreamIdentifier(category="test", stream="stream")
+        ) == hash(
+            identifier.StreamIdentifier(
+                category="test", stream="stream"
+            ).json()
+        )
 
     def test_exposes_category(self):
         assert (
-            identifier.Stream(category="test", stream="stream").category
+            identifier.StreamIdentifier(
+                category="test", stream="stream"
+            ).category
             == "test"
         )
 
     def test_exposes_stream(self):
         assert (
-            identifier.Stream(category="test", stream="stream").stream
+            identifier.StreamIdentifier(
+                category="test", stream="stream"
+            ).stream
             == "stream"
         )
 
 
-class TestTargetFunction(object):
+class TestTargetFunction:
     def test_returns_log_identifier_when_category_and_stream_not_provided(
         self,
     ):
-        assert identifier.target() == identifier.Log()
+        assert identifier.target() == identifier.LogIdentifier()
 
     def test_returns_log_identifier_when_category_and_stream_none(self):
         assert (
-            identifier.target(category=None, stream=None) == identifier.Log()
+            identifier.target(category=None, stream=None)
+            == identifier.LogIdentifier()
         )
 
     def test_returns_log_identifier_when_category_none_and_stream_not_provided(
         self,
     ):
-        assert identifier.target(category=None) == identifier.Log()
+        assert identifier.target(category=None) == identifier.LogIdentifier()
 
     def test_returns_log_identifier_when_category_not_provided_and_stream_none(
         self,
     ):
-        assert identifier.target(stream=None) == identifier.Log()
+        assert identifier.target(stream=None) == identifier.LogIdentifier()
 
     def test_raises_when_category_not_provided_and_stream_provided(self):
         with pytest.raises(ValueError):
@@ -107,21 +123,21 @@ class TestTargetFunction(object):
     def test_returns_category_identifier_when_category_provided_and_stream_not_provided(
         self,
     ):
-        assert identifier.target(category="test") == identifier.Category(
+        assert identifier.target(
             category="test"
-        )
+        ) == identifier.CategoryIdentifier(category="test")
 
     def test_returns_category_identifier_when_category_provided_and_stream_none(
         self,
     ):
         assert identifier.target(
             category="test", stream=None
-        ) == identifier.Category(category="test")
+        ) == identifier.CategoryIdentifier(category="test")
 
     def test_returns_stream_identifier_when_category_and_stream_provided(self):
         assert identifier.target(
             category="test", stream="stream"
-        ) == identifier.Stream(category="test", stream="stream")
+        ) == identifier.StreamIdentifier(category="test", stream="stream")
 
 
 if __name__ == "__main__":

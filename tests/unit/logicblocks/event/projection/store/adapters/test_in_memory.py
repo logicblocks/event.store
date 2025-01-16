@@ -1,0 +1,1265 @@
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
+
+import pytest
+
+from logicblocks.event.projection.store import (
+    Clause,
+    FilterClause,
+    Lookup,
+    Operator,
+    PagingClause,
+    Path,
+    Query,
+    Search,
+    SortClause,
+    SortField,
+    SortOrder,
+)
+from logicblocks.event.projection.store.adapters import (
+    InMemoryProjectionResultSetTransformer,
+    InMemoryProjectionStorageAdapter,
+    InMemoryQueryConverter,
+)
+from logicblocks.event.projection.store.adapters.in_memory import (
+    paging_clause_handler,
+    sort_clause_handler,
+)
+from logicblocks.event.testing import (
+    BaseProjectionBuilder,
+    MappingProjectionBuilder,
+    data,
+)
+from logicblocks.event.types import Projection
+
+
+@dataclass
+class Thing:
+    value_1: int
+    value_2: str
+
+    @staticmethod
+    def to_dict(thing: "Thing") -> Mapping[str, Any]:
+        return thing.dict()
+
+    @staticmethod
+    def from_dict(mapping: Mapping[str, Any]) -> "Thing":
+        return Thing(value_1=mapping["value_1"], value_2=mapping["value_2"])
+
+    def dict(self) -> Mapping[str, Any]:
+        return {"value_1": self.value_1, "value_2": self.value_2}
+
+
+class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
+    def default_state_factory(self) -> Thing:
+        return Thing(
+            value_1=data.random_int(1, 10),
+            value_2=data.random_ascii_alphanumerics_string(),
+        )
+
+
+class TestInMemoryProjectionStorageAdapter:
+    async def test_saves_and_retrieves_projection(self):
+        stream_name = data.random_event_stream_name()
+
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection = (
+            ThingProjectionBuilder()
+            .with_id(stream_name)
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection, converter=Thing.to_dict)
+
+        located = await adapter.find_one(
+            lookup=Lookup(
+                filters=[FilterClause(Operator.EQUAL, Path("id"), stream_name)]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == projection
+
+    async def test_allows_querying_for_one_projection_with_multiple_filters(
+        self,
+    ):
+        projection_name = data.random_event_stream_name()
+
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=10, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+
+        located = await adapter.find_one(
+            lookup=Lookup(
+                filters=[
+                    FilterClause(
+                        Operator.EQUAL, Path("name"), projection_name
+                    ),
+                    FilterClause(
+                        Operator.GREATER_THAN, Path("state", "value_1"), 5
+                    ),
+                ]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == projection_2
+
+    async def test_raises_when_querying_for_one_projection_results_in_many(
+        self,
+    ):
+        projection_name = data.random_projection_name()
+
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder().with_name(projection_name).build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder().with_name(projection_name).build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+
+        with pytest.raises(ValueError):
+            await adapter.find_one(
+                lookup=Lookup(
+                    filters=[
+                        FilterClause(
+                            Operator.EQUAL, Path("name"), projection_name
+                        )
+                    ]
+                ),
+                converter=Thing.from_dict,
+            )
+
+    async def test_allows_querying_for_many_projections_with_single_filter(
+        self,
+    ):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = ThingProjectionBuilder().with_name("a").build()
+        projection_2 = ThingProjectionBuilder().with_name("b").build()
+        projection_3 = ThingProjectionBuilder().with_name("a").build()
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+
+        located = await adapter.find_many(
+            search=Search(
+                filters=[FilterClause(Operator.EQUAL, Path("name"), "a")]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == [projection_1, projection_3]
+
+    async def test_allows_querying_for_many_projections_with_many_filters(
+        self,
+    ):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name("b")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=8, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+
+        located = await adapter.find_many(
+            search=Search(
+                filters=[
+                    FilterClause(Operator.EQUAL, Path("name"), "a"),
+                    FilterClause(
+                        Operator.GREATER_THAN, Path("state", "value_1"), 5
+                    ),
+                ]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == [projection_3, projection_4]
+
+    async def test_allows_querying_for_many_projections_with_sorting(self):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_name("a")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+
+        search = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        path=Path("state", "value_1"), order=SortOrder.DESC
+                    )
+                ]
+            )
+        )
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_3, projection_2, projection_1]
+
+    async def test_allows_querying_for_many_projections_with_paging(self):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+
+        search = Search(paging=PagingClause(after_id="1", item_count=2))
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_2, projection_3]
+
+    async def test_sorts_before_paging_when_querying_many(self):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+
+        search = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        path=Path("state", "value_1"), order=SortOrder.DESC
+                    )
+                ]
+            ),
+            paging=PagingClause(item_count=2),
+        )
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_3, projection_2]
+
+    async def test_filters_before_paging_when_querying_many(self):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_id("4")
+            .with_state(Thing(value_1=8, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.GREATER_THAN, Path("state", "value_1"), 5
+                )
+            ],
+            paging=PagingClause(item_count=2),
+        )
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_2, projection_3]
+
+    async def test_filters_sorts_and_pages_when_querying_many(self):
+        adapter = InMemoryProjectionStorageAdapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2="text"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2="text"))
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_id("4")
+            .with_state(Thing(value_1=8, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+
+        search = Search(
+            filters=[
+                FilterClause(Operator.NOT_EQUAL, Path("state", "value_1"), 7)
+            ],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        path=Path("state", "value_1"), order=SortOrder.DESC
+                    )
+                ]
+            ),
+            paging=PagingClause(item_count=2),
+        )
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_4, projection_2]
+
+
+class TestInMemoryQueryConverterClauseConverterRegistration:
+    def test_registers_clause_converter_and_converts_clause(self):
+        registry = InMemoryQueryConverter()
+
+        class TakeClause(Clause):
+            value: int = 2
+
+        def convert_clause(
+            take_clause: TakeClause,
+        ) -> InMemoryProjectionResultSetTransformer:
+            def apply_clause(
+                projections: Sequence[Projection[Mapping[str, Any]]],
+            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                return projections[: take_clause.value]
+
+            return apply_clause
+
+        registry.register_clause_converter(TakeClause, convert_clause)
+
+        clause = TakeClause()
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+        projection_3 = MappingProjectionBuilder().build()
+
+        transformed_projections = transformer(
+            [projection_1, projection_2, projection_3]
+        )
+
+        assert transformed_projections == [projection_1, projection_2]
+
+    def test_replaces_existing_clause_converter(self):
+        registry = InMemoryQueryConverter()
+
+        class TakeClause(Clause):
+            value: int = 2
+
+        def convert_clause_1(
+            take_clause: TakeClause,
+        ) -> InMemoryProjectionResultSetTransformer:
+            def apply_clause(
+                projections: Sequence[Projection[Mapping[str, Any]]],
+            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                return projections[: take_clause.value]
+
+            return apply_clause
+
+        def convert_clause_2(
+            _take_clause: TakeClause,
+        ) -> InMemoryProjectionResultSetTransformer:
+            def apply_clause(
+                projections: Sequence[Projection[Mapping[str, Any]]],
+            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                return projections
+
+            return apply_clause
+
+        registry = registry.register_clause_converter(
+            TakeClause, convert_clause_1
+        ).register_clause_converter(TakeClause, convert_clause_2)
+
+        clause = TakeClause()
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+        projection_3 = MappingProjectionBuilder().build()
+
+        transformed_projections = transformer(
+            [projection_1, projection_2, projection_3]
+        )
+
+        assert transformed_projections == [
+            projection_1,
+            projection_2,
+            projection_3,
+        ]
+
+
+class TestInMemoryQueryConverterClauseConversion:
+    def test_raises_for_unregistered_clause_type(self):
+        registry = InMemoryQueryConverter()
+
+        class TakeClause(Clause):
+            value: int = 2
+
+        clause = TakeClause()
+
+        with pytest.raises(ValueError):
+            registry.convert_clause(clause)
+
+
+class TestInMemoryQueryConverterQueryConversion:
+    def test_converts_lookup_with_multiple_filter_clauses(self):
+        registry = InMemoryQueryConverter()
+
+        class SkipClause(Clause):
+            number: int = 2
+
+        class TakeClause(Clause):
+            number: int = 1
+
+        def make_skip_transformer(
+            skip_clause: SkipClause,
+        ) -> InMemoryProjectionResultSetTransformer:
+            def apply_clause(
+                projections: Sequence[Projection[Mapping[str, Any]]],
+            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                return projections[skip_clause.number :]
+
+            return apply_clause
+
+        def make_take_transformer(
+            take_clause: TakeClause,
+        ) -> InMemoryProjectionResultSetTransformer:
+            def apply_clause(
+                projections: Sequence[Projection[Mapping[str, Any]]],
+            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                return projections[: take_clause.number]
+
+            return apply_clause
+
+        registry = registry.register_clause_converter(
+            SkipClause, make_skip_transformer
+        ).register_clause_converter(TakeClause, make_take_transformer)
+
+        query = Lookup(
+            filters=[
+                SkipClause(),
+                TakeClause(),
+            ]
+        )
+
+        transformer = registry.convert_query(query)
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+        projection_3 = MappingProjectionBuilder().build()
+        projection_4 = MappingProjectionBuilder().build()
+        projection_5 = MappingProjectionBuilder().build()
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            ]
+        )
+
+        assert results == [projection_3]
+
+    def test_converts_search_with_sort_clause(self):
+        registry = InMemoryQueryConverter()
+        registry.register_clause_converter(SortClause, sort_clause_handler)
+
+        transformer = registry.convert_query(
+            Search(
+                sort=(
+                    SortClause(
+                        fields=[
+                            SortField(path=Path("id"), order=SortOrder.ASC)
+                        ]
+                    )
+                )
+            )
+        )
+
+        projection_1 = MappingProjectionBuilder().with_id("456").build()
+        projection_2 = MappingProjectionBuilder().with_id("123").build()
+        projection_3 = MappingProjectionBuilder().with_id("789").build()
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_2, projection_1, projection_3]
+
+    def test_converts_search_with_paging_clause(self):
+        registry = InMemoryQueryConverter()
+        registry.register_clause_converter(PagingClause, paging_clause_handler)
+
+        transformer = registry.convert_query(
+            Search(paging=PagingClause(item_count=2))
+        )
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+        projection_3 = MappingProjectionBuilder().build()
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1, projection_2]
+
+    def test_raises_for_unsupported_query_type(self):
+        registry = InMemoryQueryConverter()
+
+        class UnsupportedQuery(Query):
+            pass
+
+        query = UnsupportedQuery()
+
+        with pytest.raises(ValueError):
+            registry.convert_query(query)
+
+
+class TestInMemoryQueryConverterDefaultClauseConverters:
+    def test_filter_top_level_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("id"), "123")
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().with_id("123").build()
+        projection_2 = MappingProjectionBuilder().with_id("456").build()
+
+        results = transformer([projection_1, projection_2])
+
+        assert results == [projection_1]
+
+    def test_filter_nested_state_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("state", "value_1"), 5)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2])
+
+        assert results == [projection_1]
+
+    def test_filter_not_equal(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.NOT_EQUAL, Path("state", "value_1"), 5)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2])
+
+        assert results == [projection_2]
+
+    def test_filter_greater_than(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(
+            Operator.GREATER_THAN, Path("state", "value_1"), 5
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2])
+
+        assert results == [projection_2]
+
+    def test_filter_greater_than_or_equal(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(
+            Operator.GREATER_THAN_OR_EQUAL, Path("state", "value_1"), 6
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 6, "value_2": "text"})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_2, projection_3]
+
+    def test_filter_less_than(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.LESS_THAN, Path("state", "value_1"), 10)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2])
+
+        assert results == [projection_1]
+
+    def test_filter_less_than_or_equal(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(
+            Operator.LESS_THAN_OR_EQUAL, Path("state", "value_1"), 6
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 6, "value_2": "text"})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1, projection_2]
+
+    def test_filter_on_non_existent_top_level_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("non_existent"), 10)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+
+        with pytest.raises(ValueError) as e:
+            transformer([projection_1, projection_2])
+
+        assert str(e.value) == f"Invalid projection path: {['non_existent']}."
+
+    def test_filter_on_non_existent_nested_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("state", "value_3"), 10)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "text"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": "text"})
+            .build()
+        )
+
+        with pytest.raises(ValueError) as e:
+            transformer([projection_1, projection_2])
+
+        assert (
+            str(e.value) == f"Invalid projection path: {["state", "value_3"]}."
+        )
+
+    def test_sort_clause_over_single_field_on_top_level_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = SortClause(
+            fields=[SortField(path=Path("id"), order=SortOrder.ASC)]
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().with_id("456").build()
+        projection_2 = MappingProjectionBuilder().with_id("123").build()
+        projection_3 = MappingProjectionBuilder().with_id("789").build()
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_2, projection_1, projection_3]
+
+    def test_sort_clause_over_multiple_fields_on_top_level_attributes(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = SortClause(
+            fields=[
+                SortField(path=Path("name"), order=SortOrder.ASC),
+                SortField(path=Path("id"), order=SortOrder.DESC),
+            ]
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_name("thing2")
+            .with_id("123")
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_name("thing2")
+            .with_id("456")
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_name("thing1")
+            .with_id("789")
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_3, projection_2, projection_1]
+
+    def test_sort_clause_over_single_field_on_nested_state_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = SortClause(
+            fields=[
+                SortField(path=Path("state", "value_1"), order=SortOrder.ASC),
+            ]
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": "C"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 8, "value_2": "B"})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 6, "value_2": "C"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1, projection_3, projection_2]
+
+    def test_sort_clause_over_multiple_fields_on_nested_state_attribute(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = SortClause(
+            fields=[
+                SortField(path=Path("state", "value_1"), order=SortOrder.DESC),
+                SortField(path=Path("state", "value_2"), order=SortOrder.ASC),
+            ]
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 6, "value_2": "C"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 8, "value_2": "B"})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 6, "value_2": "A"})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_2, projection_3, projection_1]
+
+    def test_paging_clause_first_page(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        clause = PagingClause(item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = MappingProjectionBuilder().build()
+        projection_2 = MappingProjectionBuilder().build()
+        projection_3 = MappingProjectionBuilder().build()
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1, projection_2]
+
+    def test_paging_clause_full_page_paging_forwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+        projection_4 = MappingProjectionBuilder().with_id("4").build()
+        projection_5 = MappingProjectionBuilder().with_id("5").build()
+
+        clause = PagingClause(after_id="2", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            ]
+        )
+
+        assert results == [projection_3, projection_4]
+
+    def test_paging_clause_partial_page_paging_forwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="2", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_3]
+
+    def test_paging_clause_after_id_not_present_paging_forwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="4", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_1, projection_2]
+
+    def test_paging_clause_after_id_is_last_item_id_paging_forwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="3", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == []
+
+    def test_paging_clause_full_page_paging_backwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+        projection_4 = MappingProjectionBuilder().with_id("4").build()
+        projection_5 = MappingProjectionBuilder().with_id("5").build()
+
+        clause = PagingClause(before_id="4", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            ]
+        )
+
+        assert results == [projection_2, projection_3]
+
+    def test_paging_clause_partial_page_paging_backwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(before_id="2", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1]
+
+    def test_paging_clause_before_id_not_present_paging_backwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(before_id="4", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_1, projection_2]
+
+    def test_paging_clause_before_id_is_first_item_id_paging_backwards(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(before_id="1", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == []
+
+    def test_paging_clause_both_after_and_before_ids_partial_page(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+        projection_4 = MappingProjectionBuilder().with_id("4").build()
+        projection_5 = MappingProjectionBuilder().with_id("5").build()
+
+        clause = PagingClause(after_id="2", before_id="4", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            ]
+        )
+
+        assert results == [projection_3]
+
+    def test_paging_clause_both_after_and_before_ids_more_than_page(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+        projection_4 = MappingProjectionBuilder().with_id("4").build()
+        projection_5 = MappingProjectionBuilder().with_id("5").build()
+
+        clause = PagingClause(after_id="1", before_id="5", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            ]
+        )
+
+        assert results == [projection_2, projection_3]
+
+    def test_paging_clause_both_after_and_before_ids_both_missing(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="4", before_id="6", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_1, projection_2]
+
+    def test_paging_clause_both_after_and_before_ids_after_found_before_not_found(
+        self,
+    ):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="2", before_id="6", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_3]
+
+    def test_paging_clause_both_after_and_before_ids_after_not_found_before_found(
+        self,
+    ):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        projection_1 = MappingProjectionBuilder().with_id("1").build()
+        projection_2 = MappingProjectionBuilder().with_id("2").build()
+        projection_3 = MappingProjectionBuilder().with_id("3").build()
+
+        clause = PagingClause(after_id="4", before_id="2", item_count=2)
+
+        transformer = registry.convert_clause(clause)
+
+        results = transformer(
+            [
+                projection_1,
+                projection_2,
+                projection_3,
+            ]
+        )
+
+        assert results == [projection_1]

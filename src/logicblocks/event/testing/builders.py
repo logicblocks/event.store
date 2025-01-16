@@ -1,9 +1,16 @@
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, TypedDict, Unpack
+from typing import Any, Self, TypedDict, Unpack
 
-from logicblocks.event.types.event import NewEvent, StoredEvent
+from logicblocks.event.types import (
+    NewEvent,
+    Projectable,
+    Projection,
+    StoredEvent,
+    StreamIdentifier,
+)
 from logicblocks.event.utils import Clock, SystemClock
 
 from .data import (
@@ -14,6 +21,9 @@ from .data import (
     random_event_position,
     random_event_sequence_number,
     random_event_stream_name,
+    random_projection_id,
+    random_projection_name,
+    random_projection_state,
 )
 
 
@@ -86,7 +96,7 @@ class StoredEventBuilderParams(TypedDict, total=False):
 
 
 @dataclass(frozen=True)
-class StoredEventBuilder(object):
+class StoredEventBuilder:
     id: str
     name: str
     stream: str
@@ -202,3 +212,99 @@ class StoredEventBuilder(object):
             occurred_at=self.occurred_at,
             observed_at=self.observed_at,
         )
+
+
+class ProjectionBuilderParams[T](TypedDict, total=False):
+    id: str
+    name: str
+    state: T
+    version: int
+    source: Projectable
+
+
+class BaseProjectionBuilder[T](ABC):
+    id: str
+    name: str
+    state: T
+    version: int
+    source: Projectable
+
+    def __init__(
+        self,
+        *,
+        id: str | None = None,
+        name: str | None = None,
+        state: T | None = None,
+        version: int | None = None,
+        source: Projectable | None = None,
+    ):
+        object.__setattr__(
+            self, "id", id if id is not None else random_projection_id()
+        )
+        object.__setattr__(
+            self,
+            "name",
+            name if name is not None else random_projection_name(),
+        )
+        object.__setattr__(
+            self,
+            "state",
+            state if state is not None else self.default_state_factory(),
+        )
+        object.__setattr__(
+            self,
+            "version",
+            version if version is not None else random_projection_name(),
+        )
+        object.__setattr__(
+            self,
+            "source",
+            source
+            if source is not None
+            else StreamIdentifier(
+                category=random_event_category_name(),
+                stream=random_event_stream_name(),
+            ),
+        )
+
+    @abstractmethod
+    def default_state_factory(self) -> T:
+        raise NotImplementedError()
+
+    def _clone(self, **kwargs: Unpack[ProjectionBuilderParams[T]]) -> Self:
+        return self.__class__(
+            id=kwargs.get("id", self.id),
+            name=kwargs.get("name", self.name),
+            state=kwargs.get("state", self.state),
+            version=kwargs.get("version", self.version),
+            source=kwargs.get("source", self.source),
+        )
+
+    def with_id(self, id: str) -> Self:
+        return self._clone(id=id)
+
+    def with_name(self, name: str) -> Self:
+        return self._clone(name=name)
+
+    def with_state(self, state: T) -> Self:
+        return self._clone(state=state)
+
+    def with_version(self, version: int) -> Self:
+        return self._clone(version=version)
+
+    def with_source(self, source: Projectable) -> Self:
+        return self._clone(source=source)
+
+    def build(self) -> Projection[T]:
+        return Projection[T](
+            id=self.id,
+            name=self.name,
+            state=self.state,
+            version=self.version,
+            source=self.source,
+        )
+
+
+class MappingProjectionBuilder(BaseProjectionBuilder[Mapping[str, Any]]):
+    def default_state_factory(self) -> Mapping[str, Any]:
+        return random_projection_state()

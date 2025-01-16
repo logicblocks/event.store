@@ -4,10 +4,21 @@ from collections.abc import AsyncIterator, Sequence, Set
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.types import NewEvent, StoredEvent, identifier
+from logicblocks.event.types import (
+    CategoryIdentifier,
+    EventSequenceIdentifier,
+    NewEvent,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 
 class EventSource(ABC):
+    @property
+    @abstractmethod
+    def identifier(self) -> EventSequenceIdentifier:
+        raise NotImplementedError()
+
     async def read(
         self,
         *,
@@ -31,23 +42,15 @@ class EventStream(EventSource):
     Events can be published into the stream using the `publish` method, and
     the entire stream can be read using the `read` method. Streams are also
     iterable, supporting `aiter`.
-
-    Attributes:
-        adapter: The storage adapter to use for interacting with the stream.
-        category: The name of the category of the stream.
-        stream: The name of the stream.
     """
 
-    adapter: EventStorageAdapter
-    category: str
-    stream: str
+    def __init__(self, adapter: EventStorageAdapter, stream: StreamIdentifier):
+        self.adapter: EventStorageAdapter = adapter
+        self._identifier: StreamIdentifier = stream
 
-    def __init__(
-        self, adapter: EventStorageAdapter, category: str, stream: str
-    ):
-        self.adapter = adapter
-        self.category = category
-        self.stream = stream
+    @property
+    def identifier(self) -> EventSequenceIdentifier:
+        return self._identifier
 
     async def publish(
         self,
@@ -56,10 +59,8 @@ class EventStream(EventSource):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
-        target = identifier.Stream(category=self.category, stream=self.stream)
-
         return await self.adapter.save(
-            target=target,
+            target=self._identifier,
             events=events,
             conditions=conditions,
         )
@@ -77,9 +78,7 @@ class EventStream(EventSource):
             an async iterator over the events in the stream.
         """
         return self.adapter.scan(
-            target=identifier.Stream(
-                category=self.category, stream=self.stream
-            ),
+            target=self.identifier,
             constraints=constraints,
         )
 
@@ -92,18 +91,17 @@ class EventCategory(EventSource):
 
     Events in the category can be read using the `read` method. Categories are
     also iterable, supporting `iter`.
-
-    Attributes:
-        adapter: The storage adapter to use for interacting with the category.
-        category: the name of the category.
     """
 
-    adapter: EventStorageAdapter
-    category: str
+    def __init__(
+        self, adapter: EventStorageAdapter, category: CategoryIdentifier
+    ):
+        self._adapter: EventStorageAdapter = adapter
+        self._identifier: CategoryIdentifier = category
 
-    def __init__(self, adapter: EventStorageAdapter, category: str):
-        self.adapter = adapter
-        self.category = category
+    @property
+    def identifier(self) -> EventSequenceIdentifier:
+        return self._identifier
 
     def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.
@@ -115,7 +113,10 @@ class EventCategory(EventSource):
             an event store scoped to the specified stream.
         """
         return EventStream(
-            adapter=self.adapter, category=self.category, stream=stream
+            adapter=self._adapter,
+            stream=StreamIdentifier(
+                category=self._identifier.category, stream=stream
+            ),
         )
 
     def iterate(
@@ -130,13 +131,13 @@ class EventCategory(EventSource):
         Returns:
             an async iterator over the events in the category.
         """
-        return self.adapter.scan(
-            target=identifier.Category(category=self.category),
+        return self._adapter.scan(
+            target=self._identifier,
             constraints=constraints,
         )
 
 
-class EventStore(object):
+class EventStore:
     """The primary interface into the store of events.
 
     An [`EventStore`][logicblocks.event.store.EventStore] is backed by a
@@ -180,7 +181,8 @@ class EventStore(object):
             an event store scoped to the specified stream.
         """
         return EventStream(
-            adapter=self.adapter, category=category, stream=stream
+            adapter=self.adapter,
+            stream=StreamIdentifier(category=category, stream=stream),
         )
 
     def category(self, *, category: str) -> EventCategory:
@@ -199,4 +201,7 @@ class EventStore(object):
         Returns:
             an event store scoped to the specified category.
         """
-        return EventCategory(adapter=self.adapter, category=category)
+        return EventCategory(
+            adapter=self.adapter,
+            category=CategoryIdentifier(category=category),
+        )

@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict, cast
 
 
 class Identifier(ABC):
@@ -66,6 +66,44 @@ class StreamIdentifier(Identifier):
 type EventSequenceIdentifier = (
     LogIdentifier | CategoryIdentifier | StreamIdentifier
 )
+
+
+class LogIdentifierDict(TypedDict):
+    type: str
+
+
+class CategoryIdentifierDict(TypedDict):
+    type: str
+    category: str
+
+
+class StreamIdentifierDict(TypedDict):
+    type: str
+    category: str
+    stream: str
+
+
+type EventSequenceIdentifierDict = (
+    LogIdentifierDict | CategoryIdentifierDict | StreamIdentifierDict
+)
+
+
+def event_sequence_identifier(
+    serialised: EventSequenceIdentifierDict,
+) -> EventSequenceIdentifier:
+    match serialised["type"]:
+        case "log":
+            return LogIdentifier()
+        case "category":
+            resolved = cast(CategoryIdentifierDict, serialised)
+            return CategoryIdentifier(category=resolved["category"])
+        case "stream":
+            resolved = cast(StreamIdentifierDict, serialised)
+            return StreamIdentifier(
+                category=resolved["category"], stream=resolved["stream"]
+            )
+        case _:  # pragma: no cover
+            raise ValueError("Invalid serialised event sequence identifier.")
 
 
 def target(

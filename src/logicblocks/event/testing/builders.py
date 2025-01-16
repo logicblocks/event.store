@@ -11,7 +11,7 @@ from logicblocks.event.types import (
     StoredEvent,
     StreamIdentifier,
 )
-from logicblocks.event.utils import Clock, SystemClock
+from logicblocks.event.utils.clock import Clock, SystemClock
 
 from .data import (
     random_event_category_name,
@@ -24,6 +24,7 @@ from .data import (
     random_projection_id,
     random_projection_name,
     random_projection_state,
+    random_projection_version,
 )
 
 
@@ -254,7 +255,7 @@ class BaseProjectionBuilder[T](ABC):
         object.__setattr__(
             self,
             "version",
-            version if version is not None else random_projection_name(),
+            version if version is not None else random_projection_version(),
         )
         object.__setattr__(
             self,

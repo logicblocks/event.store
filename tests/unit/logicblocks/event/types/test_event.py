@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 import pytest
 
 from logicblocks.event.types import NewEvent, StoredEvent
-from logicblocks.event.utils import StaticClock
+from logicblocks.event.utils.clock import StaticClock
 
 
 class VerifyingStaticClock(StaticClock):

@@ -140,5 +140,23 @@ class TestTargetFunction:
         ) == identifier.StreamIdentifier(category="test", stream="stream")
 
 
+class TestIdentifierFunction:
+    def test_returns_log_identifier_for_log_identifier_dict(self):
+        assert (
+            identifier.event_sequence_identifier({"type": "log"})
+            == identifier.LogIdentifier()
+        )
+
+    def test_returns_category_identifier_for_category_identifier_dict(self):
+        assert identifier.event_sequence_identifier(
+            {"type": "category", "category": "test"}
+        ) == identifier.CategoryIdentifier(category="test")
+
+    def test_returns_stream_identifier_for_stream_identifier_dict(self):
+        assert identifier.event_sequence_identifier(
+            {"type": "stream", "category": "test", "stream": "stream"}
+        ) == identifier.StreamIdentifier(category="test", stream="stream")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

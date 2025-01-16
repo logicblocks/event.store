@@ -97,4 +97,4 @@ def random_projection_state() -> Mapping[str, Any]:
 
 
 def random_projection_version() -> int:
-    return random_int(1, 100000)
+    return random_int(1, 10000000)

@@ -1,8 +1,10 @@
+from ...utils.postgres import (
+    PostgresConnectionSettings as PostgresConnectionSettings,
+)
 from .base import EventStorageAdapter as EventStorageAdapter
 from .in_memory import (
     InMemoryEventStorageAdapter as InMemoryEventStorageAdapter,
 )
-from .postgres import ConnectionSettings as PostgresConnectionSettings
 from .postgres import (
     PostgresEventStorageAdapter as PostgresEventStorageAdapter,
 )

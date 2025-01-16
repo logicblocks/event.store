@@ -60,6 +60,12 @@ cmake-build-*/
 # git toolbox
 .idea/git_toolbox_blame.xml
 
+# Cursive plugin
+.idea/ClojureProjectResolveSettings.xml
+
+# php plugin
+.idea/php.xml
+
 # File-based project format
 *.iws
 

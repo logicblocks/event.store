@@ -9,8 +9,6 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.adaptertests import cases
-from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
     EventStorageAdapter,
     PostgresConnectionSettings,
@@ -23,6 +21,10 @@ from logicblocks.event.store.adapters.postgres import (
     query_constraint_to_sql,
 )
 from logicblocks.event.store.constraints import QueryConstraint
+from logicblocks.event.testcases.store.adapters import (
+    ConcurrencyParameters,
+    EventStorageAdapterCases,
+)
 from logicblocks.event.testing import NewEventBuilder
 from logicblocks.event.testing.data import (
     random_event_category_name,
@@ -164,9 +166,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresEventStorageAdapterCommonCases(
-    cases.EventStorageAdapterCases
-):
+class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)

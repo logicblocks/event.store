@@ -3,18 +3,18 @@ from collections.abc import Sequence
 
 import pytest
 
-from logicblocks.event.adaptertests import cases
-from logicblocks.event.adaptertests.cases import ConcurrencyParameters
 from logicblocks.event.store.adapters import (
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
 )
+from logicblocks.event.testcases.store.adapters import (
+    ConcurrencyParameters,
+    EventStorageAdapterCases,
+)
 from logicblocks.event.types import StoredEvent, identifier
 
 
-class TestInMemoryEventStorageAdapterCommonCases(
-    cases.EventStorageAdapterCases
-):
+class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
     @property
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=40, repeats=200)

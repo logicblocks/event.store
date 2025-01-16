@@ -290,9 +290,19 @@ class InMemoryProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
         projection: Projection[T],
         converter: Callable[[T], Mapping[str, Any]],
     ) -> None:
-        self._projections[projection.id] = lift_projection(
-            projection, converter
-        )
+        existing = self._projections.get(projection.id, None)
+        if existing is not None:
+            self._projections[projection.id] = Projection(
+                id=existing.id,
+                name=existing.name,
+                state=converter(projection.state),
+                version=projection.version,
+                source=existing.source,
+            )
+        else:
+            self._projections[projection.id] = lift_projection(
+                projection, converter
+            )
 
     async def _find_raw(
         self, query: Query

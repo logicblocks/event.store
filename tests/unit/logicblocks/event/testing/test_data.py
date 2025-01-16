@@ -308,7 +308,7 @@ def test_generates_random_projection_versions():
 
     assert all(isinstance(i, int) for i in versions)
     assert len(set(versions)) == 100
-    assert all(0 <= i <= 100000 for i in versions)
+    assert all(0 <= i <= 10000000 for i in versions)
 
 
 if __name__ == "__main__":

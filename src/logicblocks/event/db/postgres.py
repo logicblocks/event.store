@@ -116,6 +116,12 @@ class SortColumn:
     expression: Column
     direction: SortDirection
 
+    def is_ascending(self):
+        return self.direction == SortDirection.ASC
+
+    def is_descending(self):
+        return self.direction == SortDirection.DESC
+
 
 @dataclass(frozen=True)
 class Value:
@@ -281,6 +287,29 @@ class Condition:
         return clause, params
 
 
+def to_postgres_column_definition(
+    column: OrderByColumn,
+) -> Column:
+    if isinstance(column, str):
+        return Column(field=column)
+    return column
+
+
+def to_postgres_sort_column(
+    column: OrderByColumn | tuple[OrderByColumn, SortDirection],
+) -> SortColumn:
+    if isinstance(column, tuple):
+        return SortColumn(
+            expression=to_postgres_column_definition(column[0]),
+            direction=column[1],
+        )
+    else:
+        return SortColumn(
+            expression=to_postgres_column_definition(column),
+            direction=SortDirection.ASC,
+        )
+
+
 class QueryParams(TypedDict, total=False):
     common_table_expressions: Sequence[tuple["Query", str]]
     unions: tuple[Sequence["Query"], SetOperationMode] | None
@@ -415,31 +444,19 @@ class Query:
     def where(self, condition: Condition) -> Self:
         return self.clone(where_conditions=[*self.where_conditions, condition])
 
+    def replace_order_by(
+        self, *columns: OrderByColumn | tuple[OrderByColumn, SortDirection]
+    ) -> Self:
+        return self.clone(
+            sort_columns=[
+                *[to_postgres_sort_column(column) for column in columns],
+            ]
+        )
+
     def order_by(
         self,
         *columns: OrderByColumn | tuple[OrderByColumn, SortDirection],
     ) -> Self:
-        def to_postgres_column_definition(
-            column: OrderByColumn,
-        ) -> Column:
-            if isinstance(column, str):
-                return Column(field=column)
-            return column
-
-        def to_postgres_sort_column(
-            column: OrderByColumn | tuple[OrderByColumn, SortDirection],
-        ) -> SortColumn:
-            if isinstance(column, tuple):
-                return SortColumn(
-                    expression=to_postgres_column_definition(column[0]),
-                    direction=column[1],
-                )
-            else:
-                return SortColumn(
-                    expression=to_postgres_column_definition(column),
-                    direction=SortDirection.ASC,
-                )
-
         return self.clone(
             sort_columns=[
                 *self.sort_columns,

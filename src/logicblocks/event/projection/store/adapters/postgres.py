@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg.rows import TupleRow, dict_row
@@ -129,132 +129,324 @@ def sort_clause_applicator(
     return query.order_by(*order_by_fields)
 
 
-def key_set_paging_clause_applicator(
-    paging: KeySetPagingClause,
-    query: DBQuery,
-    table_settings: PostgresTableSettings,
+def row_comparison_condition(
+    columns: Iterable[Column], operator: DBOperator, table: str
+) -> Condition:
+    right = DBQuery().select_all().from_table(table)
+    return Condition().left(columns).operator(operator).right(right)
+
+
+def field_comparison_condition(
+    column: Column, operator: DBOperator, value: Value
+) -> Condition:
+    return Condition().left(column).operator(operator).right(value)
+
+
+def record_query(
+    id: Value, columns: Iterable[Column], table_settings: PostgresTableSettings
 ) -> DBQuery:
     id_column = Column(field="id")
 
-    has_after_id = paging.after_id is not None
-    has_before_id = paging.before_id is not None
+    return (
+        DBQuery()
+        .select(*columns)
+        .from_table(table_settings.projections_table_name)
+        .where(field_comparison_condition(id_column, DBOperator.EQUALS, id))
+        .limit(1)
+    )
 
-    after_id = Value(paging.after_id) if has_after_id else None
-    before_id = Value(paging.before_id) if has_before_id else None
+
+def first_page_no_sort_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return query.order_by("id").limit(paging.item_count)
+
+
+def first_page_existing_sort_query(
+    query: DBQuery, paging: KeySetPagingClause, sort_direction: SortDirection
+) -> DBQuery:
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+    paged_sort = list(existing_sort) + [(Column(field="id"), sort_direction)]
+
+    return query.replace_order_by(*paged_sort).limit(paging.item_count)
+
+
+def first_page_existing_sort_all_asc_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return first_page_existing_sort_query(query, paging, SortDirection.ASC)
+
+
+def first_page_existing_sort_all_desc_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return first_page_existing_sort_query(query, paging, SortDirection.DESC)
+
+
+def first_page_existing_sort_mixed_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return first_page_existing_sort_query(query, paging, SortDirection.ASC)
+
+
+def subsequent_page_no_sort_row_selection_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    direction: (Literal["forward"] | Literal["backward"]),
+) -> DBQuery:
+    id_column = Column(field="id")
+
+    id = paging.after_id if direction == "forward" else paging.before_id
+    op = (
+        DBOperator.GREATER_THAN
+        if direction == "forward"
+        else DBOperator.LESS_THAN
+    )
+    sort_direction = (
+        SortDirection.ASC if direction == "forward" else SortDirection.DESC
+    )
+
+    return (
+        query.where(field_comparison_condition(id_column, op, Value(id)))
+        .order_by((id_column, sort_direction))
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_no_sort_paging_forwards_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return subsequent_page_no_sort_row_selection_query(
+        query, paging, "forward"
+    )
+
+
+def subsequent_page_no_sort_paging_backwards_query(
+    query: DBQuery, paging: KeySetPagingClause
+) -> DBQuery:
+    return (
+        DBQuery()
+        .select_all()
+        .from_subquery(
+            subsequent_page_no_sort_row_selection_query(
+                query, paging, "backward"
+            ),
+            alias="page",
+        )
+        .order_by("id")
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_all_asc_forwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    id_column = Column(field="id")
+    after_id = Value(paging.after_id)
 
     existing_sort = [
         (sort_column.expression, sort_column.direction)
         for sort_column in query.sort_columns
     ]
-    has_existing_sort = len(existing_sort) > 0
-
-    # all_sort_asc = all(
-    #     direction == SortDirection.ASC for _, direction in existing_sort
-    # )
-    # all_sort_desc = all(
-    #     direction == SortDirection.DESC for _, direction in existing_sort
-    # )
-
     paged_sort = list(existing_sort) + [(id_column, SortDirection.ASC)]
     paged_sort_columns = [column for column, _ in paged_sort]
 
-    def row_comparison_condition(
-        columns: Iterable[Column], operator: DBOperator, table: str
-    ) -> Condition:
-        right = DBQuery().select_all().from_table(table)
-        return Condition().left(columns).operator(operator).right(right)
-
-    def field_comparison_condition(
-        column: Column, operator: DBOperator, value: Value
-    ) -> Condition:
-        return Condition().left(column).operator(operator).right(value)
-
-    def record_query(id: Value, columns: Iterable[Column]) -> DBQuery:
-        return (
-            DBQuery()
-            .select(*columns)
-            .from_table(table_settings.projections_table_name)
-            .where(
-                field_comparison_condition(id_column, DBOperator.EQUALS, id)
-            )
-            .limit(1)
+    return (
+        query.with_query(
+            record_query(after_id, paged_sort_columns, table_settings),
+            name="after",
         )
-
-    # factors are:
-    #  - whether paging forwards or backwards
-    #      - if after id, paging forwards, treat before id as constraint
-    #      - if only before id, paging backwards
-    #      - if neither, first page
-    #  - whether there is an existing sort
-    #      - all ASC -> paging forwards, no wrap, paging backwards, wrap
-    #      - all DESC -> paging forwards, wrap, paging backwards, no wrap
-    #      - mixed -> union, not sure how to change forwards/backwards
-
-    if has_existing_sort:
-        if after_id is not None:
-            return (
-                query.clone(sort_columns=[])
-                .with_query(
-                    record_query(after_id, paged_sort_columns), name="after"
-                )
-                .where(
-                    row_comparison_condition(
-                        paged_sort_columns,
-                        DBOperator.GREATER_THAN,
-                        table="after",
-                    )
-                )
-                .order_by(*paged_sort)
-                .limit(paging.item_count)
+        .where(
+            row_comparison_condition(
+                paged_sort_columns,
+                DBOperator.GREATER_THAN,
+                table="after",
             )
+        )
+        .replace_order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_all_asc_backwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    id_column = Column(field="id")
+    before_id = Value(paging.before_id)
+
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+
+    paged_sort = list(existing_sort) + [(id_column, SortDirection.ASC)]
+    record_sort = [(column, SortDirection.DESC) for column, _ in paged_sort]
+    sort_columns = [column for column, _ in paged_sort]
+
+    return (
+        DBQuery()
+        .with_query(
+            record_query(before_id, sort_columns, table_settings),
+            name="before",
+        )
+        .select_all()
+        .from_subquery(
+            query.where(
+                row_comparison_condition(
+                    sort_columns,
+                    DBOperator.LESS_THAN,
+                    table="before",
+                )
+            )
+            .replace_order_by(*record_sort)
+            .limit(paging.item_count),
+            alias="page",
+        )
+        .order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_all_desc_forwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    id_column = Column(field="id")
+    after_id = Value(paging.after_id)
+
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+    paged_sort = list(existing_sort) + [(id_column, SortDirection.DESC)]
+    paged_sort_columns = [column for column, _ in paged_sort]
+
+    return (
+        query.with_query(
+            record_query(after_id, paged_sort_columns, table_settings),
+            name="after",
+        )
+        .where(
+            row_comparison_condition(
+                paged_sort_columns,
+                DBOperator.LESS_THAN,
+                table="after",
+            )
+        )
+        .replace_order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_all_desc_backwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    id_column = Column(field="id")
+    before_id = Value(paging.before_id)
+
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+
+    paged_sort = list(existing_sort) + [(id_column, SortDirection.DESC)]
+    record_sort = [(column, SortDirection.ASC) for column, _ in paged_sort]
+    sort_columns = [column for column, _ in paged_sort]
+
+    return (
+        DBQuery()
+        .with_query(
+            record_query(before_id, sort_columns, table_settings),
+            name="before",
+        )
+        .select_all()
+        .from_subquery(
+            query.where(
+                row_comparison_condition(
+                    sort_columns,
+                    DBOperator.GREATER_THAN,
+                    table="before",
+                )
+            )
+            .replace_order_by(*record_sort)
+            .limit(paging.item_count),
+            alias="page",
+        )
+        .order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def key_set_paging_clause_applicator(
+    paging: KeySetPagingClause,
+    query: DBQuery,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    has_after_id = paging.after_id is not None
+    has_before_id = paging.before_id is not None
+
+    paging_forwards = has_after_id
+    paging_backwards = has_before_id and not has_after_id
+
+    has_existing_sort = len(query.sort_columns) > 0
+
+    all_sort_asc = all(
+        sort_column.is_ascending() for sort_column in query.sort_columns
+    )
+    all_sort_desc = all(
+        sort_column.is_descending() for sort_column in query.sort_columns
+    )
+
+    if paging_forwards:
+        if has_existing_sort:
+            if all_sort_asc:
+                return subsequent_page_existing_sort_all_asc_forwards_query(
+                    query, paging, table_settings
+                )
+            elif all_sort_desc:
+                return subsequent_page_existing_sort_all_desc_forwards_query(
+                    query, paging, table_settings
+                )
+            else:
+                return query  # needs implementation
         else:
-            return (
-                query.clone(sort_columns=[])
-                .order_by(*paged_sort)
-                .limit(paging.item_count)
+            return subsequent_page_no_sort_paging_forwards_query(query, paging)
+    elif paging_backwards:
+        if has_existing_sort:
+            if all_sort_asc:
+                return subsequent_page_existing_sort_all_asc_backwards_query(
+                    query, paging, table_settings
+                )
+            elif all_sort_desc:
+                return subsequent_page_existing_sort_all_desc_backwards_query(
+                    query, paging, table_settings
+                )
+            else:
+                return query  # needs implementation
+        else:
+            return subsequent_page_no_sort_paging_backwards_query(
+                query, paging
             )
     else:
-        if after_id is not None:
-            query = (
-                query.clone(sort_columns=[])
-                .where(
-                    field_comparison_condition(
-                        id_column, DBOperator.GREATER_THAN, after_id
-                    )
-                )
-                .order_by(*paged_sort)
-                .limit(paging.item_count)
-            )
-
-            if before_id is not None:
-                query = query.where(
-                    field_comparison_condition(
-                        id_column, DBOperator.LESS_THAN, before_id
-                    )
-                )
-
-            return query
-        elif before_id is not None:
-            return (
-                DBQuery()
-                .select_all()
-                .from_subquery(
-                    (
-                        query.where(
-                            field_comparison_condition(
-                                id_column, DBOperator.LESS_THAN, before_id
-                            )
-                        )
-                        .order_by(("id", SortDirection.DESC))
-                        .limit(paging.item_count)
-                    ),
-                    alias="page",
-                )
-                .order_by("id")
-                .limit(paging.item_count)
-            )
+        if has_existing_sort:
+            if all_sort_asc:
+                return first_page_existing_sort_all_asc_query(query, paging)
+            elif all_sort_desc:
+                return first_page_existing_sort_all_desc_query(query, paging)
+            else:
+                return query  # needs implementation
         else:
-            return query.order_by("id").limit(paging.item_count)
+            return first_page_no_sort_query(query, paging)
 
 
 def offset_paging_clause_applicator(

@@ -49,7 +49,7 @@ def parameterised_query_to_string(
 
 class TestPostgresQueryConverterQueryConversion:
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_single_filter_on_top_level_attribute(
+    def test_converts_single_filter_query_on_top_level_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -70,7 +70,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_multiple_filters_on_top_level_attributes(
+    def test_converts_multiple_filter_query_on_top_level_attributes(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -93,7 +93,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_single_filter_on_nested_attribute(
+    def test_converts_single_filter_query_on_nested_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -116,7 +116,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_multiple_filters_on_nested_attributes(
+    def test_converts_multiple_filter_query_on_nested_attributes(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -145,7 +145,9 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_top_level_not_equal_filter(self, query_type):
+    def test_converts_not_equal_filter_query_on_top_level_attribute(
+        self, query_type
+    ):
         converter = query_converter_with_default_clause_converters()
         query = query_type(
             filters=[
@@ -165,7 +167,9 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_nested_not_equal_filter(self, query_type):
+    def test_converts_not_equal_filter_query_on_nested_attribute(
+        self, query_type
+    ):
         converter = query_converter_with_default_clause_converters()
         query = query_type(
             filters=[
@@ -186,7 +190,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_top_level_greater_than_filter(
+    def test_converts_greater_than_filter_query_on_top_level_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -208,7 +212,9 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_nested_greater_than_filter(self, query_type):
+    def test_converts_greater_than_filter_query_on_nested_attribute(
+        self, query_type
+    ):
         converter = query_converter_with_default_clause_converters()
         query = query_type(
             filters=[
@@ -229,7 +235,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_top_level_greater_than_or_equal_filter(
+    def test_converts_greater_than_or_equal_filter_query_on_top_level_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -251,7 +257,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_nested_greater_than_or_equal_filter(
+    def test_converts_greater_than_or_equal_filter_query_on_nested_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -274,7 +280,9 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_top_level_less_than_filter(self, query_type):
+    def test_converts_less_than_filter_query_on_top_level_attribute(
+        self, query_type
+    ):
         converter = query_converter_with_default_clause_converters()
         query = query_type(
             filters=[
@@ -294,7 +302,9 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_nested_less_than_filter(self, query_type):
+    def test_converts_less_than_filter_query_on_nested_attribute(
+        self, query_type
+    ):
         converter = query_converter_with_default_clause_converters()
         query = query_type(
             filters=[
@@ -315,7 +325,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_top_level_less_than_or_equal_filter(
+    def test_converts_less_than_or_equal_filter_query_on_top_level_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -337,7 +347,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
-    def test_converts_query_with_nested_less_than_or_equal_filter(
+    def test_converts_less_than_or_equal_filter_query_on_nested_attribute(
         self, query_type
     ):
         converter = query_converter_with_default_clause_converters()
@@ -359,7 +369,7 @@ class TestPostgresQueryConverterQueryConversion:
             [5],
         )
 
-    def test_converts_query_with_single_sort_on_top_level_attribute(self):
+    def test_converts_single_sort_query_on_top_level_attribute(self):
         converter = query_converter_with_default_clause_converters()
         query = Search(
             sort=SortClause(
@@ -374,7 +384,7 @@ class TestPostgresQueryConverterQueryConversion:
             [],
         )
 
-    def test_converts_query_with_multiple_field_sort_on_top_level_attributes(
+    def test_converts_multiple_field_sort_query_on_top_level_attributes(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -394,7 +404,7 @@ class TestPostgresQueryConverterQueryConversion:
             [],
         )
 
-    def test_converts_query_with_single_field_sort_on_nested_state_attribute(
+    def test_converts_single_field_sort_query_on_nested_attribute(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -416,7 +426,7 @@ class TestPostgresQueryConverterQueryConversion:
             [],
         )
 
-    def test_converts_query_with_multiple_field_sort_on_nested_state_attributes(
+    def test_converts_multiple_field_sort_query_on_nested_attributes(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -442,7 +452,7 @@ class TestPostgresQueryConverterQueryConversion:
             [],
         )
 
-    def test_converts_query_with_offset_paging_clause_for_first_page(self):
+    def test_converts_offset_paging_query_for_first_page(self):
         converter = query_converter_with_default_clause_converters()
         query = Search(paging=OffsetPagingClause(item_count=10))
 
@@ -453,7 +463,7 @@ class TestPostgresQueryConverterQueryConversion:
             [10],
         )
 
-    def test_converts_query_with_offset_paging_clause_for_subsequent_page(
+    def test_converts_offset_paging_query_for_next_page(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -466,7 +476,7 @@ class TestPostgresQueryConverterQueryConversion:
             [10, 20],
         )
 
-    def test_converts_query_with_key_set_paging_clause_for_first_page(self):
+    def test_converts_key_set_paging_query_no_sorts_first_page(self):
         converter = query_converter_with_default_clause_converters()
         query = Search(paging=KeySetPagingClause(item_count=10))
 
@@ -477,7 +487,7 @@ class TestPostgresQueryConverterQueryConversion:
             [10],
         )
 
-    def test_converts_query_with_key_set_paging_clause_subsequent_page_paging_forwards(
+    def test_converts_key_set_paging_query_no_sorts_next_page_forwards(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -499,7 +509,7 @@ class TestPostgresQueryConverterQueryConversion:
             [after_projection_id, 10],
         )
 
-    def test_converts_query_with_key_set_paging_clause_subsequent_page_paging_backwards(
+    def test_converts_key_set_paging_query_no_sorts_next_page_backwards(
         self,
     ):
         converter = query_converter_with_default_clause_converters()
@@ -524,32 +534,6 @@ class TestPostgresQueryConverterQueryConversion:
             [before_projection_id, 10, 10],
         )
 
-    def test_converts_query_with_key_set_paging_clause_with_both_before_and_after_ids(
-        self,
-    ):
-        converter = query_converter_with_default_clause_converters()
-
-        after_projection_id = random_projection_id()
-        before_projection_id = random_projection_id()
-
-        query = Search(
-            paging=KeySetPagingClause(
-                after_id=after_projection_id,
-                before_id=before_projection_id,
-                item_count=10,
-            )
-        )
-
-        converted = converter.convert_query(query)
-
-        assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" '
-            'WHERE "id" > %s '
-            'AND "id" < %s '
-            'ORDER BY "id" ASC LIMIT %s',
-            [after_projection_id, before_projection_id, 10],
-        )
-
     def test_converts_key_set_paging_query_other_asc_sorts_first_page(self):
         converter = query_converter_with_default_clause_converters()
 
@@ -565,6 +549,25 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
             'ORDER BY "name" ASC, "id" ASC '
+            "LIMIT %s",
+            [10],
+        )
+
+    def test_converts_key_set_paging_query_other_desc_sorts_first_page(self):
+        converter = query_converter_with_default_clause_converters()
+
+        query = Search(
+            sort=SortClause(
+                fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
+            ),
+            paging=KeySetPagingClause(item_count=10),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
             [10],
         )
@@ -600,8 +603,6 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_desc_sorts_next_page_forwards(
         self,
     ):
-        pytest.skip("Not implemented")
-
         converter = query_converter_with_default_clause_converters()
 
         after_projection_id = random_projection_id()
@@ -625,4 +626,66 @@ class TestPostgresQueryConverterQueryConversion:
             'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
             [after_projection_id, 1, 10],
+        )
+
+    def test_converts_key_set_paging_query_other_asc_sorts_next_page_backwards(
+        self,
+    ):
+        converter = query_converter_with_default_clause_converters()
+
+        before_projection_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
+            ),
+            paging=KeySetPagingClause(
+                before_id=before_projection_id, item_count=10
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "before" AS '
+            '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
+            "SELECT * FROM "
+            '(SELECT * FROM "projections" '
+            'WHERE ("name", "id") < (SELECT * FROM "before") '
+            'ORDER BY "name" DESC, "id" DESC '
+            'LIMIT %s) AS "page" '
+            'ORDER BY "name" ASC, "id" ASC '
+            "LIMIT %s",
+            [before_projection_id, 1, 10, 10],
+        )
+
+    def test_converts_key_set_paging_query_other_desc_sorts_next_page_backwards(
+        self,
+    ):
+        converter = query_converter_with_default_clause_converters()
+
+        before_projection_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
+            ),
+            paging=KeySetPagingClause(
+                before_id=before_projection_id, item_count=10
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "before" AS '
+            '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
+            "SELECT * FROM "
+            '(SELECT * FROM "projections" '
+            'WHERE ("name", "id") > (SELECT * FROM "before") '
+            'ORDER BY "name" ASC, "id" ASC '
+            'LIMIT %s) AS "page" '
+            'ORDER BY "name" DESC, "id" DESC '
+            "LIMIT %s",
+            [before_projection_id, 1, 10, 10],
         )

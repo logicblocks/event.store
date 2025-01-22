@@ -1,3 +1,4 @@
+import os
 from typing import Any, Mapping, Sequence
 
 import pytest_asyncio
@@ -5,12 +6,15 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
+from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.projection.store import ProjectionStorageAdapter
 from logicblocks.event.projection.store.adapters import (
-    PostgresConnectionSettings,
     PostgresProjectionStorageAdapter,
 )
-from logicblocks.event.testcases.projection.store.adapters import SaveCases
+from logicblocks.event.testcases.projection.store.adapters import (
+    FindOneCases,
+    SaveCases,
+)
 from logicblocks.event.types import Projection, identifier
 
 connection_settings = PostgresConnectionSettings(
@@ -21,16 +25,26 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 
+project_root = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..", "..", "..", ".."
+    )
+)
+
+
+def relative_to_root(*path_parts: str) -> str:
+    return os.path.join(project_root, *path_parts)
+
 
 def create_table_query(table: str) -> abc.Query:
-    with open("sql/create_projections_table.sql") as f:
+    with open(relative_to_root("sql", "create_projections_table.sql")) as f:
         create_table_sql = f.read().replace("projections", "{0}")
 
         return create_table_sql.format(table).encode()
 
 
 def create_indices_query(table: str) -> abc.Query:
-    with open("sql/create_projections_indices.sql") as f:
+    with open(relative_to_root("sql", "create_projections_indices.sql")) as f:
         create_indices_sql = f.read().replace("projections", "{0}")
 
         return create_indices_sql.format(table).encode()
@@ -106,7 +120,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresProjectionStorageAdapterCommonCases(SaveCases):
+class TestPostgresProjectionStorageAdapterCommonCases(SaveCases, FindOneCases):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)

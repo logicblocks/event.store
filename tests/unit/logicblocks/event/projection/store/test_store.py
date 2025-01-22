@@ -5,8 +5,8 @@ from typing import Any
 from logicblocks.event.projection.store import (
     FilterClause,
     InMemoryProjectionStorageAdapter,
+    KeySetPagingClause,
     Operator,
-    PagingClause,
     Path,
     ProjectionStore,
     SortClause,
@@ -240,7 +240,7 @@ class TestProjectionStoreSearch:
         located = await store.search(
             filters=[FilterClause(Operator.EQUAL, Path("state", "value"), 5)],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
-            paging=PagingClause(item_count=2),
+            paging=KeySetPagingClause(item_count=2),
             converter=from_dict(Thing),
         )
 
@@ -290,7 +290,7 @@ class TestProjectionStoreSearch:
                 FilterClause(Operator.EQUAL, Path("name"), "metrics"),
             ],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
-            paging=PagingClause(item_count=2),
+            paging=KeySetPagingClause(item_count=2),
             converter=from_dict(Thing),
         )
 

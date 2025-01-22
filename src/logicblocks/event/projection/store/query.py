@@ -29,6 +29,9 @@ class Path:
     def __repr__(self):
         return repr([self.top_level, *self.sub_levels])
 
+    def is_nested(self):
+        return len(self.sub_levels) > 0
+
 
 class Clause:
     pass
@@ -52,11 +55,40 @@ class SortClause(Clause):
     fields: Sequence[SortField]
 
 
-@dataclass(frozen=True)
 class PagingClause(Clause):
-    before_id: str | None = None
-    after_id: str | None = None
-    item_count: int = 10
+    pass
+
+
+@dataclass(frozen=True)
+class KeySetPagingClause(PagingClause):
+    before_id: str | None
+    after_id: str | None
+    item_count: int
+
+    def __init__(
+        self,
+        *,
+        before_id: str | None = None,
+        after_id: str | None = None,
+        item_count: int = 10,
+    ):
+        object.__setattr__(self, "before_id", before_id)
+        object.__setattr__(self, "after_id", after_id)
+        object.__setattr__(self, "item_count", item_count)
+
+
+@dataclass(frozen=True)
+class OffsetPagingClause(PagingClause):
+    page_number: int
+    item_count: int
+
+    def __init__(self, *, page_number: int = 1, item_count: int = 10):
+        object.__setattr__(self, "page_number", page_number)
+        object.__setattr__(self, "item_count", item_count)
+
+    @property
+    def offset(self):
+        return (self.page_number - 1) * self.item_count
 
 
 class Query:

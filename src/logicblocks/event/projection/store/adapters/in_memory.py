@@ -8,9 +8,10 @@ from logicblocks.event.types import Projection
 from ..query import (
     Clause,
     FilterClause,
+    KeySetPagingClause,
     Lookup,
+    OffsetPagingClause,
     Operator,
-    PagingClause,
     Path,
     Query,
     Search,
@@ -81,7 +82,7 @@ def lookup_projection_path(
     return value
 
 
-def filter_clause_handler(
+def filter_clause_converter(
     clause: FilterClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def matches(projection: Projection[Mapping[str, Any]]) -> bool:
@@ -114,7 +115,7 @@ def filter_clause_handler(
     return handler
 
 
-def sort_clause_handler(
+def sort_clause_converter(
     clause: SortClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def accumulator(
@@ -138,8 +139,8 @@ def sort_clause_handler(
     return handler
 
 
-def paging_clause_handler(
-    clause: PagingClause,
+def key_set_paging_clause_converter(
+    clause: KeySetPagingClause,
 ) -> InMemoryProjectionResultSetTransformer:
     @dataclass
     class NotFound:
@@ -201,21 +202,18 @@ def paging_clause_handler(
 
         match (after_index_result, before_index_result):
             case (
-                (NotProvided(), NotProvided())
-                | (NotFound(), NotFound())
-                | (NotFound(), NotProvided())
+                (NotFound(), NotProvided())
                 | (NotProvided(), NotFound())
+                | (NotFound(), NotFound())
+                | (Found(), NotFound())
+                | (NotFound(), Found())
             ):
+                return []
+            case (NotProvided(), NotProvided()):
                 return projections[:item_count]
-            case (
-                (Found(after_index), NotProvided())
-                | (Found(after_index), NotFound())
-            ):
+            case (Found(after_index), NotProvided()):
                 return projections[after_index : after_index + item_count]
-            case (
-                (NotProvided(), Found(before_index))
-                | (NotFound(), Found(before_index))
-            ):
+            case (NotProvided(), Found(before_index)):
                 resolved_after_index = max(before_index - item_count, 0)
                 return projections[resolved_after_index:before_index]
             case (Found(after_index), Found(before_index)):
@@ -229,15 +227,36 @@ def paging_clause_handler(
     return handler
 
 
+def offset_paging_clause_converter(
+    clause: OffsetPagingClause,
+) -> InMemoryProjectionResultSetTransformer:
+    def handler(
+        projections: Sequence[Projection[Mapping[str, Any]]],
+    ) -> Sequence[Projection[Mapping[str, Any]]]:
+        offset = clause.offset
+        item_count = clause.item_count
+
+        return projections[offset : offset + item_count]
+
+    return handler
+
+
 class InMemoryQueryConverter:
     def __init__(self):
         self._registry: dict[type[Clause], InMemoryClauseConverter[Any]] = {}
 
     def with_default_clause_converters(self) -> Self:
         return (
-            self.register_clause_converter(FilterClause, filter_clause_handler)
-            .register_clause_converter(SortClause, sort_clause_handler)
-            .register_clause_converter(PagingClause, paging_clause_handler)
+            self.register_clause_converter(
+                FilterClause, filter_clause_converter
+            )
+            .register_clause_converter(SortClause, sort_clause_converter)
+            .register_clause_converter(
+                KeySetPagingClause, key_set_paging_clause_converter
+            )
+            .register_clause_converter(
+                OffsetPagingClause, offset_paging_clause_converter
+            )
         )
 
     def register_clause_converter[C: Clause](

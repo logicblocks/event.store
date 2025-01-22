@@ -4,8 +4,8 @@ import pytest
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
+from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.store.adapters import (
-    PostgresConnectionSettings,
     PostgresEventStorageAdapter,
 )
 

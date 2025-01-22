@@ -1,6 +1,3 @@
-from ...utils.postgres import (
-    PostgresConnectionSettings as PostgresConnectionSettings,
-)
 from .base import EventStorageAdapter as EventStorageAdapter
 from .in_memory import (
     InMemoryEventStorageAdapter as InMemoryEventStorageAdapter,
@@ -15,7 +12,6 @@ __all__ = [
     "EventStorageAdapter",
     "InMemoryEventStorageAdapter",
     "PostgresEventStorageAdapter",
-    "PostgresConnectionSettings",
     "PostgresQuerySettings",
     "PostgresTableSettings",
 ]

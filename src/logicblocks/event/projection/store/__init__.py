@@ -9,13 +9,16 @@ from .query import (
     FilterClause as FilterClause,
 )
 from .query import (
+    KeySetPagingClause as KeySetPagingClause,
+)
+from .query import (
     Lookup as Lookup,
 )
 from .query import (
-    Operator as Operator,
+    OffsetPagingClause as OffsetPagingClause,
 )
 from .query import (
-    PagingClause as PagingClause,
+    Operator as Operator,
 )
 from .query import (
     Path as Path,

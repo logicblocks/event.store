@@ -7,9 +7,9 @@ import pytest
 
 from logicblocks.event.projection.store import (
     FilterClause,
+    KeySetPagingClause,
     Lookup,
     Operator,
-    PagingClause,
     Path,
     ProjectionStorageAdapter,
     Search,
@@ -448,7 +448,7 @@ class FindManyCases(Base, ABC):
         await adapter.save(projection=projection_2, converter=Thing.to_dict)
         await adapter.save(projection=projection_3, converter=Thing.to_dict)
 
-        search = Search(paging=PagingClause(after_id="1", item_count=2))
+        search = Search(paging=KeySetPagingClause(after_id="1", item_count=2))
         located = await adapter.find_many(
             search=search, converter=Thing.from_dict
         )
@@ -489,7 +489,7 @@ class FindManyCases(Base, ABC):
                     )
                 ]
             ),
-            paging=PagingClause(item_count=2),
+            paging=KeySetPagingClause(item_count=2),
         )
         located = await adapter.find_many(
             search=search, converter=Thing.from_dict
@@ -536,7 +536,7 @@ class FindManyCases(Base, ABC):
                     Operator.GREATER_THAN, Path("state", "value_1"), 5
                 )
             ],
-            paging=PagingClause(item_count=2),
+            paging=KeySetPagingClause(item_count=2),
         )
         located = await adapter.find_many(
             search=search, converter=Thing.from_dict
@@ -588,7 +588,7 @@ class FindManyCases(Base, ABC):
                     )
                 ]
             ),
-            paging=PagingClause(item_count=2),
+            paging=KeySetPagingClause(item_count=2),
         )
         located = await adapter.find_many(
             search=search, converter=Thing.from_dict

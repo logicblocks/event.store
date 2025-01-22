@@ -9,6 +9,10 @@ from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
+from logicblocks.event.db.postgres import (
+    ConnectionSettings,
+    ConnectionSource,
+)
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.adapters.base import Saveable, Scannable
 from logicblocks.event.store.conditions import WriteCondition
@@ -22,10 +26,6 @@ from logicblocks.event.types import (
     NewEvent,
     StoredEvent,
     StreamIdentifier,
-)
-from logicblocks.event.utils.postgres import (
-    PostgresConnectionSettings,
-    PostgresConnectionSource,
 )
 
 
@@ -269,11 +269,11 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     def __init__(
         self,
         *,
-        connection_source: PostgresConnectionSource,
+        connection_source: ConnectionSource,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(),
     ):
-        if isinstance(connection_source, PostgresConnectionSettings):
+        if isinstance(connection_source, ConnectionSettings):
             self._connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False

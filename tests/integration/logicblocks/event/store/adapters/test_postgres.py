@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 import sys
 from collections.abc import AsyncIterator, Sequence
@@ -9,9 +10,9 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 
+from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.store.adapters import (
     EventStorageAdapter,
-    PostgresConnectionSettings,
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
     PostgresTableSettings,
@@ -40,16 +41,24 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 
+project_root = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
+)
+
+
+def relative_to_root(*path_parts: str) -> str:
+    return os.path.join(project_root, *path_parts)
+
 
 def create_table_query(table: str) -> abc.Query:
-    with open("sql/create_events_table.sql") as f:
+    with open(relative_to_root("sql", "create_events_table.sql")) as f:
         create_table_sql = f.read().replace("events", "{0}")
 
         return create_table_sql.format(table).encode()
 
 
 def create_indices_query(table: str) -> abc.Query:
-    with open("sql/create_events_indices.sql") as f:
+    with open(relative_to_root("sql", "create_events_indices.sql")) as f:
         create_indices_sql = f.read().replace("events", "{0}")
 
         return create_indices_sql.format(table).encode()

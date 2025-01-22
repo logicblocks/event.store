@@ -48,6 +48,9 @@
 # Code styles
 .idea/codeStyles
 
+# SQL dialects
+.idea/sqldialects.xml
+
 # Inspection profiles
 .idea/inspectionProfiles
 
@@ -65,6 +68,9 @@ cmake-build-*/
 
 # php plugin
 .idea/php.xml
+
+# pyright plugin
+.idea/pyright-langserver.xml
 
 # File-based project format
 *.iws

@@ -13,6 +13,7 @@ from logicblocks.event.db.postgres import (
     ConnectionSettings,
     ConnectionSource,
     ParameterisedQuery,
+    SetOperationMode,
     SortDirection,
     Value,
 )
@@ -253,13 +254,13 @@ def subsequent_page_existing_sort_all_asc_forwards_query(
     return (
         query.with_query(
             record_query(last_id, paged_sort_columns, table_settings),
-            name="after",
+            name="last",
         )
         .where(
             row_comparison_condition(
                 paged_sort_columns,
                 DBOperator.GREATER_THAN,
-                table="after",
+                table="last",
             )
         )
         .replace_order_by(*paged_sort)
@@ -288,7 +289,7 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
         DBQuery()
         .with_query(
             record_query(last_id, sort_columns, table_settings),
-            name="before",
+            name="last",
         )
         .select_all()
         .from_subquery(
@@ -296,7 +297,7 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
                 row_comparison_condition(
                     sort_columns,
                     DBOperator.LESS_THAN,
-                    table="before",
+                    table="last",
                 )
             )
             .replace_order_by(*record_sort)
@@ -326,13 +327,13 @@ def subsequent_page_existing_sort_all_desc_forwards_query(
     return (
         query.with_query(
             record_query(last_id, paged_sort_columns, table_settings),
-            name="after",
+            name="last",
         )
         .where(
             row_comparison_condition(
                 paged_sort_columns,
                 DBOperator.LESS_THAN,
-                table="after",
+                table="last",
             )
         )
         .replace_order_by(*paged_sort)
@@ -361,7 +362,7 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
         DBQuery()
         .with_query(
             record_query(last_id, sort_columns, table_settings),
-            name="before",
+            name="last",
         )
         .select_all()
         .from_subquery(
@@ -369,10 +370,148 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
                 row_comparison_condition(
                     sort_columns,
                     DBOperator.GREATER_THAN,
-                    table="before",
+                    table="last",
                 )
             )
             .replace_order_by(*record_sort)
+            .limit(paging.item_count),
+            alias="page",
+        )
+        .order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_mixed_forwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    last_id = Value(paging.last_id)
+
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+    paged_sort = list(existing_sort) + [
+        (Column(field="id"), SortDirection.ASC)
+    ]
+    paged_sort_columns = [column for column, _ in paged_sort]
+
+    last_query = record_query(last_id, paged_sort_columns, table_settings)
+
+    paged_sort_operators = {
+        column: DBOperator.GREATER_THAN
+        if direction == SortDirection.ASC
+        else DBOperator.LESS_THAN
+        for column, direction in paged_sort
+    }
+
+    ordering_column_sets = [
+        [
+            (
+                paged_sort_columns[j],
+                DBOperator.EQUALS
+                if j < i - 1
+                else paged_sort_operators[paged_sort_columns[j]],
+            )
+            for j in range(0, i)
+        ]
+        for i in range(1, len(paged_sort_columns) + 1)
+    ]
+    record_select_conditions = [
+        [
+            Condition()
+            .left(column)
+            .operator(operator)
+            .right(DBQuery().select(column).from_table("last"))
+            for column, operator in ordering_column_set
+        ]
+        for ordering_column_set in ordering_column_sets
+    ]
+    record_select_queries = [
+        (
+            query.where(*conditions)
+            .replace_order_by(*paged_sort)
+            .limit(paging.item_count)
+        )
+        for conditions in record_select_conditions
+    ]
+
+    return (
+        DBQuery.union(*record_select_queries, mode=SetOperationMode.ALL)
+        .with_query(last_query, name="last")
+        .order_by(*paged_sort)
+        .limit(paging.item_count)
+    )
+
+
+def subsequent_page_existing_sort_mixed_backwards_query(
+    query: DBQuery,
+    paging: KeySetPagingClause,
+    table_settings: PostgresTableSettings,
+) -> DBQuery:
+    last_id = Value(paging.last_id)
+
+    existing_sort = [
+        (sort_column.expression, sort_column.direction)
+        for sort_column in query.sort_columns
+    ]
+    paged_sort = list(existing_sort) + [
+        (Column(field="id"), SortDirection.ASC)
+    ]
+    record_sort = [
+        (column, direction.reverse()) for column, direction in paged_sort
+    ]
+    sort_columns = [column for column, _ in paged_sort]
+
+    last_query = record_query(last_id, sort_columns, table_settings)
+
+    record_sort_operators = {
+        column: DBOperator.GREATER_THAN
+        if direction == SortDirection.ASC
+        else DBOperator.LESS_THAN
+        for column, direction in record_sort
+    }
+
+    ordering_column_sets = [
+        [
+            (
+                sort_columns[j],
+                DBOperator.EQUALS
+                if j < i - 1
+                else record_sort_operators[sort_columns[j]],
+            )
+            for j in range(0, i)
+        ]
+        for i in range(1, len(sort_columns) + 1)
+    ]
+    record_select_conditions = [
+        [
+            Condition()
+            .left(column)
+            .operator(operator)
+            .right(DBQuery().select(column).from_table("last"))
+            for column, operator in ordering_column_set
+        ]
+        for ordering_column_set in ordering_column_sets
+    ]
+    record_select_queries = [
+        (
+            query.where(*conditions)
+            .replace_order_by(*record_sort)
+            .limit(paging.item_count)
+        )
+        for conditions in record_select_conditions
+    ]
+
+    return (
+        DBQuery()
+        .with_query(last_query, name="last")
+        .select_all()
+        .from_subquery(
+            DBQuery.union(*record_select_queries, mode=SetOperationMode.ALL)
+            .order_by(*record_sort)
             .limit(paging.item_count),
             alias="page",
         )
@@ -406,7 +545,9 @@ def key_set_paging_clause_applicator(
                     query, paging, table_settings
                 )
             else:
-                return query  # needs implementation
+                return subsequent_page_existing_sort_mixed_forwards_query(
+                    query, paging, table_settings
+                )
         else:
             return subsequent_page_no_sort_paging_forwards_query(query, paging)
     elif paging.is_backwards():
@@ -420,7 +561,9 @@ def key_set_paging_clause_applicator(
                     query, paging, table_settings
                 )
             else:
-                return query  # needs implementation
+                return subsequent_page_existing_sort_mixed_backwards_query(
+                    query, paging, table_settings
+                )
         else:
             return subsequent_page_no_sort_paging_backwards_query(
                 query, paging
@@ -432,7 +575,7 @@ def key_set_paging_clause_applicator(
             elif all_sort_desc:
                 return first_page_existing_sort_all_desc_query(query, paging)
             else:
-                return query  # needs implementation
+                return first_page_existing_sort_mixed_query(query, paging)
         else:
             return first_page_no_sort_query(query, paging)
 

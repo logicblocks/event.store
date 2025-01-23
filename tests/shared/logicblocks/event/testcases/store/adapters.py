@@ -783,9 +783,9 @@ class ConcurrencyCases(Base, ABC):
             if not test_result["passed"]
         ]
 
-        assert (
-            len(failed_tests) == 0
-        ), f"{len(failed_tests)} out of {test_repeats} failed: {failed_tests}"
+        assert len(failed_tests) == 0, (
+            f"{len(failed_tests)} out of {test_repeats} failed: {failed_tests}"
+        )
 
 
 class ScanCases(Base, ABC):

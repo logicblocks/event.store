@@ -163,7 +163,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ' 'WHERE "id" != %s',
+            'SELECT * FROM "projections" WHERE "id" != %s',
             [5],
         )
 
@@ -208,7 +208,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ' 'WHERE "id" > %s',
+            'SELECT * FROM "projections" WHERE "id" > %s',
             [5],
         )
 
@@ -253,7 +253,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ' 'WHERE "id" >= %s',
+            'SELECT * FROM "projections" WHERE "id" >= %s',
             [5],
         )
 
@@ -298,7 +298,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ' 'WHERE "id" < %s',
+            'SELECT * FROM "projections" WHERE "id" < %s',
             [5],
         )
 
@@ -343,7 +343,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ' 'WHERE "id" <= %s',
+            'SELECT * FROM "projections" WHERE "id" <= %s',
             [5],
         )
 
@@ -422,8 +422,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" '
-            "ORDER BY \"state\"#>'{value_1}' ASC",
+            'SELECT * FROM "projections" ORDER BY "state"#>\'{value_1}\' ASC',
             [],
         )
 
@@ -598,10 +597,10 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'WITH "after" AS '
+            'WITH "last" AS '
             '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
             'SELECT * FROM "projections" '
-            'WHERE ("name", "id") > (SELECT * FROM "after") '
+            'WHERE ("name", "id") > (SELECT * FROM "last") '
             'ORDER BY "name" ASC, "id" ASC '
             "LIMIT %s",
             [last_id, 1, 10],
@@ -628,10 +627,10 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'WITH "after" AS '
+            'WITH "last" AS '
             '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
             'SELECT * FROM "projections" '
-            'WHERE ("name", "id") < (SELECT * FROM "after") '
+            'WHERE ("name", "id") < (SELECT * FROM "last") '
             'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
             [last_id, 1, 10],
@@ -658,11 +657,11 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'WITH "before" AS '
+            'WITH "last" AS '
             '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
             "SELECT * FROM "
             '(SELECT * FROM "projections" '
-            'WHERE ("name", "id") < (SELECT * FROM "before") '
+            'WHERE ("name", "id") < (SELECT * FROM "last") '
             'ORDER BY "name" DESC, "id" DESC '
             'LIMIT %s) AS "page" '
             'ORDER BY "name" ASC, "id" ASC '
@@ -691,14 +690,141 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'WITH "before" AS '
+            'WITH "last" AS '
             '(SELECT "name", "id" FROM "projections" WHERE "id" = %s LIMIT %s) '
             "SELECT * FROM "
             '(SELECT * FROM "projections" '
-            'WHERE ("name", "id") > (SELECT * FROM "before") '
+            'WHERE ("name", "id") > (SELECT * FROM "last") '
             'ORDER BY "name" ASC, "id" ASC '
             'LIMIT %s) AS "page" '
             'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
             [last_id, 1, 10, 10],
+        )
+
+    def test_converts_key_set_paging_query_other_mixed_sorts_first_page(
+        self,
+    ):
+        converter = query_converter_with_default_clause_converters()
+
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(path=Path("name"), order=SortOrder.DESC),
+                    SortField(path=Path("version"), order=SortOrder.ASC),
+                ]
+            ),
+            paging=KeySetPagingClause(item_count=10),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s",
+            [10],
+        )
+
+    def test_converts_key_set_paging_query_other_mixed_sorts_next_page_forwards(
+        self,
+    ):
+        converter = query_converter_with_default_clause_converters()
+
+        last_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(path=Path("name"), order=SortOrder.DESC),
+                    SortField(path=Path("version"), order=SortOrder.ASC),
+                ]
+            ),
+            paging=KeySetPagingClause(
+                last_id=last_id,
+                direction=PagingDirection.FORWARDS,
+                item_count=10,
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "last" AS '
+            '(SELECT "name", "version", "id" '
+            'FROM "projections" '
+            'WHERE "id" = %s LIMIT %s) '
+            '(SELECT * FROM "projections" '
+            'WHERE "name" < (SELECT "name" FROM "last") '
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s) "
+            "UNION ALL "
+            '(SELECT * FROM "projections" '
+            'WHERE "name" = (SELECT "name" FROM "last") '
+            'AND "version" > (SELECT "version" FROM "last") '
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s) "
+            "UNION ALL "
+            '(SELECT * FROM "projections" '
+            'WHERE "name" = (SELECT "name" FROM "last") '
+            'AND "version" = (SELECT "version" FROM "last") '
+            'AND "id" > (SELECT "id" FROM "last") '
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s) "
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s",
+            [last_id, 1, 10, 10, 10, 10],
+        )
+
+    def test_converts_key_set_paging_query_other_mixed_sorts_next_page_backwards(
+        self,
+    ):
+        converter = query_converter_with_default_clause_converters()
+
+        last_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(path=Path("name"), order=SortOrder.DESC),
+                    SortField(path=Path("version"), order=SortOrder.ASC),
+                ]
+            ),
+            paging=KeySetPagingClause(
+                last_id=last_id,
+                direction=PagingDirection.BACKWARDS,
+                item_count=10,
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "last" AS '
+            '(SELECT "name", "version", "id" '
+            'FROM "projections" '
+            'WHERE "id" = %s LIMIT %s) '
+            "SELECT * FROM "
+            '((SELECT * FROM "projections" '
+            'WHERE "name" > (SELECT "name" FROM "last") '
+            'ORDER BY "name" ASC, "version" DESC, "id" DESC '
+            "LIMIT %s) "
+            "UNION ALL "
+            '(SELECT * FROM "projections" '
+            'WHERE "name" = (SELECT "name" FROM "last") '
+            'AND "version" < (SELECT "version" FROM "last") '
+            'ORDER BY "name" ASC, "version" DESC, "id" DESC '
+            "LIMIT %s) "
+            "UNION ALL "
+            '(SELECT * FROM "projections" '
+            'WHERE "name" = (SELECT "name" FROM "last") '
+            'AND "version" = (SELECT "version" FROM "last") '
+            'AND "id" < (SELECT "id" FROM "last") '
+            'ORDER BY "name" ASC, "version" DESC, "id" DESC '
+            "LIMIT %s) "
+            'ORDER BY "name" ASC, "version" DESC, "id" DESC '
+            'LIMIT %s) AS "page" '
+            'ORDER BY "name" DESC, "version" ASC, "id" ASC '
+            "LIMIT %s",
+            [last_id, 1, 10, 10, 10, 10, 10],
         )

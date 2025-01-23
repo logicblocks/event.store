@@ -31,7 +31,7 @@ class ConnectionSettings:
             f"port={self.port}, "
             f"dbname={self.dbname}, "
             f"user={self.user}, "
-            f"password={"*" * len(self.password)})"
+            f"password={'*' * len(self.password)})"
         )
 
     def to_connection_string(self) -> str:
@@ -68,6 +68,9 @@ class Column:
     def __repr__(self):
         return f"Column(field={self.field},path={self.path})"
 
+    def __hash__(self):
+        return hash(self.__repr__())
+
     @property
     def name(self) -> SqlFragment:
         if self.field == "*":
@@ -95,6 +98,13 @@ type OrderByColumn = str | Column
 class SortDirection(StrEnum):
     ASC = "ASC"
     DESC = "DESC"
+
+    def reverse(self) -> "SortDirection":
+        return (
+            SortDirection.ASC
+            if self == SortDirection.DESC
+            else SortDirection.DESC
+        )
 
 
 class Operator(StrEnum):
@@ -441,8 +451,10 @@ class Query:
             from_subqueries=[*self.from_subqueries, (subquery, alias)]
         )
 
-    def where(self, condition: Condition) -> Self:
-        return self.clone(where_conditions=[*self.where_conditions, condition])
+    def where(self, *conditions: Condition) -> Self:
+        return self.clone(
+            where_conditions=[*self.where_conditions, *conditions]
+        )
 
     def replace_order_by(
         self, *columns: OrderByColumn | tuple[OrderByColumn, SortDirection]

@@ -491,7 +491,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
             transformer([projection_1, projection_2])
 
         assert (
-            str(e.value) == f"Invalid projection path: {["state", "value_3"]}."
+            str(e.value) == f"Invalid projection path: {['state', 'value_3']}."
         )
 
     def test_sort_clause_over_single_field_on_top_level_attribute(self):

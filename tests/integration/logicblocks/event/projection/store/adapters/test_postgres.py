@@ -12,8 +12,7 @@ from logicblocks.event.projection.store.adapters import (
     PostgresProjectionStorageAdapter,
 )
 from logicblocks.event.testcases.projection.store.adapters import (
-    FindOneCases,
-    SaveCases,
+    ProjectionStorageAdapterCases,
 )
 from logicblocks.event.types import Projection, identifier
 
@@ -120,7 +119,9 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresProjectionStorageAdapterCommonCases(SaveCases, FindOneCases):
+class TestPostgresProjectionStorageAdapterCommonCases(
+    ProjectionStorageAdapterCases
+):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)

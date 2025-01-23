@@ -783,4 +783,27 @@ class PostgresProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
     async def find_many[T](
         self, *, search: MQ, converter: Callable[[Mapping[str, Any]], T]
     ) -> Sequence[Projection[T]]:
-        raise NotImplementedError()
+        query = self.query_converter.convert_query(search)
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor(row_factory=dict_row) as cursor:
+                results = await cursor.execute(*query)
+
+                projection_dicts = await results.fetchall()
+
+                projections = [
+                    Projection[Mapping[str, Any]](
+                        id=projection_dict["id"],
+                        name=projection_dict["name"],
+                        state=projection_dict["state"],
+                        version=projection_dict["version"],
+                        source=identifier.event_sequence_identifier(
+                            projection_dict["source"]
+                        ),
+                    )
+                    for projection_dict in projection_dicts
+                ]
+
+                return [
+                    lift_projection(projection, converter)
+                    for projection in projections
+                ]

@@ -602,5 +602,7 @@ class FindManyCases(Base, ABC):
         assert located == [projection_4, projection_2]
 
 
-class ProjectionStorageAdapterCases(SaveCases, FindOneCases, ABC):
+class ProjectionStorageAdapterCases(
+    SaveCases, FindOneCases, FindManyCases, ABC
+):
     pass

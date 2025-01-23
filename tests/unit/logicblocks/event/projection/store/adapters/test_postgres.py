@@ -21,6 +21,7 @@ from logicblocks.event.projection.store.adapters import (
     PostgresQueryConverter,
     PostgresTableSettings,
 )
+from logicblocks.event.projection.store.query import PagingDirection
 from logicblocks.event.testing.data import random_projection_id
 
 
@@ -492,11 +493,13 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        after_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             paging=KeySetPagingClause(
-                after_id=after_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.FORWARDS,
+                item_count=10,
             )
         )
 
@@ -506,7 +509,7 @@ class TestPostgresQueryConverterQueryConversion:
             'SELECT * FROM "projections" '
             'WHERE "id" > %s '
             'ORDER BY "id" ASC LIMIT %s',
-            [after_projection_id, 10],
+            [last_id, 10],
         )
 
     def test_converts_key_set_paging_query_no_sorts_next_page_backwards(
@@ -514,11 +517,13 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        before_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             paging=KeySetPagingClause(
-                before_id=before_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.BACKWARDS,
+                item_count=10,
             )
         )
 
@@ -531,7 +536,7 @@ class TestPostgresQueryConverterQueryConversion:
             'ORDER BY "id" DESC LIMIT %s'
             ') AS "page" '
             'ORDER BY "id" ASC LIMIT %s',
-            [before_projection_id, 10, 10],
+            [last_id, 10, 10],
         )
 
     def test_converts_key_set_paging_query_other_asc_sorts_first_page(self):
@@ -577,14 +582,16 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        after_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             sort=SortClause(
                 fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
             ),
             paging=KeySetPagingClause(
-                after_id=after_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.FORWARDS,
+                item_count=10,
             ),
         )
 
@@ -597,7 +604,7 @@ class TestPostgresQueryConverterQueryConversion:
             'WHERE ("name", "id") > (SELECT * FROM "after") '
             'ORDER BY "name" ASC, "id" ASC '
             "LIMIT %s",
-            [after_projection_id, 1, 10],
+            [last_id, 1, 10],
         )
 
     def test_converts_key_set_paging_query_other_desc_sorts_next_page_forwards(
@@ -605,14 +612,16 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        after_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             sort=SortClause(
                 fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
             ),
             paging=KeySetPagingClause(
-                after_id=after_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.FORWARDS,
+                item_count=10,
             ),
         )
 
@@ -625,7 +634,7 @@ class TestPostgresQueryConverterQueryConversion:
             'WHERE ("name", "id") < (SELECT * FROM "after") '
             'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
-            [after_projection_id, 1, 10],
+            [last_id, 1, 10],
         )
 
     def test_converts_key_set_paging_query_other_asc_sorts_next_page_backwards(
@@ -633,14 +642,16 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        before_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             sort=SortClause(
                 fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
             ),
             paging=KeySetPagingClause(
-                before_id=before_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.BACKWARDS,
+                item_count=10,
             ),
         )
 
@@ -656,7 +667,7 @@ class TestPostgresQueryConverterQueryConversion:
             'LIMIT %s) AS "page" '
             'ORDER BY "name" ASC, "id" ASC '
             "LIMIT %s",
-            [before_projection_id, 1, 10, 10],
+            [last_id, 1, 10, 10],
         )
 
     def test_converts_key_set_paging_query_other_desc_sorts_next_page_backwards(
@@ -664,14 +675,16 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         converter = query_converter_with_default_clause_converters()
 
-        before_projection_id = random_projection_id()
+        last_id = random_projection_id()
 
         query = Search(
             sort=SortClause(
                 fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
             ),
             paging=KeySetPagingClause(
-                before_id=before_projection_id, item_count=10
+                last_id=last_id,
+                direction=PagingDirection.BACKWARDS,
+                item_count=10,
             ),
         )
 
@@ -687,5 +700,5 @@ class TestPostgresQueryConverterQueryConversion:
             'LIMIT %s) AS "page" '
             'ORDER BY "name" DESC, "id" DESC '
             "LIMIT %s",
-            [before_projection_id, 1, 10, 10],
+            [last_id, 1, 10, 10],
         )

@@ -28,6 +28,7 @@ from logicblocks.event.projection.store.adapters.in_memory import (
     key_set_paging_clause_converter,
     sort_clause_converter,
 )
+from logicblocks.event.projection.store.query import PagingDirection
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
 )
@@ -687,7 +688,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_4 = MappingProjectionBuilder().with_id("4").build()
         projection_5 = MappingProjectionBuilder().with_id("5").build()
 
-        clause = KeySetPagingClause(after_id="2", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="2", direction=PagingDirection.FORWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -710,7 +713,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(after_id="2", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="2", direction=PagingDirection.FORWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -731,7 +736,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(after_id="4", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="4", direction=PagingDirection.FORWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -754,7 +761,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(after_id="3", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="3", direction=PagingDirection.FORWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -777,7 +786,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_4 = MappingProjectionBuilder().with_id("4").build()
         projection_5 = MappingProjectionBuilder().with_id("5").build()
 
-        clause = KeySetPagingClause(before_id="4", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="4", direction=PagingDirection.BACKWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -800,7 +811,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(before_id="2", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="2", direction=PagingDirection.BACKWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -817,7 +830,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(before_id="4", item_count=2)
+        clause = KeySetPagingClause(
+            last_id="4", direction=PagingDirection.BACKWARDS, item_count=2
+        )
 
         transformer = registry.convert_clause(clause)
 
@@ -840,130 +855,9 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("2").build()
         projection_3 = MappingProjectionBuilder().with_id("3").build()
 
-        clause = KeySetPagingClause(before_id="1", item_count=2)
-
-        transformer = registry.convert_clause(clause)
-
-        results = transformer(
-            [
-                projection_1,
-                projection_2,
-                projection_3,
-            ]
+        clause = KeySetPagingClause(
+            last_id="1", direction=PagingDirection.BACKWARDS, item_count=2
         )
-
-        assert results == []
-
-    def test_key_set_paging_clause_both_after_and_before_ids_partial_page(
-        self,
-    ):
-        registry = InMemoryQueryConverter().with_default_clause_converters()
-
-        projection_1 = MappingProjectionBuilder().with_id("1").build()
-        projection_2 = MappingProjectionBuilder().with_id("2").build()
-        projection_3 = MappingProjectionBuilder().with_id("3").build()
-        projection_4 = MappingProjectionBuilder().with_id("4").build()
-        projection_5 = MappingProjectionBuilder().with_id("5").build()
-
-        clause = KeySetPagingClause(after_id="2", before_id="4", item_count=2)
-
-        transformer = registry.convert_clause(clause)
-
-        results = transformer(
-            [
-                projection_1,
-                projection_2,
-                projection_3,
-                projection_4,
-                projection_5,
-            ]
-        )
-
-        assert results == [projection_3]
-
-    def test_key_set_paging_clause_both_after_and_before_ids_more_than_page(
-        self,
-    ):
-        registry = InMemoryQueryConverter().with_default_clause_converters()
-
-        projection_1 = MappingProjectionBuilder().with_id("1").build()
-        projection_2 = MappingProjectionBuilder().with_id("2").build()
-        projection_3 = MappingProjectionBuilder().with_id("3").build()
-        projection_4 = MappingProjectionBuilder().with_id("4").build()
-        projection_5 = MappingProjectionBuilder().with_id("5").build()
-
-        clause = KeySetPagingClause(after_id="1", before_id="5", item_count=2)
-
-        transformer = registry.convert_clause(clause)
-
-        results = transformer(
-            [
-                projection_1,
-                projection_2,
-                projection_3,
-                projection_4,
-                projection_5,
-            ]
-        )
-
-        assert results == [projection_2, projection_3]
-
-    def test_key_set_paging_clause_both_after_and_before_ids_both_missing(
-        self,
-    ):
-        registry = InMemoryQueryConverter().with_default_clause_converters()
-
-        projection_1 = MappingProjectionBuilder().with_id("1").build()
-        projection_2 = MappingProjectionBuilder().with_id("2").build()
-        projection_3 = MappingProjectionBuilder().with_id("3").build()
-
-        clause = KeySetPagingClause(after_id="4", before_id="6", item_count=2)
-
-        transformer = registry.convert_clause(clause)
-
-        results = transformer(
-            [
-                projection_1,
-                projection_2,
-                projection_3,
-            ]
-        )
-
-        assert results == []
-
-    def test_key_set_paging_clause_both_after_and_before_ids_after_found_before_not_found(
-        self,
-    ):
-        registry = InMemoryQueryConverter().with_default_clause_converters()
-
-        projection_1 = MappingProjectionBuilder().with_id("1").build()
-        projection_2 = MappingProjectionBuilder().with_id("2").build()
-        projection_3 = MappingProjectionBuilder().with_id("3").build()
-
-        clause = KeySetPagingClause(after_id="2", before_id="6", item_count=2)
-
-        transformer = registry.convert_clause(clause)
-
-        results = transformer(
-            [
-                projection_1,
-                projection_2,
-                projection_3,
-            ]
-        )
-
-        assert results == []
-
-    def test_key_set_paging_clause_both_after_and_before_ids_after_not_found_before_found(
-        self,
-    ):
-        registry = InMemoryQueryConverter().with_default_clause_converters()
-
-        projection_1 = MappingProjectionBuilder().with_id("1").build()
-        projection_2 = MappingProjectionBuilder().with_id("2").build()
-        projection_3 = MappingProjectionBuilder().with_id("3").build()
-
-        clause = KeySetPagingClause(after_id="4", before_id="2", item_count=2)
 
         transformer = registry.convert_clause(clause)
 

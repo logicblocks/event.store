@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Self
+from typing import Any, Self
 
 from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg.rows import TupleRow, dict_row
@@ -193,24 +193,22 @@ def first_page_existing_sort_mixed_query(
 
 
 def subsequent_page_no_sort_row_selection_query(
-    query: DBQuery,
-    paging: KeySetPagingClause,
-    direction: (Literal["forward"] | Literal["backward"]),
+    query: DBQuery, paging: KeySetPagingClause
 ) -> DBQuery:
     id_column = Column(field="id")
 
-    id = paging.after_id if direction == "forward" else paging.before_id
+    id = Value(paging.last_id)
     op = (
         DBOperator.GREATER_THAN
-        if direction == "forward"
+        if paging.is_forwards()
         else DBOperator.LESS_THAN
     )
     sort_direction = (
-        SortDirection.ASC if direction == "forward" else SortDirection.DESC
+        SortDirection.ASC if paging.is_forwards() else SortDirection.DESC
     )
 
     return (
-        query.where(field_comparison_condition(id_column, op, Value(id)))
+        query.where(field_comparison_condition(id_column, op, id))
         .order_by((id_column, sort_direction))
         .limit(paging.item_count)
     )
@@ -219,9 +217,7 @@ def subsequent_page_no_sort_row_selection_query(
 def subsequent_page_no_sort_paging_forwards_query(
     query: DBQuery, paging: KeySetPagingClause
 ) -> DBQuery:
-    return subsequent_page_no_sort_row_selection_query(
-        query, paging, "forward"
-    )
+    return subsequent_page_no_sort_row_selection_query(query, paging)
 
 
 def subsequent_page_no_sort_paging_backwards_query(
@@ -231,9 +227,7 @@ def subsequent_page_no_sort_paging_backwards_query(
         DBQuery()
         .select_all()
         .from_subquery(
-            subsequent_page_no_sort_row_selection_query(
-                query, paging, "backward"
-            ),
+            subsequent_page_no_sort_row_selection_query(query, paging),
             alias="page",
         )
         .order_by("id")
@@ -247,7 +241,7 @@ def subsequent_page_existing_sort_all_asc_forwards_query(
     table_settings: PostgresTableSettings,
 ) -> DBQuery:
     id_column = Column(field="id")
-    after_id = Value(paging.after_id)
+    last_id = Value(paging.last_id)
 
     existing_sort = [
         (sort_column.expression, sort_column.direction)
@@ -258,7 +252,7 @@ def subsequent_page_existing_sort_all_asc_forwards_query(
 
     return (
         query.with_query(
-            record_query(after_id, paged_sort_columns, table_settings),
+            record_query(last_id, paged_sort_columns, table_settings),
             name="after",
         )
         .where(
@@ -279,7 +273,7 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
     table_settings: PostgresTableSettings,
 ) -> DBQuery:
     id_column = Column(field="id")
-    before_id = Value(paging.before_id)
+    last_id = Value(paging.last_id)
 
     existing_sort = [
         (sort_column.expression, sort_column.direction)
@@ -293,7 +287,7 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
     return (
         DBQuery()
         .with_query(
-            record_query(before_id, sort_columns, table_settings),
+            record_query(last_id, sort_columns, table_settings),
             name="before",
         )
         .select_all()
@@ -320,7 +314,7 @@ def subsequent_page_existing_sort_all_desc_forwards_query(
     table_settings: PostgresTableSettings,
 ) -> DBQuery:
     id_column = Column(field="id")
-    after_id = Value(paging.after_id)
+    last_id = Value(paging.last_id)
 
     existing_sort = [
         (sort_column.expression, sort_column.direction)
@@ -331,7 +325,7 @@ def subsequent_page_existing_sort_all_desc_forwards_query(
 
     return (
         query.with_query(
-            record_query(after_id, paged_sort_columns, table_settings),
+            record_query(last_id, paged_sort_columns, table_settings),
             name="after",
         )
         .where(
@@ -352,7 +346,7 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
     table_settings: PostgresTableSettings,
 ) -> DBQuery:
     id_column = Column(field="id")
-    before_id = Value(paging.before_id)
+    last_id = Value(paging.last_id)
 
     existing_sort = [
         (sort_column.expression, sort_column.direction)
@@ -366,7 +360,7 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
     return (
         DBQuery()
         .with_query(
-            record_query(before_id, sort_columns, table_settings),
+            record_query(last_id, sort_columns, table_settings),
             name="before",
         )
         .select_all()
@@ -392,12 +386,6 @@ def key_set_paging_clause_applicator(
     query: DBQuery,
     table_settings: PostgresTableSettings,
 ) -> DBQuery:
-    has_after_id = paging.after_id is not None
-    has_before_id = paging.before_id is not None
-
-    paging_forwards = has_after_id
-    paging_backwards = has_before_id and not has_after_id
-
     has_existing_sort = len(query.sort_columns) > 0
 
     all_sort_asc = all(
@@ -407,7 +395,7 @@ def key_set_paging_clause_applicator(
         sort_column.is_descending() for sort_column in query.sort_columns
     )
 
-    if paging_forwards:
+    if paging.is_forwards():
         if has_existing_sort:
             if all_sort_asc:
                 return subsequent_page_existing_sort_all_asc_forwards_query(
@@ -421,7 +409,7 @@ def key_set_paging_clause_applicator(
                 return query  # needs implementation
         else:
             return subsequent_page_no_sort_paging_forwards_query(query, paging)
-    elif paging_backwards:
+    elif paging.is_backwards():
         if has_existing_sort:
             if all_sort_asc:
                 return subsequent_page_existing_sort_all_asc_backwards_query(

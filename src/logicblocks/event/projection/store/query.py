@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import StrEnum, auto
 from typing import Any, Sequence
 
 
-class Operator(Enum):
+class Operator(StrEnum):
     EQUAL = auto()
     NOT_EQUAL = auto()
     GREATER_THAN = auto()
@@ -12,7 +12,7 @@ class Operator(Enum):
     LESS_THAN_OR_EQUAL = auto()
 
 
-class SortOrder(Enum):
+class SortOrder(StrEnum):
     ASC = auto()
     DESC = auto()
 
@@ -59,22 +59,42 @@ class PagingClause(Clause):
     pass
 
 
+class PagingDirection(StrEnum):
+    FORWARDS = auto()
+    BACKWARDS = auto()
+
+
 @dataclass(frozen=True)
 class KeySetPagingClause(PagingClause):
-    before_id: str | None
-    after_id: str | None
+    last_id: str | None
+    direction: PagingDirection
     item_count: int
 
     def __init__(
         self,
         *,
-        before_id: str | None = None,
-        after_id: str | None = None,
+        last_id: str | None = None,
+        direction: PagingDirection = PagingDirection.FORWARDS,
         item_count: int = 10,
     ):
-        object.__setattr__(self, "before_id", before_id)
-        object.__setattr__(self, "after_id", after_id)
+        object.__setattr__(self, "last_id", last_id)
+        object.__setattr__(self, "direction", direction)
         object.__setattr__(self, "item_count", item_count)
+
+    def is_forwards(self):
+        return (
+            self.last_id is not None
+            and self.direction == PagingDirection.FORWARDS
+        )
+
+    def is_backwards(self):
+        return (
+            self.last_id is not None
+            and self.direction == PagingDirection.BACKWARDS
+        )
+
+    def is_first_page(self):
+        return self.last_id is None
 
 
 @dataclass(frozen=True)

@@ -17,6 +17,7 @@ from logicblocks.event.projection.store import (
     SortField,
     SortOrder,
 )
+from logicblocks.event.projection.store.query import PagingDirection
 from logicblocks.event.testing import (
     BaseProjectionBuilder,
     data,
@@ -448,7 +449,11 @@ class FindManyCases(Base, ABC):
         await adapter.save(projection=projection_2, converter=Thing.to_dict)
         await adapter.save(projection=projection_3, converter=Thing.to_dict)
 
-        search = Search(paging=KeySetPagingClause(after_id="1", item_count=2))
+        search = Search(
+            paging=KeySetPagingClause(
+                last_id="1", direction=PagingDirection.FORWARDS, item_count=2
+            )
+        )
         located = await adapter.find_many(
             search=search, converter=Thing.from_dict
         )

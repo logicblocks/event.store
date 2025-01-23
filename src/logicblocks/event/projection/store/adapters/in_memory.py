@@ -12,6 +12,7 @@ from ..query import (
     Lookup,
     OffsetPagingClause,
     Operator,
+    PagingDirection,
     Path,
     Query,
     Search,
@@ -154,73 +155,46 @@ def key_set_paging_clause_converter(
     class Found:
         index: int
 
-    def determine_after_index(
+    def determine_last_index(
         projections: Sequence[Projection[Mapping[str, Any]]],
-        after_id: str | None,
+        last_id: str | None,
     ) -> Found | NotFound | NotProvided:
-        if after_id is None:
+        if last_id is None:
             return NotProvided()
 
-        after_indices = [
+        last_indices = [
             index
             for index, projection in enumerate(projections)
-            if projection.id == after_id
+            if projection.id == last_id
         ]
-        if len(after_indices) != 1:
+        if len(last_indices) != 1:
             return NotFound()
 
-        return Found(after_indices[0] + 1)
-
-    def determine_before_index(
-        projections: Sequence[Projection[Mapping[str, Any]]],
-        before_id: str | None,
-    ) -> Found | NotFound | NotProvided:
-        if before_id is None:
-            return NotProvided()
-
-        before_indices = [
-            index
-            for index, projection in enumerate(projections)
-            if projection.id == before_id
-        ]
-        if len(before_indices) != 1:
-            return NotFound()
-
-        return Found(before_indices[0])
+        return Found(last_indices[0])
 
     def handler(
         projections: Sequence[Projection[Mapping[str, Any]]],
     ) -> Sequence[Projection[Mapping[str, Any]]]:
-        after_index_result = determine_after_index(
-            projections, clause.after_id
-        )
-        before_index_result = determine_before_index(
-            projections, clause.before_id
-        )
-
+        last_index_result = determine_last_index(projections, clause.last_id)
+        direction = clause.direction
         item_count = clause.item_count
 
-        match (after_index_result, before_index_result):
+        match (last_index_result, direction):
             case (
-                (NotFound(), NotProvided())
-                | (NotProvided(), NotFound())
-                | (NotFound(), NotFound())
-                | (Found(), NotFound())
-                | (NotFound(), Found())
+                (NotFound(), PagingDirection.FORWARDS)
+                | (NotFound(), PagingDirection.BACKWARDS)
+                | (NotProvided(), PagingDirection.BACKWARDS)
             ):
                 return []
-            case (NotProvided(), NotProvided()):
+            case (NotProvided(), PagingDirection.FORWARDS):
                 return projections[:item_count]
-            case (Found(after_index), NotProvided()):
-                return projections[after_index : after_index + item_count]
-            case (NotProvided(), Found(before_index)):
-                resolved_after_index = max(before_index - item_count, 0)
-                return projections[resolved_after_index:before_index]
-            case (Found(after_index), Found(before_index)):
-                resolved_before_index = min(
-                    before_index, after_index + item_count
-                )
-                return projections[after_index:resolved_before_index]
+            case (Found(last_index), PagingDirection.FORWARDS):
+                return projections[
+                    last_index + 1 : last_index + 1 + item_count
+                ]
+            case (Found(last_index), PagingDirection.BACKWARDS):
+                resolved_start_index = max(last_index - item_count, 0)
+                return projections[resolved_start_index:last_index]
             case _:  # pragma: no cover
                 raise ValueError("Unreachable state.")
 

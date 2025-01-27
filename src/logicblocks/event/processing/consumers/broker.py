@@ -19,3 +19,4 @@ class PostgresEventBroker(EventBroker, Service):
             # ---
             # provide consumers with their event sources
             # revoke them when no longer allowed
+            pass

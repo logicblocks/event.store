@@ -1,7 +1,8 @@
 from logicblocks.event.processing.consumers import (
     EventConsumerStateStore,
     EventProcessor,
-    SourceBackedConsumer, EventCount,
+    EventSourceConsumer,
+    EventCount,
 )
 from logicblocks.event.store.adapters.in_memory import (
     InMemoryEventStorageAdapter,
@@ -35,7 +36,7 @@ class TestEventSourceConsumer:
 
         processor = CapturingEventProcessor()
 
-        consumer = SourceBackedConsumer(
+        consumer = EventSourceConsumer(
             source=source,
             processor=processor,
             state_store=state_store,
@@ -77,7 +78,7 @@ class TestEventSourceConsumer:
 
         processor = CapturingEventProcessor()
 
-        consumer = SourceBackedConsumer(
+        consumer = EventSourceConsumer(
             source=source,
             processor=processor,
             state_store=state_store,
@@ -129,7 +130,7 @@ class TestEventSourceConsumer:
             persistence_interval=EventCount(5)
         )
 
-        consumer = SourceBackedConsumer(
+        consumer = EventSourceConsumer(
             source=source,
             processor=processor,
             state_store=state_store,
@@ -152,7 +153,7 @@ class TestEventSourceConsumer:
             category=state_category,
             persistence_interval=EventCount(5)
         )
-        consumer = SourceBackedConsumer(
+        consumer = EventSourceConsumer(
             source=source,
             processor=processor,
             state_store=state_store,

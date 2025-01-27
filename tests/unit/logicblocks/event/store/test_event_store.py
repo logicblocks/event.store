@@ -252,6 +252,33 @@ class TestStreamRead:
         assert read_events == stored_events[5:]
 
 
+class TestStreamLatest:
+    async def test_reads_latest_event_in_stream_if_present(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(3)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(events=new_events)
+
+        latest_event = await stream.latest()
+
+        assert latest_event == stored_events[-1]
+
+    async def test_returns_none_if_stream_is_empty(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        latest_event = await stream.latest()
+
+        assert latest_event is None
+
+
 class TestStreamIteration:
     async def test_can_treat_stream_as_iterable_over_all_events(self):
         category_name = data.random_event_category_name()

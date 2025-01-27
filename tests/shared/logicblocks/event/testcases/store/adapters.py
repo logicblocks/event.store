@@ -1559,7 +1559,194 @@ class ScanCases(Base, ABC):
         assert scanned_events == expected_events
 
 
+class LatestCases(Base, ABC):
+    async def test_latest_returns_none_when_no_events_in_stream(self):
+        adapter = self.construct_storage_adapter()
+
+        latest_event = await adapter.latest(
+            target=identifier.StreamIdentifier(
+                category=random_event_category_name(),
+                stream=random_event_stream_name(),
+            )
+        )
+
+        assert latest_event is None
+
+    async def test_latest_returns_latest_event_in_stream_when_available(self):
+        adapter = self.construct_storage_adapter()
+
+        category_name_1 = random_event_category_name()
+        category_name_2 = random_event_category_name()
+        stream_name_1 = random_event_stream_name()
+        stream_name_2 = random_event_stream_name()
+        stream_name_3 = random_event_stream_name()
+
+        target_1 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_1
+        )
+        target_2 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_2
+        )
+        target_3 = identifier.StreamIdentifier(
+            category=category_name_2, stream=stream_name_3
+        )
+
+        stored_events_1 = await adapter.save(
+            target=target_1,
+            events=[NewEventBuilder().build()],
+        )
+
+        await adapter.save(
+            target=target_2,
+            events=[NewEventBuilder().build()],
+        )
+
+        stored_events_2 = await adapter.save(
+            target=target_1,
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        await adapter.save(
+            target=target_3,
+            events=[NewEventBuilder().build()],
+        )
+
+        stream_events = [*stored_events_1, *stored_events_2]
+
+        latest_event = await adapter.latest(
+            target=identifier.StreamIdentifier(
+                category=category_name_1,
+                stream=stream_name_1,
+            )
+        )
+
+        assert latest_event == stream_events[-1]
+
+    async def test_latest_returns_none_when_no_events_in_category(self):
+        adapter = self.construct_storage_adapter()
+
+        latest_event = await adapter.latest(
+            target=identifier.CategoryIdentifier(
+                category=random_event_category_name(),
+            )
+        )
+
+        assert latest_event is None
+
+    async def test_latest_returns_latest_event_in_category_when_available(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        category_name_1 = random_event_category_name()
+        category_name_2 = random_event_category_name()
+        stream_name_1 = random_event_stream_name()
+        stream_name_2 = random_event_stream_name()
+        stream_name_3 = random_event_stream_name()
+
+        target_1 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_1
+        )
+        target_2 = identifier.StreamIdentifier(
+            category=category_name_2, stream=stream_name_2
+        )
+        target_3 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_3
+        )
+
+        stored_events_1 = await adapter.save(
+            target=target_1,
+            events=[NewEventBuilder().build()],
+        )
+
+        await adapter.save(
+            target=target_2,
+            events=[NewEventBuilder().build()],
+        )
+
+        stored_events_2 = await adapter.save(
+            target=target_1,
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        stored_events_3 = await adapter.save(
+            target=target_3,
+            events=[NewEventBuilder().build()],
+        )
+
+        await adapter.save(
+            target=target_2,
+            events=[NewEventBuilder().build()],
+        )
+
+        category_events = [
+            *stored_events_1,
+            *stored_events_2,
+            *stored_events_3,
+        ]
+
+        latest_event = await adapter.latest(
+            target=identifier.CategoryIdentifier(
+                category=category_name_1,
+            )
+        )
+
+        assert latest_event == category_events[-1]
+
+    async def test_latest_returns_none_when_no_events_in_log(self):
+        adapter = self.construct_storage_adapter()
+
+        latest_event = await adapter.latest(target=identifier.LogIdentifier())
+
+        assert latest_event is None
+
+    async def test_latest_returns_latest_event_in_log_when_available(self):
+        adapter = self.construct_storage_adapter()
+
+        category_name_1 = random_event_category_name()
+        category_name_2 = random_event_category_name()
+        stream_name_1 = random_event_stream_name()
+        stream_name_2 = random_event_stream_name()
+        stream_name_3 = random_event_stream_name()
+
+        target_1 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_1
+        )
+        target_2 = identifier.StreamIdentifier(
+            category=category_name_2, stream=stream_name_2
+        )
+        target_3 = identifier.StreamIdentifier(
+            category=category_name_1, stream=stream_name_3
+        )
+
+        stored_events_1 = await adapter.save(
+            target=target_1,
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        stored_events_2 = await adapter.save(
+            target=target_3,
+            events=[NewEventBuilder().build()],
+        )
+
+        stored_events_3 = await adapter.save(
+            target=target_2,
+            events=[NewEventBuilder().build()],
+        )
+
+        log_events = [*stored_events_1, *stored_events_2, *stored_events_3]
+
+        latest_event = await adapter.latest(target=identifier.LogIdentifier())
+
+        assert latest_event == log_events[-1]
+
+
 class EventStorageAdapterCases(
-    SaveCases, WriteConditionCases, ConcurrencyCases, ScanCases, ABC
+    SaveCases,
+    WriteConditionCases,
+    ConcurrencyCases,
+    ScanCases,
+    LatestCases,
+    ABC,
 ):
     pass

@@ -19,6 +19,10 @@ class EventSource(ABC):
     def identifier(self) -> EventSequenceIdentifier:
         raise NotImplementedError()
 
+    @abstractmethod
+    async def latest(self) -> StoredEvent | None:
+        pass
+
     async def read(
         self,
         *,
@@ -51,6 +55,9 @@ class EventStream(EventSource):
     @property
     def identifier(self) -> EventSequenceIdentifier:
         return self._identifier
+
+    async def latest(self) -> StoredEvent | None:
+        return await self.adapter.latest(target=self._identifier)
 
     async def publish(
         self,
@@ -102,6 +109,9 @@ class EventCategory(EventSource):
     @property
     def identifier(self) -> EventSequenceIdentifier:
         return self._identifier
+
+    async def latest(self) -> StoredEvent | None:
+        pass
 
     def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.

@@ -66,20 +66,9 @@ class PagingDirection(StrEnum):
 
 @dataclass(frozen=True)
 class KeySetPagingClause(PagingClause):
-    last_id: str | None
-    direction: PagingDirection
-    item_count: int
-
-    def __init__(
-        self,
-        *,
-        last_id: str | None = None,
-        direction: PagingDirection = PagingDirection.FORWARDS,
-        item_count: int = 10,
-    ):
-        object.__setattr__(self, "last_id", last_id)
-        object.__setattr__(self, "direction", direction)
-        object.__setattr__(self, "item_count", item_count)
+    last_id: str | None = None
+    direction: PagingDirection = PagingDirection.FORWARDS
+    item_count: int = 10
 
     def is_forwards(self):
         return (

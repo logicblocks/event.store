@@ -136,14 +136,7 @@ class SortColumn:
 @dataclass(frozen=True)
 class Value:
     value: Any
-    wrapper: LiteralString | None
-
-    def __init__(self, value: Any, wrapper: str | None = None):
-        object.__setattr__(self, "value", value)
-        object.__setattr__(self, "wrapper", wrapper)
-
-    def __repr__(self):
-        return f"Value({self.value}, wrapper={self.wrapper})"
+    wrapper: LiteralString | None = None
 
     def build_fragment(self) -> ParameterisedQueryFragment:
         operand_sql = sql.SQL("%s")

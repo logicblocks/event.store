@@ -15,6 +15,7 @@ from logicblocks.event.types import (
 # type Readable = identifier.Log | identifier.Category | identifier.Stream
 type Saveable = StreamIdentifier
 type Scannable = LogIdentifier | CategoryIdentifier | StreamIdentifier
+type Latestable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 
 
 class EventStorageAdapter(ABC):
@@ -26,6 +27,10 @@ class EventStorageAdapter(ABC):
         events: Sequence[NewEvent],
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def latest(self, *, target: Latestable) -> StoredEvent | None:
         raise NotImplementedError()
 
     @abstractmethod

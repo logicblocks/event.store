@@ -14,7 +14,11 @@ from logicblocks.event.db.postgres import (
     ConnectionSource,
 )
 from logicblocks.event.store.adapters import EventStorageAdapter
-from logicblocks.event.store.adapters.base import Saveable, Scannable
+from logicblocks.event.store.adapters.base import (
+    Latestable,
+    Saveable,
+    Scannable,
+)
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import (
     QueryConstraint,
@@ -61,6 +65,36 @@ class ScanQueryParameters:
         object.__setattr__(self, "target", target)
         object.__setattr__(self, "constraints", constraints)
         object.__setattr__(self, "page_size", page_size)
+
+    @property
+    def category(self) -> str | None:
+        match self.target:
+            case CategoryIdentifier(category):
+                return category
+            case StreamIdentifier(category, _):
+                return category
+            case _:
+                return None
+
+    @property
+    def stream(self) -> str | None:
+        match self.target:
+            case StreamIdentifier(_, stream):
+                return stream
+            case _:
+                return None
+
+
+@dataclass(frozen=True)
+class LatestQueryParameters:
+    target: Latestable
+
+    def __init__(
+        self,
+        *,
+        target: Scannable,
+    ):
+        object.__setattr__(self, "target", target)
 
     @property
     def category(self) -> str | None:
@@ -177,21 +211,56 @@ def lock_query(table_settings: TableSettings) -> ParameterisedQuery:
 
 
 def read_last_query(
-    target: Saveable, table_settings: TableSettings
+    parameters: LatestQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
-    return (
-        sql.SQL(
-            """
-            SELECT * 
-            FROM {0}
-            WHERE category = (%s)
-            AND stream = (%s)
-            ORDER BY position DESC 
-            LIMIT 1;
-            """
-        ).format(sql.Identifier(table_settings.events_table_name)),
-        [target.category, target.stream],
+    table = table_settings.events_table_name
+
+    select_clause = sql.SQL("SELECT *")
+    from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
+
+    category_where_clause = (
+        sql.SQL("category = %s") if parameters.category is not None else None
     )
+    stream_where_clause = (
+        sql.SQL("stream = %s") if parameters.stream is not None else None
+    )
+    where_clauses = [
+        clause
+        for clause in [
+            category_where_clause,
+            stream_where_clause,
+        ]
+        if clause is not None
+    ]
+    where_clause = (
+        sql.SQL("WHERE ") + sql.SQL(" AND ").join(where_clauses)
+        if len(where_clauses) > 0
+        else None
+    )
+
+    order_by_clause = sql.SQL("ORDER BY sequence_number DESC")
+    limit_clause = sql.SQL("LIMIT %s")
+
+    clauses = [
+        clause
+        for clause in [
+            select_clause,
+            from_clause,
+            where_clause,
+            order_by_clause,
+            limit_clause,
+        ]
+        if clause is not None
+    ]
+
+    query = sql.SQL(" ").join(clauses)
+    params = [
+        param
+        for param in [parameters.category, parameters.stream, 1]
+        if param is not None
+    ]
+
+    return query, params
 
 
 def insert_query(
@@ -239,10 +308,10 @@ async def lock_table(
 async def read_last(
     cursor: AsyncCursor[StoredEvent],
     *,
-    target: StreamIdentifier,
+    parameters: LatestQueryParameters,
     table_settings: TableSettings,
 ):
-    await cursor.execute(*read_last_query(target, table_settings))
+    await cursor.execute(*read_last_query(parameters, table_settings))
     return await cursor.fetchone()
 
 
@@ -308,7 +377,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
                 last_event = await read_last(
                     cursor,
-                    target=target,
+                    parameters=LatestQueryParameters(target=target),
                     table_settings=self.table_settings,
                 )
 
@@ -327,6 +396,19 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     )
                     for position, event in enumerate(events, current_position)
                 ]
+
+    async def latest(self, *, target: Latestable) -> StoredEvent | None:
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor(
+                row_factory=class_row(StoredEvent)
+            ) as cursor:
+                await cursor.execute(
+                    *read_last_query(
+                        parameters=LatestQueryParameters(target=target),
+                        table_settings=self.table_settings,
+                    )
+                )
+                return await cursor.fetchone()
 
     async def scan(
         self,

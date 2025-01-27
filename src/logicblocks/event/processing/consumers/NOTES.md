@@ -84,12 +84,12 @@ class FenxSynchronisationConsumer(Consumer):
 
 3 node system
 
-table: workers
-columns: worker_id | heartbeat_timestamp
+table: nodes
+columns: node_id   | heartbeat_timestamp
          <uuid_1>  | <timestamp>
          <uuid_2>  | <timestamp>
 
-table: work_allocations
+table: consumers
 columns: consumer_name | event_sequence_identifier | ~~partition~~ | worker_id |
          consumer_1    | companies                 | ~~default~~   | 1         |
          consumer_2    | companies                 | ~~default~~   | 2         |
@@ -103,3 +103,12 @@ work commencer x3
 * 1 work allocator gets elected as leader, this is the only one allowed to add work to the table and assign workers to it
 * each work allocator polls the table to determine bits of work that it should distribute to its consumer processes
 * each work allocator updates heartbeat timestamp against work it is still working on
+
+Example:
+3 nodes start up -> 3 brokers
+Each node starts a consumer based on the config -> 3 brokers, 3 consumer instances (all with the same name / belonging to same consumer group)
+Each broker has registered against it the consumer instance of its node (brokers know that each node has the equivalent set of consumers in belonging to the same consumer group(s))
+Each node is assigned (picks) an id, and starts writing heartbeats into the worker_nodes table
+A broker leader is elected -> 1 broker is leader
+Broker leader assigns worker to consumer group partitions by replacing contents of work_allocations table (need to think about avoiding double consumers)
+Each broker polls the work_allocations table to determine what work should be delegated or revoked from its subscribers

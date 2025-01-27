@@ -17,5 +17,8 @@ class StaticClock(Clock):
     def __init__(self, now: datetime):
         self._now = now
 
+    def set(self, now: datetime) -> None:
+        self._now = now
+
     def now(self, tz: tzinfo | None = None) -> datetime:
         return self._now

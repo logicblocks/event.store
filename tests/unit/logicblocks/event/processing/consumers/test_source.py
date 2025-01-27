@@ -1,8 +1,8 @@
 from logicblocks.event.processing.consumers import (
     EventConsumerStateStore,
+    EventCount,
     EventProcessor,
     EventSourceConsumer,
-    EventCount,
 )
 from logicblocks.event.store.adapters.in_memory import (
     InMemoryEventStorageAdapter,
@@ -126,8 +126,7 @@ class TestEventSourceConsumer:
         processor = CapturingEventProcessor()
 
         state_store = EventConsumerStateStore(
-            category=state_category,
-            persistence_interval=EventCount(5)
+            category=state_category, persistence_interval=EventCount(5)
         )
 
         consumer = EventSourceConsumer(
@@ -136,22 +135,19 @@ class TestEventSourceConsumer:
             state_store=state_store,
         )
 
-        published_events = (
-            await event_store
-            .stream(category=category_name, stream=stream_name)
-            .publish(
-                events=[
-                    NewEventBuilder().build(),
-                    NewEventBuilder().build(),
-                ]
-            )
+        published_events = await event_store.stream(
+            category=category_name, stream=stream_name
+        ).publish(
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ]
         )
 
         await consumer.consume_all()
 
         state_store = EventConsumerStateStore(
-            category=state_category,
-            persistence_interval=EventCount(5)
+            category=state_category, persistence_interval=EventCount(5)
         )
         consumer = EventSourceConsumer(
             source=source,

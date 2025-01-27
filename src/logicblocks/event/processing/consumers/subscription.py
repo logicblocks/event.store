@@ -1,21 +1,23 @@
-from collections.abc import MutableMapping, Callable
-from logicblocks.event.types import EventSequenceIdentifier
-from logicblocks.event.store import EventSource
+from collections.abc import Callable, MutableMapping
 
-from .types import EventConsumer, EventSubscriber
+from logicblocks.event.store import EventSource
+from logicblocks.event.types import EventSequenceIdentifier
+
 from .broker import EventBroker
+from .types import EventConsumer, EventSubscriber
 
 
 class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def __init__(
-            self,
-            sequence: EventSequenceIdentifier,
-            delegate_factory: Callable[[EventSource], EventConsumer],
+        self,
+        sequence: EventSequenceIdentifier,
+        delegate_factory: Callable[[EventSource], EventConsumer],
     ):
         self._sequence = sequence
         self._delegate_factory = delegate_factory
-        self._delegates: \
-            MutableMapping[EventSequenceIdentifier, EventConsumer] = {}
+        self._delegates: MutableMapping[
+            EventSequenceIdentifier, EventConsumer
+        ] = {}
 
     async def subscribe(self, broker: EventBroker):
         await broker.register(self)

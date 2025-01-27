@@ -98,3 +98,7 @@ def random_projection_state() -> Mapping[str, Any]:
 
 def random_projection_version() -> int:
     return random_int(1, 10000000)
+
+
+def random_node_id():
+    return random_uuid4_string()

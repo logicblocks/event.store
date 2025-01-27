@@ -1,10 +1,10 @@
 from logicblocks.event.processing.consumers import EventSubscriptionConsumer
 from logicblocks.event.processing.consumers.types import (
-    EventSubscriber,
     EventBroker,
-    EventConsumer
+    EventConsumer,
+    EventSubscriber,
 )
-from logicblocks.event.store import EventStore, EventSource
+from logicblocks.event.store import EventSource, EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import data
 from logicblocks.event.types.identifier import CategoryIdentifier

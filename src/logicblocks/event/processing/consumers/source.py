@@ -16,9 +16,6 @@ class EventSourceConsumer(EventConsumer):
         self._processor = processor
         self._state_store = state_store
 
-    async def execute(self) -> None:
-        pass
-
     async def consume_all(self) -> None:
         state = await self._state_store.load()
         source = self._source
@@ -34,3 +31,5 @@ class EventSourceConsumer(EventConsumer):
         async for event in source:
             await self._processor.process_event(event)
             await self._state_store.record_processed(event)
+
+        await self._state_store.save()

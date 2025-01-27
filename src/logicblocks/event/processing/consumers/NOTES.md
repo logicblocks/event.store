@@ -31,13 +31,18 @@
     on (say, using a consumer position store)
 
 ```python
-class Consumer(Service, ABC):
-    def __init__(self, name: str, identifier: EventSequenceIdentifier):
-    
+class ConsumerService(Service):
+    def __init__(self, consumer: EventConsumer, poll_interval: int):
+        self.consumer = consumer
+        self.poll_interval = poll_interval
+        
     def execute(self):
-        # tell work allocator
-        # start polling based on config
-        # every interval consume all
+        while True:
+            await self.consumer.consume_all()
+            asyncio.sleep(poll_interval)
+            
+class Consumer(ABC):
+    def __init__(self, name: str, identifier: EventSequenceIdentifier):
     
     def consume_all(self):
         # read new events
@@ -76,3 +81,25 @@ class FenxSynchronisationConsumer(Consumer):
 * Leader elector
   * Could use advisory locks to hold leadership (e.g., lock manager)
   * Could use a postgres backed bully algorithm implementation
+
+3 node system
+
+table: workers
+columns: worker_id | heartbeat_timestamp
+         <uuid_1>  | <timestamp>
+         <uuid_2>  | <timestamp>
+
+table: work_allocations
+columns: consumer_name | event_sequence_identifier | ~~partition~~ | worker_id |
+         consumer_1    | companies                 | ~~default~~   | 1         |
+         consumer_2    | companies                 | ~~default~~   | 2         |
+         consumer_3    | contacts                  | ~~default~~   | 3         |
+
+"broker"
+registers itself at startup
+work allocator x3, 1 has advisory lock at a time
+work commencer x3
+
+* 1 work allocator gets elected as leader, this is the only one allowed to add work to the table and assign workers to it
+* each work allocator polls the table to determine bits of work that it should distribute to its consumer processes
+* each work allocator updates heartbeat timestamp against work it is still working on

@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.consumers import NodeHeartbeat
+from logicblocks.event.processing.consumers import PostgresNodeHeartbeat
 from logicblocks.event.testing import data
 from logicblocks.event.utils.clock import StaticClock
 
@@ -103,7 +103,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestNodeHeartbeat:
+class TestPostgresNodeHeartbeat:
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
@@ -118,7 +118,7 @@ class TestNodeHeartbeat:
         last_seen = datetime.now(UTC)
         clock = StaticClock(now=last_seen)
 
-        heartbeat = NodeHeartbeat(
+        heartbeat = PostgresNodeHeartbeat(
             node_id=node_id, connection_pool=self.pool, clock=clock
         )
 
@@ -140,7 +140,7 @@ class TestNodeHeartbeat:
 
         clock = StaticClock(now=last_seen_1)
 
-        heartbeat = NodeHeartbeat(
+        heartbeat = PostgresNodeHeartbeat(
             node_id=node_id, connection_pool=self.pool, clock=clock
         )
 
@@ -164,7 +164,7 @@ class TestNodeHeartbeat:
 
         clock = StaticClock(now=last_seen)
 
-        heartbeat = NodeHeartbeat(
+        heartbeat = PostgresNodeHeartbeat(
             node_id=node_id, connection_pool=self.pool, clock=clock
         )
 

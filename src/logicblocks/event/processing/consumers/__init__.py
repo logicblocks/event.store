@@ -1,4 +1,4 @@
-from .broker import NodeHeartbeat as NodeHeartbeat
+from .heartbeat import PostgresNodeHeartbeat as PostgresNodeHeartbeat
 from .source import EventSourceConsumer as EventSourceConsumer
 from .state import EventConsumerState as EventConsumerState
 from .state import EventConsumerStateStore as EventConsumerStateStore

@@ -100,5 +100,13 @@ def random_projection_version() -> int:
     return random_int(1, 10000000)
 
 
-def random_node_id():
+def random_node_id() -> str:
+    return random_uuid4_string()
+
+
+def random_subscriber_name() -> str:
+    return random_hyphenated_lowercase_ascii_alphabetics_string(length=15)
+
+
+def random_subscriber_id() -> str:
     return random_uuid4_string()

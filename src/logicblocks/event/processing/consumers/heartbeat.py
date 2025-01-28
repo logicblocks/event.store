@@ -1,16 +1,11 @@
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from psycopg import AsyncConnection, AsyncCursor, abc, sql
+from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.processing.consumers.types import (
-    EventBroker,
-    EventSubscriber,
-)
-from logicblocks.event.processing.services import Service
+from logicblocks.event.db import PostgresParameterisedQuery
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 
@@ -22,15 +17,11 @@ class TableSettings:
         object.__setattr__(self, "nodes_table_name", nodes_table_name)
 
 
-type ParameterisedQuery = tuple[abc.Query, Sequence[Any]]
-type ParameterisedQueryFragment = tuple[sql.SQL, Sequence[Any]]
-
-
 def upsert_query(
     node_id: str,
     last_seen: datetime,
     table_settings: TableSettings,
-) -> ParameterisedQuery:
+) -> PostgresParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -51,7 +42,7 @@ def upsert_query(
 def delete_query(
     node_id: str,
     table_settings: TableSettings,
-) -> ParameterisedQuery:
+) -> PostgresParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -82,7 +73,7 @@ async def delete(
     await cursor.execute(*delete_query(node_id, table_settings))
 
 
-class NodeHeartbeat:
+class PostgresNodeHeartbeat:
     def __init__(
         self,
         node_id: str,
@@ -113,20 +104,3 @@ class NodeHeartbeat:
                     node_id=self.node_id,
                     table_settings=self.table_settings,
                 )
-
-
-class PostgresEventBroker(EventBroker, Service):
-    def __init__(self):
-        self.consumers: list[EventSubscriber] = []
-
-    async def register(self, subscriber: EventSubscriber) -> None:
-        pass
-
-    def execute(self):
-        while True:
-            # try to become leader
-            # register and allocate work
-            # ---
-            # provide consumers with their event sources
-            # revoke them when no longer allowed
-            pass

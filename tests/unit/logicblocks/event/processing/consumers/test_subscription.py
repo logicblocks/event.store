@@ -1,9 +1,6 @@
+from logicblocks.event.processing.broker import EventBroker, EventSubscriber
 from logicblocks.event.processing.consumers import EventSubscriptionConsumer
-from logicblocks.event.processing.consumers.types import (
-    EventBroker,
-    EventConsumer,
-    EventSubscriber,
-)
+from logicblocks.event.processing.consumers.types import EventConsumer
 from logicblocks.event.store import EventSource, EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import data
@@ -46,6 +43,8 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
+            name=data.random_subscriber_id(),
+            id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
         )
@@ -62,13 +61,15 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
+            name=data.random_subscriber_id(),
+            id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
         )
 
         category_source = event_store.category(category=category_name)
 
-        await consumer.receive(category_source)
+        await consumer.accept(category_source)
         await consumer.consume_all()
 
         consumers = delegate_factory.consumers
@@ -86,6 +87,8 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
+            name=data.random_subscriber_id(),
+            id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
         )
@@ -97,8 +100,8 @@ class TestEventSubscriptionConsumer:
             category=category_name, stream=data.random_event_stream_name()
         )
 
-        await consumer.receive(stream_1_source)
-        await consumer.receive(stream_2_source)
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
 
         await consumer.consume_all()
 
@@ -127,6 +130,8 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
+            name=data.random_subscriber_id(),
+            id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
         )
@@ -138,8 +143,8 @@ class TestEventSubscriptionConsumer:
             category=category_name, stream=data.random_event_stream_name()
         )
 
-        await consumer.receive(stream_1_source)
-        await consumer.receive(stream_2_source)
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
 
         await consumer.consume_all()
 

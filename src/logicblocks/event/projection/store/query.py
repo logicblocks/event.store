@@ -1,20 +1,20 @@
 from dataclasses import dataclass
-from enum import StrEnum, auto
+from enum import StrEnum
 from typing import Any, Sequence
 
 
 class Operator(StrEnum):
-    EQUAL = auto()
-    NOT_EQUAL = auto()
-    GREATER_THAN = auto()
-    GREATER_THAN_OR_EQUAL = auto()
-    LESS_THAN = auto()
-    LESS_THAN_OR_EQUAL = auto()
+    EQUAL = "equal"
+    NOT_EQUAL = "not_equal"
+    GREATER_THAN = "greater_than"
+    GREATER_THAN_OR_EQUAL = "greater_than_or_equal"
+    LESS_THAN = "less_than"
+    LESS_THAN_OR_EQUAL = "less_than_or_equal"
 
 
 class SortOrder(StrEnum):
-    ASC = auto()
-    DESC = auto()
+    ASC = "asc"
+    DESC = "desc"
 
 
 @dataclass(frozen=True)
@@ -60,8 +60,8 @@ class PagingClause(Clause):
 
 
 class PagingDirection(StrEnum):
-    FORWARDS = auto()
-    BACKWARDS = auto()
+    FORWARDS = "forwards"
+    BACKWARDS = "backwards"
 
 
 @dataclass(frozen=True)

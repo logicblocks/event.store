@@ -1,0 +1,38 @@
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import StrEnum
+
+from logicblocks.event.types.identifier import EventSequenceIdentifier
+
+
+@dataclass(frozen=True)
+class EventSubscriptionState:
+    name: str
+    id: str
+    event_sources: Sequence[EventSequenceIdentifier]
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return self.name, self.id
+
+
+class EventSubscriptionChangeType(StrEnum):
+    REMOVE = "remove"
+    ADD = "add"
+
+
+@dataclass(frozen=True)
+class EventSubscriptionChange:
+    type: EventSubscriptionChangeType
+    state: EventSubscriptionState
+
+
+class EventSubscriptionStore(ABC):
+    @abstractmethod
+    async def list(self) -> Sequence[EventSubscriptionState]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
+        raise NotImplementedError()

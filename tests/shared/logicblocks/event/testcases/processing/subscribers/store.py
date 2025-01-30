@@ -125,6 +125,64 @@ class BaseTestSubscriberStore:
             group=subscriber_group, id=subscriber_id, last_seen=time_2
         )
 
+    async def test_removes_subscriber(self):
+        now = datetime.now(UTC)
+        clock = StaticClock(now)
+        store = self.construct_store(clock)
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1_id = data.random_subscriber_id()
+        subscriber_2_id = data.random_subscriber_id()
+
+        subscriber_1 = CapturingEventSubscriber(
+            group=subscriber_group,
+            id=subscriber_1_id,
+        )
+        subscriber_2 = CapturingEventSubscriber(
+            group=subscriber_group,
+            id=subscriber_2_id,
+        )
+
+        await store.add(subscriber_1)
+        await store.add(subscriber_2)
+
+        await store.remove(subscriber_1)
+
+        states = await store.list()
+
+        assert states == [
+            EventSubscriberState(
+                group=subscriber_group,
+                id=subscriber_2_id,
+                last_seen=now,
+            )
+        ]
+
+    async def test_raises_if_removing_unknown_subscriber(self):
+        now = datetime.now(UTC)
+        clock = StaticClock(now)
+        store = self.construct_store(clock)
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1_id = data.random_subscriber_id()
+        subscriber_2_id = data.random_subscriber_id()
+
+        subscriber_1 = CapturingEventSubscriber(
+            group=subscriber_group,
+            id=subscriber_1_id,
+        )
+        subscriber_2 = CapturingEventSubscriber(
+            group=subscriber_group,
+            id=subscriber_2_id,
+        )
+
+        await store.add(subscriber_1)
+
+        with pytest.raises(ValueError):
+            await store.remove(subscriber_2)
+
     async def test_lists_subscribers_by_group(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
@@ -369,7 +427,7 @@ class BaseTestSubscriberStore:
         assert subscriber_1_state.last_seen == updated_last_seen_time
         assert subscriber_2_state.last_seen == previous_last_seen_time
 
-    async def test_raises_if_heartbeat(self):
+    async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
         store = self.construct_store(clock=clock)

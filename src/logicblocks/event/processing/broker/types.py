@@ -12,6 +12,12 @@ class EventBroker(ABC):
         raise NotImplementedError()
 
 
+@dataclass(frozen=True)
+class EventSubscriberKey:
+    group: str
+    id: str
+
+
 class EventSubscriber(ABC):
     @property
     @abstractmethod
@@ -22,6 +28,10 @@ class EventSubscriber(ABC):
     @abstractmethod
     def id(self) -> str:
         raise NotImplementedError()
+
+    @property
+    def key(self) -> EventSubscriberKey:
+        return EventSubscriberKey(self.group, self.id)
 
     @abstractmethod
     async def subscribe(self, broker: EventBroker) -> None:

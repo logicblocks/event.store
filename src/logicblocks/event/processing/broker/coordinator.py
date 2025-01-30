@@ -15,7 +15,7 @@ from .subscriptions import (
     EventSubscriptionState,
     EventSubscriptionStore,
 )
-from .types import EventSubscriptionSources
+from .types import EventSubscriberKey, EventSubscriptionSources
 
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
@@ -71,6 +71,9 @@ class EventSubscriptionCoordinator:
             max_time_since_last_seen=self.subscriber_max_time_since_last_seen
         )
         subscribers = sorted(subscribers, key=operator.attrgetter("group"))
+        subscriber_map = {
+            subscriber.key: subscriber for subscriber in subscribers
+        }
         subscriber_groups = itertools.groupby(
             subscribers, operator.attrgetter("group")
         )
@@ -81,6 +84,19 @@ class EventSubscriptionCoordinator:
         }
 
         changes: list[EventSubscriptionChange] = []
+
+        for subscription in subscriptions:
+            if (
+                EventSubscriberKey(subscription.group, subscription.id)
+                not in subscriber_map
+            ):
+                changes.append(
+                    EventSubscriptionChange(
+                        type=EventSubscriptionChangeType.REMOVE,
+                        state=subscription,
+                    )
+                )
+
         for subscriber_group, subscribers in subscriber_groups:
             subscribers = list(subscribers)
             subscriber_group_subscriptions = [
@@ -104,6 +120,8 @@ class EventSubscriptionCoordinator:
                 event_source
                 for subscription in subscriber_group_subscriptions
                 for event_source in subscription.event_sources
+                if EventSubscriberKey(subscription.group, subscription.id)
+                in subscriber_map
             ]
             removed_event_sources = [
                 event_source

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from ...types import EventSubscriber
+from ...types import EventSubscriber, EventSubscriberKey
 
 
 @dataclass(frozen=True)
@@ -12,10 +12,18 @@ class EventSubscriberState:
     id: str
     last_seen: datetime
 
+    @property
+    def key(self) -> EventSubscriberKey:
+        return EventSubscriberKey(self.group, self.id)
+
 
 class EventSubscriberStore(ABC):
     @abstractmethod
     async def add(self, subscriber: EventSubscriber) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def remove(self, subscriber: EventSubscriber) -> None:
         raise NotImplementedError()
 
     @abstractmethod

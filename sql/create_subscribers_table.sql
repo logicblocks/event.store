@@ -1,7 +1,7 @@
 CREATE TABLE subscribers (
-    id TEXT NOT NULL,
     "group" TEXT NOT NULL,
+    id TEXT NOT NULL,
     last_seen TIMESTAMP WITH TIME ZONE NOT NULL,
-    PRIMARY KEY (id, "group"),
-    UNIQUE (id, "group")
+    PRIMARY KEY ("group", id),
+    UNIQUE ("group", id)
 );

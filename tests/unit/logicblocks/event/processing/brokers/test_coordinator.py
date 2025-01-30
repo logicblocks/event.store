@@ -731,54 +731,130 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         assert set(subscriber_2_subscription.event_sources) == set()
         assert set(subscriber_3_subscription.event_sources) == set()
 
-    # async def test_redistributes_subscriptions_from_removed_subscriber_instance(self):
-    #     subscriber_group = data.random_subscriber_group()
-    #
-    #     subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-    #     subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-    #
-    #     event_sequence_identifier_1 = random_event_sequence_identifier()
-    #     event_sequence_identifier_2 = random_event_sequence_identifier()
-    #
-    #     coordinator, subscriber_store, subscription_store = make_coordinator()
-    #
-    #     await subscriber_store.add(subscriber_1)
-    #     await subscriber_store.add(subscriber_2)
-    #
-    #     await subscription_store.apply(
-    #         changes=[
-    #             EventSubscriptionChange(
-    #                 type=EventSubscriptionChangeType.ADD,
-    #                 state=EventSubscriptionState(
-    #                     group=subscriber_group,
-    #                     id=subscriber_1.id,
-    #                     event_sources=[
-    #                         event_sequence_identifier_1
-    #                     ],
-    #                 ),
-    #             ),
-    #             EventSubscriptionChange(
-    #                 type=EventSubscriptionChangeType.ADD,
-    #                 state=EventSubscriptionState(
-    #                     group=subscriber_group,
-    #                     id=subscriber_2.id,
-    #                     event_sources=[
-    #                         event_sequence_identifier_2
-    #                     ],
-    #                 ),
-    #             ),
-    #         ]
-    #     )
-    #
-    #     coordinator.register_event_subscription_sources(
-    #         subscriber_group=subscriber_group,
-    #         event_sources=[
-    #             event_sequence_identifier_1,
-    #             event_sequence_identifier_2,
-    #         ],
-    #     )
-    #
-    #     await subscriber_store.remove(subscriber_2)
+    async def test_redistributes_subscriptions_from_removed_subscriber_instances(
+        self,
+    ):
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
+        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
+        subscriber_3 = random_subscriber(subscriber_group=subscriber_group)
+
+        event_sequence_identifier_1 = random_event_sequence_identifier()
+        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_3 = random_event_sequence_identifier()
+
+        coordinator, subscriber_store, subscription_store = make_coordinator()
+
+        await subscriber_store.add(subscriber_1)
+        await subscriber_store.add(subscriber_2)
+        await subscriber_store.add(subscriber_3)
+
+        await subscription_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_1.id,
+                event_sources=[event_sequence_identifier_1],
+            ),
+        )
+        await subscription_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_2.id,
+                event_sources=[event_sequence_identifier_2],
+            )
+        )
+        await subscription_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_3.id,
+                event_sources=[event_sequence_identifier_3],
+            )
+        )
+
+        coordinator.register_event_subscription_sources(
+            subscriber_group=subscriber_group,
+            event_sources=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ],
+        )
+
+        await subscriber_store.remove(subscriber_2)
+        await subscriber_store.remove(subscriber_3)
+
+        await coordinator.distribute()
+
+        subscriptions = await subscription_store.list()
+
+        subscriber_1_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_1.id
+        )
+        subscriber_2_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_2.id
+        )
+        subscriber_3_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_3.id
+        )
+
+        assert subscriber_1_subscription is not None
+        assert subscriber_2_subscription is None
+        assert subscriber_3_subscription is None
+
+        assert set(subscriber_1_subscription.event_sources) == {
+            event_sequence_identifier_1,
+            event_sequence_identifier_2,
+            event_sequence_identifier_3,
+        }
+
+    async def test_removes_subscriptions_for_a_subscriber_group_without_any_subscriber_instances(
+        self,
+    ):
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
+        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
+
+        event_sequence_identifier_1 = random_event_sequence_identifier()
+        event_sequence_identifier_2 = random_event_sequence_identifier()
+
+        coordinator, subscriber_store, subscription_store = make_coordinator()
+
+        await subscriber_store.add(subscriber_1)
+        await subscriber_store.add(subscriber_2)
+
+        await subscription_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_1.id,
+                event_sources=[event_sequence_identifier_1],
+            ),
+        )
+        await subscription_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_2.id,
+                event_sources=[event_sequence_identifier_2],
+            )
+        )
+
+        coordinator.register_event_subscription_sources(
+            subscriber_group=subscriber_group,
+            event_sources=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+
+        await subscriber_store.remove(subscriber_1)
+        await subscriber_store.remove(subscriber_2)
+
+        await coordinator.distribute()
+
+        subscriptions = await subscription_store.list()
+
+        assert len(subscriptions) == 0
 
     async def test_distributes_to_new_subscriber_group_instances(self):
         subscriber_group_1 = data.random_subscriber_group()

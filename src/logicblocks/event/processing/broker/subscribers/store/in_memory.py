@@ -34,6 +34,23 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
             )
         )
 
+    async def remove(self, subscriber: EventSubscriber) -> None:
+        existing = next(
+            (
+                candidate
+                for candidate in self.subscribers
+                if subscriber.group == candidate.group
+                and subscriber.id == candidate.id
+            ),
+            None,
+        )
+        if existing is None:
+            raise ValueError(
+                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
+            )
+
+        self.subscribers.remove(existing)
+
     async def list(
         self,
         subscriber_group: str | None = None,

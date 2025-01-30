@@ -19,7 +19,10 @@ from logicblocks.event.db.postgres import (
 from logicblocks.event.db.postgres import (
     Query as DBQuery,
 )
-from logicblocks.event.processing.broker.types import EventSubscriber
+from logicblocks.event.processing.broker.types import (
+    EventSubscriber,
+    EventSubscriberKey,
+)
 from logicblocks.event.projection.store import (
     Clause,
     FilterClause,
@@ -140,22 +143,38 @@ def insert_query(
         sql.SQL(
             """
             INSERT INTO {0} (
-              id,
               "group", 
+              id,
               last_seen
             )
             VALUES (%s, %s, %s)
-              ON CONFLICT (id, "group") 
+              ON CONFLICT ("group", id) 
               DO UPDATE
             SET (last_seen) = ROW(%s);
             """
         ).format(sql.Identifier(table_settings.subscribers_table_name)),
         [
-            subscriber.id,
             subscriber.group,
+            subscriber.id,
             subscriber.last_seen,
             subscriber.last_seen,
         ],
+    )
+
+
+def delete_query(
+    key: EventSubscriberKey,
+    table_settings: PostgresTableSettings,
+) -> ParameterisedQuery:
+    return (
+        sql.SQL(
+            """
+            DELETE FROM {0}
+            WHERE "group" = %s AND id = %s
+            RETURNING *;;
+            """
+        ).format(sql.Identifier(table_settings.subscribers_table_name)),
+        [key.group, key.id],
     )
 
 
@@ -168,14 +187,14 @@ def heartbeat_query(
             """
             UPDATE {0}
             SET last_seen = %s
-            WHERE id = %s AND "group" = %s
+            WHERE "group" = %s AND id = %s
             RETURNING *;
             """
         ).format(sql.Identifier(table_settings.subscribers_table_name)),
         [
             subscriber.last_seen,
-            subscriber.id,
             subscriber.group,
+            subscriber.id,
         ],
     )
 
@@ -235,6 +254,18 @@ class PostgresEventSubscriberStore(EventSubscriberStore):
                         self.table_settings,
                     )
                 )
+
+    async def remove(self, subscriber: EventSubscriber) -> None:
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                results = await cursor.execute(
+                    *delete_query(subscriber.key, self.table_settings)
+                )
+                deleted_subscribers = await results.fetchall()
+                if len(deleted_subscribers) == 0:
+                    raise ValueError(
+                        f"Unknown subscriber: {subscriber.group} {subscriber.id}"
+                    )
 
     async def list(
         self,

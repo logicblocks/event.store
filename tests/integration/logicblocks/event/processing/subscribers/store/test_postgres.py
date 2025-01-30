@@ -363,7 +363,7 @@ class TestInMemoryEventSubscriberStore:
         assert set(found_states) == set(expected_states)
 
     async def test_lists_subscribers_by_group_more_recently_seen_than_max_time(
-            self,
+        self,
     ):
         now = datetime.now(UTC)
         max_age = timedelta(seconds=60)
@@ -395,8 +395,8 @@ class TestInMemoryEventSubscriberStore:
             for id in range(4, 8)
         ]
         older_than_max_age_subscribers = (
-                older_than_max_age_group_1_subscribers
-                + older_than_max_age_group_2_subscribers
+            older_than_max_age_group_1_subscribers
+            + older_than_max_age_group_2_subscribers
         )
 
         for subscriber in older_than_max_age_subscribers:
@@ -419,8 +419,8 @@ class TestInMemoryEventSubscriberStore:
             for id in range(12, 16)
         ]
         newer_than_max_age_subscribers = (
-                newer_than_max_age_group_1_subscribers
-                + newer_than_max_age_group_2_subscribers
+            newer_than_max_age_group_1_subscribers
+            + newer_than_max_age_group_2_subscribers
         )
 
         for subscriber in newer_than_max_age_subscribers:
@@ -444,62 +444,64 @@ class TestInMemoryEventSubscriberStore:
 
         assert set(found_states) == set(expected_states)
 
-    # async def test_updates_last_seen_on_heartbeat(self):
-    #     now = datetime.now(UTC)
-    #     previous_last_seen_time = now - timedelta(seconds=10)
-    #     updated_last_seen_time = now
-    #
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #     subscriber_id_1 = data.random_subscriber_id()
-    #     subscriber_1 = CapturingEventSubscriber(
-    #         group=subscriber_group_1,
-    #         id=subscriber_id_1,
-    #     )
-    #
-    #     subscriber_group_2 = data.random_subscriber_group()
-    #     subscriber_id_2 = data.random_subscriber_id()
-    #     subscriber_2 = CapturingEventSubscriber(
-    #         group=subscriber_group_2,
-    #         id=subscriber_id_2,
-    #     )
-    #
-    #     clock.set(previous_last_seen_time)
-    #
-    #     await store.add(subscriber_1)
-    #     await store.add(subscriber_2)
-    #
-    #     clock.set(now)
-    #
-    #     await store.heartbeat(subscriber_1)
-    #
-    #     states = await store.list()
-    #
-    #     assert len(states) == 2
-    #
-    #     subscriber_1_state = next(
-    #         state for state in states if state.id == subscriber_1.id
-    #     )
-    #     subscriber_2_state = next(
-    #         state for state in states if state.id == subscriber_2.id
-    #     )
-    #
-    #     assert subscriber_1_state.last_seen == updated_last_seen_time
-    #     assert subscriber_2_state.last_seen == previous_last_seen_time
-    #
-    # async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
-    #     store = InMemoryEventSubscriberStore()
-    #
-    #     subscriber = CapturingEventSubscriber(
-    #         group=data.random_subscriber_group(),
-    #         id=data.random_subscriber_id(),
-    #     )
-    #
-    #     with pytest.raises(ValueError):
-    #         await store.heartbeat(subscriber)
-    #
+    async def test_updates_last_seen_on_heartbeat(self):
+        now = datetime.now(UTC)
+        previous_last_seen_time = now - timedelta(seconds=10)
+        updated_last_seen_time = now
+
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_id_1 = data.random_subscriber_id()
+        subscriber_1 = CapturingEventSubscriber(
+            group=subscriber_group_1,
+            id=subscriber_id_1,
+        )
+
+        subscriber_group_2 = data.random_subscriber_group()
+        subscriber_id_2 = data.random_subscriber_id()
+        subscriber_2 = CapturingEventSubscriber(
+            group=subscriber_group_2,
+            id=subscriber_id_2,
+        )
+
+        clock.set(previous_last_seen_time)
+
+        await store.add(subscriber_1)
+        await store.add(subscriber_2)
+
+        clock.set(now)
+
+        await store.heartbeat(subscriber_1)
+
+        states = await store.list()
+
+        assert len(states) == 2
+
+        subscriber_1_state = next(
+            state for state in states if state.id == subscriber_1.id
+        )
+        subscriber_2_state = next(
+            state for state in states if state.id == subscriber_2.id
+        )
+
+        assert subscriber_1_state.last_seen == updated_last_seen_time
+        assert subscriber_2_state.last_seen == previous_last_seen_time
+
+    async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
+        store = PostgresEventSubscriberStore(connection_source=self.pool)
+
+        subscriber = CapturingEventSubscriber(
+            group=data.random_subscriber_group(),
+            id=data.random_subscriber_id(),
+        )
+
+        with pytest.raises(ValueError):
+            await store.heartbeat(subscriber)
+
     # async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
     #         self,
     # ):

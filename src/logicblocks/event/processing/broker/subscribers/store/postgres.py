@@ -159,6 +159,27 @@ def insert_query(
     )
 
 
+def heartbeat_query(
+    subscriber: EventSubscriberState,
+    table_settings: PostgresTableSettings,
+) -> ParameterisedQuery:
+    return (
+        sql.SQL(
+            """
+            UPDATE {0}
+            SET last_seen = %s
+            WHERE id = %s AND "group" = %s
+            RETURNING *;
+            """
+        ).format(sql.Identifier(table_settings.subscribers_table_name)),
+        [
+            subscriber.last_seen,
+            subscriber.id,
+            subscriber.group,
+        ],
+    )
+
+
 class PostgresEventSubscriberStore(EventSubscriberStore):
     def __init__(
         self,
@@ -233,7 +254,23 @@ class PostgresEventSubscriberStore(EventSubscriberStore):
                 ]
 
     async def heartbeat(self, subscriber: EventSubscriber) -> None:
-        raise NotImplementedError()
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                results = await cursor.execute(
+                    *heartbeat_query(
+                        EventSubscriberState(
+                            id=subscriber.id,
+                            group=subscriber.group,
+                            last_seen=self.clock.now(),
+                        ),
+                        self.table_settings,
+                    )
+                )
+                updated_subscribers = await results.fetchall()
+                if len(updated_subscribers) == 0:
+                    raise ValueError(
+                        f"Unknown subscriber: {subscriber.group} {subscriber.id}"
+                    )
 
     async def purge(
         self, max_time_since_last_seen: timedelta = timedelta(seconds=300)

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from logicblocks.event.store import EventSource
@@ -15,7 +15,7 @@ class EventBroker(ABC):
 class EventSubscriber(ABC):
     @property
     @abstractmethod
-    def name(self) -> str:
+    def group(self) -> str:
         raise NotImplementedError()
 
     @property
@@ -38,5 +38,5 @@ class EventSubscriber(ABC):
 
 @dataclass(frozen=True)
 class EventSubscriptionSources:
-    subscriber_name: str
-    event_sources: Iterable[EventSequenceIdentifier]
+    subscriber_group: str
+    event_sources: Sequence[EventSequenceIdentifier]

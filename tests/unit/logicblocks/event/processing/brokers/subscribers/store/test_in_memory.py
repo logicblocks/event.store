@@ -17,13 +17,13 @@ from logicblocks.event.utils.clock import StaticClock
 class CapturingEventSubscriber(EventSubscriber):
     sources: list[EventSource]
 
-    def __init__(self, name: str, id: str):
+    def __init__(self, group: str, id: str):
+        self._group = group
         self._id = id
-        self._name = name
 
     @property
-    def name(self) -> str:
-        return self._name
+    def group(self) -> str:
+        return self._group
 
     @property
     def id(self) -> str:
@@ -45,11 +45,11 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now=now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name = data.random_subscriber_name()
+        subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
         subscriber = CapturingEventSubscriber(
-            name=subscriber_name,
+            group=subscriber_group,
             id=subscriber_id,
         )
 
@@ -59,7 +59,7 @@ class TestInMemoryEventSubscriberStore:
 
         assert len(states) == 1
         assert states[0] == EventSubscriberState(
-            name=subscriber_name, id=subscriber_id, last_seen=now
+            group=subscriber_group, id=subscriber_id, last_seen=now
         )
 
     async def test_adds_many_subscriber_details(self):
@@ -67,16 +67,16 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now=now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_1_name = data.random_subscriber_name()
+        subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
         subscriber_1 = CapturingEventSubscriber(
-            name=subscriber_1_name, id=subscriber_1_id
+            group=subscriber_1_group, id=subscriber_1_id
         )
 
-        subscriber_2_name = data.random_subscriber_name()
+        subscriber_2_group = data.random_subscriber_group()
         subscriber_2_id = data.random_subscriber_id()
         subscriber_2 = CapturingEventSubscriber(
-            name=subscriber_2_name, id=subscriber_2_id
+            group=subscriber_2_group, id=subscriber_2_id
         )
 
         await store.add(subscriber_1)
@@ -86,10 +86,10 @@ class TestInMemoryEventSubscriberStore:
 
         assert len(states) == 2
         assert states[0] == EventSubscriberState(
-            name=subscriber_1_name, id=subscriber_1_id, last_seen=now
+            group=subscriber_1_group, id=subscriber_1_id, last_seen=now
         )
         assert states[1] == EventSubscriberState(
-            name=subscriber_2_name, id=subscriber_2_id, last_seen=now
+            group=subscriber_2_group, id=subscriber_2_id, last_seen=now
         )
 
     async def test_adding_already_added_subscriber_updates_last_seen(self):
@@ -97,11 +97,11 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(time_1)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name = data.random_subscriber_name()
+        subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
         subscriber = CapturingEventSubscriber(
-            name=subscriber_name,
+            group=subscriber_group,
             id=subscriber_id,
         )
 
@@ -115,52 +115,52 @@ class TestInMemoryEventSubscriberStore:
         states = await store.list()
 
         assert states[0] == EventSubscriberState(
-            name=subscriber_name, id=subscriber_id, last_seen=time_2
+            group=subscriber_group, id=subscriber_id, last_seen=time_2
         )
 
-    async def test_lists_subscribers_by_name(self):
+    async def test_lists_subscribers_by_group(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
-        subscriber_name_2 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
 
-        subscriber_name_1_subscribers = [
+        subscriber_group_1_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
-        subscriber_name_2_subscribers = [
+        subscriber_group_2_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_2,
+                group=subscriber_group_2,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
 
         subscribers = (
-            subscriber_name_1_subscribers + subscriber_name_2_subscribers
+            subscriber_group_1_subscribers + subscriber_group_2_subscribers
         )
         shuffle(subscribers)
 
         for subscriber in subscribers:
             await store.add(subscriber)
 
-        found_states = await store.list(subscriber_name=subscriber_name_1)
+        found_states = await store.list(subscriber_group=subscriber_group_1)
 
         expected_states = [
             EventSubscriberState(
-                name=subscriber_name_1, id=str(id), last_seen=now
+                group=subscriber_group_1, id=str(id), last_seen=now
             )
             for id in range(1, 4)
         ]
 
         assert set(found_states) == set(expected_states)
 
-    async def test_lists_subscribers_more_recently_seen_than_max_age(self):
+    async def test_lists_subscribers_more_recently_seen_than_max_time(self):
         now = datetime.now(UTC)
         max_age = timedelta(seconds=60)
         older_than_max_age_time = now - timedelta(seconds=90)
@@ -172,13 +172,13 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
 
         clock.set(older_than_max_age_time)
 
         older_than_max_age_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
@@ -191,7 +191,7 @@ class TestInMemoryEventSubscriberStore:
 
         just_newer_than_max_age_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(4, 8)
@@ -204,7 +204,7 @@ class TestInMemoryEventSubscriberStore:
 
         recent_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(8, 12)
@@ -215,11 +215,11 @@ class TestInMemoryEventSubscriberStore:
 
         clock.set(now)
 
-        found_states = await store.list(max_age=max_age)
+        found_states = await store.list(max_time_since_last_seen=max_age)
 
         just_newer_than_max_age_states = [
             EventSubscriberState(
-                name=subscriber.name,
+                group=subscriber.group,
                 id=subscriber.id,
                 last_seen=just_newer_than_max_age_time,
             )
@@ -228,7 +228,7 @@ class TestInMemoryEventSubscriberStore:
 
         recent_states = [
             EventSubscriberState(
-                name=subscriber.name, id=subscriber.id, last_seen=recent_time
+                group=subscriber.group, id=subscriber.id, last_seen=recent_time
             )
             for subscriber in recent_subscribers
         ]
@@ -237,7 +237,7 @@ class TestInMemoryEventSubscriberStore:
 
         assert set(found_states) == set(expected_states)
 
-    async def test_lists_subscribers_by_name_more_recently_seen_than_max_age(
+    async def test_lists_subscribers_by_group_more_recently_seen_than_max_time(
         self,
     ):
         now = datetime.now(UTC)
@@ -248,28 +248,28 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
-        subscriber_name_2 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
 
         clock.set(older_than_max_age_time)
 
-        older_than_max_age_name_1_subscribers = [
+        older_than_max_age_group_1_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
-        older_than_max_age_name_2_subscribers = [
+        older_than_max_age_group_2_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_2,
+                group=subscriber_group_2,
                 id=str(id),
             )
             for id in range(4, 8)
         ]
         older_than_max_age_subscribers = (
-            older_than_max_age_name_1_subscribers
-            + older_than_max_age_name_2_subscribers
+            older_than_max_age_group_1_subscribers
+            + older_than_max_age_group_2_subscribers
         )
 
         for subscriber in older_than_max_age_subscribers:
@@ -277,23 +277,23 @@ class TestInMemoryEventSubscriberStore:
 
         clock.set(newer_than_max_age_time)
 
-        newer_than_max_age_name_1_subscribers = [
+        newer_than_max_age_group_1_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_1,
+                group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(8, 12)
         ]
-        newer_than_max_age_name_2_subscribers = [
+        newer_than_max_age_group_2_subscribers = [
             CapturingEventSubscriber(
-                name=subscriber_name_2,
+                group=subscriber_group_2,
                 id=str(id),
             )
             for id in range(12, 16)
         ]
         newer_than_max_age_subscribers = (
-            newer_than_max_age_name_1_subscribers
-            + newer_than_max_age_name_2_subscribers
+            newer_than_max_age_group_1_subscribers
+            + newer_than_max_age_group_2_subscribers
         )
 
         for subscriber in newer_than_max_age_subscribers:
@@ -302,16 +302,17 @@ class TestInMemoryEventSubscriberStore:
         clock.set(now)
 
         found_states = await store.list(
-            subscriber_name=subscriber_name_1, max_age=max_age
+            subscriber_group=subscriber_group_1,
+            max_time_since_last_seen=max_age,
         )
 
         expected_states = [
             EventSubscriberState(
-                name=subscriber.name,
+                group=subscriber.group,
                 id=subscriber.id,
                 last_seen=newer_than_max_age_time,
             )
-            for subscriber in newer_than_max_age_name_1_subscribers
+            for subscriber in newer_than_max_age_group_1_subscribers
         ]
 
         assert set(found_states) == set(expected_states)
@@ -324,17 +325,17 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
         subscriber_id_1 = data.random_subscriber_id()
         subscriber_1 = CapturingEventSubscriber(
-            name=subscriber_name_1,
+            group=subscriber_group_1,
             id=subscriber_id_1,
         )
 
-        subscriber_name_2 = data.random_subscriber_name()
+        subscriber_group_2 = data.random_subscriber_group()
         subscriber_id_2 = data.random_subscriber_id()
         subscriber_2 = CapturingEventSubscriber(
-            name=subscriber_name_2,
+            group=subscriber_group_2,
             id=subscriber_id_2,
         )
 
@@ -365,7 +366,7 @@ class TestInMemoryEventSubscriberStore:
         store = InMemoryEventSubscriberStore()
 
         subscriber = CapturingEventSubscriber(
-            name=data.random_subscriber_name(),
+            group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
         )
 
@@ -382,17 +383,17 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
         subscriber_id_1 = data.random_subscriber_id()
         subscriber_1 = CapturingEventSubscriber(
-            name=subscriber_name_1,
+            group=subscriber_group_1,
             id=subscriber_id_1,
         )
 
-        subscriber_name_2 = data.random_subscriber_name()
+        subscriber_group_2 = data.random_subscriber_group()
         subscriber_id_2 = data.random_subscriber_id()
         subscriber_2 = CapturingEventSubscriber(
-            name=subscriber_name_2,
+            group=subscriber_group_2,
             id=subscriber_id_2,
         )
 
@@ -413,7 +414,7 @@ class TestInMemoryEventSubscriberStore:
         assert len(states) == 1
         assert states[0].id == subscriber_2.id
 
-    async def test_purges_subscribers_that_have_not_been_seen_since_specified_max_age(
+    async def test_purges_subscribers_that_have_not_been_seen_since_specified_max_time(
         self,
     ):
         now = datetime.now(UTC)
@@ -424,17 +425,17 @@ class TestInMemoryEventSubscriberStore:
         clock = StaticClock(now)
         store = InMemoryEventSubscriberStore(clock=clock)
 
-        subscriber_name_1 = data.random_subscriber_name()
+        subscriber_group_1 = data.random_subscriber_group()
         subscriber_id_1 = data.random_subscriber_id()
         subscriber_1 = CapturingEventSubscriber(
-            name=subscriber_name_1,
+            group=subscriber_group_1,
             id=subscriber_id_1,
         )
 
-        subscriber_name_2 = data.random_subscriber_name()
+        subscriber_group_2 = data.random_subscriber_group()
         subscriber_id_2 = data.random_subscriber_id()
         subscriber_2 = CapturingEventSubscriber(
-            name=subscriber_name_2,
+            group=subscriber_group_2,
             id=subscriber_id_2,
         )
 
@@ -450,7 +451,7 @@ class TestInMemoryEventSubscriberStore:
 
         await store.purge()
 
-        states = await store.list(max_age=max_age)
+        states = await store.list(max_time_since_last_seen=max_age)
 
         assert len(states) == 1
         assert states[0].id == subscriber_2.id

@@ -17,7 +17,7 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
             (
                 candidate
                 for candidate in self.subscribers
-                if subscriber.name == candidate.name
+                if subscriber.group == candidate.group
                 and subscriber.id == candidate.id
             ),
             None,
@@ -28,7 +28,7 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
 
         self.subscribers.append(
             EventSubscriberState(
-                name=subscriber.name,
+                group=subscriber.group,
                 id=subscriber.id,
                 last_seen=self.clock.now(UTC),
             )
@@ -36,19 +36,19 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
 
     async def list(
         self,
-        subscriber_name: str | None = None,
-        max_age: timedelta | None = None,
+        subscriber_group: str | None = None,
+        max_time_since_last_seen: timedelta | None = None,
     ) -> Sequence[EventSubscriberState]:
         subscribers: list[EventSubscriberState] = self.subscribers
-        if subscriber_name is not None:
+        if subscriber_group is not None:
             subscribers = [
                 subscriber
                 for subscriber in self.subscribers
-                if subscriber.name == subscriber_name
+                if subscriber.group == subscriber_group
             ]
-        if max_age is not None:
+        if max_time_since_last_seen is not None:
             now = self.clock.now(UTC)
-            cutoff = now - max_age
+            cutoff = now - max_time_since_last_seen
             subscribers = [
                 subscriber
                 for subscriber in subscribers
@@ -61,24 +61,26 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
             (
                 (index, candidate)
                 for index, candidate in enumerate(self.subscribers)
-                if subscriber.name == candidate.name
+                if subscriber.group == candidate.group
                 and subscriber.id == candidate.id
             ),
             (None, None),
         )
         if existing is None or index is None:
             raise ValueError(
-                f"Unknown subscriber: {subscriber.name} {subscriber.id}"
+                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
             )
 
         self.subscribers[index] = EventSubscriberState(
-            name=subscriber.name,
+            group=subscriber.group,
             id=subscriber.id,
             last_seen=self.clock.now(UTC),
         )
 
-    async def purge(self, max_age: timedelta = timedelta(seconds=300)) -> None:
-        cutoff_time = self.clock.now(UTC) - max_age
+    async def purge(
+        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
+    ) -> None:
+        cutoff_time = self.clock.now(UTC) - max_time_since_last_seen
         for subscriber in self.subscribers:
             if subscriber.last_seen <= cutoff_time:
                 self.subscribers.remove(subscriber)

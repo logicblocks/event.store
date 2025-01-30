@@ -253,7 +253,7 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_2
 
-    async def test_returns_finds_none_when_no_projection_matches_lookup(self):
+    async def test_finds_none_when_no_projection_matches_lookup(self):
         adapter = self.construct_storage_adapter()
 
         located = await adapter.find_one(

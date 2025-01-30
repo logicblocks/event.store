@@ -10,12 +10,12 @@ from .types import EventConsumer
 class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def __init__(
         self,
-        name: str,
+        group: str,
         id: str,
         sequence: EventSequenceIdentifier,
         delegate_factory: Callable[[EventSource], EventConsumer],
     ):
-        self._name = name
+        self._group = group
         self._id = id
         self._sequence = sequence
         self._delegate_factory = delegate_factory
@@ -24,8 +24,8 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         ] = {}
 
     @property
-    def name(self) -> str:
-        return self._name
+    def group(self) -> str:
+        return self._group
 
     @property
     def id(self) -> str:

@@ -1,8 +1,9 @@
-from .locks import InMemoryLockManager as InMemoryLockManager
-from .locks import LockManager as LockManager
-from .postgres import (
+from .coordinator import (
     PostgresEventSubscriptionCoordinator as PostgresEventSubscriptionCoordinator,
 )
+from .locks import InMemoryLockManager as InMemoryLockManager
+from .locks import Lock as Lock
+from .locks import LockManager as LockManager
 from .subscribers import EventSubscriberState as EventSubscriberState
 from .subscribers import EventSubscriberStore as EventSubscriberStore
 from .subscribers import (
@@ -12,6 +13,7 @@ from .subscriptions import EventSubscriptionChange as EventSubscriptionChange
 from .subscriptions import (
     EventSubscriptionChangeType as EventSubscriptionChangeType,
 )
+from .subscriptions import EventSubscriptionKey as EventSubscriptionKey
 from .subscriptions import EventSubscriptionState as EventSubscriptionState
 from .subscriptions import EventSubscriptionStore as EventSubscriptionStore
 from .subscriptions import (

@@ -43,7 +43,7 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
-            name=data.random_subscriber_id(),
+            group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
@@ -61,7 +61,7 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
-            name=data.random_subscriber_id(),
+            group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
@@ -87,7 +87,7 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
-            name=data.random_subscriber_id(),
+            group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,
@@ -130,7 +130,7 @@ class TestEventSubscriptionConsumer:
         sequence = CategoryIdentifier(category=category_name)
 
         consumer = EventSubscriptionConsumer(
-            name=data.random_subscriber_id(),
+            group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
             sequence=sequence,
             delegate_factory=delegate_factory.factory,

@@ -8,7 +8,7 @@ from ...types import EventSubscriber
 
 @dataclass(frozen=True)
 class EventSubscriberState:
-    name: str
+    group: str
     id: str
     last_seen: datetime
 
@@ -21,8 +21,8 @@ class EventSubscriberStore(ABC):
     @abstractmethod
     async def list(
         self,
-        subscriber_name: str | None = None,
-        max_age: timedelta | None = None,
+        subscriber_group: str | None = None,
+        max_time_since_last_seen: timedelta | None = None,
     ) -> Sequence[EventSubscriberState]:
         raise NotImplementedError()
 
@@ -31,5 +31,7 @@ class EventSubscriberStore(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def purge(self, max_age: timedelta = timedelta(seconds=360)) -> None:
+    async def purge(
+        self, max_time_since_last_seen: timedelta = timedelta(seconds=360)
+    ) -> None:
         raise NotImplementedError()

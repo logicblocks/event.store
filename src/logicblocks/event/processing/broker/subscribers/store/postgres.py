@@ -208,14 +208,14 @@ class PostgresEventSubscriberStore(EventSubscriberStore):
             filters.append(
                 FilterClause(Operator.EQUAL, Path("group"), subscriber_group)
             )
-        # if max_time_since_last_seen is not None:
-        #     filters.append(
-        #         FilterClause(
-        #             Operator.LESS_THAN,
-        #             Path("last_seen"),
-        #             self.clock.now() - max_time_since_last_seen,
-        #         )
-        #     )
+        if max_time_since_last_seen is not None:
+            filters.append(
+                FilterClause(
+                    Operator.GREATER_THAN,
+                    Path("last_seen"),
+                    self.clock.now() - max_time_since_last_seen,
+                )
+            )
         query = self.query_converter.convert_query(Search(filters=filters))
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(row_factory=dict_row) as cursor:

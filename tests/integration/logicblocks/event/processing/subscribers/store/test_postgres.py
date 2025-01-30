@@ -283,163 +283,167 @@ class TestInMemoryEventSubscriberStore:
 
         assert set(found_states) == set(expected_states)
 
-    # async def test_lists_subscribers_more_recently_seen_than_max_time(self):
-    #     now = datetime.now(UTC)
-    #     max_age = timedelta(seconds=60)
-    #     older_than_max_age_time = now - timedelta(seconds=90)
-    #     just_newer_than_max_age_time = now - timedelta(
-    #         seconds=59, milliseconds=999
-    #     )
-    #     recent_time = now - timedelta(seconds=5)
-    #
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #
-    #     clock.set(older_than_max_age_time)
-    #
-    #     older_than_max_age_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(1, 4)
-    #     ]
-    #
-    #     for subscriber in older_than_max_age_subscribers:
-    #         await store.add(subscriber)
-    #
-    #     clock.set(just_newer_than_max_age_time)
-    #
-    #     just_newer_than_max_age_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(4, 8)
-    #     ]
-    #
-    #     for subscriber in just_newer_than_max_age_subscribers:
-    #         await store.add(subscriber)
-    #
-    #     clock.set(recent_time)
-    #
-    #     recent_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(8, 12)
-    #     ]
-    #
-    #     for subscriber in recent_subscribers:
-    #         await store.add(subscriber)
-    #
-    #     clock.set(now)
-    #
-    #     found_states = await store.list(max_time_since_last_seen=max_age)
-    #
-    #     just_newer_than_max_age_states = [
-    #         EventSubscriberState(
-    #             group=subscriber.group,
-    #             id=subscriber.id,
-    #             last_seen=just_newer_than_max_age_time,
-    #         )
-    #         for subscriber in just_newer_than_max_age_subscribers
-    #     ]
-    #
-    #     recent_states = [
-    #         EventSubscriberState(
-    #             group=subscriber.group, id=subscriber.id, last_seen=recent_time
-    #         )
-    #         for subscriber in recent_subscribers
-    #     ]
-    #
-    #     expected_states = just_newer_than_max_age_states + recent_states
-    #
-    #     assert set(found_states) == set(expected_states)
-    #
-    # async def test_lists_subscribers_by_group_more_recently_seen_than_max_time(
-    #         self,
-    # ):
-    #     now = datetime.now(UTC)
-    #     max_age = timedelta(seconds=60)
-    #     older_than_max_age_time = now - timedelta(seconds=90)
-    #     newer_than_max_age_time = now - timedelta(seconds=30)
-    #
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #     subscriber_group_2 = data.random_subscriber_group()
-    #
-    #     clock.set(older_than_max_age_time)
-    #
-    #     older_than_max_age_group_1_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(1, 4)
-    #     ]
-    #     older_than_max_age_group_2_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_2,
-    #             id=str(id),
-    #         )
-    #         for id in range(4, 8)
-    #     ]
-    #     older_than_max_age_subscribers = (
-    #             older_than_max_age_group_1_subscribers
-    #             + older_than_max_age_group_2_subscribers
-    #     )
-    #
-    #     for subscriber in older_than_max_age_subscribers:
-    #         await store.add(subscriber)
-    #
-    #     clock.set(newer_than_max_age_time)
-    #
-    #     newer_than_max_age_group_1_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(8, 12)
-    #     ]
-    #     newer_than_max_age_group_2_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_2,
-    #             id=str(id),
-    #         )
-    #         for id in range(12, 16)
-    #     ]
-    #     newer_than_max_age_subscribers = (
-    #             newer_than_max_age_group_1_subscribers
-    #             + newer_than_max_age_group_2_subscribers
-    #     )
-    #
-    #     for subscriber in newer_than_max_age_subscribers:
-    #         await store.add(subscriber)
-    #
-    #     clock.set(now)
-    #
-    #     found_states = await store.list(
-    #         subscriber_group=subscriber_group_1,
-    #         max_time_since_last_seen=max_age,
-    #     )
-    #
-    #     expected_states = [
-    #         EventSubscriberState(
-    #             group=subscriber.group,
-    #             id=subscriber.id,
-    #             last_seen=newer_than_max_age_time,
-    #         )
-    #         for subscriber in newer_than_max_age_group_1_subscribers
-    #     ]
-    #
-    #     assert set(found_states) == set(expected_states)
-    #
+    async def test_lists_subscribers_more_recently_seen_than_max_time(self):
+        now = datetime.now(UTC)
+        max_age = timedelta(seconds=60)
+        older_than_max_age_time = now - timedelta(seconds=90)
+        just_newer_than_max_age_time = now - timedelta(
+            seconds=59, milliseconds=999
+        )
+        recent_time = now - timedelta(seconds=5)
+
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+
+        clock.set(older_than_max_age_time)
+
+        older_than_max_age_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(1, 4)
+        ]
+
+        for subscriber in older_than_max_age_subscribers:
+            await store.add(subscriber)
+
+        clock.set(just_newer_than_max_age_time)
+
+        just_newer_than_max_age_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(4, 8)
+        ]
+
+        for subscriber in just_newer_than_max_age_subscribers:
+            await store.add(subscriber)
+
+        clock.set(recent_time)
+
+        recent_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(8, 12)
+        ]
+
+        for subscriber in recent_subscribers:
+            await store.add(subscriber)
+
+        clock.set(now)
+
+        found_states = await store.list(max_time_since_last_seen=max_age)
+
+        just_newer_than_max_age_states = [
+            EventSubscriberState(
+                group=subscriber.group,
+                id=subscriber.id,
+                last_seen=just_newer_than_max_age_time,
+            )
+            for subscriber in just_newer_than_max_age_subscribers
+        ]
+
+        recent_states = [
+            EventSubscriberState(
+                group=subscriber.group, id=subscriber.id, last_seen=recent_time
+            )
+            for subscriber in recent_subscribers
+        ]
+
+        expected_states = just_newer_than_max_age_states + recent_states
+
+        assert set(found_states) == set(expected_states)
+
+    async def test_lists_subscribers_by_group_more_recently_seen_than_max_time(
+            self,
+    ):
+        now = datetime.now(UTC)
+        max_age = timedelta(seconds=60)
+        older_than_max_age_time = now - timedelta(seconds=90)
+        newer_than_max_age_time = now - timedelta(seconds=30)
+
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
+
+        clock.set(older_than_max_age_time)
+
+        older_than_max_age_group_1_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(1, 4)
+        ]
+        older_than_max_age_group_2_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_2,
+                id=str(id),
+            )
+            for id in range(4, 8)
+        ]
+        older_than_max_age_subscribers = (
+                older_than_max_age_group_1_subscribers
+                + older_than_max_age_group_2_subscribers
+        )
+
+        for subscriber in older_than_max_age_subscribers:
+            await store.add(subscriber)
+
+        clock.set(newer_than_max_age_time)
+
+        newer_than_max_age_group_1_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(8, 12)
+        ]
+        newer_than_max_age_group_2_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_2,
+                id=str(id),
+            )
+            for id in range(12, 16)
+        ]
+        newer_than_max_age_subscribers = (
+                newer_than_max_age_group_1_subscribers
+                + newer_than_max_age_group_2_subscribers
+        )
+
+        for subscriber in newer_than_max_age_subscribers:
+            await store.add(subscriber)
+
+        clock.set(now)
+
+        found_states = await store.list(
+            subscriber_group=subscriber_group_1,
+            max_time_since_last_seen=max_age,
+        )
+
+        expected_states = [
+            EventSubscriberState(
+                group=subscriber.group,
+                id=subscriber.id,
+                last_seen=newer_than_max_age_time,
+            )
+            for subscriber in newer_than_max_age_group_1_subscribers
+        ]
+
+        assert set(found_states) == set(expected_states)
+
     # async def test_updates_last_seen_on_heartbeat(self):
     #     now = datetime.now(UTC)
     #     previous_last_seen_time = now - timedelta(seconds=10)

@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import UTC, datetime, timedelta
+from random import shuffle
 
 import pytest
 import pytest_asyncio
@@ -171,7 +172,7 @@ class TestInMemoryEventSubscriberStore:
 
         await store.add(subscriber)
 
-        states = await read_subscribers(self.pool, "subscribers")
+        states = await store.list()
 
         assert len(states) == 1
         assert states[0] == EventSubscriberState(
@@ -200,7 +201,7 @@ class TestInMemoryEventSubscriberStore:
         await store.add(subscriber_1)
         await store.add(subscriber_2)
 
-        states = await read_subscribers(self.pool, "subscribers")
+        states = await store.list()
 
         assert len(states) == 2
         assert states[0] == EventSubscriberState(
@@ -232,54 +233,56 @@ class TestInMemoryEventSubscriberStore:
 
         await store.add(subscriber)
 
-        states = await read_subscribers(self.pool, "subscribers")
+        states = await store.list()
 
         assert states[0] == EventSubscriberState(
             group=subscriber_group, id=subscriber_id, last_seen=time_2
         )
 
-    # async def test_lists_subscribers_by_group(self):
-    #     now = datetime.now(UTC)
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #     subscriber_group_2 = data.random_subscriber_group()
-    #
-    #     subscriber_group_1_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_1,
-    #             id=str(id),
-    #         )
-    #         for id in range(1, 4)
-    #     ]
-    #     subscriber_group_2_subscribers = [
-    #         CapturingEventSubscriber(
-    #             group=subscriber_group_2,
-    #             id=str(id),
-    #         )
-    #         for id in range(1, 4)
-    #     ]
-    #
-    #     subscribers = (
-    #             subscriber_group_1_subscribers + subscriber_group_2_subscribers
-    #     )
-    #     shuffle(subscribers)
-    #
-    #     for subscriber in subscribers:
-    #         await store.add(subscriber)
-    #
-    #     found_states = await store.list(subscriber_group=subscriber_group_1)
-    #
-    #     expected_states = [
-    #         EventSubscriberState(
-    #             group=subscriber_group_1, id=str(id), last_seen=now
-    #         )
-    #         for id in range(1, 4)
-    #     ]
-    #
-    #     assert set(found_states) == set(expected_states)
-    #
+    async def test_lists_subscribers_by_group(self):
+        now = datetime.now(UTC)
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
+
+        subscriber_group_1_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_1,
+                id=str(id),
+            )
+            for id in range(1, 4)
+        ]
+        subscriber_group_2_subscribers = [
+            CapturingEventSubscriber(
+                group=subscriber_group_2,
+                id=str(id),
+            )
+            for id in range(1, 4)
+        ]
+
+        subscribers = (
+            subscriber_group_1_subscribers + subscriber_group_2_subscribers
+        )
+        shuffle(subscribers)
+
+        for subscriber in subscribers:
+            await store.add(subscriber)
+
+        found_states = await store.list(subscriber_group=subscriber_group_1)
+
+        expected_states = [
+            EventSubscriberState(
+                group=subscriber_group_1, id=str(id), last_seen=now
+            )
+            for id in range(1, 4)
+        ]
+
+        assert set(found_states) == set(expected_states)
+
     # async def test_lists_subscribers_more_recently_seen_than_max_time(self):
     #     now = datetime.now(UTC)
     #     max_age = timedelta(seconds=60)

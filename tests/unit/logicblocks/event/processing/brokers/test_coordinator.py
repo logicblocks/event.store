@@ -3,11 +3,11 @@ from collections.abc import Sequence
 from logicblocks.event.processing.broker import (
     EventBroker,
     EventSubscriberStore,
+    EventSubscriptionCoordinator,
     EventSubscriptionState,
     InMemoryEventSubscriberStore,
     InMemoryEventSubscriptionStore,
     InMemoryLockManager,
-    PostgresEventSubscriptionCoordinator,
 )
 from logicblocks.event.processing.broker.subscriptions.store.base import (
     EventSubscriptionChange,
@@ -69,7 +69,7 @@ def random_event_sequence_identifier(
 
 
 def make_coordinator() -> tuple[
-    PostgresEventSubscriptionCoordinator,
+    EventSubscriptionCoordinator,
     EventSubscriberStore,
     EventSubscriptionStore,
 ]:
@@ -77,7 +77,7 @@ def make_coordinator() -> tuple[
     subscription_store = InMemoryEventSubscriptionStore()
     lock_manager = InMemoryLockManager()
 
-    coordinator = PostgresEventSubscriptionCoordinator(
+    coordinator = EventSubscriptionCoordinator(
         lock_manager=lock_manager,
         subscriber_store=subscriber_store,
         subscription_store=subscription_store,
@@ -132,7 +132,7 @@ def subscription_event_sources(
     ]
 
 
-class TestEventSubscriptionCoordinatorDistributeNoSubscriptions:
+class TestDistributeNoSubscriptions:
     async def test_distributes_single_source_for_single_subscriber_instance(
         self,
     ):
@@ -347,7 +347,7 @@ class TestEventSubscriptionCoordinatorDistributeNoSubscriptions:
         }
 
 
-class TestEventSubscriptionCoordinatorDistributeExistingSubscriptions:
+class TestDistributeExistingSubscriptionsSourceChanges:
     async def test_distributes_additional_source_to_single_subscriber_instance(
         self,
     ):
@@ -633,5 +633,9 @@ class TestEventSubscriptionCoordinatorDistributeExistingSubscriptions:
             event_sequence_identifier_2,
             event_sequence_identifier_3,
         }
+
+
+class TestDistributeExistingSubscriptionSubscriberChanges:
+    pass
 
     # async def distributes_to_single_additional_subscriber_group(self):

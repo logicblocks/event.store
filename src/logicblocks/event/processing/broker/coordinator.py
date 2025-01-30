@@ -6,23 +6,23 @@ from typing import Self
 
 from logicblocks.event.types import EventSequenceIdentifier
 
-from ..locks import LockManager
-from ..subscribers import EventSubscriberStore
-from ..subscriptions import (
+from .locks import LockManager
+from .subscribers import EventSubscriberStore
+from .subscriptions import (
     EventSubscriptionChange,
     EventSubscriptionChangeType,
     EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStore,
 )
-from ..types import EventSubscriptionSources
+from .types import EventSubscriptionSources
 
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
     return [values[i::chunks] for i in range(chunks)]
 
 
-class PostgresEventSubscriptionCoordinator:
+class EventSubscriptionCoordinator:
     def __init__(
         self,
         lock_manager: LockManager,
@@ -157,20 +157,3 @@ class PostgresEventSubscriptionCoordinator:
                     )
 
         await self.subscription_store.apply(changes=changes)
-
-
-# class PostgresEventBroker(EventBroker, Service):
-#     def __init__(self):
-#         self.consumers: list[EventSubscriber] = []
-#
-#     async def register(self, subscriber: EventSubscriber) -> None:
-#         pass
-#
-#     def execute(self):
-#         while True:
-#             # try to become leader
-#             # register and allocate work
-#             # ---
-#             # provide consumers with their event sources
-#             # revoke them when no longer allowed
-#             pass

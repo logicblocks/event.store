@@ -1,5 +1,5 @@
 from .coordinator import (
-    PostgresEventSubscriptionCoordinator as PostgresEventSubscriptionCoordinator,
+    EventSubscriptionCoordinator as EventSubscriptionCoordinator,
 )
 from .locks import InMemoryLockManager as InMemoryLockManager
 from .locks import Lock as Lock

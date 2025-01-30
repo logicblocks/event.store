@@ -41,5 +41,23 @@ class EventSubscriptionStore(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def get(
+        self, key: EventSubscriptionKey
+    ) -> EventSubscriptionState | None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def add(self, subscription: EventSubscriptionState) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def remove(self, subscription: EventSubscriptionState) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def replace(self, subscription: EventSubscriptionState) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
         raise NotImplementedError()

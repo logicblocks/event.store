@@ -502,88 +502,92 @@ class TestInMemoryEventSubscriberStore:
         with pytest.raises(ValueError):
             await store.heartbeat(subscriber)
 
-    # async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
-    #         self,
-    # ):
-    #     now = datetime.now(UTC)
-    #     five_minutes_ago = now - timedelta(minutes=5)
-    #     just_under_five_minutes_ago = now - timedelta(minutes=4, seconds=59)
-    #
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #     subscriber_id_1 = data.random_subscriber_id()
-    #     subscriber_1 = CapturingEventSubscriber(
-    #         group=subscriber_group_1,
-    #         id=subscriber_id_1,
-    #     )
-    #
-    #     subscriber_group_2 = data.random_subscriber_group()
-    #     subscriber_id_2 = data.random_subscriber_id()
-    #     subscriber_2 = CapturingEventSubscriber(
-    #         group=subscriber_group_2,
-    #         id=subscriber_id_2,
-    #     )
-    #
-    #     clock.set(five_minutes_ago)
-    #
-    #     await store.add(subscriber_1)
-    #
-    #     clock.set(just_under_five_minutes_ago)
-    #
-    #     await store.add(subscriber_2)
-    #
-    #     clock.set(now)
-    #
-    #     await store.purge()
-    #
-    #     states = await store.list()
-    #
-    #     assert len(states) == 1
-    #     assert states[0].id == subscriber_2.id
-    #
-    # async def test_purges_subscribers_that_have_not_been_seen_since_specified_max_time(
-    #         self,
-    # ):
-    #     now = datetime.now(UTC)
-    #     max_age = timedelta(minutes=2)
-    #     two_minutes_ago = now - timedelta(minutes=2)
-    #     just_under_two_minutes_ago = now - timedelta(minutes=1, seconds=59)
-    #
-    #     clock = StaticClock(now)
-    #     store = InMemoryEventSubscriberStore(clock=clock)
-    #
-    #     subscriber_group_1 = data.random_subscriber_group()
-    #     subscriber_id_1 = data.random_subscriber_id()
-    #     subscriber_1 = CapturingEventSubscriber(
-    #         group=subscriber_group_1,
-    #         id=subscriber_id_1,
-    #     )
-    #
-    #     subscriber_group_2 = data.random_subscriber_group()
-    #     subscriber_id_2 = data.random_subscriber_id()
-    #     subscriber_2 = CapturingEventSubscriber(
-    #         group=subscriber_group_2,
-    #         id=subscriber_id_2,
-    #     )
-    #
-    #     clock.set(two_minutes_ago)
-    #
-    #     await store.add(subscriber_1)
-    #
-    #     clock.set(just_under_two_minutes_ago)
-    #
-    #     await store.add(subscriber_2)
-    #
-    #     clock.set(now)
-    #
-    #     await store.purge()
-    #
-    #     states = await store.list(max_time_since_last_seen=max_age)
-    #
-    #     assert len(states) == 1
-    #     assert states[0].id == subscriber_2.id
+    async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
+        self,
+    ):
+        now = datetime.now(UTC)
+        five_minutes_ago = now - timedelta(minutes=5)
+        just_under_five_minutes_ago = now - timedelta(minutes=4, seconds=59)
+
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_id_1 = data.random_subscriber_id()
+        subscriber_1 = CapturingEventSubscriber(
+            group=subscriber_group_1,
+            id=subscriber_id_1,
+        )
+
+        subscriber_group_2 = data.random_subscriber_group()
+        subscriber_id_2 = data.random_subscriber_id()
+        subscriber_2 = CapturingEventSubscriber(
+            group=subscriber_group_2,
+            id=subscriber_id_2,
+        )
+
+        clock.set(five_minutes_ago)
+
+        await store.add(subscriber_1)
+
+        clock.set(just_under_five_minutes_ago)
+
+        await store.add(subscriber_2)
+
+        clock.set(now)
+
+        await store.purge()
+
+        states = await store.list()
+
+        assert len(states) == 1
+        assert states[0].id == subscriber_2.id
+
+    async def test_purges_subscribers_that_have_not_been_seen_since_specified_max_time(
+        self,
+    ):
+        now = datetime.now(UTC)
+        max_age = timedelta(minutes=2)
+        two_minutes_ago = now - timedelta(minutes=2)
+        just_under_two_minutes_ago = now - timedelta(minutes=1, seconds=59)
+
+        clock = StaticClock(now)
+        store = PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
+
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_id_1 = data.random_subscriber_id()
+        subscriber_1 = CapturingEventSubscriber(
+            group=subscriber_group_1,
+            id=subscriber_id_1,
+        )
+
+        subscriber_group_2 = data.random_subscriber_group()
+        subscriber_id_2 = data.random_subscriber_id()
+        subscriber_2 = CapturingEventSubscriber(
+            group=subscriber_group_2,
+            id=subscriber_id_2,
+        )
+
+        clock.set(two_minutes_ago)
+
+        await store.add(subscriber_1)
+
+        clock.set(just_under_two_minutes_ago)
+
+        await store.add(subscriber_2)
+
+        clock.set(now)
+
+        await store.purge()
+
+        states = await store.list(max_time_since_last_seen=max_age)
+
+        assert len(states) == 1
+        assert states[0].id == subscriber_2.id
 
 
 if __name__ == "__main__":

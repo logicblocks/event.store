@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Callable, Self
 
 from psycopg import AsyncConnection, sql
@@ -180,6 +180,23 @@ def heartbeat_query(
     )
 
 
+def purge_query(
+    cutoff_time: datetime,
+    table_settings: PostgresTableSettings,
+) -> ParameterisedQuery:
+    return (
+        sql.SQL(
+            """
+            DELETE FROM {0}
+            WHERE last_seen <= %s;
+            """
+        ).format(sql.Identifier(table_settings.subscribers_table_name)),
+        [
+            cutoff_time,
+        ],
+    )
+
+
 class PostgresEventSubscriberStore(EventSubscriberStore):
     def __init__(
         self,
@@ -275,4 +292,12 @@ class PostgresEventSubscriberStore(EventSubscriberStore):
     async def purge(
         self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
     ) -> None:
-        raise NotImplementedError()
+        cutoff_time = self.clock.now(UTC) - max_time_since_last_seen
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                await cursor.execute(
+                    *purge_query(
+                        cutoff_time,
+                        self.table_settings,
+                    )
+                )

@@ -8,12 +8,17 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.processing.broker import (
+    EventSubscriptionChange,
+    EventSubscriptionChangeType,
+    EventSubscriptionState,
     EventSubscriptionStore,
     PostgresEventSubscriptionStore,
 )
 from logicblocks.event.testcases.processing.subscriptions.store import (
     BaseTestEventSubscriptionStore,
 )
+from logicblocks.event.testing import data
+from logicblocks.event.types import CategoryIdentifier
 
 connection_settings = PostgresConnectionSettings(
     user="admin",
@@ -124,6 +129,38 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
 
     def construct_store(self) -> EventSubscriptionStore:
         return PostgresEventSubscriptionStore(connection_source=self.pool)
+
+    async def test_does_not_partially_apply_changes(self):
+        store = self.construct_store()
+
+        addition = EventSubscriptionChange(
+            type=EventSubscriptionChangeType.ADD,
+            state=EventSubscriptionState(
+                group=data.random_subscriber_group(),
+                id=data.random_subscriber_id(),
+                event_sources=[
+                    CategoryIdentifier(data.random_event_category_name())
+                ],
+            ),
+        )
+
+        removal = EventSubscriptionChange(
+            type=EventSubscriptionChangeType.REMOVE,
+            state=EventSubscriptionState(
+                group=data.random_subscriber_group(),
+                id=data.random_subscriber_id(),
+                event_sources=[
+                    CategoryIdentifier(data.random_event_category_name())
+                ],
+            ),
+        )
+
+        with pytest.raises(ValueError):
+            await store.apply(changes=[addition, removal])
+
+        states = await store.list()
+
+        assert states == []
 
 
 if __name__ == "__main__":

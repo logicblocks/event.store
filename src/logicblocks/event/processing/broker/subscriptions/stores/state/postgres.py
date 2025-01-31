@@ -7,6 +7,7 @@ from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
+from psycopg_pool.abc import ACT
 
 from logicblocks.event.db.postgres import (
     Column,
@@ -199,6 +200,57 @@ def remove_query(
     )
 
 
+async def add(
+    connection: ACT,
+    subscription: EventSubscriptionState,
+    table_settings: PostgresTableSettings,
+):
+    try:
+        async with connection.cursor() as cursor:
+            await cursor.execute(
+                *insert_query(
+                    subscription,
+                    table_settings,
+                )
+            )
+    except UniqueViolation:
+        raise ValueError("Can't add existing subscription.")
+
+
+async def remove(
+    connection: ACT,
+    subscription: EventSubscriptionState,
+    table_settings: PostgresTableSettings,
+):
+    async with connection.cursor() as cursor:
+        results = await cursor.execute(
+            *remove_query(
+                subscription,
+                table_settings,
+            )
+        )
+        removed_subscriptions = await results.fetchall()
+        if len(removed_subscriptions) == 0:
+            raise ValueError("Can't remove missing subscription.")
+
+
+async def replace(
+    connection: ACT,
+    subscription: EventSubscriptionState,
+    table_settings: PostgresTableSettings,
+):
+    async with connection.cursor() as cursor:
+        results = await cursor.execute(
+            *upsert_query(
+                subscription,
+                table_settings,
+            )
+        )
+        updated_subscriptions = await results.fetchall()
+        if len(updated_subscriptions) == 0:
+            raise ValueError("Can't replace missing subscription.")
+
+
 class PostgresEventSubscriptionStore(EventSubscriptionStore):
     def __init__(
         self,
@@ -251,43 +303,16 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
         raise NotImplementedError()
 
     async def add(self, subscription: EventSubscriptionState) -> None:
-        try:
-            async with self.connection_pool.connection() as connection:
-                async with connection.cursor() as cursor:
-                    await cursor.execute(
-                        *insert_query(
-                            subscription,
-                            self.table_settings,
-                        )
-                    )
-        except UniqueViolation:
-            raise ValueError("Can't add existing subscription.")
+        async with self.connection_pool.connection() as connection:
+            await add(connection, subscription, self.table_settings)
 
     async def remove(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:
-            async with connection.cursor() as cursor:
-                results = await cursor.execute(
-                    *remove_query(
-                        subscription,
-                        self.table_settings,
-                    )
-                )
-                removed_subscriptions = await results.fetchall()
-                if len(removed_subscriptions) == 0:
-                    raise ValueError("Can't remove missing subscription.")
+            await remove(connection, subscription, self.table_settings)
 
     async def replace(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:
-            async with connection.cursor() as cursor:
-                results = await cursor.execute(
-                    *upsert_query(
-                        subscription,
-                        self.table_settings,
-                    )
-                )
-                updated_subscriptions = await results.fetchall()
-                if len(updated_subscriptions) == 0:
-                    raise ValueError("Can't replace missing subscription.")
+            await replace(connection, subscription, self.table_settings)
 
     async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
         keys = set(change.state.key for change in changes)
@@ -296,11 +321,18 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
                 "Multiple changes present for same subscription key."
             )
 
-        for change in changes:
-            match change.type:
-                case EventSubscriptionChangeType.ADD:
-                    await self.add(change.state)
-                case EventSubscriptionChangeType.REPLACE:
-                    await self.replace(change.state)
-                case EventSubscriptionChangeType.REMOVE:
-                    await self.remove(change.state)
+        async with self.connection_pool.connection() as connection:
+            for change in changes:
+                match change.type:
+                    case EventSubscriptionChangeType.ADD:
+                        await add(
+                            connection, change.state, self.table_settings
+                        )
+                    case EventSubscriptionChangeType.REPLACE:
+                        await replace(
+                            connection, change.state, self.table_settings
+                        )
+                    case EventSubscriptionChangeType.REMOVE:
+                        await remove(
+                            connection, change.state, self.table_settings
+                        )

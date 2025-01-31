@@ -10,5 +10,3 @@ from logicblocks.event.testcases.processing.subscriptions.store import (
 class TestInMemoryEventSubscriptionStore(BaseTestEventSubscriptionStore):
     def construct_store(self) -> EventSubscriptionStore:
         return InMemoryEventSubscriptionStore()
-
-    pass

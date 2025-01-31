@@ -2,11 +2,9 @@ import itertools
 import operator
 from collections.abc import Sequence
 from datetime import timedelta
-from typing import Self
-
-from logicblocks.event.types import EventSequenceIdentifier
 
 from .locks import LockManager
+from .sources import EventSubscriptionSourcesStore
 from .subscribers import EventSubscriberStore
 from .subscriptions import (
     EventSubscriptionChange,
@@ -15,7 +13,7 @@ from .subscriptions import (
     EventSubscriptionState,
     EventSubscriptionStore,
 )
-from .types import EventSubscriberKey, EventSubscriptionSources
+from .types import EventSubscriberKey
 
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
@@ -28,29 +26,17 @@ class EventSubscriptionCoordinator:
         lock_manager: LockManager,
         subscriber_store: EventSubscriberStore,
         subscription_store: EventSubscriptionStore,
+        subscription_sources_store: EventSubscriptionSourcesStore,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
     ):
         self.lock_manager = lock_manager
         self.subscriber_store = subscriber_store
         self.subscription_store = subscription_store
+        self.subscription_sources_store = subscription_sources_store
 
         self.subscriber_max_time_since_last_seen = (
             subscriber_max_time_since_last_seen
         )
-
-        self.subscription_sources: list[EventSubscriptionSources] = []
-
-    def register_event_subscription_sources(
-        self,
-        subscriber_group: str,
-        event_sources: Sequence[EventSequenceIdentifier],
-    ) -> Self:
-        self.subscription_sources.append(
-            EventSubscriptionSources(
-                subscriber_group=subscriber_group, event_sources=event_sources
-            )
-        )
-        return self
 
     async def coordinate(self) -> None:
         async with self.lock_manager.wait_for_lock("coordinator"):
@@ -83,6 +69,23 @@ class EventSubscriptionCoordinator:
             subscription.key: subscription for subscription in subscriptions
         }
 
+        subscription_sources = await self.subscription_sources_store.list()
+        subscription_sources_map = {
+            subscription_source.subscriber_group: subscription_source
+            for subscription_source in subscription_sources
+        }
+
+        subscriber_groups_with_instances = {
+            subscriber.group for subscriber in subscribers
+        }
+        subscriber_groups_with_subscriptions = {
+            subscription.group for subscription in subscriptions
+        }
+        removed_subscriber_groups = (
+                subscriber_groups_with_subscriptions -
+                subscriber_groups_with_instances
+        )
+
         changes: list[EventSubscriptionChange] = []
 
         for subscription in subscriptions:
@@ -110,12 +113,8 @@ class EventSubscriptionCoordinator:
                 and key in subscription_map
             ]
 
-            source = next(
-                subscription_source
-                for subscription_source in self.subscription_sources
-                if subscription_source.subscriber_group == subscriber_group
-            )
-            known_event_sources = source.event_sources
+            subscription_source = subscription_sources_map[subscriber_group]
+            known_event_sources = subscription_source.event_sources
             allocated_event_sources = [
                 event_source
                 for subscription in subscriber_group_subscriptions
@@ -173,5 +172,8 @@ class EventSubscriptionCoordinator:
                             ),
                         )
                     )
+
+        for subscriber_group in removed_subscriber_groups:
+            await self.subscription_sources_store.remove(subscriber_group)
 
         await self.subscription_store.apply(changes=changes)

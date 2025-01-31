@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 from logicblocks.event.store import EventSource
-from logicblocks.event.types.identifier import EventSequenceIdentifier
 
 
 class EventBroker(ABC):
@@ -44,9 +42,3 @@ class EventSubscriber(ABC):
     @abstractmethod
     async def revoke(self, source: EventSource) -> None:
         raise NotImplementedError()
-
-
-@dataclass(frozen=True)
-class EventSubscriptionSources:
-    subscriber_group: str
-    event_sources: Sequence[EventSequenceIdentifier]

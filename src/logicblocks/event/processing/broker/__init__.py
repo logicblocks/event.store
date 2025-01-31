@@ -4,6 +4,13 @@ from .coordinator import (
 from .locks import InMemoryLockManager as InMemoryLockManager
 from .locks import Lock as Lock
 from .locks import LockManager as LockManager
+from .sources import EventSubscriptionSources as EventSubscriptionSources
+from .sources import (
+    EventSubscriptionSourcesStore as EventSubscriptionSourcesStore,
+)
+from .sources import (
+    InMemoryEventSubscriptionSourcesStore as InMemoryEventSubscriptionSourcesStore,
+)
 from .subscribers import EventSubscriberState as EventSubscriberState
 from .subscribers import EventSubscriberStore as EventSubscriberStore
 from .subscribers import (

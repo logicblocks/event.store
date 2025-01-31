@@ -2,10 +2,15 @@ from collections.abc import Sequence
 
 from logicblocks.event.types import EventSequenceIdentifier
 
-from .base import EventSubscriptionSources, EventSubscriptionSourcesStore
+from .base import (
+    EventSubscriptionSourceMapping,
+    EventSubscriptionSourceMappingStore,
+)
 
 
-class InMemoryEventSubscriptionSourcesStore(EventSubscriptionSourcesStore):
+class InMemoryEventSubscriptionSourceMappingStore(
+    EventSubscriptionSourceMappingStore
+):
     def __init__(self):
         self.event_subscription_sources: dict[
             str, Sequence[EventSequenceIdentifier]
@@ -33,9 +38,9 @@ class InMemoryEventSubscriptionSourcesStore(EventSubscriptionSourcesStore):
 
         self.event_subscription_sources.pop(subscriber_group)
 
-    async def list(self) -> Sequence[EventSubscriptionSources]:
+    async def list(self) -> Sequence[EventSubscriptionSourceMapping]:
         return [
-            EventSubscriptionSources(
+            EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group, event_sources=event_sources
             )
             for subscriber_group, event_sources in self.event_subscription_sources.items()

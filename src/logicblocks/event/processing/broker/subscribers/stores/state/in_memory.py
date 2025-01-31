@@ -4,10 +4,10 @@ from datetime import UTC, timedelta
 from logicblocks.event.processing.broker.types import EventSubscriber
 from logicblocks.event.utils.clock import Clock, SystemClock
 
-from .base import EventSubscriberState, EventSubscriberStore
+from .base import EventSubscriberState, EventSubscriberStateStore
 
 
-class InMemoryEventSubscriberStore(EventSubscriberStore):
+class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(self, clock: Clock = SystemClock()):
         self.clock = clock
         self.subscribers: list[EventSubscriberState] = []

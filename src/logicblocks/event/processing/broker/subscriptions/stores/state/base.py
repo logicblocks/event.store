@@ -23,19 +23,19 @@ class EventSubscriptionState:
         return EventSubscriptionKey(group=self.group, id=self.id)
 
 
-class EventSubscriptionChangeType(StrEnum):
+class EventSubscriptionStateChangeType(StrEnum):
     ADD = "add"
     REMOVE = "remove"
     REPLACE = "replace"
 
 
 @dataclass(frozen=True)
-class EventSubscriptionChange:
-    type: EventSubscriptionChangeType
+class EventSubscriptionStateChange:
+    type: EventSubscriptionStateChangeType
     state: EventSubscriptionState
 
 
-class EventSubscriptionStore(ABC):
+class EventSubscriptionStateStore(ABC):
     @abstractmethod
     async def list(self) -> Sequence[EventSubscriptionState]:
         raise NotImplementedError()
@@ -59,5 +59,7 @@ class EventSubscriptionStore(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
+    async def apply(
+        self, changes: Sequence[EventSubscriptionStateChange]
+    ) -> None:
         raise NotImplementedError()

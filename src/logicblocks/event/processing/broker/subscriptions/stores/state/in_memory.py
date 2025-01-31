@@ -1,15 +1,15 @@
 from collections.abc import Sequence
 
 from .base import (
-    EventSubscriptionChange,
-    EventSubscriptionChangeType,
     EventSubscriptionKey,
     EventSubscriptionState,
-    EventSubscriptionStore,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
 )
 
 
-class InMemoryEventSubscriptionStore(EventSubscriptionStore):
+class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
     def __init__(self):
         self._subscriptions: dict[
             EventSubscriptionKey, EventSubscriptionState
@@ -47,7 +47,9 @@ class InMemoryEventSubscriptionStore(EventSubscriptionStore):
 
         self._subscriptions[subscription.key] = subscription
 
-    async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
+    async def apply(
+        self, changes: Sequence[EventSubscriptionStateChange]
+    ) -> None:
         keys = set(change.state.key for change in changes)
         if len(keys) != len(changes):
             raise ValueError(
@@ -56,9 +58,9 @@ class InMemoryEventSubscriptionStore(EventSubscriptionStore):
 
         for change in changes:
             match change.type:
-                case EventSubscriptionChangeType.ADD:
+                case EventSubscriptionStateChangeType.ADD:
                     await self.add(change.state)
-                case EventSubscriptionChangeType.REPLACE:
+                case EventSubscriptionStateChangeType.REPLACE:
                     await self.replace(change.state)
-                case EventSubscriptionChangeType.REMOVE:
+                case EventSubscriptionStateChangeType.REMOVE:
                     await self.remove(change.state)

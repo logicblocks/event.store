@@ -37,11 +37,11 @@ from logicblocks.event.projection.store.adapters.postgres import (
 from logicblocks.event.types.identifier import event_sequence_identifier
 
 from .base import (
-    EventSubscriptionChange,
-    EventSubscriptionChangeType,
     EventSubscriptionKey,
     EventSubscriptionState,
-    EventSubscriptionStore,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
 )
 
 
@@ -251,7 +251,7 @@ async def replace(
             raise ValueError("Can't replace missing subscription.")
 
 
-class PostgresEventSubscriptionStore(EventSubscriptionStore):
+class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
     def __init__(
         self,
         *,
@@ -314,7 +314,9 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
         async with self.connection_pool.connection() as connection:
             await replace(connection, subscription, self.table_settings)
 
-    async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
+    async def apply(
+        self, changes: Sequence[EventSubscriptionStateChange]
+    ) -> None:
         keys = set(change.state.key for change in changes)
         if len(keys) != len(changes):
             raise ValueError(
@@ -324,15 +326,15 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
         async with self.connection_pool.connection() as connection:
             for change in changes:
                 match change.type:
-                    case EventSubscriptionChangeType.ADD:
+                    case EventSubscriptionStateChangeType.ADD:
                         await add(
                             connection, change.state, self.table_settings
                         )
-                    case EventSubscriptionChangeType.REPLACE:
+                    case EventSubscriptionStateChangeType.REPLACE:
                         await replace(
                             connection, change.state, self.table_settings
                         )
-                    case EventSubscriptionChangeType.REMOVE:
+                    case EventSubscriptionStateChangeType.REMOVE:
                         await remove(
                             connection, change.state, self.table_settings
                         )

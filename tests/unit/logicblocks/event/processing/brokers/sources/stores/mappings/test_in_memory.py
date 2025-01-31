@@ -1,8 +1,8 @@
 import pytest
 
 from logicblocks.event.processing.broker import (
-    EventSubscriptionSources,
-    InMemoryEventSubscriptionSourcesStore,
+    EventSubscriptionSourceMapping,
+    InMemoryEventSubscriptionSourceMappingStore,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.types.identifier import (
@@ -18,14 +18,14 @@ def random_event_sequence_identifier() -> EventSequenceIdentifier:
     )
 
 
-class TestInMemoryEventSubscriptionSourcesStore:
+class TestInMemoryEventSubscriptionSourceMappingStore:
     async def test_adds_event_sources_for_single_subscriber_group(self):
         subscriber_group = data.random_subscriber_group()
 
         event_sequence_identifier_1 = random_event_sequence_identifier()
         event_sequence_identifier_2 = random_event_sequence_identifier()
 
-        store = InMemoryEventSubscriptionSourcesStore()
+        store = InMemoryEventSubscriptionSourceMappingStore()
 
         await store.add(
             subscriber_group=subscriber_group,
@@ -35,10 +35,10 @@ class TestInMemoryEventSubscriptionSourcesStore:
             ),
         )
 
-        sources = await store.list()
+        mappings = await store.list()
 
-        assert sources == [
-            EventSubscriptionSources(
+        assert mappings == [
+            EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group,
                 event_sources=(
                     event_sequence_identifier_1,
@@ -56,7 +56,7 @@ class TestInMemoryEventSubscriptionSourcesStore:
         event_sequence_identifier_3 = random_event_sequence_identifier()
         event_sequence_identifier_4 = random_event_sequence_identifier()
 
-        store = InMemoryEventSubscriptionSourcesStore()
+        store = InMemoryEventSubscriptionSourceMappingStore()
 
         await store.add(
             subscriber_group=subscriber_group_1,
@@ -73,17 +73,17 @@ class TestInMemoryEventSubscriptionSourcesStore:
             ),
         )
 
-        sources = await store.list()
+        mappings = await store.list()
 
-        assert set(sources) == {
-            EventSubscriptionSources(
+        assert set(mappings) == {
+            EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group_1,
                 event_sources=(
                     event_sequence_identifier_1,
                     event_sequence_identifier_2,
                 ),
             ),
-            EventSubscriptionSources(
+            EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group_2,
                 event_sources=(
                     event_sequence_identifier_3,
@@ -101,7 +101,7 @@ class TestInMemoryEventSubscriptionSourcesStore:
         event_sequence_identifier_3 = random_event_sequence_identifier()
         event_sequence_identifier_4 = random_event_sequence_identifier()
 
-        store = InMemoryEventSubscriptionSourcesStore()
+        store = InMemoryEventSubscriptionSourceMappingStore()
 
         await store.add(
             subscriber_group=subscriber_group_1,
@@ -120,10 +120,10 @@ class TestInMemoryEventSubscriptionSourcesStore:
 
         await store.remove(subscriber_group=subscriber_group_2)
 
-        sources = await store.list()
+        mappings = await store.list()
 
-        assert set(sources) == {
-            EventSubscriptionSources(
+        assert set(mappings) == {
+            EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group_1,
                 event_sources=(
                     event_sequence_identifier_1,
@@ -137,7 +137,7 @@ class TestInMemoryEventSubscriptionSourcesStore:
     ):
         subscriber_group = data.random_subscriber_group()
 
-        store = InMemoryEventSubscriptionSourcesStore()
+        store = InMemoryEventSubscriptionSourceMappingStore()
 
         with pytest.raises(ValueError) as error:
             await store.remove(subscriber_group=subscriber_group)
@@ -154,7 +154,7 @@ class TestInMemoryEventSubscriptionSourcesStore:
         event_sequence_identifier_1 = random_event_sequence_identifier()
         event_sequence_identifier_2 = random_event_sequence_identifier()
 
-        store = InMemoryEventSubscriptionSourcesStore()
+        store = InMemoryEventSubscriptionSourceMappingStore()
 
         await store.add(
             subscriber_group=subscriber_group,

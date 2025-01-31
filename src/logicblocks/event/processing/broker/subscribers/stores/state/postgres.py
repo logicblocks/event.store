@@ -40,7 +40,7 @@ from ....types import (
     EventSubscriber,
     EventSubscriberKey,
 )
-from .base import EventSubscriberState, EventSubscriberStore
+from .base import EventSubscriberState, EventSubscriberStateStore
 
 
 @dataclass(frozen=True)
@@ -216,7 +216,7 @@ def purge_query(
     )
 
 
-class PostgresEventSubscriberStore(EventSubscriberStore):
+class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(
         self,
         *,

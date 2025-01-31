@@ -8,11 +8,11 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.processing.broker import (
-    EventSubscriberStore,
-    PostgresEventSubscriberStore,
+    EventSubscriberStateStore,
+    PostgresEventSubscriberStateStore,
 )
-from logicblocks.event.testcases.processing.subscribers.store import (
-    BaseTestSubscriberStore,
+from logicblocks.event.testcases.processing.subscribers.stores.state import (
+    EventSubscriberStateStoreCases,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -108,7 +108,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresEventSubscriberStore(BaseTestSubscriberStore):
+class TestPostgresEventSubscriberStateStore(EventSubscriberStateStoreCases):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -120,8 +120,8 @@ class TestPostgresEventSubscriberStore(BaseTestSubscriberStore):
         await drop_table(open_connection_pool, "subscribers")
         await create_table(open_connection_pool, "subscribers")
 
-    def construct_store(self, clock) -> EventSubscriberStore:
-        return PostgresEventSubscriberStore(
+    def construct_store(self, clock) -> EventSubscriberStateStore:
+        return PostgresEventSubscriberStateStore(
             clock=clock, connection_source=self.pool
         )
 

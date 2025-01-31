@@ -3,14 +3,14 @@ from collections.abc import Sequence
 from logicblocks.event.processing.broker import (
     EventBroker,
     EventSubscriber,
-    EventSubscriberStore,
+    EventSubscriberStateStore,
     EventSubscriptionCoordinator,
-    EventSubscriptionSourcesStore,
+    EventSubscriptionSourceMappingStore,
     EventSubscriptionState,
-    EventSubscriptionStore,
-    InMemoryEventSubscriberStore,
-    InMemoryEventSubscriptionSourcesStore,
-    InMemoryEventSubscriptionStore,
+    EventSubscriptionStateStore,
+    InMemoryEventSubscriberStateStore,
+    InMemoryEventSubscriptionSourceMappingStore,
+    InMemoryEventSubscriptionStateStore,
     InMemoryLockManager,
 )
 from logicblocks.event.store import EventSource
@@ -66,13 +66,13 @@ def random_event_sequence_identifier(
 
 def make_coordinator() -> tuple[
     EventSubscriptionCoordinator,
-    EventSubscriberStore,
-    EventSubscriptionStore,
-    EventSubscriptionSourcesStore,
+    EventSubscriberStateStore,
+    EventSubscriptionStateStore,
+    EventSubscriptionSourceMappingStore,
 ]:
-    subscriber_store = InMemoryEventSubscriberStore()
-    subscription_store = InMemoryEventSubscriptionStore()
-    subscription_sources_store = InMemoryEventSubscriptionSourcesStore()
+    subscriber_store = InMemoryEventSubscriberStateStore()
+    subscription_store = InMemoryEventSubscriptionStateStore()
+    subscription_sources_store = InMemoryEventSubscriptionSourceMappingStore()
     lock_manager = InMemoryLockManager()
 
     coordinator = EventSubscriptionCoordinator(

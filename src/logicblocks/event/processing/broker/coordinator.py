@@ -4,14 +4,14 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from .locks import LockManager
-from .sources import EventSubscriptionSourcesStore
-from .subscribers import EventSubscriberStore
+from .sources import EventSubscriptionSourceMappingStore
+from .subscribers import EventSubscriberStateStore
 from .subscriptions import (
-    EventSubscriptionChange,
-    EventSubscriptionChangeType,
     EventSubscriptionKey,
     EventSubscriptionState,
-    EventSubscriptionStore,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
 )
 from .types import EventSubscriberKey
 
@@ -24,9 +24,9 @@ class EventSubscriptionCoordinator:
     def __init__(
         self,
         lock_manager: LockManager,
-        subscriber_store: EventSubscriberStore,
-        subscription_store: EventSubscriptionStore,
-        subscription_sources_store: EventSubscriptionSourcesStore,
+        subscriber_store: EventSubscriberStateStore,
+        subscription_store: EventSubscriptionStateStore,
+        subscription_sources_store: EventSubscriptionSourceMappingStore,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
     ):
         self.lock_manager = lock_manager
@@ -86,7 +86,7 @@ class EventSubscriptionCoordinator:
             - subscriber_groups_with_instances
         )
 
-        changes: list[EventSubscriptionChange] = []
+        changes: list[EventSubscriptionStateChange] = []
 
         for subscription in subscriptions:
             if (
@@ -94,8 +94,8 @@ class EventSubscriptionCoordinator:
                 not in subscriber_map
             ):
                 changes.append(
-                    EventSubscriptionChange(
-                        type=EventSubscriptionChangeType.REMOVE,
+                    EventSubscriptionStateChange(
+                        type=EventSubscriptionStateChangeType.REMOVE,
                         state=subscription,
                     )
                 )
@@ -145,8 +145,8 @@ class EventSubscriptionCoordinator:
                 )
                 if subscription is None:
                     changes.append(
-                        EventSubscriptionChange(
-                            type=EventSubscriptionChangeType.ADD,
+                        EventSubscriptionStateChange(
+                            type=EventSubscriptionStateChangeType.ADD,
                             state=EventSubscriptionState(
                                 group=subscriber_group,
                                 id=subscriber.id,
@@ -160,8 +160,8 @@ class EventSubscriptionCoordinator:
                     ) - set(removed_event_sources)
                     new_event_sources = new_event_source_chunks[index]
                     changes.append(
-                        EventSubscriptionChange(
-                            type=EventSubscriptionChangeType.REPLACE,
+                        EventSubscriptionStateChange(
+                            type=EventSubscriptionStateChangeType.REPLACE,
                             state=EventSubscriptionState(
                                 group=subscriber_group,
                                 id=subscriber.id,

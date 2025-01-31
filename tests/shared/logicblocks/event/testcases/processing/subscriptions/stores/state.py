@@ -3,11 +3,11 @@ from abc import abstractmethod
 import pytest
 
 from logicblocks.event.processing.broker import (
-    EventSubscriptionChange,
-    EventSubscriptionChangeType,
     EventSubscriptionKey,
     EventSubscriptionState,
-    EventSubscriptionStore,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
 )
 from logicblocks.event.testing import (
     data,
@@ -15,9 +15,9 @@ from logicblocks.event.testing import (
 from logicblocks.event.types import CategoryIdentifier
 
 
-class BaseTestEventSubscriptionStore:
+class EventSubscriptionStateStoreCases:
     @abstractmethod
-    def construct_store(self) -> EventSubscriptionStore:
+    def construct_store(self) -> EventSubscriptionStateStore:
         pass
 
     async def test_adds_single_subscription(self):
@@ -28,8 +28,8 @@ class BaseTestEventSubscriptionStore:
 
         category_name = data.random_event_category_name()
 
-        change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -60,16 +60,16 @@ class BaseTestEventSubscriptionStore:
 
         category_name = data.random_event_category_name()
 
-        change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
-        change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
@@ -107,8 +107,8 @@ class BaseTestEventSubscriptionStore:
         category_1_name = data.random_event_category_name()
         category_2_name = data.random_event_category_name()
 
-        change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_1_id,
@@ -118,16 +118,16 @@ class BaseTestEventSubscriptionStore:
 
         await store.apply(changes=[change_1])
 
-        change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_2_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
-        change_3 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change_3 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group_2,
                 id=subscriber_3_id,
@@ -165,8 +165,8 @@ class BaseTestEventSubscriptionStore:
 
         category_name = data.random_event_category_name()
 
-        change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -190,8 +190,8 @@ class BaseTestEventSubscriptionStore:
         category_1_name = data.random_event_category_name()
         category_2_name = data.random_event_category_name()
 
-        add_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -201,8 +201,8 @@ class BaseTestEventSubscriptionStore:
 
         await store.apply(changes=[add_change])
 
-        update_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REPLACE,
+        update_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REPLACE,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -241,16 +241,16 @@ class BaseTestEventSubscriptionStore:
         category_2_name = data.random_event_category_name()
         category_3_name = data.random_event_category_name()
 
-        add_change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
-        add_change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
@@ -260,8 +260,8 @@ class BaseTestEventSubscriptionStore:
 
         await store.apply(changes=[add_change_1, add_change_2])
 
-        update_change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REPLACE,
+        update_change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REPLACE,
             state=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
@@ -271,8 +271,8 @@ class BaseTestEventSubscriptionStore:
                 ],
             ),
         )
-        update_change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REPLACE,
+        update_change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REPLACE,
             state=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
@@ -330,8 +330,8 @@ class BaseTestEventSubscriptionStore:
 
         category_name = data.random_event_category_name()
 
-        change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REPLACE,
+        change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REPLACE,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -368,19 +368,19 @@ class BaseTestEventSubscriptionStore:
             event_sources=[CategoryIdentifier(category_name)],
         )
 
-        add_change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=subscription_1,
         )
-        add_change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=subscription_2,
         )
 
         await store.apply(changes=[add_change_1, add_change_2])
 
-        remove_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        remove_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=subscription_1,
         )
 
@@ -414,23 +414,23 @@ class BaseTestEventSubscriptionStore:
             event_sources=[CategoryIdentifier(category_name)],
         )
 
-        add_change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=subscription_1,
         )
-        add_change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=subscription_2,
         )
 
         await store.apply(changes=[add_change_1, add_change_2])
 
-        remove_change_1 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        remove_change_1 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=subscription_1,
         )
-        remove_change_2 = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        remove_change_2 = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=subscription_2,
         )
 
@@ -448,8 +448,8 @@ class BaseTestEventSubscriptionStore:
 
         category_name = data.random_event_category_name()
 
-        change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -473,8 +473,8 @@ class BaseTestEventSubscriptionStore:
         category_name_1 = data.random_event_category_name()
         category_name_2 = data.random_event_category_name()
 
-        add_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        add_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -484,8 +484,8 @@ class BaseTestEventSubscriptionStore:
 
         await store.apply(changes=[add_change])
 
-        replace_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REPLACE,
+        replace_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REPLACE,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
@@ -495,8 +495,8 @@ class BaseTestEventSubscriptionStore:
                 ],
             ),
         )
-        remove_change = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        remove_change = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,

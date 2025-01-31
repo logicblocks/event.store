@@ -1,12 +1,14 @@
 from logicblocks.event.processing.broker import (
-    EventSubscriptionStore,
-    InMemoryEventSubscriptionStore,
+    EventSubscriptionStateStore,
+    InMemoryEventSubscriptionStateStore,
 )
-from logicblocks.event.testcases.processing.subscriptions.store import (
-    BaseTestEventSubscriptionStore,
+from logicblocks.event.testcases.processing.subscriptions.stores.state import (
+    EventSubscriptionStateStoreCases,
 )
 
 
-class TestInMemoryEventSubscriptionStore(BaseTestEventSubscriptionStore):
-    def construct_store(self) -> EventSubscriptionStore:
-        return InMemoryEventSubscriptionStore()
+class TestInMemoryEventSubscriptionStateStore(
+    EventSubscriptionStateStoreCases
+):
+    def construct_store(self) -> EventSubscriptionStateStore:
+        return InMemoryEventSubscriptionStateStore()

@@ -6,12 +6,12 @@ from logicblocks.event.types import EventSequenceIdentifier
 
 
 @dataclass(frozen=True)
-class EventSubscriptionSources:
+class EventSubscriptionSourceMapping:
     subscriber_group: str
     event_sources: Sequence[EventSequenceIdentifier]
 
 
-class EventSubscriptionSourcesStore(ABC):
+class EventSubscriptionSourceMappingStore(ABC):
     @abstractmethod
     async def add(
         self,
@@ -25,5 +25,5 @@ class EventSubscriptionSourcesStore(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def list(self) -> Sequence[EventSubscriptionSources]:
+    async def list(self) -> Sequence[EventSubscriptionSourceMapping]:
         raise NotImplementedError()

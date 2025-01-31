@@ -1,12 +1,12 @@
 from logicblocks.event.processing.broker import (
-    EventSubscriberStore,
-    InMemoryEventSubscriberStore,
+    EventSubscriberStateStore,
+    InMemoryEventSubscriberStateStore,
 )
-from logicblocks.event.testcases.processing.subscribers.store import (
-    BaseTestSubscriberStore,
+from logicblocks.event.testcases.processing.subscribers.stores.state import (
+    EventSubscriberStateStoreCases,
 )
 
 
-class TestInMemoryEventSubscriberStore(BaseTestSubscriberStore):
-    def construct_store(self, clock) -> EventSubscriberStore:
-        return InMemoryEventSubscriberStore(clock)
+class TestInMemoryEventSubscriberStateStore(EventSubscriberStateStoreCases):
+    def construct_store(self, clock) -> EventSubscriberStateStore:
+        return InMemoryEventSubscriberStateStore(clock)

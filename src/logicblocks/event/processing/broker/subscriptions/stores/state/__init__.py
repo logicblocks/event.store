@@ -1,11 +1,13 @@
-from .base import EventSubscriptionChange as EventSubscriptionChange
-from .base import EventSubscriptionChangeType as EventSubscriptionChangeType
 from .base import EventSubscriptionKey as EventSubscriptionKey
 from .base import EventSubscriptionState as EventSubscriptionState
-from .base import EventSubscriptionStore as EventSubscriptionStore
+from .base import EventSubscriptionStateChange as EventSubscriptionStateChange
+from .base import (
+    EventSubscriptionStateChangeType as EventSubscriptionStateChangeType,
+)
+from .base import EventSubscriptionStateStore as EventSubscriptionStateStore
 from .in_memory import (
-    InMemoryEventSubscriptionStore as InMemoryEventSubscriptionStore,
+    InMemoryEventSubscriptionStateStore as InMemoryEventSubscriptionStateStore,
 )
 from .postgres import (
-    PostgresEventSubscriptionStore as PostgresEventSubscriptionStore,
+    PostgresEventSubscriptionStateStore as PostgresEventSubscriptionStateStore,
 )

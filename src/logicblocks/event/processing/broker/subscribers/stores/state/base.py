@@ -17,7 +17,7 @@ class EventSubscriberState:
         return EventSubscriberKey(self.group, self.id)
 
 
-class EventSubscriberStore(ABC):
+class EventSubscriberStateStore(ABC):
     @abstractmethod
     async def add(self, subscriber: EventSubscriber) -> None:
         raise NotImplementedError()

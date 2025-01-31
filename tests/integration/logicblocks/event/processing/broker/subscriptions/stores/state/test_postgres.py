@@ -8,14 +8,14 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.processing.broker import (
-    EventSubscriptionChange,
-    EventSubscriptionChangeType,
     EventSubscriptionState,
-    EventSubscriptionStore,
-    PostgresEventSubscriptionStore,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
+    PostgresEventSubscriptionStateStore,
 )
-from logicblocks.event.testcases.processing.subscriptions.store import (
-    BaseTestEventSubscriptionStore,
+from logicblocks.event.testcases.processing.subscriptions.stores.state import (
+    EventSubscriptionStateStoreCases,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.types import CategoryIdentifier
@@ -115,7 +115,9 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
+class TestPostgresEventSubscriptionStateStore(
+    EventSubscriptionStateStoreCases
+):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -127,14 +129,14 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
         await drop_table(open_connection_pool, "subscriptions")
         await create_table(open_connection_pool, "subscriptions")
 
-    def construct_store(self) -> EventSubscriptionStore:
-        return PostgresEventSubscriptionStore(connection_source=self.pool)
+    def construct_store(self) -> EventSubscriptionStateStore:
+        return PostgresEventSubscriptionStateStore(connection_source=self.pool)
 
     async def test_does_not_partially_apply_changes(self):
         store = self.construct_store()
 
-        addition = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.ADD,
+        addition = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.ADD,
             state=EventSubscriptionState(
                 group=data.random_subscriber_group(),
                 id=data.random_subscriber_id(),
@@ -144,8 +146,8 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
             ),
         )
 
-        removal = EventSubscriptionChange(
-            type=EventSubscriptionChangeType.REMOVE,
+        removal = EventSubscriptionStateChange(
+            type=EventSubscriptionStateChangeType.REMOVE,
             state=EventSubscriptionState(
                 group=data.random_subscriber_group(),
                 id=data.random_subscriber_id(),

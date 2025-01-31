@@ -8,7 +8,7 @@ from logicblocks.event.processing.broker import (
     EventBroker,
     EventSubscriber,
     EventSubscriberState,
-    EventSubscriberStore,
+    EventSubscriberStateStore,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import (
@@ -42,9 +42,9 @@ class CapturingEventSubscriber(EventSubscriber):
         self.sources.remove(source)
 
 
-class BaseTestSubscriberStore:
+class EventSubscriberStateStoreCases:
     @abstractmethod
-    def construct_store(self, clock: StaticClock) -> EventSubscriberStore:
+    def construct_store(self, clock: StaticClock) -> EventSubscriberStateStore:
         raise NotImplementedError()
 
     async def test_adds_single_subscriber_details(self):

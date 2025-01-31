@@ -1,8 +1,8 @@
 from .stores import EventSubscriberState as EventSubscriberState
-from .stores import EventSubscriberStore as EventSubscriberStore
+from .stores import EventSubscriberStateStore as EventSubscriberStateStore
 from .stores import (
-    InMemoryEventSubscriberStore as InMemoryEventSubscriberStore,
+    InMemoryEventSubscriberStateStore as InMemoryEventSubscriberStateStore,
 )
 from .stores import (
-    PostgresEventSubscriberStore as PostgresEventSubscriberStore,
+    PostgresEventSubscriberStateStore as PostgresEventSubscriberStateStore,
 )

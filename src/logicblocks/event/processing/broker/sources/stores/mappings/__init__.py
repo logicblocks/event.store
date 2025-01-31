@@ -1,7 +1,9 @@
-from .base import EventSubscriptionSources as EventSubscriptionSources
 from .base import (
-    EventSubscriptionSourcesStore as EventSubscriptionSourcesStore,
+    EventSubscriptionSourceMapping as EventSubscriptionSourceMapping,
+)
+from .base import (
+    EventSubscriptionSourceMappingStore as EventSubscriptionSourceMappingStore,
 )
 from .in_memory import (
-    InMemoryEventSubscriptionSourcesStore as InMemoryEventSubscriptionSourcesStore,
+    InMemoryEventSubscriptionSourceMappingStore as InMemoryEventSubscriptionSourceMappingStore,
 )

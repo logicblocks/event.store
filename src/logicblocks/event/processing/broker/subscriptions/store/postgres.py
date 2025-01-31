@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Self
 
 from psycopg import AsyncConnection, sql
+from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
@@ -147,16 +148,12 @@ def insert_query(
               "group", 
               event_sources
             )
-            VALUES (%s, %s, %s)
-              ON CONFLICT (id, "group") 
-              DO UPDATE
-            SET (event_sources) = ROW(%s);
+            VALUES (%s, %s, %s);
             """
         ).format(sql.Identifier(table_settings.subscriptions_table_name)),
         [
             subscription.id,
             subscription.group,
-            Jsonb([source.dict() for source in subscription.event_sources]),
             Jsonb([source.dict() for source in subscription.event_sources]),
         ],
     )
@@ -214,14 +211,17 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
         raise NotImplementedError()
 
     async def add(self, subscription: EventSubscriptionState) -> None:
-        async with self.connection_pool.connection() as connection:
-            async with connection.cursor() as cursor:
-                await cursor.execute(
-                    *insert_query(
-                        subscription,
-                        self.table_settings,
+        try:
+            async with self.connection_pool.connection() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute(
+                        *insert_query(
+                            subscription,
+                            self.table_settings,
+                        )
                     )
-                )
+        except UniqueViolation:
+            raise ValueError("Can't add existing subscription.")
 
     async def remove(self, subscription: EventSubscriptionState) -> None:
         raise NotImplementedError()

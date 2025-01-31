@@ -180,6 +180,25 @@ def upsert_query(
     )
 
 
+def remove_query(
+    subscription: EventSubscriptionState,
+    table_settings: PostgresTableSettings,
+) -> ParameterisedQuery:
+    return (
+        sql.SQL(
+            """
+            DELETE FROM {0}
+            WHERE "group" = %s AND id = %s
+            RETURNING *;
+            """
+        ).format(sql.Identifier(table_settings.subscriptions_table_name)),
+        [
+            subscription.group,
+            subscription.id,
+        ],
+    )
+
+
 class PostgresEventSubscriptionStore(EventSubscriptionStore):
     def __init__(
         self,
@@ -245,7 +264,17 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
             raise ValueError("Can't add existing subscription.")
 
     async def remove(self, subscription: EventSubscriptionState) -> None:
-        raise NotImplementedError()
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                results = await cursor.execute(
+                    *remove_query(
+                        subscription,
+                        self.table_settings,
+                    )
+                )
+                removed_subscriptions = await results.fetchall()
+                if len(removed_subscriptions) == 0:
+                    raise ValueError("Can't remove missing subscription.")
 
     async def replace(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:

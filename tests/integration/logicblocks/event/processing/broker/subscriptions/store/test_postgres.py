@@ -124,18 +124,6 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
     def construct_store(self) -> EventSubscriptionStore:
         return PostgresEventSubscriptionStore(connection_source=self.pool)
 
-    async def test_removes_single_subscription(self):
-        pass
-
-    async def test_removes_many_subscriptions(self):
-        pass
-
-    async def test_raises_if_removing_missing_subscription(self):
-        pass
-
-    async def test_raises_if_multiple_changes_for_same_subscription_key(self):
-        pass
-
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

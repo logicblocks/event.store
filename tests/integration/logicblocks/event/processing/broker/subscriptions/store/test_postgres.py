@@ -124,15 +124,6 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
     def construct_store(self) -> EventSubscriptionStore:
         return PostgresEventSubscriptionStore(connection_source=self.pool)
 
-    async def test_replaces_single_existing_subscription(self):
-        pass
-
-    async def test_replaces_many_existing_subscriptions(self):
-        pass
-
-    async def test_raises_if_replacing_missing_subscription(self):
-        pass
-
     async def test_removes_single_subscription(self):
         pass
 

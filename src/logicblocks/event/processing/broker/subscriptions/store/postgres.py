@@ -159,6 +159,27 @@ def insert_query(
     )
 
 
+def upsert_query(
+    subscription: EventSubscriptionState,
+    table_settings: PostgresTableSettings,
+) -> ParameterisedQuery:
+    return (
+        sql.SQL(
+            """
+            UPDATE {0}
+            SET event_sources = %s
+            WHERE "group" = %s AND id = %s
+            RETURNING *;
+            """
+        ).format(sql.Identifier(table_settings.subscriptions_table_name)),
+        [
+            Jsonb([source.dict() for source in subscription.event_sources]),
+            subscription.group,
+            subscription.id,
+        ],
+    )
+
+
 class PostgresEventSubscriptionStore(EventSubscriptionStore):
     def __init__(
         self,
@@ -227,7 +248,17 @@ class PostgresEventSubscriptionStore(EventSubscriptionStore):
         raise NotImplementedError()
 
     async def replace(self, subscription: EventSubscriptionState) -> None:
-        raise NotImplementedError()
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                results = await cursor.execute(
+                    *upsert_query(
+                        subscription,
+                        self.table_settings,
+                    )
+                )
+                updated_subscriptions = await results.fetchall()
+                if len(updated_subscriptions) == 0:
+                    raise ValueError("Can't replace missing subscription.")
 
     async def apply(self, changes: Sequence[EventSubscriptionChange]) -> None:
         keys = set(change.state.key for change in changes)

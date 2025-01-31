@@ -35,24 +35,6 @@ class CapturingEventBroker(EventBroker):
 
 
 class TestEventSubscriptionConsumer:
-    async def test_registers_subscription_with_broker_on_subscribe(self):
-        broker = CapturingEventBroker()
-        delegate_factory = CapturingEventConsumerFactory()
-
-        category_name = data.random_event_category_name()
-        sequence = CategoryIdentifier(category=category_name)
-
-        consumer = EventSubscriptionConsumer(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
-            sequence=sequence,
-            delegate_factory=delegate_factory.factory,
-        )
-
-        await consumer.subscribe(broker=broker)
-
-        assert consumer in broker.consumers
-
     async def test_consumes_from_received_source_on_consume_all(self):
         delegate_factory = CapturingEventConsumerFactory()
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -148,7 +130,7 @@ class TestEventSubscriptionConsumer:
 
         await consumer.consume_all()
 
-        await consumer.revoke(stream_1_source)
+        await consumer.withdraw(stream_1_source)
 
         await consumer.consume_all()
 

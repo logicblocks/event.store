@@ -11,9 +11,13 @@ class PostgresEventBroker(EventBroker, Service):
 
     def execute(self):
         while True:
-            # try to become leader
-            # register and allocate work
-            # ---
-            # provide consumers with their event sources
-            # revoke them when no longer allowed
+            # register node and set up heartbeating
+            # add all subscriber instances to store
+            # add all subscribers to the state store and healthcheck
+            # start coordinator process
+            #   - if wins lock, manage subscription table
+            #   - else sit and wait
+            # start observer process
+            #   - monitor subscription table and replay event sources onto
+            #     subscriber instances
             pass

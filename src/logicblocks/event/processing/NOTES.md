@@ -89,7 +89,7 @@ EventBroker
 EventSequencePartitioner
   - knows how to partitioner an event sequence into buckets of ordered streams
 EventSubscriptionCoordinator 
-  - manages subscriptions for subscribers to ensure minimal duplication of 
+  + manages subscriptions for subscribers to ensure minimal duplication of 
     effort and to allow parallelism
   - only one instance can be coordinating at a time
 EventSubscriptionObserver
@@ -124,7 +124,7 @@ EventSubscriptionSourceMappingStore
 LockManager
   - manages application locks to ensure exclusive access to some resource or 
     process
-    - in-memory
+    + in-memory
     - postgres
 NodeHeartbeat
   - keeps track of node health for each node in the processing group

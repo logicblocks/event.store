@@ -32,13 +32,9 @@ class EventSubscriber(ABC):
         return EventSubscriberKey(self.group, self.id)
 
     @abstractmethod
-    async def subscribe(self, broker: EventBroker) -> None:
-        raise NotImplementedError()
-
-    @abstractmethod
     async def accept(self, source: EventSource) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def revoke(self, source: EventSource) -> None:
+    async def withdraw(self, source: EventSource) -> None:
         raise NotImplementedError()

@@ -3,7 +3,7 @@ from collections.abc import Callable, MutableMapping
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import EventSequenceIdentifier
 
-from ..broker import EventBroker, EventSubscriber
+from ..broker import EventSubscriber
 from .types import EventConsumer
 
 
@@ -31,13 +31,10 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def id(self) -> str:
         return self._id
 
-    async def subscribe(self, broker: EventBroker):
-        await broker.register(self)
-
     async def accept(self, source: EventSource) -> None:
         self._delegates[source.identifier] = self._delegate_factory(source)
 
-    async def revoke(self, source: EventSource) -> None:
+    async def withdraw(self, source: EventSource) -> None:
         self._delegates.pop(source.identifier)
 
     async def consume_all(self) -> None:

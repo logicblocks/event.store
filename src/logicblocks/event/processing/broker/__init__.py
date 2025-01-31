@@ -1,6 +1,13 @@
 from .coordinator import (
     EventSubscriptionCoordinator as EventSubscriptionCoordinator,
 )
+from .difference import EventSubscriptionChange as EventSubscriptionChange
+from .difference import (
+    EventSubscriptionChangeset as EventSubscriptionChangeset,
+)
+from .difference import (
+    EventSubscriptionDifference as EventSubscriptionDifference,
+)
 from .locks import InMemoryLockManager as InMemoryLockManager
 from .locks import Lock as Lock
 from .locks import LockManager as LockManager
@@ -15,8 +22,12 @@ from .sources import (
 )
 from .subscribers import EventSubscriberState as EventSubscriberState
 from .subscribers import EventSubscriberStateStore as EventSubscriberStateStore
+from .subscribers import EventSubscriberStore as EventSubscriberStore
 from .subscribers import (
     InMemoryEventSubscriberStateStore as InMemoryEventSubscriberStateStore,
+)
+from .subscribers import (
+    InMemoryEventSubscriberStore as InMemoryEventSubscriberStore,
 )
 from .subscribers import (
     PostgresEventSubscriberStateStore as PostgresEventSubscriberStateStore,

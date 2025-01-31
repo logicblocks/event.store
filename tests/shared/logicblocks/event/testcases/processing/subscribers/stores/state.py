@@ -5,7 +5,6 @@ from random import shuffle
 import pytest
 
 from logicblocks.event.processing.broker import (
-    EventBroker,
     EventSubscriber,
     EventSubscriberState,
     EventSubscriberStateStore,
@@ -32,13 +31,10 @@ class CapturingEventSubscriber(EventSubscriber):
     def id(self) -> str:
         return self._id
 
-    async def subscribe(self, broker: EventBroker) -> None:
-        raise NotImplementedError()
-
     async def accept(self, source: EventSource) -> None:
         self.sources.append(source)
 
-    async def revoke(self, source: EventSource) -> None:
+    async def withdraw(self, source: EventSource) -> None:
         self.sources.remove(source)
 
 

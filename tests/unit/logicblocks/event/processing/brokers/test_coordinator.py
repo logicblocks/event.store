@@ -2,24 +2,16 @@ from collections.abc import Sequence
 
 from logicblocks.event.processing.broker import (
     EventBroker,
+    EventSubscriber,
     EventSubscriberStore,
     EventSubscriptionCoordinator,
+    EventSubscriptionSourcesStore,
     EventSubscriptionState,
+    EventSubscriptionStore,
     InMemoryEventSubscriberStore,
+    InMemoryEventSubscriptionSourcesStore,
     InMemoryEventSubscriptionStore,
     InMemoryLockManager,
-)
-from logicblocks.event.processing.broker.sources.store.base import (
-    EventSubscriptionSourcesStore,
-)
-from logicblocks.event.processing.broker.sources.store.in_memory import (
-    InMemoryEventSubscriptionSourcesStore,
-)
-from logicblocks.event.processing.broker.subscriptions.store.base import (
-    EventSubscriptionStore,
-)
-from logicblocks.event.processing.broker.types import (
-    EventSubscriber,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data

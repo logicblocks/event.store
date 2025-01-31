@@ -1,7 +1,7 @@
-from .stores import EventSubscriptionSources as EventSubscriptionSources
-from .stores import (
+from .mappings import EventSubscriptionSources as EventSubscriptionSources
+from .mappings import (
     EventSubscriptionSourcesStore as EventSubscriptionSourcesStore,
 )
-from .stores import (
+from .mappings import (
     InMemoryEventSubscriptionSourcesStore as InMemoryEventSubscriptionSourcesStore,
 )

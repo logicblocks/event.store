@@ -16,6 +16,9 @@ from .subscribers import EventSubscriberStore as EventSubscriberStore
 from .subscribers import (
     InMemoryEventSubscriberStore as InMemoryEventSubscriberStore,
 )
+from .subscribers import (
+    PostgresEventSubscriberStore as PostgresEventSubscriberStore,
+)
 from .subscriptions import EventSubscriptionChange as EventSubscriptionChange
 from .subscriptions import (
     EventSubscriptionChangeType as EventSubscriptionChangeType,
@@ -25,6 +28,9 @@ from .subscriptions import EventSubscriptionState as EventSubscriptionState
 from .subscriptions import EventSubscriptionStore as EventSubscriptionStore
 from .subscriptions import (
     InMemoryEventSubscriptionStore as InMemoryEventSubscriptionStore,
+)
+from .subscriptions import (
+    PostgresEventSubscriptionStore as PostgresEventSubscriptionStore,
 )
 from .types import EventBroker as EventBroker
 from .types import EventSubscriber as EventSubscriber

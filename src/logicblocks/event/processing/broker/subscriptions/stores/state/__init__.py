@@ -6,3 +6,6 @@ from .base import EventSubscriptionStore as EventSubscriptionStore
 from .in_memory import (
     InMemoryEventSubscriptionStore as InMemoryEventSubscriptionStore,
 )
+from .postgres import (
+    PostgresEventSubscriptionStore as PostgresEventSubscriptionStore,
+)

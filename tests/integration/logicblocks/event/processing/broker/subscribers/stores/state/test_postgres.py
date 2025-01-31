@@ -7,12 +7,12 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import EventSubscriptionStore
-from logicblocks.event.processing.broker.subscriptions.store.postgres import (
-    PostgresEventSubscriptionStore,
+from logicblocks.event.processing.broker import (
+    EventSubscriberStore,
+    PostgresEventSubscriberStore,
 )
-from logicblocks.event.testcases.processing.subscriptions.store import (
-    BaseTestEventSubscriptionStore,
+from logicblocks.event.testcases.processing.subscribers.store import (
+    BaseTestSubscriberStore,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -34,6 +34,7 @@ project_root = os.path.abspath(
         "..",
         "..",
         "..",
+        "..",
     )
 )
 
@@ -43,17 +44,15 @@ def relative_to_root(*path_parts: str) -> str:
 
 
 def create_table_query(table: str) -> abc.Query:
-    with open(relative_to_root("sql", "create_subscriptions_table.sql")) as f:
-        create_table_sql = f.read().replace("subscriptions", "{0}")
+    with open(relative_to_root("sql", "create_subscribers_table.sql")) as f:
+        create_table_sql = f.read().replace("subscribers", "{0}")
 
         return create_table_sql.format(table).encode()
 
 
 def create_indices_query(table: str) -> abc.Query:
-    with open(
-        relative_to_root("sql", "create_subscriptions_indices.sql")
-    ) as f:
-        create_indices_sql = f.read().replace("subscriptions", "{0}")
+    with open(relative_to_root("sql", "create_subscribers_indices.sql")) as f:
+        create_indices_sql = f.read().replace("subscribers", "{0}")
 
         return create_indices_sql.format(table).encode()
 
@@ -109,7 +108,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
+class TestPostgresEventSubscriberStore(BaseTestSubscriberStore):
     pool: AsyncConnectionPool[AsyncConnection]
 
     @pytest_asyncio.fixture(autouse=True)
@@ -118,11 +117,13 @@ class TestPostgresEventSubscriptionStore(BaseTestEventSubscriptionStore):
 
     @pytest_asyncio.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
-        await drop_table(open_connection_pool, "subscriptions")
-        await create_table(open_connection_pool, "subscriptions")
+        await drop_table(open_connection_pool, "subscribers")
+        await create_table(open_connection_pool, "subscribers")
 
-    def construct_store(self) -> EventSubscriptionStore:
-        return PostgresEventSubscriptionStore(connection_source=self.pool)
+    def construct_store(self, clock) -> EventSubscriberStore:
+        return PostgresEventSubscriberStore(
+            clock=clock, connection_source=self.pool
+        )
 
 
 if __name__ == "__main__":

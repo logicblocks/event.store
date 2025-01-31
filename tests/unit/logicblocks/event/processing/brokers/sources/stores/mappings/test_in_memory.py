@@ -1,10 +1,8 @@
 import pytest
 
 from logicblocks.event.processing.broker import (
-    InMemoryEventSubscriptionSourcesStore,
-)
-from logicblocks.event.processing.broker.sources.store.base import (
     EventSubscriptionSources,
+    InMemoryEventSubscriptionSourcesStore,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.types.identifier import (

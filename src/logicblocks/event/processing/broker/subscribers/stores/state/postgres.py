@@ -19,10 +19,6 @@ from logicblocks.event.db.postgres import (
 from logicblocks.event.db.postgres import (
     Query as DBQuery,
 )
-from logicblocks.event.processing.broker.types import (
-    EventSubscriber,
-    EventSubscriberKey,
-)
 from logicblocks.event.projection.store import (
     Clause,
     FilterClause,
@@ -40,6 +36,10 @@ from logicblocks.event.projection.store.adapters.postgres import (
 )
 from logicblocks.event.utils.clock import Clock, SystemClock
 
+from ....types import (
+    EventSubscriber,
+    EventSubscriberKey,
+)
 from .base import EventSubscriberState, EventSubscriberStore
 
 

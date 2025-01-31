@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from ...types import EventSubscriber, EventSubscriberKey
+from ....types import EventSubscriber, EventSubscriberKey
 
 
 @dataclass(frozen=True)

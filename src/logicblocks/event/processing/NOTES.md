@@ -104,16 +104,23 @@ EventSubscriber
   + has a name (representing the type of work that it does) and an ID (
     representing the specific subscriber instance)
 EventSubscriberStore
+  - a store containing all the local subscriber instances
+    - in-memory
+EventSubscriberStateStore
   - a store for keeping track of the subscribers in the system and their health
     + in-memory
-    - postgres
+    + postgres
     - kafka
-EventSubscriptionStore
+EventSubscriptionStateStore
   - a store for keeping track of the current allocations of event sources to
     subscriber instances
     + in-memory
-    - postgres
+    + postgres
     - kafka
+EventSubscriptionSourceMappingStore
+  + a store for keeping track of the full set of event sources that can be 
+    subscribed to for a given subscriber group
+    + in-memory
 LockManager
   - manages application locks to ensure exclusive access to some resource or 
     process

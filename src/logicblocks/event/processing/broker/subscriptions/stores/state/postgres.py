@@ -35,10 +35,10 @@ from logicblocks.event.projection.store.adapters.postgres import (
 )
 from logicblocks.event.types.identifier import event_sequence_identifier
 
-from ... import EventSubscriptionKey
 from .base import (
     EventSubscriptionChange,
     EventSubscriptionChangeType,
+    EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStore,
 )

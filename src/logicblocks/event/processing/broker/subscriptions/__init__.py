@@ -1,8 +1,11 @@
-from .store import EventSubscriptionChange as EventSubscriptionChange
-from .store import EventSubscriptionChangeType as EventSubscriptionChangeType
-from .store import EventSubscriptionKey as EventSubscriptionKey
-from .store import EventSubscriptionState as EventSubscriptionState
-from .store import EventSubscriptionStore as EventSubscriptionStore
-from .store import (
+from .stores import EventSubscriptionChange as EventSubscriptionChange
+from .stores import EventSubscriptionChangeType as EventSubscriptionChangeType
+from .stores import EventSubscriptionKey as EventSubscriptionKey
+from .stores import EventSubscriptionState as EventSubscriptionState
+from .stores import EventSubscriptionStore as EventSubscriptionStore
+from .stores import (
     InMemoryEventSubscriptionStore as InMemoryEventSubscriptionStore,
+)
+from .stores import (
+    PostgresEventSubscriptionStore as PostgresEventSubscriptionStore,
 )

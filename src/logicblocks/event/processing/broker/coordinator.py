@@ -82,8 +82,8 @@ class EventSubscriptionCoordinator:
             subscription.group for subscription in subscriptions
         }
         removed_subscriber_groups = (
-                subscriber_groups_with_subscriptions -
-                subscriber_groups_with_instances
+            subscriber_groups_with_subscriptions
+            - subscriber_groups_with_instances
         )
 
         changes: list[EventSubscriptionChange] = []

@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ....subscriptions import EventSubscriptionKey
 from ....types import EventSubscriber, EventSubscriberKey
 
 
@@ -15,6 +16,10 @@ class EventSubscriberState:
     @property
     def key(self) -> EventSubscriberKey:
         return EventSubscriberKey(self.group, self.id)
+
+    @property
+    def subscription_key(self) -> EventSubscriptionKey:
+        return EventSubscriptionKey(self.group, self.id)
 
 
 class EventSubscriberStateStore(ABC):

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from logicblocks.event.types import EventSequenceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 
 from .base import (
     EventSubscriptionSourceMapping,
@@ -13,13 +13,13 @@ class InMemoryEventSubscriptionSourceMappingStore(
 ):
     def __init__(self):
         self.event_subscription_sources: dict[
-            str, Sequence[EventSequenceIdentifier]
+            str, Sequence[EventSourceIdentifier]
         ] = {}
 
     async def add(
         self,
         subscriber_group: str,
-        event_sources: Sequence[EventSequenceIdentifier],
+        event_sources: Sequence[EventSourceIdentifier],
     ) -> None:
         if subscriber_group in self.event_subscription_sources:
             raise ValueError(

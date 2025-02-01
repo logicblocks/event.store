@@ -4,12 +4,6 @@ from dataclasses import dataclass
 from logicblocks.event.store import EventSource
 
 
-class EventBroker(ABC):
-    @abstractmethod
-    async def register(self, subscriber: "EventSubscriber") -> None:
-        raise NotImplementedError()
-
-
 @dataclass(frozen=True)
 class EventSubscriberKey:
     group: str

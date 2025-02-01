@@ -2,13 +2,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from logicblocks.event.types import EventSequenceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 
 
 @dataclass(frozen=True)
 class EventSubscriptionSourceMapping:
     subscriber_group: str
-    event_sources: Sequence[EventSequenceIdentifier]
+    event_sources: Sequence[EventSourceIdentifier]
 
 
 class EventSubscriptionSourceMappingStore(ABC):
@@ -16,7 +16,7 @@ class EventSubscriptionSourceMappingStore(ABC):
     async def add(
         self,
         subscriber_group: str,
-        event_sources: Sequence[EventSequenceIdentifier],
+        event_sources: Sequence[EventSourceIdentifier],
     ) -> None:
         raise NotImplementedError()
 

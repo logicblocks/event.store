@@ -6,12 +6,12 @@ from logicblocks.event.processing.broker import (
 )
 from logicblocks.event.testing import data
 from logicblocks.event.types.identifier import (
-    EventSequenceIdentifier,
+    EventSourceIdentifier,
     StreamIdentifier,
 )
 
 
-def random_event_sequence_identifier() -> EventSequenceIdentifier:
+def random_event_source_identifier() -> EventSourceIdentifier:
     return StreamIdentifier(
         category=data.random_event_category_name(),
         stream=data.random_event_stream_name(),
@@ -22,8 +22,8 @@ class TestInMemoryEventSubscriptionSourceMappingStore:
     async def test_adds_event_sources_for_single_subscriber_group(self):
         subscriber_group = data.random_subscriber_group()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         store = InMemoryEventSubscriptionSourceMappingStore()
 
@@ -51,10 +51,10 @@ class TestInMemoryEventSubscriptionSourceMappingStore:
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         store = InMemoryEventSubscriptionSourceMappingStore()
 
@@ -96,10 +96,10 @@ class TestInMemoryEventSubscriptionSourceMappingStore:
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         store = InMemoryEventSubscriptionSourceMappingStore()
 
@@ -151,8 +151,8 @@ class TestInMemoryEventSubscriptionSourceMappingStore:
     ):
         subscriber_group = data.random_subscriber_group()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         store = InMemoryEventSubscriptionSourceMappingStore()
 

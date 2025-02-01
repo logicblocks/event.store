@@ -28,6 +28,7 @@ class CapturingEventConsumerFactory:
 
 class CapturingEventBroker(EventBroker):
     def __init__(self):
+        super().__init__()
         self.consumers = []
 
     async def register(self, subscriber: EventSubscriber) -> None:

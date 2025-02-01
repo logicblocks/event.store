@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from enum import StrEnum, auto
+from enum import StrEnum
 
 from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
@@ -22,8 +22,8 @@ class MissingProjectionHandlerError(Exception):
 
 
 class MissingHandlerBehaviour(StrEnum):
-    RAISE = auto()
-    IGNORE = auto()
+    RAISE = "raise"
+    IGNORE = "ignore"
 
 
 class Projector[T](ABC):

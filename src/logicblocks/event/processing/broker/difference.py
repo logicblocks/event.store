@@ -1,7 +1,8 @@
 from collections.abc import Sequence, Set
 from dataclasses import dataclass
 
-from logicblocks.event.types.identifier import EventSequenceIdentifier
+from logicblocks.event.processing.broker.types import EventSubscriberKey
+from logicblocks.event.types import EventSourceIdentifier
 
 from .subscriptions import (
     EventSubscriptionKey,
@@ -13,11 +14,15 @@ from .subscriptions import (
 class EventSubscriptionChange:
     group: str
     id: str
-    event_source: EventSequenceIdentifier
+    event_source: EventSourceIdentifier
 
     @property
     def key(self) -> EventSubscriptionKey:
         return EventSubscriptionKey(self.group, self.id)
+
+    @property
+    def subscriber_key(self) -> EventSubscriberKey:
+        return EventSubscriberKey(self.group, self.id)
 
 
 @dataclass(frozen=True)

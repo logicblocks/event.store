@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
+from typing import Any
 
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
@@ -49,7 +50,7 @@ class EventStream(EventSource):
     """
 
     def __init__(self, adapter: EventStorageAdapter, stream: StreamIdentifier):
-        self.adapter: EventStorageAdapter = adapter
+        self._adapter: EventStorageAdapter = adapter
         self._identifier: StreamIdentifier = stream
 
     @property
@@ -57,7 +58,7 @@ class EventStream(EventSource):
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
-        return await self.adapter.latest(target=self._identifier)
+        return await self._adapter.latest(target=self._identifier)
 
     async def publish(
         self,
@@ -66,7 +67,7 @@ class EventStream(EventSource):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
-        return await self.adapter.save(
+        return await self._adapter.save(
             target=self._identifier,
             events=events,
             conditions=conditions,
@@ -84,9 +85,17 @@ class EventStream(EventSource):
         Returns:
             an async iterator over the events in the stream.
         """
-        return self.adapter.scan(
-            target=self.identifier,
+        return self._adapter.scan(
+            target=self._identifier,
             constraints=constraints,
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, EventStream):
+            return NotImplemented
+        return (
+            self._adapter == other._adapter
+            and self._identifier == other._identifier
         )
 
 
@@ -144,6 +153,14 @@ class EventCategory(EventSource):
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, EventCategory):
+            return NotImplemented
+        return (
+            self._adapter == other._adapter
+            and self._identifier == other._identifier
         )
 
 

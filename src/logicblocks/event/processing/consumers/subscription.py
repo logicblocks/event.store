@@ -1,7 +1,10 @@
 from collections.abc import Callable, MutableMapping
 
 from logicblocks.event.store import EventSource
-from logicblocks.event.types import EventSequenceIdentifier
+from logicblocks.event.types import (
+    EventSequenceIdentifier,
+    EventSourceIdentifier,
+)
 
 from ..broker import EventSubscriber
 from .types import EventConsumer
@@ -20,7 +23,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self._sequence = sequence
         self._delegate_factory = delegate_factory
         self._delegates: MutableMapping[
-            EventSequenceIdentifier, EventConsumer
+            EventSourceIdentifier, EventConsumer
         ] = {}
 
     @property

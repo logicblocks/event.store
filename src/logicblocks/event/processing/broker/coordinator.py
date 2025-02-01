@@ -7,13 +7,11 @@ from .locks import LockManager
 from .sources import EventSubscriptionSourceMappingStore
 from .subscribers import EventSubscriberStateStore
 from .subscriptions import (
-    EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStateChange,
     EventSubscriptionStateChangeType,
     EventSubscriptionStateStore,
 )
-from .types import EventSubscriberKey
 
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
@@ -89,10 +87,7 @@ class EventSubscriptionCoordinator:
         changes: list[EventSubscriptionStateChange] = []
 
         for subscription in subscriptions:
-            if (
-                EventSubscriberKey(subscription.group, subscription.id)
-                not in subscriber_map
-            ):
+            if subscription.subscriber_key not in subscriber_map:
                 changes.append(
                     EventSubscriptionStateChange(
                         type=EventSubscriptionStateChangeType.REMOVE,
@@ -103,14 +98,9 @@ class EventSubscriptionCoordinator:
         for subscriber_group, subscribers in subscriber_groups:
             subscribers = list(subscribers)
             subscriber_group_subscriptions = [
-                subscription_map[key]
+                subscription_map[subscriber.subscription_key]
                 for subscriber in subscribers
-                if (
-                    key := EventSubscriptionKey(
-                        group=subscriber_group, id=subscriber.id
-                    )
-                )
-                and key in subscription_map
+                if subscriber.subscription_key in subscription_map
             ]
 
             subscription_source = subscription_sources_map[subscriber_group]
@@ -119,8 +109,7 @@ class EventSubscriptionCoordinator:
                 event_source
                 for subscription in subscriber_group_subscriptions
                 for event_source in subscription.event_sources
-                if EventSubscriberKey(subscription.group, subscription.id)
-                in subscriber_map
+                if subscription.subscriber_key in subscriber_map
             ]
             removed_event_sources = [
                 event_source
@@ -137,11 +126,7 @@ class EventSubscriptionCoordinator:
 
             for index, subscriber in enumerate(subscribers):
                 subscription = subscription_map.get(
-                    EventSubscriptionKey(
-                        group=subscriber_group,
-                        id=subscriber.id,
-                    ),
-                    None,
+                    subscriber.subscription_key, None
                 )
                 if subscription is None:
                     changes.append(

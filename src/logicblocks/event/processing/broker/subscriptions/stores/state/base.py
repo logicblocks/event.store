@@ -3,7 +3,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from logicblocks.event.types.identifier import EventSequenceIdentifier
+from logicblocks.event.processing.broker.types import EventSubscriberKey
+from logicblocks.event.types.identifier import EventSourceIdentifier
 
 
 @dataclass(frozen=True)
@@ -16,11 +17,15 @@ class EventSubscriptionKey:
 class EventSubscriptionState:
     group: str
     id: str
-    event_sources: Sequence[EventSequenceIdentifier]
+    event_sources: Sequence[EventSourceIdentifier]
 
     @property
     def key(self) -> EventSubscriptionKey:
         return EventSubscriptionKey(group=self.group, id=self.id)
+
+    @property
+    def subscriber_key(self) -> EventSubscriberKey:
+        return EventSubscriberKey(group=self.group, id=self.id)
 
 
 class EventSubscriptionStateChangeType(StrEnum):

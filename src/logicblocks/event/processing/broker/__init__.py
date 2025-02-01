@@ -1,3 +1,4 @@
+from .broker import EventBroker as EventBroker
 from .coordinator import (
     EventSubscriptionCoordinator as EventSubscriptionCoordinator,
 )
@@ -11,11 +12,19 @@ from .difference import (
 from .locks import InMemoryLockManager as InMemoryLockManager
 from .locks import Lock as Lock
 from .locks import LockManager as LockManager
+from .observer import EventSubscriptionObserver as EventSubscriptionObserver
+from .sources import EventSourceFactory as EventSourceFactory
+from .sources import (
+    EventStoreEventSourceFactory as EventStoreEventSourceFactory,
+)
 from .sources import (
     EventSubscriptionSourceMapping as EventSubscriptionSourceMapping,
 )
 from .sources import (
     EventSubscriptionSourceMappingStore as EventSubscriptionSourceMappingStore,
+)
+from .sources import (
+    InMemoryEventStoreEventSourceFactory as InMemoryEventStoreEventSourceFactory,
 )
 from .sources import (
     InMemoryEventSubscriptionSourceMappingStore as InMemoryEventSubscriptionSourceMappingStore,
@@ -49,5 +58,4 @@ from .subscriptions import (
 from .subscriptions import (
     PostgresEventSubscriptionStateStore as PostgresEventSubscriptionStateStore,
 )
-from .types import EventBroker as EventBroker
 from .types import EventSubscriber as EventSubscriber

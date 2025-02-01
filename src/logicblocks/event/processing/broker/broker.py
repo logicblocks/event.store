@@ -1,8 +1,9 @@
-from logicblocks.event.processing.broker import EventBroker, EventSubscriber
 from logicblocks.event.processing.services import Service
 
+from .types import EventSubscriber
 
-class PostgresEventBroker(EventBroker, Service):
+
+class EventBroker(Service):
     def __init__(self):
         self.consumers: list[EventSubscriber] = []
 

@@ -15,7 +15,7 @@ from logicblocks.event.processing.broker import (
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.types import StreamIdentifier
-from logicblocks.event.types.identifier import EventSequenceIdentifier
+from logicblocks.event.types.identifier import EventSourceIdentifier
 
 
 class CapturingEventSubscriber(EventSubscriber):
@@ -50,9 +50,9 @@ def random_subscriber(
     return CapturingEventSubscriber(group=subscriber_group, id=subscriber_id)
 
 
-def random_event_sequence_identifier(
+def random_event_source_identifier(
     category_name: str | None = None,
-) -> EventSequenceIdentifier:
+) -> EventSourceIdentifier:
     if category_name is None:
         category_name = data.random_event_category_name()
     stream_name = data.random_event_stream_name()
@@ -124,7 +124,7 @@ def subscription_for_subscriber_key(
 
 def subscription_event_sources(
     subscriptions: Sequence[EventSubscriptionState],
-) -> Sequence[EventSequenceIdentifier]:
+) -> Sequence[EventSourceIdentifier]:
     return [
         event_source
         for subscription in subscriptions
@@ -137,7 +137,7 @@ class TestDistributeNoSubscriptions:
         self,
     ):
         subscriber = random_subscriber()
-        event_sequence_identifier = random_event_sequence_identifier()
+        event_sequence_identifier = random_event_source_identifier()
 
         (
             coordinator,
@@ -169,9 +169,9 @@ class TestDistributeNoSubscriptions:
     ):
         subscriber = random_subscriber()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
 
         (
             coordinator,
@@ -213,7 +213,7 @@ class TestDistributeNoSubscriptions:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier = random_event_sequence_identifier()
+        event_sequence_identifier = random_event_source_identifier()
 
         (
             coordinator,
@@ -255,9 +255,9 @@ class TestDistributeNoSubscriptions:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
 
         (
             coordinator,
@@ -308,10 +308,10 @@ class TestDistributeNoSubscriptions:
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group_2)
         subscriber_3 = random_subscriber(subscriber_group=subscriber_group_2)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,
@@ -376,10 +376,10 @@ class TestDistributeExistingSubscriptionsSourceChanges:
     ):
         subscriber = random_subscriber()
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,
@@ -436,10 +436,10 @@ class TestDistributeExistingSubscriptionsSourceChanges:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,
@@ -522,10 +522,10 @@ class TestDistributeExistingSubscriptionsSourceChanges:
 
         subscriber = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,
@@ -580,10 +580,10 @@ class TestDistributeExistingSubscriptionsSourceChanges:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,
@@ -663,8 +663,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         (
             coordinator,
@@ -726,8 +726,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_3 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         (
             coordinator,
@@ -795,9 +795,9 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_3 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
 
         (
             coordinator,
@@ -876,8 +876,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         (
             coordinator,
@@ -929,8 +929,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
         subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
 
         (
             coordinator,
@@ -991,10 +991,10 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             subscriber_group=subscriber_group_2
         )
 
-        event_sequence_identifier_1 = random_event_sequence_identifier()
-        event_sequence_identifier_2 = random_event_sequence_identifier()
-        event_sequence_identifier_3 = random_event_sequence_identifier()
-        event_sequence_identifier_4 = random_event_sequence_identifier()
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
 
         (
             coordinator,

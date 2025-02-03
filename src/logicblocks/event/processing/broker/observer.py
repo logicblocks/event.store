@@ -1,9 +1,18 @@
+import asyncio
 from collections.abc import Sequence
+from datetime import timedelta
+from enum import StrEnum
 
 from .difference import EventSubscriptionDifference
 from .sources import EventSourceFactory
 from .subscribers import EventSubscriberStore
 from .subscriptions import EventSubscriptionState, EventSubscriptionStateStore
+
+
+class EventSubscriptionObserverStatus(StrEnum):
+    STOPPED = "stopped"
+    RUNNING = "running"
+    ERRORED = "errored"
 
 
 class EventSubscriptionObserver:
@@ -15,6 +24,7 @@ class EventSubscriptionObserver:
         subscription_state_store: EventSubscriptionStateStore,
         subscription_difference: EventSubscriptionDifference,
         event_source_factory: EventSourceFactory,
+        synchronisation_interval: timedelta = timedelta(seconds=20),
     ):
         self._subscriber_store = subscriber_store
         self._subscription_state_store = subscription_state_store
@@ -23,14 +33,35 @@ class EventSubscriptionObserver:
 
         self._existing_subscriptions = []
 
+        self._synchronisation_interval = synchronisation_interval
+        self._status = EventSubscriptionObserverStatus.STOPPED
+
+    @property
+    def status(self) -> EventSubscriptionObserverStatus:
+        return self._status
+
     async def observe(self):
-        pass
+        self._status = EventSubscriptionObserverStatus.RUNNING
+        try:
+            while True:
+                await self.synchronise()
+                await asyncio.sleep(
+                    self._synchronisation_interval.total_seconds()
+                )
+        except (asyncio.CancelledError, GeneratorExit):
+            self._status = EventSubscriptionObserverStatus.STOPPED
+            raise
+        except:
+            self._status = EventSubscriptionObserverStatus.ERRORED
+            raise
 
     async def synchronise(self):
         existing = self._existing_subscriptions
         updated = await self._subscription_state_store.list()
 
         changeset = self._subscription_difference.diff(existing, updated)
+
+        print(changeset)
 
         for revocation in changeset.revocations:
             subscriber = await self._subscriber_store.get(

@@ -10,7 +10,10 @@ from .difference import (
     EventSubscriptionDifference,
 )
 from .locks import InMemoryLockManager, Lock, LockManager
-from .observer import EventSubscriptionObserver
+from .observer import (
+    EventSubscriptionObserver,
+    EventSubscriptionObserverStatus,
+)
 from .sources import (
     EventSourceFactory,
     EventStoreEventSourceFactory,
@@ -54,6 +57,7 @@ __all__ = (
     "EventSubscriptionDifference",
     "EventSubscriptionKey",
     "EventSubscriptionObserver",
+    "EventSubscriptionObserverStatus",
     "EventSubscriptionSourceMapping",
     "EventSubscriptionSourceMappingStore",
     "EventSubscriptionState",

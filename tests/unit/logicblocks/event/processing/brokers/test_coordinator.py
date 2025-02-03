@@ -153,10 +153,6 @@ class NodeAwareEventSubscriptionStateStoreClass(Protocol):
 def make_coordinator(
     subscriber_state_store_class: NodeAwareEventSubscriberStateStoreClass = InMemoryEventSubscriberStateStore,
     subscription_state_store_class: NodeAwareEventSubscriptionStateStoreClass = InMemoryEventSubscriptionStateStore,
-    subscription_source_mapping_store_class: type[
-        EventSubscriptionSourceMappingStore
-    ] = InMemoryEventSubscriptionSourceMappingStore,
-    lock_manager_class: type[LockManager] = InMemoryLockManager,
     subscriber_max_time_since_last_seen: timedelta | None = None,
     distribution_interval: timedelta | None = None,
 ) -> Context:
@@ -164,9 +160,9 @@ def make_coordinator(
     subscriber_state_store = subscriber_state_store_class(node_id=node_id)
     subscription_state_store = subscription_state_store_class(node_id=node_id)
     subscription_source_mapping_store = (
-        subscription_source_mapping_store_class()
+        InMemoryEventSubscriptionSourceMappingStore()
     )
-    lock_manager = lock_manager_class()
+    lock_manager = InMemoryLockManager()
 
     kwargs = {
         "lock_manager": lock_manager,
@@ -1378,4 +1374,4 @@ class TestCoordinateDistribution:
 
         await asyncio.gather(task, return_exceptions=True)
 
-        assert 4 > subscription_state_store.counts["apply"] > 2
+        assert subscription_state_store.counts["apply"] == 3

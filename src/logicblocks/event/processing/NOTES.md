@@ -91,7 +91,7 @@ EventSequencePartitioner
 EventSubscriptionCoordinator 
   + manages subscriptions for subscribers to ensure minimal duplication of 
     effort and to allow parallelism
-  - only one instance can be coordinating at a time
+  + only one instance can be coordinating at a time
 EventSubscriptionObserver
   + starts and stops subscribers from working on event sources
   + all instances (1 per node that has subscribers) can operate at the same
@@ -126,7 +126,7 @@ LockManager
     process
     + in-memory
     - postgres
-NodeHeartbeat
+NodeStateStore
   - keeps track of node health for each node in the processing group
     - in-memory
     + postgres
@@ -136,60 +136,3 @@ EventConsumerStateStore
 ### Questions
 
 * How do we ensure that subscribers have been registered before allocating?
-* Do we need `EventSubscriber.subscribe`?
-
-## Archive
-
-* 1 work allocator gets elected as leader, this is the only one allowed to add
-  work to the table and assign workers to it
-* each work allocator polls the table to determine bits of work that it should 
-  distribute to its consumer processes
-* each work allocator updates heartbeat timestamp against work it is still 
-  working on
-
-Example:
-- 3 nodes start up -> 3 brokers
-- Each node starts a consumer based on the config -> 3 brokers, 3 consumer 
-  instances (all with the same name / belonging to same consumer group)
-- Each broker has registered against it the consumer instance of its node 
-  (brokers know that each node has the equivalent set of consumers in belonging 
-  to the same consumer group(s))
-- Each node is assigned (picks) an id, and starts writing heartbeats into the 
-  worker_nodes table
-- A broker leader is elected -> 1 broker is leader
-- Broker leader assigns worker to consumer group partitions by replacing 
-  contents of work_allocations table (need to think about avoiding double 
-  consumers)
-- Each broker polls the work_allocations table to determine what work should be 
-  delegated or revoked from its subscribers
-
-```python
-class ConsumerService(Service):
-    def __init__(self, consumer: EventConsumer, poll_interval: int):
-        self.consumer = consumer
-        self.poll_interval = poll_interval
-        
-    def execute(self):
-        while True:
-            await self.consumer.consume_all()
-            asyncio.sleep(poll_interval)
-            
-class Consumer(ABC):
-    def __init__(self, name: str, identifier: EventSequenceIdentifier):
-    
-    def consume_all(self):
-        # read new events
-        # for each, consume_event
-        # store new position
-        pass
-        
-    
-class EventProcessor():
-    def handle_event(self, event: StoredEvent):
-        pass
-
-class FenxSynchronisationConsumer(Consumer):
-   def consume_event(self, event: StoredEvent):
-       # do some work
-       pass
-```

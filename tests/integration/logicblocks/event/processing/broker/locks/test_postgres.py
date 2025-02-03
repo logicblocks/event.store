@@ -3,8 +3,8 @@ from logicblocks.event.processing.broker import LockManager
 from logicblocks.event.processing.broker.locks.postgres import (
     PostgresLockManager,
 )
-from logicblocks.event.testcases.processing.broker.locks.lock_manager import (
-    BaseTestLockManager,
+from logicblocks.event.testcases import (
+    LockManagerCases,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -16,6 +16,6 @@ connection_settings = PostgresConnectionSettings(
 )
 
 
-class TestPostgresLockManager(BaseTestLockManager):
+class TestPostgresLockManager(LockManagerCases):
     def construct_lock_manager(self) -> LockManager:
         return PostgresLockManager(connection_settings=connection_settings)

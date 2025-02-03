@@ -61,8 +61,6 @@ class EventSubscriptionObserver:
 
         changeset = self._subscription_difference.diff(existing, updated)
 
-        print(changeset)
-
         for revocation in changeset.revocations:
             subscriber = await self._subscriber_store.get(
                 revocation.subscriber_key

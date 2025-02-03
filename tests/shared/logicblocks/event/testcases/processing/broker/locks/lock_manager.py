@@ -8,7 +8,7 @@ from logicblocks.event.processing.broker import (
 )
 
 
-class BaseTestLockManager:
+class LockManagerCases:
     @abstractmethod
     def construct_lock_manager(self) -> LockManager:
         raise NotImplementedError()

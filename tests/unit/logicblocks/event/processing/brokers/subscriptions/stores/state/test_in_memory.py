@@ -2,7 +2,7 @@ from logicblocks.event.processing.broker import (
     EventSubscriptionStateStore,
     InMemoryEventSubscriptionStateStore,
 )
-from logicblocks.event.testcases.processing.subscriptions.stores.state import (
+from logicblocks.event.testcases import (
     EventSubscriptionStateStoreCases,
 )
 

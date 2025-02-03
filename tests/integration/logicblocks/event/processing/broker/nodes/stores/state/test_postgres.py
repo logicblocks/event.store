@@ -1,6 +1,5 @@
 import os
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest_asyncio
@@ -9,9 +8,15 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.consumers import PostgresNodeHeartbeat
-from logicblocks.event.testing import data
-from logicblocks.event.utils.clock import StaticClock
+from logicblocks.event.processing.broker import (
+    NodeState,
+    NodeStateStore,
+    PostgresNodeStateStore,
+)
+from logicblocks.event.testcases.processing.broker.nodes.stores.state import (
+    NodeStateStoreCases,
+)
+from logicblocks.event.utils.clock import Clock
 
 connection_settings = PostgresConnectionSettings(
     user="admin",
@@ -22,7 +27,18 @@ connection_settings = PostgresConnectionSettings(
 )
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+    )
 )
 
 
@@ -103,7 +119,7 @@ async def open_connection_pool():
         await pool.close()
 
 
-class TestPostgresNodeHeartbeat:
+class TestPostgresNodeStateStore(NodeStateStoreCases):
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
@@ -113,65 +129,13 @@ class TestPostgresNodeHeartbeat:
         await drop_table(open_connection_pool, "nodes")
         await create_table(open_connection_pool, "nodes")
 
-    async def test_registers_node_when_absent(self):
-        node_id = data.random_node_id()
-        last_seen = datetime.now(UTC)
-        clock = StaticClock(now=last_seen)
-
-        heartbeat = PostgresNodeHeartbeat(
+    def construct_store(self, node_id: str, clock: Clock) -> NodeStateStore:
+        return PostgresNodeStateStore(
             node_id=node_id, connection_pool=self.pool, clock=clock
         )
 
-        await heartbeat.beat()
-
-        nodes = await read_nodes(self.pool, "nodes")
-
-        assert len(nodes) == 1
-        assert nodes[0] == {
-            "id": node_id,
-            "last_seen": last_seen,
-        }
-
-    async def test_updates_last_seen_when_present(self):
-        node_id = data.random_node_id()
-
-        last_seen_1 = datetime.now(UTC)
-        last_seen_2 = last_seen_1 + timedelta(seconds=5)
-
-        clock = StaticClock(now=last_seen_1)
-
-        heartbeat = PostgresNodeHeartbeat(
-            node_id=node_id, connection_pool=self.pool, clock=clock
-        )
-
-        await heartbeat.beat()
-
-        clock.set(now=last_seen_2)
-
-        await heartbeat.beat()
-
-        nodes = await read_nodes(self.pool, "nodes")
-
-        assert len(nodes) == 1
-        assert nodes[0] == {
-            "id": node_id,
-            "last_seen": last_seen_2,
-        }
-
-    async def test_removes_node_on_stop(self):
-        node_id = data.random_node_id()
-        last_seen = datetime.now(UTC)
-
-        clock = StaticClock(now=last_seen)
-
-        heartbeat = PostgresNodeHeartbeat(
-            node_id=node_id, connection_pool=self.pool, clock=clock
-        )
-
-        await heartbeat.beat()
-
-        await heartbeat.stop()
-
-        nodes = await read_nodes(self.pool, "nodes")
-
-        assert len(nodes) == 0
+    async def read_nodes(self, store: NodeStateStore) -> Sequence[NodeState]:
+        return [
+            NodeState(node["id"], node["last_seen"])
+            for node in await read_nodes(self.pool, "nodes")
+        ]

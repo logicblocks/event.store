@@ -9,7 +9,13 @@ from .difference import (
     EventSubscriptionChangeset,
     EventSubscriptionDifference,
 )
-from .locks import InMemoryLockManager, Lock, LockManager
+from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
+from .nodes import (
+    InMemoryNodeStateStore,
+    NodeState,
+    NodeStateStore,
+    PostgresNodeStateStore,
+)
 from .observer import (
     EventSubscriptionObserver,
     EventSubscriptionObserverStatus,
@@ -70,8 +76,13 @@ __all__ = (
     "InMemoryEventSubscriptionSourceMappingStore",
     "InMemoryEventSubscriptionStateStore",
     "InMemoryLockManager",
+    "InMemoryNodeStateStore",
     "Lock",
     "LockManager",
+    "NodeState",
+    "NodeStateStore",
     "PostgresEventSubscriberStateStore",
     "PostgresEventSubscriptionStateStore",
+    "PostgresLockManager",
+    "PostgresNodeStateStore",
 )

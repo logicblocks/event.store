@@ -2,7 +2,7 @@ from logicblocks.event.processing.broker import (
     EventSubscriberStateStore,
     InMemoryEventSubscriberStateStore,
 )
-from logicblocks.event.testcases.processing.subscribers.stores.state import (
+from logicblocks.event.testcases import (
     EventSubscriberStateStoreCases,
 )
 from logicblocks.event.utils.clock import Clock

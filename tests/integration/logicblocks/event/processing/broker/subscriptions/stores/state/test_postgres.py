@@ -14,7 +14,7 @@ from logicblocks.event.processing.broker import (
     EventSubscriptionStateStore,
     PostgresEventSubscriptionStateStore,
 )
-from logicblocks.event.testcases.processing.subscriptions.stores.state import (
+from logicblocks.event.testcases import (
     EventSubscriptionStateStoreCases,
 )
 from logicblocks.event.testing import data

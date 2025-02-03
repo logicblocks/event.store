@@ -2,12 +2,12 @@ from logicblocks.event.processing.broker import (
     InMemoryLockManager,
     LockManager,
 )
-from logicblocks.event.testcases.processing.broker.locks.lock_manager import (
-    BaseTestLockManager,
+from logicblocks.event.testcases import (
+    LockManagerCases,
 )
 
 
-class TestInMemoryLockManager(BaseTestLockManager):
+class TestInMemoryLockManager(LockManagerCases):
     def construct_lock_manager(self) -> LockManager:
         return InMemoryLockManager()
 

@@ -21,4 +21,9 @@ class EventBroker(Service):
             # start observer process
             #   - monitor subscription table and replay event sources onto
             #     subscriber instances
+
+            # process to heartbeat node - PARTIALLY DONE
+            # process to register and healthcheck subscribers -
+            # process to coordinate and distribute subscriptions - DONE
+            # process to observe and synchronise subscriptions - DONE
             pass

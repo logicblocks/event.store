@@ -35,15 +35,15 @@ async def _try_wait_lock(
     cursor: AsyncCursor[Any], lock_name: str, timeout: timedelta | None = None
 ) -> bool:
     try:
-        if timeout:
-            await cursor.execute(
-                SQL("SET lock_timeout TO '{0}ms'").format(
-                    timeout.microseconds / 1000
-                ),
-            )
         await cursor.execute(
-            SQL("SELECT pg_advisory_xact_lock({0})").format(
-                get_digest(lock_name)
+            SQL(
+                """
+                SET lock_timeout TO '{0}ms';
+                SELECT pg_advisory_xact_lock({1});
+                """
+            ).format(
+                timeout.microseconds / 1000 if timeout else 0,
+                get_digest(lock_name),
             ),
         )
 

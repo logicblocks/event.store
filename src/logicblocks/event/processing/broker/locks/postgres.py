@@ -9,9 +9,8 @@ from psycopg import AsyncConnection, AsyncCursor
 from psycopg.errors import LockNotAvailable
 from psycopg.rows import scalar_row
 from psycopg.sql import SQL
-from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db.postgres import ConnectionSettings, ConnectionSource
+from logicblocks.event.db.postgres import ConnectionSettings
 
 from .base import Lock, LockManager
 
@@ -53,21 +52,16 @@ async def _try_wait_lock(
 
 
 class PostgresLockManager(LockManager):
-    connection_pool: AsyncConnectionPool[AsyncConnection]
+    connection_settings: ConnectionSettings
 
-    def __init__(self, connection_source: ConnectionSource):
-        if isinstance(connection_source, ConnectionSettings):
-            self._connection_pool_owner = True
-            self.connection_pool = AsyncConnectionPool[AsyncConnection](
-                connection_source.to_connection_string(), open=False
-            )
-        else:
-            self._connection_pool_owner = False
-            self.connection_pool = connection_source
+    def __init__(self, connection_settings: ConnectionSettings):
+        self.connection_settings = connection_settings
 
     @asynccontextmanager
     async def try_lock(self, lock_name: str) -> AsyncGenerator[Lock, None]:
-        async with self.connection_pool.connection() as conn:
+        async with await AsyncConnection.connect(
+            self.connection_settings.to_connection_string()
+        ) as conn:
             async with conn.cursor(row_factory=scalar_row) as cursor:
                 locked = await _try_lock(cursor, lock_name)
                 yield Lock(
@@ -82,7 +76,9 @@ class PostgresLockManager(LockManager):
     ) -> AsyncGenerator[Lock, None]:
         start = time.monotonic_ns()
 
-        async with self.connection_pool.connection() as conn:
+        async with await AsyncConnection.connect(
+            self.connection_settings.to_connection_string()
+        ) as conn:
             async with conn.cursor(row_factory=scalar_row) as cursor:
                 locked = await _try_wait_lock(cursor, lock_name, timeout)
 

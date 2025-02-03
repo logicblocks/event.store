@@ -170,7 +170,7 @@ def delete_query(
             """
             DELETE FROM {0}
             WHERE "group" = %s AND id = %s
-            RETURNING *;;
+            RETURNING *;
             """
         ).format(sql.Identifier(table_settings.subscribers_table_name)),
         [key.group, key.id],

@@ -521,9 +521,9 @@ class EventSubscriberStateStoreCases:
 
         clock.set(now)
 
-        await store.purge()
+        await store.purge(max_time_since_last_seen=max_age)
 
-        states = await store.list(max_time_since_last_seen=max_age)
+        states = await store.list()
 
         assert len(states) == 1
         assert states[0].id == subscriber_2_key.id

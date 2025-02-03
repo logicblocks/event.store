@@ -129,10 +129,8 @@ class TestPostgresNodeStateStore(NodeStateStoreCases):
         await drop_table(open_connection_pool, "nodes")
         await create_table(open_connection_pool, "nodes")
 
-    def construct_store(self, node_id: str, clock: Clock) -> NodeStateStore:
-        return PostgresNodeStateStore(
-            node_id=node_id, connection_pool=self.pool, clock=clock
-        )
+    def construct_store(self, clock: Clock) -> NodeStateStore:
+        return PostgresNodeStateStore(connection_pool=self.pool, clock=clock)
 
     async def read_nodes(self, store: NodeStateStore) -> Sequence[NodeState]:
         return [

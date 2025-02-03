@@ -46,6 +46,6 @@ class EventSubscriberStateStore(ABC):
 
     @abstractmethod
     async def purge(
-        self, max_time_since_last_seen: timedelta = timedelta(seconds=360)
+        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
     ) -> None:
         raise NotImplementedError()

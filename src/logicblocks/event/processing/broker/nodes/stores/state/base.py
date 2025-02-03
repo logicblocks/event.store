@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 @dataclass(frozen=True)
@@ -12,13 +12,25 @@ class NodeState:
 
 class NodeStateStore:
     @abstractmethod
-    async def list(self) -> Sequence[NodeState]:
+    async def add(self, node_id: str) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def heartbeat(self) -> None:
+    async def remove(self, node_id: str) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def stop(self) -> None:
+    async def list(
+        self, max_time_since_last_seen: timedelta | None = None
+    ) -> Sequence[NodeState]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def heartbeat(self, node_id: str) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def purge(
+        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
+    ) -> None:
         raise NotImplementedError()

@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import Any
 
 from psycopg import AsyncConnection, AsyncCursor
+from psycopg.errors import LockNotAvailable
 from psycopg.rows import scalar_row
 from psycopg.sql import SQL
 from psycopg_pool import AsyncConnectionPool
@@ -23,10 +24,32 @@ def get_digest(lock_id: str) -> int:
 
 async def _try_lock(cursor: AsyncCursor[Any], lock_name: str) -> bool:
     lock_result = await cursor.execute(
-        SQL("SELECT pg_try_advisory_xact_lock(%(lock_id)s)"),
-        {"lock_id": get_digest(lock_name)},
+        SQL("SELECT pg_try_advisory_xact_lock({0})").format(
+            get_digest(lock_name)
+        ),
     )
     return bool(await lock_result.fetchone())
+
+
+async def _try_wait_lock(
+    cursor: AsyncCursor[Any], lock_name: str, timeout: timedelta | None = None
+) -> bool:
+    try:
+        if timeout:
+            await cursor.execute(
+                SQL("SET lock_timeout TO '{0}ms'").format(
+                    timeout.microseconds / 1000
+                ),
+            )
+        await cursor.execute(
+            SQL("SELECT pg_advisory_xact_lock({0})").format(
+                get_digest(lock_name)
+            ),
+        )
+
+    except LockNotAvailable:
+        return False
+    return True
 
 
 class PostgresLockManager(LockManager):
@@ -61,14 +84,7 @@ class PostgresLockManager(LockManager):
 
         async with self.connection_pool.connection() as conn:
             async with conn.cursor(row_factory=scalar_row) as cursor:
-                locked = False
-
-                while not locked and (
-                    time.monotonic_ns() < start + (timeout.microseconds * 1000)
-                    if timeout
-                    else True
-                ):
-                    locked = await _try_lock(cursor, lock_name)
+                locked = await _try_wait_lock(cursor, lock_name, timeout)
 
                 end = time.monotonic_ns()
                 wait_time = (end - start) / 1000 / 1000
@@ -79,12 +95,3 @@ class PostgresLockManager(LockManager):
                     timed_out=(not locked),
                     wait_time=timedelta(milliseconds=wait_time),
                 )
-
-    # wait for lock -> pg_advisory_xact_lock
-    #               -> pg_advisory_lock
-    # try lock -> pg_try_advisory_xact_lock
-    #          -> pg_try_advisory_lock
-    # not sure which to use
-    #
-    # should the postgres lock manager manage its own dedicated connection?
-    # how long running can this connection be?

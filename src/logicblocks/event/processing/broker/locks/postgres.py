@@ -41,18 +41,11 @@ class PostgresLockManager(LockManager):
                     {"lock_id": get_digest(lock_name)},
                 )
                 r = await lock_result.fetchone()
-                if r:
-                    yield Lock(
-                        name=lock_name,
-                        locked=r,
-                        timed_out=False,
-                    )
-                else:
-                    yield Lock(
-                        name=lock_name,
-                        locked=False,
-                        timed_out=False,
-                    )
+                yield Lock(
+                    name=lock_name,
+                    locked=r,
+                    timed_out=False,
+                )
 
     @asynccontextmanager
     def wait_for_lock(

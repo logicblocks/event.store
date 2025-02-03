@@ -134,7 +134,7 @@ class BaseTestLockManager:
         lock_1_task = asyncio.create_task(get_lock(lock_name, hold_1))
         lock_2_task = asyncio.create_task(get_lock(lock_name, hold_2))
 
-        await asyncio.sleep(timedelta(milliseconds=20).total_seconds())
+        await asyncio.sleep(timedelta(milliseconds=100).total_seconds())
 
         hold_1.set()
         hold_2.set()
@@ -148,8 +148,8 @@ class BaseTestLockManager:
 
         wait_times = [lock.wait_time for lock in locks]
 
-        assert max(wait_times) >= timedelta(milliseconds=20)
-        assert min(wait_times) <= timedelta(milliseconds=20)
+        assert max(wait_times) >= timedelta(milliseconds=100)
+        assert min(wait_times) <= timedelta(milliseconds=100)
 
     async def test_does_not_leak_when_wait_for_lock_with_many_different_locks(
         self,

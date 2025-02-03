@@ -46,18 +46,6 @@ class TestPostgresLockManager(BaseTestLockManager):
     async def test_does_not_leak_when_try_lock_on_many_different_locks(self):
         pass
 
-    async def test_wait_to_obtain_lock_and_succeed(self):
-        pass
-
-    async def test_wait_to_obtain_two_locks(self):
-        pass
-
-    async def test_wait_to_obtain_lock_and_timeout(self):
-        pass
-
-    async def test_wait_to_obtain_lock_and_wait_for_release(self):
-        pass
-
     async def test_does_not_leak_when_wait_for_lock_with_many_different_locks(
         self,
     ):

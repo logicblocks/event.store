@@ -17,6 +17,7 @@ class EventSubscriptionKey:
 class EventSubscriptionState:
     group: str
     id: str
+    node_id: str
     event_sources: Sequence[EventSourceIdentifier]
 
     @property
@@ -37,7 +38,7 @@ class EventSubscriptionStateChangeType(StrEnum):
 @dataclass(frozen=True)
 class EventSubscriptionStateChange:
     type: EventSubscriptionStateChangeType
-    state: EventSubscriptionState
+    subscription: EventSubscriptionState
 
 
 class EventSubscriptionStateStore(ABC):

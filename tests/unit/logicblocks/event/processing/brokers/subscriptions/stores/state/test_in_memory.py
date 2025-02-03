@@ -10,5 +10,5 @@ from logicblocks.event.testcases.processing.subscriptions.stores.state import (
 class TestInMemoryEventSubscriptionStateStore(
     EventSubscriptionStateStoreCases
 ):
-    def construct_store(self) -> EventSubscriptionStateStore:
-        return InMemoryEventSubscriptionStateStore()
+    def construct_store(self, node_id: str) -> EventSubscriptionStateStore:
+        return InMemoryEventSubscriptionStateStore(node_id=node_id)

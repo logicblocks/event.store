@@ -1,7 +1,10 @@
+import asyncio
 import itertools
 import operator
 from collections.abc import Sequence
 from datetime import timedelta
+from enum import StrEnum
+from typing import Any
 
 from .locks import LockManager
 from .sources import EventSubscriptionSourceMappingStore
@@ -18,41 +21,63 @@ def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
     return [values[i::chunks] for i in range(chunks)]
 
 
+def class_fullname(klass: type[Any]):
+    module = klass.__module__
+    if module == "builtins":
+        return klass.__qualname__
+    return module + "." + klass.__qualname__
+
+
+class EventSubscriptionCoordinatorStatus(StrEnum):
+    STOPPED = "stopped"
+    RUNNING = "running"
+    ERRORED = "errored"
+
+
 class EventSubscriptionCoordinator:
     def __init__(
         self,
         lock_manager: LockManager,
-        subscriber_store: EventSubscriberStateStore,
-        subscription_store: EventSubscriptionStateStore,
-        subscription_sources_store: EventSubscriptionSourceMappingStore,
+        subscriber_state_store: EventSubscriberStateStore,
+        subscription_state_store: EventSubscriptionStateStore,
+        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
+        distribution_interval: timedelta = timedelta(seconds=20),
     ):
-        self.lock_manager = lock_manager
-        self.subscriber_store = subscriber_store
-        self.subscription_store = subscription_store
-        self.subscription_sources_store = subscription_sources_store
+        self._lock_manager = lock_manager
+        self._subscriber_store = subscriber_state_store
+        self._subscription_store = subscription_state_store
+        self._subscription_sources_store = subscription_source_mapping_store
 
-        self.subscriber_max_time_since_last_seen = (
+        self._subscriber_max_time_since_last_seen = (
             subscriber_max_time_since_last_seen
         )
+        self._distribution_interval = distribution_interval
+        self._status = EventSubscriptionCoordinatorStatus.STOPPED
+
+    @property
+    def status(self) -> EventSubscriptionCoordinatorStatus:
+        return self._status
 
     async def coordinate(self) -> None:
-        async with self.lock_manager.wait_for_lock("coordinator"):
-            pass
-        # with lock
-        #   every distribute interval:
-        #     list subscribers
-        #     list existing subscriptions
-        #     reconcile subscriptions and remove/add in transaction
-        #   every rebalance interval:
-        #     list subscribers
-        #     list existing subscriptions
-        #     rebalance subscriptions and add/update/remove in transaction
-        # do we remove allocations and then wait??
+        async with self._lock_manager.wait_for_lock(LOCK_NAME):
+            self._status = EventSubscriptionCoordinatorStatus.RUNNING
+            try:
+                while True:
+                    await self.distribute()
+                    await asyncio.sleep(
+                        self._distribution_interval.total_seconds()
+                    )
+            except (asyncio.CancelledError, GeneratorExit):
+                self._status = EventSubscriptionCoordinatorStatus.STOPPED
+                raise
+            except:
+                self._status = EventSubscriptionCoordinatorStatus.ERRORED
+                raise
 
     async def distribute(self) -> None:
-        subscribers = await self.subscriber_store.list(
-            max_time_since_last_seen=self.subscriber_max_time_since_last_seen
+        subscribers = await self._subscriber_store.list(
+            max_time_since_last_seen=self._subscriber_max_time_since_last_seen
         )
         subscribers = sorted(subscribers, key=operator.attrgetter("group"))
         subscriber_map = {
@@ -62,12 +87,12 @@ class EventSubscriptionCoordinator:
             subscribers, operator.attrgetter("group")
         )
 
-        subscriptions = await self.subscription_store.list()
+        subscriptions = await self._subscription_store.list()
         subscription_map = {
             subscription.key: subscription for subscription in subscriptions
         }
 
-        subscription_sources = await self.subscription_sources_store.list()
+        subscription_sources = await self._subscription_sources_store.list()
         subscription_sources_map = {
             subscription_source.subscriber_group: subscription_source
             for subscription_source in subscription_sources
@@ -91,7 +116,7 @@ class EventSubscriptionCoordinator:
                 changes.append(
                     EventSubscriptionStateChange(
                         type=EventSubscriptionStateChangeType.REMOVE,
-                        state=subscription,
+                        subscription=subscription,
                     )
                 )
 
@@ -132,9 +157,10 @@ class EventSubscriptionCoordinator:
                     changes.append(
                         EventSubscriptionStateChange(
                             type=EventSubscriptionStateChangeType.ADD,
-                            state=EventSubscriptionState(
+                            subscription=EventSubscriptionState(
                                 group=subscriber_group,
                                 id=subscriber.id,
+                                node_id=subscriber.node_id,
                                 event_sources=new_event_source_chunks[index],
                             ),
                         )
@@ -147,9 +173,10 @@ class EventSubscriptionCoordinator:
                     changes.append(
                         EventSubscriptionStateChange(
                             type=EventSubscriptionStateChangeType.REPLACE,
-                            state=EventSubscriptionState(
+                            subscription=EventSubscriptionState(
                                 group=subscriber_group,
                                 id=subscriber.id,
+                                node_id=subscriber.node_id,
                                 event_sources=[
                                     *remaining_event_sources,
                                     *new_event_sources,
@@ -159,6 +186,9 @@ class EventSubscriptionCoordinator:
                     )
 
         for subscriber_group in removed_subscriber_groups:
-            await self.subscription_sources_store.remove(subscriber_group)
+            await self._subscription_sources_store.remove(subscriber_group)
 
-        await self.subscription_store.apply(changes=changes)
+        await self._subscription_store.apply(changes=changes)
+
+
+LOCK_NAME = class_fullname(EventSubscriptionCoordinator)

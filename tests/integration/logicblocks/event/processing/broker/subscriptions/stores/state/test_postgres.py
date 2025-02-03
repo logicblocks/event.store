@@ -129,17 +129,21 @@ class TestPostgresEventSubscriptionStateStore(
         await drop_table(open_connection_pool, "subscriptions")
         await create_table(open_connection_pool, "subscriptions")
 
-    def construct_store(self) -> EventSubscriptionStateStore:
-        return PostgresEventSubscriptionStateStore(connection_source=self.pool)
+    def construct_store(self, node_id: str) -> EventSubscriptionStateStore:
+        return PostgresEventSubscriptionStateStore(
+            node_id=node_id, connection_source=self.pool
+        )
 
     async def test_does_not_partially_apply_changes(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         addition = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=data.random_subscriber_group(),
                 id=data.random_subscriber_id(),
+                node_id=data.random_node_id(),
                 event_sources=[
                     CategoryIdentifier(data.random_event_category_name())
                 ],
@@ -148,9 +152,10 @@ class TestPostgresEventSubscriptionStateStore(
 
         removal = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=data.random_subscriber_group(),
                 id=data.random_subscriber_id(),
+                node_id=data.random_node_id(),
                 event_sources=[
                     CategoryIdentifier(data.random_event_category_name())
                 ],

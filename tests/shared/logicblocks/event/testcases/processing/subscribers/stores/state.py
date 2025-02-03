@@ -5,145 +5,136 @@ from random import shuffle
 import pytest
 
 from logicblocks.event.processing.broker import (
-    EventSubscriber,
     EventSubscriberState,
     EventSubscriberStateStore,
 )
-from logicblocks.event.store import EventSource
+from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.testing import (
     data,
 )
-from logicblocks.event.utils.clock import StaticClock
-
-
-class CapturingEventSubscriber(EventSubscriber):
-    sources: list[EventSource]
-
-    def __init__(self, group: str, id: str):
-        self._group = group
-        self._id = id
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    async def accept(self, source: EventSource) -> None:
-        self.sources.append(source)
-
-    async def withdraw(self, source: EventSource) -> None:
-        self.sources.remove(source)
+from logicblocks.event.utils.clock import Clock, StaticClock
 
 
 class EventSubscriberStateStoreCases:
     @abstractmethod
-    def construct_store(self, clock: StaticClock) -> EventSubscriberStateStore:
+    def construct_store(
+        self, node_id: str, clock: Clock
+    ) -> EventSubscriberStateStore:
         raise NotImplementedError()
 
     async def test_adds_single_subscriber_details(self):
         now = datetime.now(UTC)
         clock = StaticClock(now=now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
-        subscriber = CapturingEventSubscriber(
-            group=subscriber_group,
-            id=subscriber_id,
+        subscriber_key = EventSubscriberKey(
+            group=subscriber_group, id=subscriber_id
         )
 
-        await store.add(subscriber)
+        await store.add(subscriber_key)
 
         states = await store.list()
 
         assert len(states) == 1
         assert states[0] == EventSubscriberState(
-            group=subscriber_group, id=subscriber_id, last_seen=now
+            group=subscriber_group,
+            id=subscriber_id,
+            node_id=node_id,
+            last_seen=now,
         )
 
     async def test_adds_many_subscriber_details(self):
         now = datetime.now(UTC)
         clock = StaticClock(now=now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
-        subscriber_1 = CapturingEventSubscriber(
+        subscriber_1_key = EventSubscriberKey(
             group=subscriber_1_group, id=subscriber_1_id
         )
 
         subscriber_2_group = data.random_subscriber_group()
         subscriber_2_id = data.random_subscriber_id()
-        subscriber_2 = CapturingEventSubscriber(
+        subscriber_2_key = EventSubscriberKey(
             group=subscriber_2_group, id=subscriber_2_id
         )
 
-        await store.add(subscriber_1)
-        await store.add(subscriber_2)
+        await store.add(subscriber_1_key)
+        await store.add(subscriber_2_key)
 
         states = await store.list()
 
         assert len(states) == 2
         assert states[0] == EventSubscriberState(
-            group=subscriber_1_group, id=subscriber_1_id, last_seen=now
+            group=subscriber_1_group,
+            id=subscriber_1_id,
+            node_id=node_id,
+            last_seen=now,
         )
         assert states[1] == EventSubscriberState(
-            group=subscriber_2_group, id=subscriber_2_id, last_seen=now
+            group=subscriber_2_group,
+            id=subscriber_2_id,
+            node_id=node_id,
+            last_seen=now,
         )
 
     async def test_adding_already_added_subscriber_updates_last_seen(self):
         time_1 = datetime.now(UTC)
         clock = StaticClock(time_1)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
-        subscriber = CapturingEventSubscriber(
-            group=subscriber_group,
-            id=subscriber_id,
+        subscriber_key = EventSubscriberKey(
+            group=subscriber_group, id=subscriber_id
         )
 
-        await store.add(subscriber)
+        await store.add(subscriber_key)
 
         time_2 = time_1 + timedelta(seconds=5)
         clock.set(time_2)
 
-        await store.add(subscriber)
+        await store.add(subscriber_key)
 
         states = await store.list()
 
         assert states[0] == EventSubscriberState(
-            group=subscriber_group, id=subscriber_id, last_seen=time_2
+            group=subscriber_group,
+            id=subscriber_id,
+            node_id=node_id,
+            last_seen=time_2,
         )
 
     async def test_removes_subscriber(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
-        store = self.construct_store(clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group = data.random_subscriber_group()
 
         subscriber_1_id = data.random_subscriber_id()
         subscriber_2_id = data.random_subscriber_id()
 
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group,
-            id=subscriber_1_id,
+        subscriber_1_key = EventSubscriberKey(
+            group=subscriber_group, id=subscriber_1_id
         )
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group,
-            id=subscriber_2_id,
+        subscriber_2_key = EventSubscriberKey(
+            group=subscriber_group, id=subscriber_2_id
         )
 
-        await store.add(subscriber_1)
-        await store.add(subscriber_2)
+        await store.add(subscriber_1_key)
+        await store.add(subscriber_2_key)
 
-        await store.remove(subscriber_1)
+        await store.remove(subscriber_1_key)
 
         states = await store.list()
 
@@ -151,6 +142,7 @@ class EventSubscriberStateStoreCases:
             EventSubscriberState(
                 group=subscriber_group,
                 id=subscriber_2_id,
+                node_id=node_id,
                 last_seen=now,
             )
         ]
@@ -158,44 +150,46 @@ class EventSubscriberStateStoreCases:
     async def test_raises_if_removing_unknown_subscriber(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
-        store = self.construct_store(clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group = data.random_subscriber_group()
 
         subscriber_1_id = data.random_subscriber_id()
         subscriber_2_id = data.random_subscriber_id()
 
-        subscriber_1 = CapturingEventSubscriber(
+        subscriber_1_key = EventSubscriberKey(
             group=subscriber_group,
             id=subscriber_1_id,
         )
-        subscriber_2 = CapturingEventSubscriber(
+        subscriber_2_key = EventSubscriberKey(
             group=subscriber_group,
             id=subscriber_2_id,
         )
 
-        await store.add(subscriber_1)
+        await store.add(subscriber_1_key)
 
         with pytest.raises(ValueError):
-            await store.remove(subscriber_2)
+            await store.remove(subscriber_2_key)
 
     async def test_lists_subscribers_by_group(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
-        subscriber_group_1_subscribers = [
-            CapturingEventSubscriber(
+        subscriber_group_1_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
-        subscriber_group_2_subscribers = [
-            CapturingEventSubscriber(
+        subscriber_group_2_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_2,
                 id=str(id),
             )
@@ -203,7 +197,8 @@ class EventSubscriberStateStoreCases:
         ]
 
         subscribers = (
-            subscriber_group_1_subscribers + subscriber_group_2_subscribers
+            subscriber_group_1_subscriber_keys
+            + subscriber_group_2_subscriber_keys
         )
         shuffle(subscribers)
 
@@ -214,7 +209,10 @@ class EventSubscriberStateStoreCases:
 
         expected_states = [
             EventSubscriberState(
-                group=subscriber_group_1, id=str(id), last_seen=now
+                group=subscriber_group_1,
+                id=str(id),
+                node_id=node_id,
+                last_seen=now,
             )
             for id in range(1, 4)
         ]
@@ -231,47 +229,48 @@ class EventSubscriberStateStoreCases:
         recent_time = now - timedelta(seconds=5)
 
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group_1 = data.random_subscriber_group()
 
         clock.set(older_than_max_age_time)
 
-        older_than_max_age_subscribers = [
-            CapturingEventSubscriber(
+        older_than_max_age_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
 
-        for subscriber in older_than_max_age_subscribers:
+        for subscriber in older_than_max_age_subscriber_keys:
             await store.add(subscriber)
 
         clock.set(just_newer_than_max_age_time)
 
-        just_newer_than_max_age_subscribers = [
-            CapturingEventSubscriber(
+        just_newer_than_max_age_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(4, 8)
         ]
 
-        for subscriber in just_newer_than_max_age_subscribers:
+        for subscriber in just_newer_than_max_age_subscriber_keys:
             await store.add(subscriber)
 
         clock.set(recent_time)
 
-        recent_subscribers = [
-            CapturingEventSubscriber(
+        recent_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(8, 12)
         ]
 
-        for subscriber in recent_subscribers:
+        for subscriber in recent_subscriber_keys:
             await store.add(subscriber)
 
         clock.set(now)
@@ -282,16 +281,20 @@ class EventSubscriberStateStoreCases:
             EventSubscriberState(
                 group=subscriber.group,
                 id=subscriber.id,
+                node_id=node_id,
                 last_seen=just_newer_than_max_age_time,
             )
-            for subscriber in just_newer_than_max_age_subscribers
+            for subscriber in just_newer_than_max_age_subscriber_keys
         ]
 
         recent_states = [
             EventSubscriberState(
-                group=subscriber.group, id=subscriber.id, last_seen=recent_time
+                group=subscriber.group,
+                id=subscriber.id,
+                node_id=node_id,
+                last_seen=recent_time,
             )
-            for subscriber in recent_subscribers
+            for subscriber in recent_subscriber_keys
         ]
 
         expected_states = just_newer_than_max_age_states + recent_states
@@ -307,54 +310,55 @@ class EventSubscriberStateStoreCases:
         newer_than_max_age_time = now - timedelta(seconds=30)
 
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
         clock.set(older_than_max_age_time)
 
-        older_than_max_age_group_1_subscribers = [
-            CapturingEventSubscriber(
+        older_than_max_age_group_1_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(1, 4)
         ]
-        older_than_max_age_group_2_subscribers = [
-            CapturingEventSubscriber(
+        older_than_max_age_group_2_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_2,
                 id=str(id),
             )
             for id in range(4, 8)
         ]
-        older_than_max_age_subscribers = (
-            older_than_max_age_group_1_subscribers
-            + older_than_max_age_group_2_subscribers
+        older_than_max_age_subscriber_keys = (
+            older_than_max_age_group_1_subscriber_keys
+            + older_than_max_age_group_2_subscriber_keys
         )
 
-        for subscriber in older_than_max_age_subscribers:
+        for subscriber in older_than_max_age_subscriber_keys:
             await store.add(subscriber)
 
         clock.set(newer_than_max_age_time)
 
-        newer_than_max_age_group_1_subscribers = [
-            CapturingEventSubscriber(
+        newer_than_max_age_group_1_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_1,
                 id=str(id),
             )
             for id in range(8, 12)
         ]
-        newer_than_max_age_group_2_subscribers = [
-            CapturingEventSubscriber(
+        newer_than_max_age_group_2_subscriber_keys = [
+            EventSubscriberKey(
                 group=subscriber_group_2,
                 id=str(id),
             )
             for id in range(12, 16)
         ]
         newer_than_max_age_subscribers = (
-            newer_than_max_age_group_1_subscribers
-            + newer_than_max_age_group_2_subscribers
+            newer_than_max_age_group_1_subscriber_keys
+            + newer_than_max_age_group_2_subscriber_keys
         )
 
         for subscriber in newer_than_max_age_subscribers:
@@ -371,9 +375,10 @@ class EventSubscriberStateStoreCases:
             EventSubscriberState(
                 group=subscriber.group,
                 id=subscriber.id,
+                node_id=node_id,
                 last_seen=newer_than_max_age_time,
             )
-            for subscriber in newer_than_max_age_group_1_subscribers
+            for subscriber in newer_than_max_age_group_1_subscriber_keys
         ]
 
         assert set(found_states) == set(expected_states)
@@ -384,40 +389,41 @@ class EventSubscriberStateStoreCases:
         updated_last_seen_time = now
 
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_id_1 = data.random_subscriber_id()
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group_1,
-            id=subscriber_id_1,
+        subscriber_1_group = data.random_subscriber_group()
+        subscriber_1_id = data.random_subscriber_id()
+        subscriber_1_key = EventSubscriberKey(
+            group=subscriber_1_group,
+            id=subscriber_1_id,
         )
 
-        subscriber_group_2 = data.random_subscriber_group()
-        subscriber_id_2 = data.random_subscriber_id()
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group_2,
-            id=subscriber_id_2,
+        subscriber_2_group = data.random_subscriber_group()
+        subscriber_2_id = data.random_subscriber_id()
+        subscriber_2_key = EventSubscriberKey(
+            group=subscriber_2_group,
+            id=subscriber_2_id,
         )
 
         clock.set(previous_last_seen_time)
 
-        await store.add(subscriber_1)
-        await store.add(subscriber_2)
+        await store.add(subscriber_1_key)
+        await store.add(subscriber_2_key)
 
         clock.set(now)
 
-        await store.heartbeat(subscriber_1)
+        await store.heartbeat(subscriber_1_key)
 
         states = await store.list()
 
         assert len(states) == 2
 
         subscriber_1_state = next(
-            state for state in states if state.id == subscriber_1.id
+            state for state in states if state.id == subscriber_1_key.id
         )
         subscriber_2_state = next(
-            state for state in states if state.id == subscriber_2.id
+            state for state in states if state.id == subscriber_2_key.id
         )
 
         assert subscriber_1_state.last_seen == updated_last_seen_time
@@ -426,15 +432,16 @@ class EventSubscriberStateStoreCases:
     async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
         now = datetime.now(UTC)
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
-        subscriber = CapturingEventSubscriber(
+        subscriber_key = EventSubscriberKey(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
         )
 
         with pytest.raises(ValueError):
-            await store.heartbeat(subscriber)
+            await store.heartbeat(subscriber_key)
 
     async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
         self,
@@ -444,29 +451,30 @@ class EventSubscriberStateStoreCases:
         just_under_five_minutes_ago = now - timedelta(minutes=4, seconds=59)
 
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_id_1 = data.random_subscriber_id()
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group_1,
-            id=subscriber_id_1,
+        subscriber_1_group = data.random_subscriber_group()
+        subscriber_1_id = data.random_subscriber_id()
+        subscriber_1_key = EventSubscriberKey(
+            group=subscriber_1_group,
+            id=subscriber_1_id,
         )
 
-        subscriber_group_2 = data.random_subscriber_group()
-        subscriber_id_2 = data.random_subscriber_id()
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group_2,
-            id=subscriber_id_2,
+        subscriber_2_group = data.random_subscriber_group()
+        subscriber_2_id = data.random_subscriber_id()
+        subscriber_2_key = EventSubscriberKey(
+            group=subscriber_2_group,
+            id=subscriber_2_id,
         )
 
         clock.set(five_minutes_ago)
 
-        await store.add(subscriber_1)
+        await store.add(subscriber_1_key)
 
         clock.set(just_under_five_minutes_ago)
 
-        await store.add(subscriber_2)
+        await store.add(subscriber_2_key)
 
         clock.set(now)
 
@@ -475,7 +483,7 @@ class EventSubscriberStateStoreCases:
         states = await store.list()
 
         assert len(states) == 1
-        assert states[0].id == subscriber_2.id
+        assert states[0].id == subscriber_2_key.id
 
     async def test_purges_subscribers_that_have_not_been_seen_since_specified_max_time(
         self,
@@ -486,29 +494,30 @@ class EventSubscriberStateStoreCases:
         just_under_two_minutes_ago = now - timedelta(minutes=1, seconds=59)
 
         clock = StaticClock(now)
-        store = self.construct_store(clock=clock)
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id, clock=clock)
 
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_id_1 = data.random_subscriber_id()
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group_1,
-            id=subscriber_id_1,
+        subscriber_1_group = data.random_subscriber_group()
+        subscriber_1_id = data.random_subscriber_id()
+        subscriber_1_key = EventSubscriberKey(
+            group=subscriber_1_group,
+            id=subscriber_1_id,
         )
 
-        subscriber_group_2 = data.random_subscriber_group()
-        subscriber_id_2 = data.random_subscriber_id()
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group_2,
-            id=subscriber_id_2,
+        subscriber_2_group = data.random_subscriber_group()
+        subscriber_2_id = data.random_subscriber_id()
+        subscriber_2_key = EventSubscriberKey(
+            group=subscriber_2_group,
+            id=subscriber_2_id,
         )
 
         clock.set(two_minutes_ago)
 
-        await store.add(subscriber_1)
+        await store.add(subscriber_1_key)
 
         clock.set(just_under_two_minutes_ago)
 
-        await store.add(subscriber_2)
+        await store.add(subscriber_2_key)
 
         clock.set(now)
 
@@ -517,4 +526,4 @@ class EventSubscriberStateStoreCases:
         states = await store.list(max_time_since_last_seen=max_age)
 
         assert len(states) == 1
-        assert states[0].id == subscriber_2.id
+        assert states[0].id == subscriber_2_key.id

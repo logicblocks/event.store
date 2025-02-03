@@ -146,15 +146,17 @@ def insert_query(
             """
             INSERT INTO {0} (
               id,
-              "group", 
+              "group",
+              node_id,  
               event_sources
             )
-            VALUES (%s, %s, %s);
+            VALUES (%s, %s, %s, %s);
             """
         ).format(sql.Identifier(table_settings.subscriptions_table_name)),
         [
             subscription.id,
             subscription.group,
+            subscription.node_id,
             Jsonb([source.dict() for source in subscription.event_sources]),
         ],
     )
@@ -255,6 +257,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
     def __init__(
         self,
         *,
+        node_id: str,
         connection_source: ConnectionSource,
         table_settings: PostgresTableSettings = PostgresTableSettings(),
         query_converter: PostgresQueryConverter | None = None,
@@ -267,6 +270,8 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
         else:
             self._connection_pool_owner = False
             self.connection_pool = connection_source
+
+        self.node_id = node_id
         self.table_settings = table_settings
         self.query_converter = (
             query_converter
@@ -287,6 +292,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
                     EventSubscriptionState(
                         id=subscription_state_dict["id"],
                         group=subscription_state_dict["group"],
+                        node_id=subscription_state_dict["node_id"],
                         event_sources=[
                             event_sequence_identifier(source)
                             for source in subscription_state_dict[
@@ -304,20 +310,47 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
 
     async def add(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:
-            await add(connection, subscription, self.table_settings)
+            await add(
+                connection,
+                EventSubscriptionState(
+                    group=subscription.group,
+                    id=subscription.id,
+                    node_id=self.node_id,
+                    event_sources=subscription.event_sources,
+                ),
+                self.table_settings,
+            )
 
     async def remove(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:
-            await remove(connection, subscription, self.table_settings)
+            await remove(
+                connection,
+                EventSubscriptionState(
+                    group=subscription.group,
+                    id=subscription.id,
+                    node_id=self.node_id,
+                    event_sources=subscription.event_sources,
+                ),
+                self.table_settings,
+            )
 
     async def replace(self, subscription: EventSubscriptionState) -> None:
         async with self.connection_pool.connection() as connection:
-            await replace(connection, subscription, self.table_settings)
+            await replace(
+                connection,
+                EventSubscriptionState(
+                    group=subscription.group,
+                    id=subscription.id,
+                    node_id=self.node_id,
+                    event_sources=subscription.event_sources,
+                ),
+                self.table_settings,
+            )
 
     async def apply(
         self, changes: Sequence[EventSubscriptionStateChange]
     ) -> None:
-        keys = set(change.state.key for change in changes)
+        keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):
             raise ValueError(
                 "Multiple changes present for same subscription key."
@@ -325,16 +358,16 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
 
         async with self.connection_pool.connection() as connection:
             for change in changes:
+                state = EventSubscriptionState(
+                    group=change.subscription.group,
+                    id=change.subscription.id,
+                    node_id=self.node_id,
+                    event_sources=change.subscription.event_sources,
+                )
                 match change.type:
                     case EventSubscriptionStateChangeType.ADD:
-                        await add(
-                            connection, change.state, self.table_settings
-                        )
+                        await add(connection, state, self.table_settings)
                     case EventSubscriptionStateChangeType.REPLACE:
-                        await replace(
-                            connection, change.state, self.table_settings
-                        )
+                        await replace(connection, state, self.table_settings)
                     case EventSubscriptionStateChangeType.REMOVE:
-                        await remove(
-                            connection, change.state, self.table_settings
-                        )
+                        await remove(connection, state, self.table_settings)

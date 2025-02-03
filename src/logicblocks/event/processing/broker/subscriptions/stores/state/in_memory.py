@@ -10,7 +10,8 @@ from .base import (
 
 
 class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
-    def __init__(self):
+    def __init__(self, node_id: str):
+        self.node_id = node_id
         self._subscriptions: dict[
             EventSubscriptionKey, EventSubscriptionState
         ] = {}
@@ -29,7 +30,12 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
         if existing is not None:
             raise ValueError("Can't add existing subscription.")
 
-        self._subscriptions[subscription.key] = subscription
+        self._subscriptions[subscription.key] = EventSubscriptionState(
+            group=subscription.group,
+            id=subscription.id,
+            node_id=self.node_id,
+            event_sources=subscription.event_sources,
+        )
 
     async def remove(self, subscription: EventSubscriptionState) -> None:
         existing = await self.get(subscription.key)
@@ -45,12 +51,17 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
         if existing is None:
             raise ValueError("Can't replace missing subscription.")
 
-        self._subscriptions[subscription.key] = subscription
+        self._subscriptions[subscription.key] = EventSubscriptionState(
+            group=subscription.group,
+            id=subscription.id,
+            node_id=self.node_id,
+            event_sources=subscription.event_sources,
+        )
 
     async def apply(
         self, changes: Sequence[EventSubscriptionStateChange]
     ) -> None:
-        keys = set(change.state.key for change in changes)
+        keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):
             raise ValueError(
                 "Multiple changes present for same subscription key."
@@ -59,8 +70,8 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
         for change in changes:
             match change.type:
                 case EventSubscriptionStateChangeType.ADD:
-                    await self.add(change.state)
+                    await self.add(change.subscription)
                 case EventSubscriptionStateChangeType.REPLACE:
-                    await self.replace(change.state)
+                    await self.replace(change.subscription)
                 case EventSubscriptionStateChangeType.REMOVE:
-                    await self.remove(change.state)
+                    await self.remove(change.subscription)

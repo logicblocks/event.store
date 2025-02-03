@@ -14,6 +14,7 @@ from logicblocks.event.processing.broker import (
 from logicblocks.event.testcases.processing.subscribers.stores.state import (
     EventSubscriberStateStoreCases,
 )
+from logicblocks.event.utils.clock import Clock
 
 connection_settings = PostgresConnectionSettings(
     user="admin",
@@ -120,9 +121,11 @@ class TestPostgresEventSubscriberStateStore(EventSubscriberStateStoreCases):
         await drop_table(open_connection_pool, "subscribers")
         await create_table(open_connection_pool, "subscribers")
 
-    def construct_store(self, clock) -> EventSubscriberStateStore:
+    def construct_store(
+        self, node_id: str, clock: Clock
+    ) -> EventSubscriberStateStore:
         return PostgresEventSubscriberStateStore(
-            clock=clock, connection_source=self.pool
+            node_id=node_id, connection_source=self.pool, clock=clock
         )
 
 

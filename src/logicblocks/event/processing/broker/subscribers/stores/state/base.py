@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from ....subscriptions import EventSubscriptionKey
-from ....types import EventSubscriber, EventSubscriberKey
+from ....types import EventSubscriberKey
 
 
 @dataclass(frozen=True)
 class EventSubscriberState:
     group: str
     id: str
+    node_id: str
     last_seen: datetime
 
     @property
@@ -24,11 +25,11 @@ class EventSubscriberState:
 
 class EventSubscriberStateStore(ABC):
     @abstractmethod
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriberKey) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriberKey) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -40,7 +41,7 @@ class EventSubscriberStateStore(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
         raise NotImplementedError()
 
     @abstractmethod

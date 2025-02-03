@@ -15,6 +15,8 @@ from logicblocks.event.types.identifier import (
 
 class TestEventSubscriptionDifference:
     async def test_allocates_single_new_subscription_single_source(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -28,6 +30,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[event_sequence_identifier],
                 )
             )
@@ -49,6 +52,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_allocates_single_new_subscription_many_sources(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -67,6 +72,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -96,6 +102,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_allocates_many_new_subscriptions_many_sources(self):
+        node_id = data.random_node_id()
+
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_id_1 = data.random_subscriber_id()
 
@@ -123,6 +131,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_id_1,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                     event_sequence_identifier_2,
@@ -131,6 +140,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group_2,
                 id=subscriber_id_2,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_3,
                     event_sequence_identifier_4,
@@ -169,6 +179,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_revokes_single_old_subscription_single_source(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -180,6 +192,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[event_sequence_identifier],
             )
         ]
@@ -201,6 +214,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_revokes_single_old_subscription_many_sources(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -218,6 +233,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -248,6 +264,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_revokes_many_old_subscriptions_many_sources(self):
+        node_id = data.random_node_id()
+
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_id_1 = data.random_subscriber_id()
 
@@ -274,6 +292,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_id_1,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                     event_sequence_identifier_2,
@@ -282,6 +301,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group_2,
                 id=subscriber_id_2,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_3,
                     event_sequence_identifier_4,
@@ -321,6 +341,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_allocates_single_new_source_for_existing_subscription(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -337,6 +359,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                 ],
@@ -347,6 +370,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -371,6 +395,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_allocates_many_new_sources_for_existing_subscription(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -390,6 +416,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                 ],
@@ -400,6 +427,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -430,6 +458,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_revokes_single_old_source_for_existing_subscription(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -447,6 +477,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -458,6 +489,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                 ],
@@ -480,6 +512,8 @@ class TestEventSubscriptionDifference:
         )
 
     async def test_revokes_many_old_sources_for_existing_subscription(self):
+        node_id = data.random_node_id()
+
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
@@ -500,6 +534,7 @@ class TestEventSubscriptionDifference:
                 EventSubscriptionState(
                     group=subscriber_group,
                     id=subscriber_id,
+                    node_id=node_id,
                     event_sources=[
                         event_sequence_identifier_1,
                         event_sequence_identifier_2,
@@ -512,6 +547,7 @@ class TestEventSubscriptionDifference:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     event_sequence_identifier_1,
                 ],

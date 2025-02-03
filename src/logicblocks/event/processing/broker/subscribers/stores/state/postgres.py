@@ -36,10 +36,7 @@ from logicblocks.event.projection.store.adapters.postgres import (
 )
 from logicblocks.event.utils.clock import Clock, SystemClock
 
-from ....types import (
-    EventSubscriber,
-    EventSubscriberKey,
-)
+from ....types import EventSubscriberKey
 from .base import EventSubscriberState, EventSubscriberStateStore
 
 
@@ -145,9 +142,10 @@ def insert_query(
             INSERT INTO {0} (
               "group", 
               id,
+              node_id,
               last_seen
             )
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s, %s, %s)
               ON CONFLICT ("group", id) 
               DO UPDATE
             SET (last_seen) = ROW(%s);
@@ -156,6 +154,7 @@ def insert_query(
         [
             subscriber.group,
             subscriber.id,
+            subscriber.node_id,
             subscriber.last_seen,
             subscriber.last_seen,
         ],
@@ -220,6 +219,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(
         self,
         *,
+        node_id: str,
         connection_source: ConnectionSource,
         clock: Clock = SystemClock(),
         table_settings: PostgresTableSettings = PostgresTableSettings(),
@@ -233,7 +233,10 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
         else:
             self._connection_pool_owner = False
             self.connection_pool = connection_source
+
+        self.node_id = node_id
         self.clock = clock
+
         self.table_settings = table_settings
         self.query_converter = (
             query_converter
@@ -241,7 +244,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
             else (PostgresQueryConverter().with_default_clause_applicators())
         )
 
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriberKey) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -249,17 +252,18 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                         EventSubscriberState(
                             id=subscriber.id,
                             group=subscriber.group,
+                            node_id=self.node_id,
                             last_seen=self.clock.now(),
                         ),
                         self.table_settings,
                     )
                 )
 
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriberKey) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 results = await cursor.execute(
-                    *delete_query(subscriber.key, self.table_settings)
+                    *delete_query(subscriber, self.table_settings)
                 )
                 deleted_subscribers = await results.fetchall()
                 if len(deleted_subscribers) == 0:
@@ -296,12 +300,13 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     EventSubscriberState(
                         id=subscriber_state_dict["id"],
                         group=subscriber_state_dict["group"],
+                        node_id=subscriber_state_dict["node_id"],
                         last_seen=subscriber_state_dict["last_seen"],
                     )
                     for subscriber_state_dict in subscriber_state_dicts
                 ]
 
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 results = await cursor.execute(
@@ -309,6 +314,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                         EventSubscriberState(
                             id=subscriber.id,
                             group=subscriber.group,
+                            node_id=self.node_id,
                             last_seen=self.clock.now(),
                         ),
                         self.table_settings,

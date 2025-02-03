@@ -64,20 +64,20 @@ columns: node_id             | heartbeat_timestamp
          <uuid-2>            | <timestamp>
 
 table: subscribers
-columns: subscriber_name             | subscriber_id   | node_id  | heartbeat_timestamp
-         ------------------------------------------------------------------------------
-         company-projection-consumer | <uuid-3>        | <uuid-1> | <timestamp>
-         company-projection-consumer | <uuid-4>        | <uuid-2> | <timestamp>
-         contact-projection-consumer | <uuid-5>        | <uuid-1> | <timestamp>
-         contact-projection-consumer | <uuid-6>        | <uuid-2> | <timestamp>
+columns: subscriber_name             | subscriber_id | node_id  | heartbeat_timestamp
+         ----------------------------------------------------------------------------
+         company-projection-consumer | <uuid-3>      | <uuid-1> | <timestamp>
+         company-projection-consumer | <uuid-4>      | <uuid-2> | <timestamp>
+         contact-projection-consumer | <uuid-5>      | <uuid-1> | <timestamp>
+         contact-projection-consumer | <uuid-6>      | <uuid-2> | <timestamp>
 
 table: subscriptions
-columns: subscriber_name             | subscriber_id | subscriber_event_sources                                                      |
-         -----------------------------------------------------------------------------------------------------------------------------
-         company-projection-consumer | <uuid-3>      | { type: category, category: companies, partitions: [1, 2, 3, 4, 5, 6, 7, 8] } |
-         company-projection-consumer | <uuid-4>      | { type: category, category: companies, partitions: [9, a, b, c, d, e, f] }    |
-         contact-projection-consumer | <uuid-5>      | { type: category, category: contacts }                                        |
-         contact-projection-consumer | <uuid-6>      |                                                                               |
+columns: subscriber_name             | subscriber_id | node_id  | subscriber_event_sources                                                        |
+         ------------------------------------------------------------------------------------------------------------------------------------------
+         company-projection-consumer | <uuid-3>      | <uuid-1> | [{ type: category, category: companies, partitions: [1, 2, 3, 4, 5, 6, 7, 8] }] |
+         company-projection-consumer | <uuid-4>      | <uuid-2> | [{ type: category, category: companies, partitions: [9, a, b, c, d, e, f] }]    |
+         contact-projection-consumer | <uuid-5>      | <uuid-1> | [{ type: category, category: contacts }]                                        |
+         contact-projection-consumer | <uuid-6>      | <uuid-2> |                                                                                 |
 
 ### Components
 
@@ -93,8 +93,8 @@ EventSubscriptionCoordinator
     effort and to allow parallelism
   - only one instance can be coordinating at a time
 EventSubscriptionObserver
-  - starts and stops subscribers from working on event sources
-  - all instances (1 per node that has subscribers) can operate at the same
+  + starts and stops subscribers from working on event sources
+  + all instances (1 per node that has subscribers) can operate at the same
     time as they are readonly
 EventSubscriber
   + accepts event sources into processing when asked
@@ -104,8 +104,8 @@ EventSubscriber
   + has a name (representing the type of work that it does) and an ID (
     representing the specific subscriber instance)
 EventSubscriberStore
-  - a store containing all the local subscriber instances
-    - in-memory
+  + a store containing all the local subscriber instances
+    + in-memory
 EventSubscriberStateStore
   - a store for keeping track of the subscribers in the system and their health
     + in-memory

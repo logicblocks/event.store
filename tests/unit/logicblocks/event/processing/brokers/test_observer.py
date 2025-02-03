@@ -46,12 +46,16 @@ class CapturingEventSubscriber(EventSubscriber):
 
 def make_observer() -> tuple[
     EventSubscriptionObserver,
+    str,
     EventSubscriberStore,
     EventSubscriptionStateStore,
     EventStorageAdapter,
 ]:
+    node_id = data.random_node_id()
     subscriber_store = InMemoryEventSubscriberStore()
-    subscription_state_store = InMemoryEventSubscriptionStateStore()
+    subscription_state_store = InMemoryEventSubscriptionStateStore(
+        node_id=node_id
+    )
     subscription_difference = EventSubscriptionDifference()
     event_storage_adapter = InMemoryEventStorageAdapter()
     event_source_factory = InMemoryEventStoreEventSourceFactory(
@@ -67,6 +71,7 @@ def make_observer() -> tuple[
 
     return (
         observer,
+        node_id,
         subscriber_store,
         subscription_state_store,
         event_storage_adapter,
@@ -77,6 +82,7 @@ class TestEventSubscriptionObserver:
     async def test_applies_new_subscription_to_subscriber(self):
         (
             observer,
+            node_id,
             subscriber_store,
             subscription_state_store,
             event_storage_adapter,
@@ -99,6 +105,7 @@ class TestEventSubscriptionObserver:
         subscription_state = EventSubscriptionState(
             group=subscriber_group,
             id=subscriber_id,
+            node_id=node_id,
             event_sources=[category_identifier],
         )
 
@@ -113,7 +120,7 @@ class TestEventSubscriptionObserver:
         ]
 
     async def test_removes_old_subscription_from_subscriber(self):
-        (observer, subscriber_store, subscription_state_store, _) = (
+        (observer, node_id, subscriber_store, subscription_state_store, _) = (
             make_observer()
         )
 
@@ -134,6 +141,7 @@ class TestEventSubscriptionObserver:
         subscription_state = EventSubscriptionState(
             group=subscriber_group,
             id=subscriber_id,
+            node_id=node_id,
             event_sources=[category_identifier],
         )
 
@@ -148,9 +156,7 @@ class TestEventSubscriptionObserver:
         assert subscriber.sources == []
 
     async def test_ignores_new_subscription_if_no_subscriber_in_store(self):
-        (observer, _, subscription_state_store, event_storage_adapter) = (
-            make_observer()
-        )
+        (observer, node_id, _, subscription_state_store, _) = make_observer()
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -167,6 +173,7 @@ class TestEventSubscriptionObserver:
         subscription_state = EventSubscriptionState(
             group=subscriber_group,
             id=subscriber_id,
+            node_id=node_id,
             event_sources=[category_identifier],
         )
 
@@ -179,6 +186,7 @@ class TestEventSubscriptionObserver:
     async def test_ignores_old_subscription_if_no_subscriber_in_store(self):
         (
             observer,
+            node_id,
             subscriber_store,
             subscription_state_store,
             event_storage_adapter,
@@ -201,6 +209,7 @@ class TestEventSubscriptionObserver:
         subscription_state = EventSubscriptionState(
             group=subscriber_group,
             id=subscriber_id,
+            node_id=node_id,
             event_sources=[category_identifier],
         )
 

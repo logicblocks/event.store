@@ -17,11 +17,12 @@ from logicblocks.event.types import CategoryIdentifier
 
 class EventSubscriptionStateStoreCases:
     @abstractmethod
-    def construct_store(self) -> EventSubscriptionStateStore:
-        pass
+    def construct_store(self, node_id: str) -> EventSubscriptionStateStore:
+        raise NotImplementedError()
 
     async def test_adds_single_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -30,9 +31,10 @@ class EventSubscriptionStateStoreCases:
 
         change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
@@ -45,12 +47,14 @@ class EventSubscriptionStateStoreCases:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             )
         ]
 
     async def test_adds_many_subscriptions(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
@@ -62,17 +66,19 @@ class EventSubscriptionStateStoreCases:
 
         change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
         change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
@@ -85,17 +91,20 @@ class EventSubscriptionStateStoreCases:
             EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
             EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         ]
 
     async def test_adds_subscriptions_to_existing_subscriptions(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
@@ -109,9 +118,10 @@ class EventSubscriptionStateStoreCases:
 
         change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
@@ -120,17 +130,19 @@ class EventSubscriptionStateStoreCases:
 
         change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
         change_3 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group_2,
                 id=subscriber_3_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_2_name)],
             ),
         )
@@ -143,22 +155,26 @@ class EventSubscriptionStateStoreCases:
             EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
             EventSubscriptionState(
                 group=subscriber_group_1,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
             EventSubscriptionState(
                 group=subscriber_group_2,
                 id=subscriber_3_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_2_name)],
             ),
         ]
 
     async def test_raises_if_adding_existing_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -167,9 +183,10 @@ class EventSubscriptionStateStoreCases:
 
         change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
@@ -182,7 +199,8 @@ class EventSubscriptionStateStoreCases:
         assert error.value.args == tuple(["Can't add existing subscription."])
 
     async def test_replaces_single_existing_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -192,9 +210,10 @@ class EventSubscriptionStateStoreCases:
 
         add_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
@@ -203,9 +222,10 @@ class EventSubscriptionStateStoreCases:
 
         update_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REPLACE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     CategoryIdentifier(category_1_name),
                     CategoryIdentifier(category_2_name),
@@ -221,6 +241,7 @@ class EventSubscriptionStateStoreCases:
             EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     CategoryIdentifier(category_1_name),
                     CategoryIdentifier(category_2_name),
@@ -229,7 +250,8 @@ class EventSubscriptionStateStoreCases:
         ]
 
     async def test_replaces_many_existing_subscriptions(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
@@ -243,17 +265,19 @@ class EventSubscriptionStateStoreCases:
 
         add_change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
         add_change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_1_name)],
             ),
         )
@@ -262,9 +286,10 @@ class EventSubscriptionStateStoreCases:
 
         update_change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REPLACE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_1_group,
                 id=subscriber_1_id,
+                node_id=node_id,
                 event_sources=[
                     CategoryIdentifier(category_1_name),
                     CategoryIdentifier(category_2_name),
@@ -273,9 +298,10 @@ class EventSubscriptionStateStoreCases:
         )
         update_change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REPLACE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_2_group,
                 id=subscriber_2_id,
+                node_id=node_id,
                 event_sources=[
                     CategoryIdentifier(category_1_name),
                     CategoryIdentifier(category_3_name),
@@ -308,6 +334,7 @@ class EventSubscriptionStateStoreCases:
         assert subscriber_1_subscription == EventSubscriptionState(
             group=subscriber_1_group,
             id=subscriber_1_id,
+            node_id=node_id,
             event_sources=[
                 CategoryIdentifier(category_1_name),
                 CategoryIdentifier(category_2_name),
@@ -316,6 +343,7 @@ class EventSubscriptionStateStoreCases:
         assert subscriber_2_subscription == EventSubscriptionState(
             group=subscriber_2_group,
             id=subscriber_2_id,
+            node_id=node_id,
             event_sources=[
                 CategoryIdentifier(category_1_name),
                 CategoryIdentifier(category_3_name),
@@ -323,7 +351,8 @@ class EventSubscriptionStateStoreCases:
         )
 
     async def test_raises_if_replacing_missing_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -332,9 +361,10 @@ class EventSubscriptionStateStoreCases:
 
         change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REPLACE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
@@ -347,7 +377,8 @@ class EventSubscriptionStateStoreCases:
         )
 
     async def test_removes_single_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
@@ -360,28 +391,30 @@ class EventSubscriptionStateStoreCases:
         subscription_1 = EventSubscriptionState(
             group=subscriber_1_group,
             id=subscriber_1_id,
+            node_id=node_id,
             event_sources=[CategoryIdentifier(category_name)],
         )
         subscription_2 = EventSubscriptionState(
             group=subscriber_2_group,
             id=subscriber_2_id,
+            node_id=node_id,
             event_sources=[CategoryIdentifier(category_name)],
         )
 
         add_change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=subscription_1,
+            subscription=subscription_1,
         )
         add_change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=subscription_2,
+            subscription=subscription_2,
         )
 
         await store.apply(changes=[add_change_1, add_change_2])
 
         remove_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=subscription_1,
+            subscription=subscription_1,
         )
 
         await store.apply(changes=[remove_change])
@@ -389,11 +422,17 @@ class EventSubscriptionStateStoreCases:
         states = await store.list()
 
         assert states == [
-            subscription_2,
+            EventSubscriptionState(
+                group=subscriber_2_group,
+                id=subscriber_2_id,
+                node_id=node_id,
+                event_sources=[CategoryIdentifier(category_name)],
+            )
         ]
 
     async def test_removes_many_subscriptions(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_1_group = data.random_subscriber_group()
         subscriber_1_id = data.random_subscriber_id()
@@ -406,32 +445,34 @@ class EventSubscriptionStateStoreCases:
         subscription_1 = EventSubscriptionState(
             group=subscriber_1_group,
             id=subscriber_1_id,
+            node_id=node_id,
             event_sources=[CategoryIdentifier(category_name)],
         )
         subscription_2 = EventSubscriptionState(
             group=subscriber_2_group,
             id=subscriber_2_id,
+            node_id=node_id,
             event_sources=[CategoryIdentifier(category_name)],
         )
 
         add_change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=subscription_1,
+            subscription=subscription_1,
         )
         add_change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=subscription_2,
+            subscription=subscription_2,
         )
 
         await store.apply(changes=[add_change_1, add_change_2])
 
         remove_change_1 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=subscription_1,
+            subscription=subscription_1,
         )
         remove_change_2 = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=subscription_2,
+            subscription=subscription_2,
         )
 
         await store.apply(changes=[remove_change_1, remove_change_2])
@@ -441,7 +482,8 @@ class EventSubscriptionStateStoreCases:
         assert states == []
 
     async def test_raises_if_removing_missing_subscription(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -450,9 +492,10 @@ class EventSubscriptionStateStoreCases:
 
         change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name)],
             ),
         )
@@ -465,7 +508,8 @@ class EventSubscriptionStateStoreCases:
         )
 
     async def test_raises_if_multiple_changes_for_same_subscription_key(self):
-        store = self.construct_store()
+        node_id = data.random_node_id()
+        store = self.construct_store(node_id=node_id)
 
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
@@ -475,9 +519,10 @@ class EventSubscriptionStateStoreCases:
 
         add_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.ADD,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name_1)],
             ),
         )
@@ -486,9 +531,10 @@ class EventSubscriptionStateStoreCases:
 
         replace_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REPLACE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[
                     CategoryIdentifier(category_name_1),
                     CategoryIdentifier(category_name_2),
@@ -497,9 +543,10 @@ class EventSubscriptionStateStoreCases:
         )
         remove_change = EventSubscriptionStateChange(
             type=EventSubscriptionStateChangeType.REMOVE,
-            state=EventSubscriptionState(
+            subscription=EventSubscriptionState(
                 group=subscriber_group,
                 id=subscriber_id,
+                node_id=node_id,
                 event_sources=[CategoryIdentifier(category_name_1)],
             ),
         )

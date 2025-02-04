@@ -4,3 +4,6 @@ from .store import EventCategory as EventCategory
 from .store import EventSource as EventSource
 from .store import EventStore as EventStore
 from .store import EventStream as EventStream
+from .adapters import EventStorageAdapter as EventStorageAdapter
+from .adapters import InMemoryEventStorageAdapter as InMemoryEventStorageAdapter
+from .adapters import PostgresEventStorageAdapter as PostgresEventStorageAdapter

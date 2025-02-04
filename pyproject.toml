@@ -75,6 +75,20 @@ shell = """
 COVERAGE_FILE = "./reports/coverage/integration/.coverage"
 PYTHONDEVMODE = "1"
 
+[tool.poe.tasks.test-component]
+envfile = "config/test.env"
+shell = """
+  mkdir -p reports/coverage/component
+  pytest -vv tests/component \
+    --junitxml=./reports/component.junit.xml \
+    --cov-report=xml:./reports/coverage/component/coverage.xml \
+    --cov-report=html:./reports/coverage/component
+"""
+
+[tool.poe.tasks.test-component.env]
+COVERAGE_FILE = "./reports/coverage/component/.coverage"
+PYTHONDEVMODE = "1"
+
 [tool.poe.tasks.test-report]
 shell = """
   junitparser merge \
@@ -83,7 +97,8 @@ shell = """
   coverage combine \
     --data-file=./reports/coverage/.coverage \
     reports/coverage/unit/.coverage \
-    reports/coverage/integration/.coverage
+    reports/coverage/integration/.coverage \
+    reports/coverage/component/.coverage
   coverage html \
     --data-file=./reports/coverage/.coverage \
     --directory=./reports/coverage/all

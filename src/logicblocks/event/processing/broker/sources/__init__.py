@@ -5,6 +5,9 @@ from .factory import (
 from .factory import (
     InMemoryEventStoreEventSourceFactory as InMemoryEventStoreEventSourceFactory,
 )
+from .factory import (
+    PostgresEventStoreEventSourceFactory as PostgresEventStoreEventSourceFactory,
+)
 from .stores import (
     EventSubscriptionSourceMapping as EventSubscriptionSourceMapping,
 )

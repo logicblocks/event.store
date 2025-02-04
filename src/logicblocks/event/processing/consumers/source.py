@@ -1,3 +1,4 @@
+import asyncio
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.store import EventSource, constraints
@@ -56,6 +57,8 @@ class EventSourceConsumer(EventConsumer):
                 await self._processor.process_event(event)
                 await self._state_store.record_processed(event)
                 consumed_count += 1
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
             except BaseException as e:
                 await self._logger.aexception(
                     log_event_name("processor-failed"),

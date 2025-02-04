@@ -216,6 +216,52 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_1
 
+    async def test_finds_one_projection_by_source_filter(self):
+        projection_1_name = data.random_projection_name()
+        projection_2_name = data.random_projection_name()
+
+        adapter = self.construct_storage_adapter()
+
+        source = StreamIdentifier(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name(projection_1_name)
+            .with_source(source)
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name(projection_2_name)
+            .with_source(
+                StreamIdentifier(
+                    category=data.random_event_category_name(),
+                    stream=data.random_event_stream_name(),
+                )
+            )
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+
+        located = await adapter.find_one(
+            lookup=Lookup(
+                filters=[
+                    FilterClause(Operator.EQUAL, Path("source"), source),
+                    FilterClause(
+                        Operator.EQUAL, Path("name"), projection_1_name
+                    ),
+                ]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == projection_1
+
     async def test_finds_one_projection_by_multiple_filters(self):
         projection_name = data.random_event_stream_name()
 

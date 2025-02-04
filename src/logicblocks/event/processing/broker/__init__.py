@@ -1,4 +1,8 @@
-from .broker import CoordinatorObserverEventBroker, EventBroker
+from .broker import (
+    CoordinatorObserverEventBroker,
+    EventBroker,
+    make_postgres_event_broker,
+)
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
     EventSubscriptionCoordinator,
@@ -28,6 +32,7 @@ from .sources import (
     EventSubscriptionSourceMappingStore,
     InMemoryEventStoreEventSourceFactory,
     InMemoryEventSubscriptionSourceMappingStore,
+    PostgresEventStoreEventSourceFactory,
 )
 from .subscribers import (
     EventSubscriberManager,
@@ -88,8 +93,10 @@ __all__ = (
     "NodeManager",
     "NodeState",
     "NodeStateStore",
+    "PostgresEventStoreEventSourceFactory",
     "PostgresEventSubscriberStateStore",
     "PostgresEventSubscriptionStateStore",
     "PostgresLockManager",
     "PostgresNodeStateStore",
+    "make_postgres_event_broker",
 )

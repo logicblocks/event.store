@@ -64,7 +64,7 @@ class Projector[T](ABC):
             state=state,
             version=version,
             source=source.identifier,
-            name=self._resolve_name(),
+            name=self.resolve_name(),
         )
 
     def _resolve_state(self, state: T | None) -> T:
@@ -87,7 +87,7 @@ class Projector[T](ABC):
 
         return handler
 
-    def _resolve_name(self) -> str:
+    def resolve_name(self) -> str:
         return self.name if self.name is not None else self._default_name()
 
     def _default_name(self) -> str:

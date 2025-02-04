@@ -107,8 +107,10 @@ EventConsumerStateStore
 ## Todo
 
 * Implement EventSubscriptionConsumer error management
+* Only fetch subscriptions for this node in Observer
 * Add logging
 * Add support for partitioning
+* Add rebalancing support to ensure even workloads
 * Work out how to handle error handling in infinite processes
   * Coordinator
   * Observer

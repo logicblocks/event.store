@@ -1,8 +1,9 @@
 from collections.abc import Callable, MutableMapping, Sequence
+from uuid import uuid4
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.store import EventSource
+from logicblocks.event.store import EventCategory, EventSource
 from logicblocks.event.types import (
     EventSequenceIdentifier,
     EventSourceIdentifier,
@@ -10,7 +11,36 @@ from logicblocks.event.types import (
 
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
-from .types import EventConsumer
+from .source import EventSourceConsumer
+from .state import EventConsumerStateStore, EventCount
+from .types import EventConsumer, EventProcessor
+
+
+def make_subscriber(
+    *,
+    subscriber_group: str,
+    subscriber_id: str = uuid4().hex,
+    subscriber_sequence: EventSequenceIdentifier,
+    subscriber_state_category: EventCategory,
+    subscriber_state_persistence_interval: EventCount = EventCount(100),
+    event_processor: EventProcessor,
+) -> "EventSubscriptionConsumer":
+    state_store = EventConsumerStateStore(
+        category=subscriber_state_category,
+        persistence_interval=subscriber_state_persistence_interval,
+    )
+
+    def delegate_factory(source: EventSource) -> EventSourceConsumer:
+        return EventSourceConsumer(
+            source=source, processor=event_processor, state_store=state_store
+        )
+
+    return EventSubscriptionConsumer(
+        group=subscriber_group,
+        id=subscriber_id,
+        sequences=[subscriber_sequence],
+        delegate_factory=delegate_factory,
+    )
 
 
 class EventSubscriptionConsumer(EventConsumer, EventSubscriber):

@@ -259,13 +259,20 @@ namespace :library do
       invoke_poetry_task('test-integration')
     end
 
+    desc 'Run component tests'
+    task component: %i[dependencies:install] do
+      Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
+
+      invoke_poetry_task('test-component')
+    end
+
     desc 'Run report aggregation'
     task report: %i[dependencies:install] do
       invoke_poetry_task('test-report')
     end
 
     desc 'Run all tests'
-    task all: %i[unit integration report]
+    task all: %i[unit integration component report]
   end
 
   namespace :version do

@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from ....types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberStore
 
@@ -16,3 +18,6 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
 
     async def get(self, key: EventSubscriberKey) -> EventSubscriber | None:
         return self.subscribers.get(key, None)
+
+    async def list(self) -> Sequence[EventSubscriber]:
+        return [subscriber for subscriber in self.subscribers.values()]

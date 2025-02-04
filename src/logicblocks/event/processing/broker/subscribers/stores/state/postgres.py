@@ -327,7 +327,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     )
 
     async def purge(
-        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
+        self, max_time_since_last_seen: timedelta = timedelta(minutes=5)
     ) -> None:
         cutoff_time = self.clock.now(UTC) - max_time_since_last_seen
         async with self.connection_pool.connection() as connection:

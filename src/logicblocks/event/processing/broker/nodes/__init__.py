@@ -1,3 +1,4 @@
+from .manager import NodeManager
 from .stores import (
     InMemoryNodeStateStore,
     NodeState,
@@ -7,6 +8,7 @@ from .stores import (
 
 __all__ = [
     "InMemoryNodeStateStore",
+    "NodeManager",
     "NodeState",
     "NodeStateStore",
     "PostgresNodeStateStore",

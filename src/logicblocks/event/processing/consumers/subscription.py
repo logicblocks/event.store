@@ -6,7 +6,7 @@ from logicblocks.event.types import (
     EventSourceIdentifier,
 )
 
-from ..broker import EventSubscriber
+from ..broker import EventSubscriber, EventSubscriberHealth
 from .types import EventConsumer
 
 
@@ -33,6 +33,9 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    def health(self) -> EventSubscriberHealth:
+        return EventSubscriberHealth.HEALTHY
 
     async def accept(self, source: EventSource) -> None:
         self._delegates[source.identifier] = self._delegate_factory(source)

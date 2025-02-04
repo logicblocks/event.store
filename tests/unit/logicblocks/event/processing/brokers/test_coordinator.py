@@ -8,6 +8,7 @@ from typing import Protocol, cast
 from logicblocks.event.processing.broker import (
     COORDINATOR_LOCK_NAME,
     EventSubscriber,
+    EventSubscriberHealth,
     EventSubscriberState,
     EventSubscriberStateStore,
     EventSubscriptionCoordinator,
@@ -44,6 +45,9 @@ class CapturingEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    def health(self) -> EventSubscriberHealth:
+        return EventSubscriberHealth.HEALTHY
 
     async def accept(self, source: EventSource) -> None:
         self.sources.append(source)

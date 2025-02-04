@@ -1,3 +1,4 @@
+from .manager import EventSubscriberManager as EventSubscriberManager
 from .stores import EventSubscriberState as EventSubscriberState
 from .stores import EventSubscriberStateStore as EventSubscriberStateStore
 from .stores import EventSubscriberStore as EventSubscriberStore

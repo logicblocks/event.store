@@ -53,7 +53,7 @@ class InMemoryNodeStateStore(NodeStateStore):
         self.nodes[node_id] = NodeState(node_id, self.clock.now(UTC))
 
     async def purge(
-        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
+        self, max_time_since_last_seen: timedelta = timedelta(minutes=5)
     ) -> None:
         now = self.clock.now(UTC)
         cutoff = now - max_time_since_last_seen

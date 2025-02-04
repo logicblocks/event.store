@@ -1,6 +1,11 @@
+from dataclasses import dataclass
+
 import pytest
 
-from logicblocks.event.processing.broker import InMemoryEventSubscriberStore
+from logicblocks.event.processing.broker import (
+    EventSubscriberHealth,
+    InMemoryEventSubscriberStore,
+)
 from logicblocks.event.processing.broker.types import (
     EventSubscriber,
     EventSubscriberKey,
@@ -9,10 +14,10 @@ from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 
 
+@dataclass(frozen=True)
 class DummyEventSubscriber(EventSubscriber):
-    def __init__(self, group: str, id: str):
-        self._id = id
-        self._group = group
+    _group: str
+    _id: str
 
     @property
     def group(self) -> str:
@@ -21,6 +26,9 @@ class DummyEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    def health(self) -> EventSubscriberHealth:
+        return EventSubscriberHealth.HEALTHY
 
     async def accept(self, source: EventSource) -> None:
         pass
@@ -32,8 +40,8 @@ class DummyEventSubscriber(EventSubscriber):
 class TestInMemoryEventSubscriberStore:
     async def test_manages_single_event_subscriber_instance(self):
         stored = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
 
         store = InMemoryEventSubscriberStore()
@@ -45,16 +53,16 @@ class TestInMemoryEventSubscriberStore:
 
     async def test_manages_many_event_subscriber_instances(self):
         stored_1 = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
         stored_2 = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
         stored_3 = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
 
         store = InMemoryEventSubscriberStore()
@@ -75,12 +83,8 @@ class TestInMemoryEventSubscriberStore:
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
 
-        subscriber_1 = DummyEventSubscriber(
-            group=subscriber_group, id=subscriber_id
-        )
-        subscriber_2 = DummyEventSubscriber(
-            group=subscriber_group, id=subscriber_id
-        )
+        subscriber_1 = DummyEventSubscriber(subscriber_group, subscriber_id)
+        subscriber_2 = DummyEventSubscriber(subscriber_group, subscriber_id)
 
         store = InMemoryEventSubscriberStore()
 
@@ -88,15 +92,15 @@ class TestInMemoryEventSubscriberStore:
         await store.add(subscriber_2)
 
         found = await store.get(
-            EventSubscriberKey(group=subscriber_group, id=subscriber_id)
+            EventSubscriberKey(subscriber_group, subscriber_id)
         )
 
         assert found == subscriber_2
 
     async def test_removes_subscriber_instance(self):
         stored_and_removed = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
 
         store = InMemoryEventSubscriberStore()
@@ -110,11 +114,35 @@ class TestInMemoryEventSubscriberStore:
 
     async def test_raises_when_removing_missing_subscriber_instance(self):
         subscriber = DummyEventSubscriber(
-            group=data.random_subscriber_group(),
-            id=data.random_subscriber_id(),
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
         )
 
         store = InMemoryEventSubscriberStore()
 
         with pytest.raises(ValueError):
             await store.remove(subscriber)
+
+    async def test_list_returns_all_subscriber_instances(self):
+        stored_1 = DummyEventSubscriber(
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
+        )
+        stored_2 = DummyEventSubscriber(
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
+        )
+        stored_3 = DummyEventSubscriber(
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
+        )
+
+        store = InMemoryEventSubscriberStore()
+
+        await store.add(stored_1)
+        await store.add(stored_2)
+        await store.add(stored_3)
+
+        found = await store.list()
+
+        assert set(found) == {stored_1, stored_2, stored_3}

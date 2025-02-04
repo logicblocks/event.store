@@ -12,6 +12,7 @@ from .difference import (
 from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
 from .nodes import (
     InMemoryNodeStateStore,
+    NodeManager,
     NodeState,
     NodeStateStore,
     PostgresNodeStateStore,
@@ -29,6 +30,7 @@ from .sources import (
     InMemoryEventSubscriptionSourceMappingStore,
 )
 from .subscribers import (
+    EventSubscriberManager,
     EventSubscriberState,
     EventSubscriberStateStore,
     EventSubscriberStore,
@@ -45,7 +47,7 @@ from .subscriptions import (
     InMemoryEventSubscriptionStateStore,
     PostgresEventSubscriptionStateStore,
 )
-from .types import EventSubscriber
+from .types import EventSubscriber, EventSubscriberHealth, EventSubscriberKey
 
 __all__ = (
     "COORDINATOR_LOCK_NAME",
@@ -53,6 +55,9 @@ __all__ = (
     "EventSourceFactory",
     "EventStoreEventSourceFactory",
     "EventSubscriber",
+    "EventSubscriberHealth",
+    "EventSubscriberKey",
+    "EventSubscriberManager",
     "EventSubscriberState",
     "EventSubscriberStateStore",
     "EventSubscriberStore",
@@ -79,6 +84,7 @@ __all__ = (
     "InMemoryNodeStateStore",
     "Lock",
     "LockManager",
+    "NodeManager",
     "NodeState",
     "NodeStateStore",
     "PostgresEventSubscriberStateStore",

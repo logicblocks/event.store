@@ -31,6 +31,6 @@ class NodeStateStore:
 
     @abstractmethod
     async def purge(
-        self, max_time_since_last_seen: timedelta = timedelta(seconds=300)
+        self, max_time_since_last_seen: timedelta = timedelta(minutes=5)
     ) -> None:
         raise NotImplementedError()

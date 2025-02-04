@@ -5,6 +5,7 @@ from typing import Protocol, Sequence
 
 from logicblocks.event.processing.broker import (
     EventSubscriber,
+    EventSubscriberHealth,
     EventSubscriberStore,
     EventSubscriptionDifference,
     EventSubscriptionKey,
@@ -42,6 +43,9 @@ class CapturingEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    def health(self) -> EventSubscriberHealth:
+        return EventSubscriberHealth.HEALTHY
 
     async def accept(self, source: EventSource) -> None:
         self.sources.append(source)

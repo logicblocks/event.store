@@ -16,41 +16,6 @@
   (https://github.com/janbjorge/notifelect) implementation (if it is complete 
   enough)
 
-## Abstractions
-
-* Consumer
-  * knows about event sequence and what work it wants to do 
-  * needs a name to identify the type of work that it does
-  * subscribes to consume an event sequence (log, category or stream, but predominantly 
-    category)
-  * may or may not be allocated that event sequence
-  * some sort of poll interval for how frequently the consumer should check for 
-    new work
-  * some sort of position write frequency to keep track of where the consumer 
-    is up to
-  * keeps track of where it has reached within the event sequence it is working 
-    on (say, using a consumer position store)
-
-* Consumer position store
-  * keeps track of where a consumer has got to with its work within an event 
-    sequence
-    * probably backed by the event store
-
-* Work allocator
-  * knows about event sequences, how to partition them
-  * is told about types of work to be done and what event sequences that work 
-    is associated with by consumers
-  * distributes work to be done to consumers
-  * there could be many work allocators online at a time (e.g., in different OS 
-    processes, on different machines) but only one of them can be active at a 
-    time
-  * needs to keep track of work to be done and current allocation.
-  * could this use a category or stream to store the work allocation state?
-
-* Leader elector
-  * Could use advisory locks to hold leadership (e.g., lock manager)
-  * Could use a postgres backed bully algorithm implementation
-
 ## Subscription management
 
 ### Table Structure
@@ -84,8 +49,10 @@ columns: subscriber_name             | subscriber_id | node_id  | subscriber_eve
 EventBroker 
   - chooses strategy for managing subscribers and subscriptions based on 
     backing technology
-  - maintains state on active nodes in the system
-  - maintains state on health of subscribers in the system
+NodeManager
+  + maintains state on active nodes in the system
+EventSubscriberManager
+  + maintains state on health of subscribers in the system
 EventSequencePartitioner
   - knows how to partitioner an event sequence into buckets of ordered streams
 EventSubscriptionCoordinator 
@@ -99,7 +66,7 @@ EventSubscriptionObserver
 EventSubscriber
   + accepts event sources into processing when asked
   + revokes event sources from processing when asked
-  - keeps track of its own health, an exception causes a subscriber to enter an
+  ~ keeps track of its own health, an exception causes a subscriber to enter an
     unhealthy state
   + has a name (representing the type of work that it does) and an ID (
     representing the specific subscriber instance)
@@ -107,12 +74,12 @@ EventSubscriberStore
   + a store containing all the local subscriber instances
     + in-memory
 EventSubscriberStateStore
-  - a store for keeping track of the subscribers in the system and their health
+  ~ a store for keeping track of the subscribers in the system and their health
     + in-memory
     + postgres
     - kafka
 EventSubscriptionStateStore
-  - a store for keeping track of the current allocations of event sources to
+  ~ a store for keeping track of the current allocations of event sources to
     subscriber instances
     + in-memory
     + postgres
@@ -122,13 +89,13 @@ EventSubscriptionSourceMappingStore
     subscribed to for a given subscriber group
     + in-memory
 LockManager
-  - manages application locks to ensure exclusive access to some resource or 
+  + manages application locks to ensure exclusive access to some resource or 
     process
     + in-memory
-    - postgres
+    + postgres
 NodeStateStore
-  - keeps track of node health for each node in the processing group
-    - in-memory
+  + keeps track of node health for each node in the processing group
+    + in-memory
     + postgres
 EventConsumerStateStore
   + keeps track of consumer progress through an event source 
@@ -136,3 +103,16 @@ EventConsumerStateStore
 ### Questions
 
 * How do we ensure that subscribers have been registered before allocating?
+
+## Todo
+
+* Implement EventBroker
+* Implement EventSubscriptionConsumer error management
+* Add logging
+* Add support for partitioning
+* Work out how to handle error handling in infinite processes
+  * Coordinator
+  * Observer
+  * Broker
+* Remove Postgres implementation duplication
+* Create Table abstraction to simplify Postgres implementations

@@ -1,19 +1,41 @@
-from logicblocks.event.processing.services import Service
+import asyncio
+from abc import abstractmethod
+from types import NoneType
 
+from ..services import Service
+from .coordinator import EventSubscriptionCoordinator
+from .nodes import NodeManager
+from .observer import EventSubscriptionObserver
+from .subscribers import EventSubscriberManager
 from .types import EventSubscriber
 
 
-class EventBroker(Service):
-    def __init__(self):
-        self.consumers: list[EventSubscriber] = []
+class EventBroker(Service[NoneType]):
+    @abstractmethod
+    async def register(self, subscriber: EventSubscriber) -> None:
+        raise NotImplementedError
+
+
+class CoordinatorObserverEventBroker(EventBroker):
+    def __init__(
+        self,
+        node_manager: NodeManager,
+        event_subscriber_manager: EventSubscriberManager,
+        event_subscription_coordinator: EventSubscriptionCoordinator,
+        event_subscription_observer: EventSubscriptionObserver,
+    ):
+        self._node_manager = node_manager
+        self._event_subscriber_manager = event_subscriber_manager
+        self._event_subscription_coordinator = event_subscription_coordinator
+        self._event_subscription_observer = event_subscription_observer
 
     async def register(self, subscriber: EventSubscriber) -> None:
-        pass
+        await self._event_subscriber_manager.add(subscriber)
 
-    def execute(self):
-        while True:
-            # process to heartbeat node - PARTIALLY DONE
-            # process to register and healthcheck subscribers -
-            # process to coordinate and distribute subscriptions - DONE
-            # process to observe and synchronise subscriptions - DONE
-            pass
+    async def execute(self) -> None:
+        await asyncio.gather(
+            self._node_manager.execute(),
+            self._event_subscriber_manager.execute(),
+            self._event_subscription_coordinator.coordinate(),
+            self._event_subscription_observer.observe(),
+        )

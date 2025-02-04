@@ -1,4 +1,4 @@
-from .broker import EventBroker
+from .broker import CoordinatorObserverEventBroker, EventBroker
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
     EventSubscriptionCoordinator,
@@ -51,6 +51,7 @@ from .types import EventSubscriber, EventSubscriberHealth, EventSubscriberKey
 
 __all__ = (
     "COORDINATOR_LOCK_NAME",
+    "CoordinatorObserverEventBroker",
     "EventBroker",
     "EventSourceFactory",
     "EventStoreEventSourceFactory",

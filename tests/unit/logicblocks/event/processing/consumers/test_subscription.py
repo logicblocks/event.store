@@ -34,6 +34,9 @@ class CapturingEventBroker(EventBroker):
     async def register(self, subscriber: EventSubscriber) -> None:
         self.consumers.append(subscriber)
 
+    async def execute(self) -> None:
+        pass
+
 
 class TestEventSubscriptionConsumer:
     async def test_consumes_from_received_source_on_consume_all(self):

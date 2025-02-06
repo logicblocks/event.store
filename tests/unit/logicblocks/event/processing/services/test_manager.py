@@ -651,7 +651,9 @@ def signal_ignored(sig: int):
 
 class TestServiceManagerSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGINT, signal.SIGTERM])
-    async def test_stops_services_on_all_threads_on_signal(self, sig):
+    async def test_stops_services_on_all_threads_on_signal_when_configured(
+        self, sig
+    ):
         with signal_ignored(sig):
             services_running = {
                 "service1": False,
@@ -678,6 +680,7 @@ class TestServiceManagerSignalHandling:
                         raise
 
             manager = ServiceManager()
+            manager.stop_on([signal.SIGINT, signal.SIGTERM])
             manager.register(
                 CancelCapturingService("service1"),
                 isolation_mode=IsolationMode.MAIN_THREAD,

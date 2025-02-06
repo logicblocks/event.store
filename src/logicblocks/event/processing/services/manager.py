@@ -1,8 +1,7 @@
 import asyncio
-import signal
 import threading
 from asyncio import Future, Task
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Sequence
 from enum import Enum, auto
 from typing import Any, Self
 
@@ -149,6 +148,7 @@ class IsolationModeAwareServiceExecutor:
 class ServiceManager:
     def __init__(self):
         self._service_definitions: list[ServiceDefinition[Any]] = []
+        self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
 
     def register(
@@ -163,9 +163,13 @@ class ServiceManager:
         )
         return self
 
+    def stop_on(self, signals: Sequence[int]) -> Self:
+        self._stop_on_signals = [*self._stop_on_signals, *signals]
+        return self
+
     async def start(self) -> list[Future[Any]]:
         loop = asyncio.get_event_loop()
-        for sig in [signal.SIGINT, signal.SIGTERM]:
+        for sig in self._stop_on_signals:
             loop.add_signal_handler(
                 sig, lambda: asyncio.create_task(self.stop())
             )

@@ -1,6 +1,7 @@
 from collections.abc import Callable, MutableMapping
+from uuid import uuid4
 
-from logicblocks.event.store import EventSource
+from logicblocks.event.store import EventCategory, EventSource
 from logicblocks.event.types import (
     EventSequenceIdentifier,
     EventSourceIdentifier,

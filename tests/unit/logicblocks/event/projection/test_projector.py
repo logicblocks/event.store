@@ -315,12 +315,18 @@ class TestProjectorProjection:
         events = [
             (
                 StoredEventBuilder()
+                .with_position(0)
+                .with_category(category_name)
+                .with_stream(stream_name)
                 .with_name("something-occurred")
                 .with_occurred_at(something_occurred_at)
                 .build()
             ),
             (
                 StoredEventBuilder()
+                .with_position(1)
+                .with_category(category_name)
+                .with_stream(stream_name)
                 .with_name("something-else-occurred")
                 .with_occurred_at(something_else_occurred_at)
                 .build()
@@ -329,7 +335,9 @@ class TestProjectorProjection:
 
         source = StoredEvents(
             events=events,
-            stream=StreamIdentifier(category=category_name, stream=stream_name)
+            stream=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
         )
 
         projector = AggregateProjector()

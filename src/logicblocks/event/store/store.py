@@ -164,14 +164,14 @@ class EventCategory(EventSource):
         )
 
 
-class StoredEventsIterator(AsyncIterator[StoredEvent], list[StoredEvent]):
+class StoredEventsIterator(AsyncIterator[StoredEvent]):
     def __init__(self, events: list[StoredEvent]):
-        super().__init__(events)
+        super().__init__()
         self.events = events
         self.current = 0
         self.end = len(events)
 
-    def __anext__(self):
+    async def __anext__(self):
         if self.current < self.end:
             value = self.events[self.current]
             self.current += 1
@@ -180,7 +180,7 @@ class StoredEventsIterator(AsyncIterator[StoredEvent], list[StoredEvent]):
             raise StopAsyncIteration
 
     async def __aiter__(self):
-        for event in self:
+        for event in self.events:
             yield event
 
 
@@ -204,7 +204,7 @@ class StoredEvents(EventSource):
         return self._events[-1] if self._events else None
 
     def iterate(
-            self, *, constraints: Set[QueryConstraint] = frozenset()
+        self, *, constraints: Set[QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream.
 
@@ -220,9 +220,8 @@ class StoredEvents(EventSource):
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, EventStream):
             return NotImplemented
-        return (
-                self._identifier == other.identifier
-        )
+        # TODO: Implement equality check for StoredEvents
+        return self._identifier == other.identifier
 
 
 class EventStore:

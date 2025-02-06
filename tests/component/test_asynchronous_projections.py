@@ -276,7 +276,6 @@ class TestAsynchronousProjections:
                 name=data.random_projection_name(),
                 converter=from_dict(Thing),
             )
-            print(projected_thing)
             if projected_thing:
                 break
 

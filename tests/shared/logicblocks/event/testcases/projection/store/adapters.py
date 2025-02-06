@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from psycopg.types.json import Jsonb
 
 from logicblocks.event.projection.store import (
     FilterClause,
@@ -252,9 +251,7 @@ class FindOneCases(Base, ABC):
         located = await adapter.find_one(
             lookup=Lookup(
                 filters=[
-                    FilterClause(
-                        Operator.EQUAL, Path("source"), Jsonb(source.dict())
-                    ),
+                    FilterClause(Operator.EQUAL, Path("source"), source),
                     FilterClause(
                         Operator.EQUAL, Path("name"), projection_1_name
                     ),

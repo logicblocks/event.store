@@ -108,6 +108,10 @@ def filter_clause_applicator(
         .operator(operator_for_query_operator(filter.operator))
         .right(
             Value(
+                Jsonb(filter.value.dict()),
+            )
+            if filter.path == Path("source")
+            else Value(
                 filter.value,
                 wrapper="to_jsonb" if filter.path.is_nested() else None,
             )

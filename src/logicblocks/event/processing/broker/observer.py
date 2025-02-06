@@ -23,8 +23,7 @@ class EventSubscriptionObserver:
         subscriber_store: EventSubscriberStore,
         subscription_state_store: EventSubscriptionStateStore,
         event_source_factory: EventSourceFactory,
-        subscription_difference: EventSubscriptionDifference = \
-                EventSubscriptionDifference(),
+        subscription_difference: EventSubscriptionDifference = EventSubscriptionDifference(),
         synchronisation_interval: timedelta = timedelta(seconds=20),
     ):
         self._subscriber_store = subscriber_store

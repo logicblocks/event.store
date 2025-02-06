@@ -12,6 +12,7 @@ from logicblocks.event.projection import (
 )
 from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
+from logicblocks.event.store.store import StoredEvents
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import (
@@ -289,6 +290,51 @@ class TestProjectorProjection:
         projector = AggregateProjector()
 
         actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[Aggregate](
+            id=stream_name,
+            state=Aggregate(
+                something_occurred_at=something_occurred_at,
+                something_else_occurred_at=something_else_occurred_at,
+            ),
+            version=2,
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="aggregate",
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_projects_from_events(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        something_occurred_at = datetime.now(UTC)
+        something_else_occurred_at = datetime.now(UTC)
+
+        events = [
+            (
+                StoredEventBuilder()
+                .with_name("something-occurred")
+                .with_occurred_at(something_occurred_at)
+                .build()
+            ),
+            (
+                StoredEventBuilder()
+                .with_name("something-else-occurred")
+                .with_occurred_at(something_else_occurred_at)
+                .build()
+            ),
+        ]
+
+        source = StoredEvents(
+            events=events,
+            stream=StreamIdentifier(category=category_name, stream=stream_name)
+        )
+
+        projector = AggregateProjector()
+
+        actual_projection = await projector.project(source=source)
         expected_projection = Projection[Aggregate](
             id=stream_name,
             state=Aggregate(

@@ -3,20 +3,14 @@ from .projector import (
     MissingProjectionHandlerError as MissingProjectionHandlerError,
 )
 from .projector import Projector as Projector
-from .store import ProjectionStore as ProjectionStore
-from .store import ProjectionStorageAdapter as ProjectionStorageAdapter
-from .store import (
-    InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
-)
-from .store import (
-    PostgresProjectionStorageAdapter as PostgresProjectionStorageAdapter,
-)
-from .store import ProjectionStorageAdapter as ProjectionStorageAdapter
 from .store import (
     Clause as Clause,
 )
 from .store import (
     FilterClause as FilterClause,
+)
+from .store import (
+    InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
 )
 from .store import (
     KeySetPagingClause as KeySetPagingClause,
@@ -33,6 +27,11 @@ from .store import (
 from .store import (
     Path as Path,
 )
+from .store import (
+    PostgresProjectionStorageAdapter as PostgresProjectionStorageAdapter,
+)
+from .store import ProjectionStorageAdapter as ProjectionStorageAdapter
+from .store import ProjectionStore as ProjectionStore
 from .store import (
     Query as Query,
 )

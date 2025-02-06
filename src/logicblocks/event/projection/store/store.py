@@ -1,6 +1,8 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from psycopg.types.json import Jsonb
+
 from logicblocks.event.types import EventSequenceIdentifier, Projection
 
 from . import Search
@@ -37,7 +39,9 @@ class ProjectionStore:
         return await self.adapter.find_one(
             lookup=Lookup(
                 filters=[
-                    FilterClause(Operator.EQUAL, Path("source"), source),
+                    FilterClause(
+                        Operator.EQUAL, Path("source"), Jsonb(source.dict())
+                    ),
                     FilterClause(Operator.EQUAL, Path("name"), name),
                 ]
             ),

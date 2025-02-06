@@ -7,7 +7,35 @@ from logicblocks.event.types import (
 )
 
 from ..broker import EventSubscriber, EventSubscriberHealth
-from .types import EventConsumer
+from . import EventConsumerStateStore, EventCount, EventSourceConsumer
+from .types import EventConsumer, EventProcessor
+
+
+def make_subscriber(
+    *,
+    subscriber_group: str,
+    subscriber_id: str = uuid4().hex,
+    subscriber_sequence: EventSequenceIdentifier,
+    subscriber_state_category: EventCategory,
+    subscriber_state_persistence_interval: EventCount = EventCount(100),
+    event_processor: EventProcessor,
+) -> "EventSubscriptionConsumer":
+    state_store = EventConsumerStateStore(
+        category=subscriber_state_category,
+        persistence_interval=subscriber_state_persistence_interval,
+    )
+
+    def delegate_factory(source: EventSource) -> EventSourceConsumer:
+        return EventSourceConsumer(
+            source=source, processor=event_processor, state_store=state_store
+        )
+
+    return EventSubscriptionConsumer(
+        group=subscriber_group,
+        id=subscriber_id,
+        sequence=subscriber_sequence,
+        delegate_factory=delegate_factory,
+    )
 
 
 class EventSubscriptionConsumer(EventConsumer, EventSubscriber):

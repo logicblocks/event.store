@@ -1,7 +1,7 @@
 from .broker import (
     CoordinatorObserverEventBroker,
     EventBroker,
-    make_postgres_event_broker
+    make_postgres_event_broker,
 )
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (

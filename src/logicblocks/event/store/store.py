@@ -164,6 +164,67 @@ class EventCategory(EventSource):
         )
 
 
+class StoredEventsIterator(AsyncIterator[StoredEvent], list[StoredEvent]):
+    def __init__(self, events: list[StoredEvent]):
+        super().__init__(events)
+        self.events = events
+        self.current = 0
+        self.end = len(events)
+
+    def __anext__(self):
+        if self.current < self.end:
+            value = self.events[self.current]
+            self.current += 1
+            return value
+        else:
+            raise StopAsyncIteration
+
+    async def __aiter__(self):
+        for event in self:
+            yield event
+
+
+class StoredEvents(EventSource):
+    """A class for interacting with a specific list of StoredEvent.
+
+    Events can be published into the stream using the `publish` method, and
+    the entire stream can be read using the `read` method. Streams are also
+    iterable, supporting `aiter`.
+    """
+
+    def __init__(self, events: list[StoredEvent], stream: StreamIdentifier):
+        self._events: list[StoredEvent] = events
+        self._identifier: StreamIdentifier = stream
+
+    @property
+    def identifier(self) -> EventSequenceIdentifier:
+        return self._identifier
+
+    async def latest(self) -> StoredEvent | None:
+        return self._events[-1] if self._events else None
+
+    def iterate(
+            self, *, constraints: Set[QueryConstraint] = frozenset()
+    ) -> AsyncIterator[StoredEvent]:
+        """Iterate over the events in the stream.
+
+        Args:
+            constraints: A set of query constraints defining which events to
+                   include in the iteration
+
+        Returns:
+            an async iterator over the events in the stream.
+        """
+        return StoredEventsIterator(self._events)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, EventStream):
+            return NotImplemented
+        return (
+                self._identifier == other.identifier
+        )
+
+
 class EventStore:
     """The primary interface into the store of events.
 

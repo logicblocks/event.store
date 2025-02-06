@@ -70,6 +70,8 @@ cmake-build-*/
 .idea/php.xml
 
 # pyright plugin
+.idea/pyright.xml
+.idea/pyright-overrides.xml
 .idea/pyright-langserver.xml
 
 # File-based project format

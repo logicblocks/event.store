@@ -1110,6 +1110,20 @@ files = [
 pytest = "*"
 
 [[package]]
+name = "pytest-unordered"
+version = "0.6.1"
+description = "Test equality of unordered collections in pytest"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pytest_unordered-0.6.1-py3-none-any.whl", hash = "sha256:baa809a0ff811d97cfd85f138dbca52e2d7831612b4e19225b3a65ebd9fce068"},
+    {file = "pytest_unordered-0.6.1.tar.gz", hash = "sha256:061f7a538247f8adc97a4fcf7415d36e0db4b16548c42d5b49168e6ec2cd95b0"},
+]
+
+[package.dependencies]
+pytest = ">=7.0.0"
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -1531,4 +1545,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.13,<4.0"
-content-hash = "e62721646d7430123c6c8ce4e5ee3b46b7eb2af78a0ab8e2e2b972a515a09925"
+content-hash = "64cf3520e0fe5deb4b9ac429b95b402316aef2652531b51296dbeeda64a8bb14"

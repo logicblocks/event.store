@@ -101,3 +101,15 @@ class StoredEvent:
 
     def __hash__(self):
         return hash(self.json())
+
+    def envelope(self) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "stream": self.stream,
+            "category": self.category,
+            "position": self.position,
+            "sequence_number": self.sequence_number,
+            "observed_at": self.observed_at.isoformat(),
+            "occurred_at": self.occurred_at.isoformat(),
+        }

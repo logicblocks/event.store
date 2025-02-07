@@ -9,6 +9,8 @@ from logicblocks.event.store.adapters.in_memory import (
 )
 from logicblocks.event.store.store import EventStore
 from logicblocks.event.testing import NewEventBuilder, data
+from logicblocks.event.testlogging import CapturingLogger
+from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import StoredEvent
 
 
@@ -160,3 +162,183 @@ class TestEventSourceConsumer:
         assert processor.processed_events == [
             *published_events,
         ]
+
+    async def test_logs_when_consume_all_starting(self):
+        logger = CapturingLogger.create()
+
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(category=state_category)
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            logger=logger,
+        )
+
+        stream_1 = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2 = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        await stream_1.publish(events=[NewEventBuilder().build()])
+        stream_2_publish_1 = await stream_2.publish(
+            events=[NewEventBuilder().build()]
+        )
+
+        await consumer.consume_all()
+
+        await stream_1.publish(events=[NewEventBuilder().build()])
+
+        await consumer.consume_all()
+
+        log_events = logger.events
+        startup_log_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event == "event.consumer.source.starting-consume"
+        ]
+
+        assert len(startup_log_events) == 2
+
+        assert startup_log_events[0].level == LogLevel.INFO
+        assert startup_log_events[0].is_async is True
+        assert startup_log_events[0].context == {
+            "source": {"type": "category", "category": category_name},
+            "last_sequence_number": None,
+        }
+
+        assert startup_log_events[1].level == LogLevel.INFO
+        assert startup_log_events[1].is_async is True
+        assert startup_log_events[1].context == {
+            "source": {"type": "category", "category": category_name},
+            "last_sequence_number": stream_2_publish_1[-1].sequence_number,
+        }
+
+    async def test_logs_when_consume_all_complete(self):
+        logger = CapturingLogger.create()
+
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(category=state_category)
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            logger=logger,
+        )
+
+        stream_1 = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2 = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        await stream_1.publish(events=[NewEventBuilder().build()])
+        await stream_2.publish(events=[NewEventBuilder().build()])
+
+        await consumer.consume_all()
+
+        log_events = logger.events
+        complete_log_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event == "event.consumer.source.completed-consume"
+        ]
+
+        assert len(complete_log_events) == 1
+
+        assert complete_log_events[0].level == LogLevel.INFO
+        assert complete_log_events[0].is_async is True
+        assert complete_log_events[0].context == {
+            "source": {"type": "category", "category": category_name},
+            "consumed_count": 2,
+        }
+
+    async def test_logs_details_of_each_consumed_event(self):
+        logger = CapturingLogger.create()
+
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(category=state_category)
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            logger=logger,
+        )
+
+        stream_1 = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2 = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        stored_events_1 = await stream_1.publish(
+            events=[NewEventBuilder().build()]
+        )
+        stored_events_2 = await stream_2.publish(
+            events=[NewEventBuilder().build()]
+        )
+
+        await consumer.consume_all()
+
+        log_events = logger.events
+        consuming_log_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event == "event.consumer.source.consuming-event"
+        ]
+
+        assert len(consuming_log_events) == 2
+
+        assert consuming_log_events[0].level == LogLevel.DEBUG
+        assert consuming_log_events[0].is_async is True
+        assert consuming_log_events[0].context == {
+            "source": {"type": "category", "category": category_name},
+            "envelope": stored_events_1[0].envelope(),
+        }
+
+        assert consuming_log_events[1].level == LogLevel.DEBUG
+        assert consuming_log_events[1].is_async is True
+        assert consuming_log_events[1].context == {
+            "source": {"type": "category", "category": category_name},
+            "envelope": stored_events_2[0].envelope(),
+        }

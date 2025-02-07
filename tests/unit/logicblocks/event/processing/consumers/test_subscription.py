@@ -1,9 +1,13 @@
+from pytest_unordered import unordered
+
 from logicblocks.event.processing.broker import EventBroker, EventSubscriber
 from logicblocks.event.processing.consumers import EventSubscriptionConsumer
 from logicblocks.event.processing.consumers.types import EventConsumer
 from logicblocks.event.store import EventSource, EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import data
+from logicblocks.event.testlogging import CapturingLogger
+from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types.identifier import CategoryIdentifier
 
 
@@ -178,3 +182,305 @@ class TestEventSubscriptionConsumer:
 
         assert stream_1_consumer.invoke_count == 1
         assert stream_2_consumer.invoke_count == 2
+
+    async def test_logs_when_accepting_source(self):
+        logger = CapturingLogger.create()
+        delegate_factory = CapturingEventConsumerFactory()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        sequence = CategoryIdentifier(category=category_name)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            sequences=[sequence],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_source = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2_source = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
+
+        log_events = logger.events
+        accept_log_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event
+            == "event.consumer.subscription.accepting-source"
+        ]
+
+        assert len(accept_log_events) == 2
+        assert accept_log_events[0].level == LogLevel.INFO
+        assert accept_log_events[0].is_async is True
+        assert accept_log_events[0].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_1_name,
+            },
+        }
+        assert accept_log_events[1].level == LogLevel.INFO
+        assert accept_log_events[1].is_async is True
+        assert accept_log_events[1].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_2_name,
+            },
+        }
+
+    async def test_logs_when_withdrawing_source(self):
+        logger = CapturingLogger.create()
+        delegate_factory = CapturingEventConsumerFactory()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        sequence = CategoryIdentifier(category=category_name)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            sequences=[sequence],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_source = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2_source = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
+
+        await consumer.withdraw(stream_1_source)
+        await consumer.withdraw(stream_2_source)
+
+        log_events = logger.events
+        accept_log_events = [
+            log_event
+            for log_event in log_events
+            if (
+                log_event.event
+                == "event.consumer.subscription.withdrawing-source"
+            )
+        ]
+
+        assert len(accept_log_events) == 2
+        assert accept_log_events[0].level == LogLevel.INFO
+        assert accept_log_events[0].is_async is True
+        assert accept_log_events[0].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_1_name,
+            },
+        }
+        assert accept_log_events[1].level == LogLevel.INFO
+        assert accept_log_events[1].is_async is True
+        assert accept_log_events[1].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_2_name,
+            },
+        }
+
+    async def test_logs_when_starting_and_completing_consume(self):
+        logger = CapturingLogger.create()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        delegate_factory = CapturingEventConsumerFactory()
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            sequences=[
+                CategoryIdentifier(category=data.random_event_category_name())
+            ],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        category_name = data.random_event_category_name()
+
+        stream_1_source = event_store.stream(
+            category=category_name, stream=data.random_event_stream_name()
+        )
+        stream_2_source = event_store.stream(
+            category=category_name, stream=data.random_event_stream_name()
+        )
+
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
+
+        await consumer.consume_all()
+
+        log_events = logger.events
+        startup_event = next(
+            (
+                log_event
+                for log_event in log_events
+                if (
+                    log_event.event
+                    == "event.consumer.subscription.starting-consume"
+                )
+            ),
+            None,
+        )
+
+        assert startup_event is not None
+        assert startup_event.level == LogLevel.INFO
+        assert startup_event.is_async is True
+        assert startup_event.context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "sources": unordered(
+                [
+                    stream_1_source.identifier.dict(),
+                    stream_2_source.identifier.dict(),
+                ]
+            ),
+        }
+
+        complete_event = next(
+            (
+                log_event
+                for log_event in log_events
+                if (
+                    log_event.event
+                    == "event.consumer.subscription.completed-consume"
+                )
+            ),
+            None,
+        )
+
+        assert complete_event is not None
+        assert complete_event.level == LogLevel.INFO
+        assert complete_event.is_async is True
+        assert complete_event.context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "sources": unordered(
+                [
+                    stream_1_source.identifier.dict(),
+                    stream_2_source.identifier.dict(),
+                ]
+            ),
+        }
+
+    async def test_logs_when_consuming_from_each_source(self):
+        logger = CapturingLogger.create()
+
+        delegate_factory = CapturingEventConsumerFactory()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        sequence = CategoryIdentifier(category=category_name)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            sequences=[sequence],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_source = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2_source = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        await consumer.accept(stream_1_source)
+        await consumer.accept(stream_2_source)
+
+        await consumer.consume_all()
+
+        log_events = logger.events
+        consume_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event
+            == "event.consumer.subscription.consuming-source"
+        ]
+
+        assert len(consume_events) == 2
+        assert consume_events[0].level == LogLevel.INFO
+        assert consume_events[0].is_async is True
+
+        assert consume_events[1].level == LogLevel.INFO
+        assert consume_events[1].is_async is True
+
+        stream_1_log_context = next(
+            (
+                context
+                for context in [
+                    consume_events[0].context,
+                    consume_events[1].context,
+                ]
+                if context["source"]["stream"] == stream_1_name
+            ),
+            None,
+        )
+        stream_2_log_context = next(
+            (
+                context
+                for context in [
+                    consume_events[0].context,
+                    consume_events[1].context,
+                ]
+                if context["source"]["stream"] == stream_2_name
+            ),
+            None,
+        )
+
+        assert stream_1_log_context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_1_name,
+            },
+        }
+        assert stream_2_log_context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_2_name,
+            },
+        }

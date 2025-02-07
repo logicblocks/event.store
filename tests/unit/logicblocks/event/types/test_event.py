@@ -765,6 +765,33 @@ class TestStoredEvent:
 
         assert not hash(event1) == hash(event2)
 
+    def test_returns_envelope_as_dictionary_of_attributes_without_payload(
+        self,
+    ):
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.envelope() == {
+            "id": "some-id",
+            "name": "something-happened",
+            "stream": "some-stream",
+            "category": "some-category",
+            "position": 0,
+            "sequence_number": 0,
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

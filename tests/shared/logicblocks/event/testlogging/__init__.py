@@ -1,1 +1,1 @@
-from .logger import TestLogger as TestLogger
+from .logger import CapturingLogger as CapturingLogger

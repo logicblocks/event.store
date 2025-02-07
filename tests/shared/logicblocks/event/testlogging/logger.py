@@ -25,12 +25,12 @@ class LogEvent:
     is_async: bool
 
 
-class TestLogger(FilteringBoundLogger):
+class CapturingLogger(FilteringBoundLogger):
     events: list[LogEvent] = []
     _context: dict[str, Any] = {}
 
     @classmethod
-    def create(cls) -> "TestLogger":
+    def create(cls) -> "CapturingLogger":
         return cls([], {})
 
     def __init__(self, events: list[LogEvent], context: dict[str, Any]):
@@ -41,7 +41,7 @@ class TestLogger(FilteringBoundLogger):
         context = dict(self._context)
         context.update(new_values)
 
-        return TestLogger(self.events, context)
+        return CapturingLogger(self.events, context)
 
     def unbind(self, *keys: str) -> FilteringBoundLogger:
         context = dict(self._context)
@@ -50,7 +50,7 @@ class TestLogger(FilteringBoundLogger):
                 raise KeyError(f"No such binding: {key}")
             context.pop(key)
 
-        return TestLogger(self.events, context)
+        return CapturingLogger(self.events, context)
 
     def try_unbind(self, *keys: str) -> FilteringBoundLogger:
         context = dict(self._context)
@@ -59,13 +59,13 @@ class TestLogger(FilteringBoundLogger):
                 continue
             context.pop(key)
 
-        return TestLogger(self.events, context)
+        return CapturingLogger(self.events, context)
 
     def new(self, **new_values: Any) -> FilteringBoundLogger:
         context = {}
         context.update(new_values)
 
-        return TestLogger(self.events, context)
+        return CapturingLogger(self.events, context)
 
     def is_enabled_for(self, level: int) -> bool:
         raise NotImplementedError

@@ -7,7 +7,7 @@ from logicblocks.event.store import EventStore, conditions, constraints
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
-from logicblocks.event.testlogging import TestLogger
+from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -452,7 +452,7 @@ class TestStreamPublishing:
 
 class TestStreamLogging:
     async def test_logs_on_publish(self):
-        logger = TestLogger.create()
+        logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -487,7 +487,7 @@ class TestStreamLogging:
         }
 
     async def test_logs_on_latest(self):
-        logger = TestLogger.create()
+        logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -525,7 +525,7 @@ class TestStreamLogging:
         }
 
     async def test_logs_on_iterating(self):
-        logger = TestLogger.create()
+        logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -963,7 +963,7 @@ class TestCategoryIteration:
 
 class TestCategoryLogging:
     async def test_logs_on_latest(self):
-        logger = TestLogger.create()
+        logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
@@ -1000,7 +1000,7 @@ class TestCategoryLogging:
         }
 
     async def test_logs_on_iterating(self):
-        logger = TestLogger.create()
+        logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()

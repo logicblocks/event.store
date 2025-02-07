@@ -205,13 +205,9 @@ class TestEventSourceConsumer:
 
         await consumer.consume_all()
 
-        log_events = logger.events
-        startup_log_events = [
-            log_event
-            for log_event in log_events
-            if log_event.event == "event.consumer.source.starting-consume"
-        ]
-
+        startup_log_events = logger.find_events(
+            "event.consumer.source.starting-consume"
+        )
         assert len(startup_log_events) == 2
 
         assert startup_log_events[0].level == LogLevel.INFO
@@ -264,12 +260,9 @@ class TestEventSourceConsumer:
 
         await consumer.consume_all()
 
-        log_events = logger.events
-        complete_log_events = [
-            log_event
-            for log_event in log_events
-            if log_event.event == "event.consumer.source.completed-consume"
-        ]
+        complete_log_events = logger.find_events(
+            "event.consumer.source.completed-consume"
+        )
 
         assert len(complete_log_events) == 1
 
@@ -320,12 +313,9 @@ class TestEventSourceConsumer:
 
         await consumer.consume_all()
 
-        log_events = logger.events
-        consuming_log_events = [
-            log_event
-            for log_event in log_events
-            if log_event.event == "event.consumer.source.consuming-event"
-        ]
+        consuming_log_events = logger.find_events(
+            "event.consumer.source.consuming-event"
+        )
 
         assert len(consuming_log_events) == 2
 

@@ -29,6 +29,22 @@ class CapturingLogger(FilteringBoundLogger):
     events: list[LogEvent] = []
     _context: dict[str, Any] = {}
 
+    def find_events(self, event: str) -> Sequence[LogEvent]:
+        return [
+            log_event for log_event in self.events if log_event.event == event
+        ]
+
+    def find_event(self, event: str) -> LogEvent | None:
+        events = self.find_events(event)
+        if len(events) == 0:
+            return None
+        if len(events) > 1:
+            raise ValueError(
+                f"Expected only one log event with name {event}, "
+                f"found {len(events)}."
+            )
+        return events[0]
+
     @classmethod
     def create(cls) -> "CapturingLogger":
         return cls([], {})

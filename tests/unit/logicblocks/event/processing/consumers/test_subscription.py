@@ -280,15 +280,9 @@ class TestEventSubscriptionConsumer:
         await consumer.withdraw(stream_1_source)
         await consumer.withdraw(stream_2_source)
 
-        log_events = logger.events
-        accept_log_events = [
-            log_event
-            for log_event in log_events
-            if (
-                log_event.event
-                == "event.consumer.subscription.withdrawing-source"
-            )
-        ]
+        accept_log_events = logger.find_events(
+            "event.consumer.subscription.withdrawing-source"
+        )
 
         assert len(accept_log_events) == 2
         assert accept_log_events[0].level == LogLevel.INFO
@@ -344,17 +338,8 @@ class TestEventSubscriptionConsumer:
 
         await consumer.consume_all()
 
-        log_events = logger.events
-        startup_event = next(
-            (
-                log_event
-                for log_event in log_events
-                if (
-                    log_event.event
-                    == "event.consumer.subscription.starting-consume"
-                )
-            ),
-            None,
+        startup_event = logger.find_event(
+            "event.consumer.subscription.starting-consume"
         )
 
         assert startup_event is not None
@@ -370,16 +355,8 @@ class TestEventSubscriptionConsumer:
             ),
         }
 
-        complete_event = next(
-            (
-                log_event
-                for log_event in log_events
-                if (
-                    log_event.event
-                    == "event.consumer.subscription.completed-consume"
-                )
-            ),
-            None,
+        complete_event = logger.find_event(
+            "event.consumer.subscription.completed-consume"
         )
 
         assert complete_event is not None
@@ -430,13 +407,9 @@ class TestEventSubscriptionConsumer:
 
         await consumer.consume_all()
 
-        log_events = logger.events
-        consume_events = [
-            log_event
-            for log_event in log_events
-            if log_event.event
-            == "event.consumer.subscription.consuming-source"
-        ]
+        consume_events = logger.find_events(
+            "event.consumer.subscription.consuming-source"
+        )
 
         assert len(consume_events) == 2
         assert consume_events[0].level == LogLevel.INFO
@@ -445,42 +418,32 @@ class TestEventSubscriptionConsumer:
         assert consume_events[1].level == LogLevel.INFO
         assert consume_events[1].is_async is True
 
-        stream_1_log_context = next(
-            (
-                context
-                for context in [
-                    consume_events[0].context,
-                    consume_events[1].context,
-                ]
-                if context["source"]["stream"] == stream_1_name
-            ),
-            None,
+        assert [
+            consume_events[0].context,
+            consume_events[1].context,
+        ] == unordered(
+            [
+                {
+                    "subscriber": {
+                        "group": subscriber_group,
+                        "id": subscriber_id,
+                    },
+                    "source": {
+                        "type": "stream",
+                        "category": category_name,
+                        "stream": stream_1_name,
+                    },
+                },
+                {
+                    "subscriber": {
+                        "group": subscriber_group,
+                        "id": subscriber_id,
+                    },
+                    "source": {
+                        "type": "stream",
+                        "category": category_name,
+                        "stream": stream_2_name,
+                    },
+                },
+            ]
         )
-        stream_2_log_context = next(
-            (
-                context
-                for context in [
-                    consume_events[0].context,
-                    consume_events[1].context,
-                ]
-                if context["source"]["stream"] == stream_2_name
-            ),
-            None,
-        )
-
-        assert stream_1_log_context == {
-            "subscriber": {"group": subscriber_group, "id": subscriber_id},
-            "source": {
-                "type": "stream",
-                "category": category_name,
-                "stream": stream_1_name,
-            },
-        }
-        assert stream_2_log_context == {
-            "subscriber": {"group": subscriber_group, "id": subscriber_id},
-            "source": {
-                "type": "stream",
-                "category": category_name,
-                "stream": stream_2_name,
-            },
-        }

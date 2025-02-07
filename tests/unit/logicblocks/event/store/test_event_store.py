@@ -469,11 +469,7 @@ class TestStreamLogging:
             ]
         )
 
-        log_events = logger.events
-        log_event = next(
-            (ev for ev in log_events if ev.event == "event.stream.publishing"),
-            None,
-        )
+        log_event = logger.find_event("event.stream.publishing")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO
@@ -506,15 +502,7 @@ class TestStreamLogging:
 
         await stream.latest()
 
-        log_events = logger.events
-        log_event = next(
-            (
-                ev
-                for ev in log_events
-                if ev.event == "event.stream.reading-latest"
-            ),
-            None,
-        )
+        log_event = logger.find_event("event.stream.reading-latest")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO
@@ -544,11 +532,7 @@ class TestStreamLogging:
 
         stream.iterate()
 
-        log_events = logger.events
-        log_event = next(
-            (ev for ev in log_events if ev.event == "event.stream.iterating"),
-            None,
-        )
+        log_event = logger.find_event("event.stream.iterating")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO
@@ -982,15 +966,7 @@ class TestCategoryLogging:
 
         await category.latest()
 
-        log_events = logger.events
-        log_event = next(
-            (
-                ev
-                for ev in log_events
-                if ev.event == "event.category.reading-latest"
-            ),
-            None,
-        )
+        log_event = logger.find_event("event.category.reading-latest")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO
@@ -1028,15 +1004,7 @@ class TestCategoryLogging:
 
         category.iterate()
 
-        log_events = logger.events
-        log_event = next(
-            (
-                ev
-                for ev in log_events
-                if ev.event == "event.category.iterating"
-            ),
-            None,
-        )
+        log_event = logger.find_event("event.category.iterating")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO

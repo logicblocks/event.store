@@ -1,4 +1,4 @@
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, Sequence
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import (
@@ -15,12 +15,12 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self,
         group: str,
         id: str,
-        sequence: EventSequenceIdentifier,
+        sequences: Sequence[EventSequenceIdentifier],
         delegate_factory: Callable[[EventSource], EventConsumer],
     ):
         self._group = group
         self._id = id
-        self._sequence = sequence
+        self._sequences = sequences
         self._delegate_factory = delegate_factory
         self._delegates: MutableMapping[
             EventSourceIdentifier, EventConsumer
@@ -36,6 +36,10 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY
+
+    @property
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        return self._sequences
 
     async def accept(self, source: EventSource) -> None:
         self._delegates[source.identifier] = self._delegate_factory(source)

@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Self
+from typing import Self, Sequence
 
 from logicblocks.event.processing.broker import (
     CoordinatorObserverEventBroker,
@@ -24,6 +24,7 @@ from logicblocks.event.processing.broker import (
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import data
+from logicblocks.event.types import EventSequenceIdentifier
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,10 @@ class DummyEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        return []
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY
@@ -118,6 +123,7 @@ def make_event_broker():
         node_id=node_id,
         subscriber_store=subscriber_store,
         subscriber_state_store=subscriber_state_store,
+        subscription_source_mapping_store=subscription_source_mapping_store,
     )
     event_subscription_coordinator = DummyEventSubscriptionCoordinator(
         lock_manager=InMemoryLockManager(),

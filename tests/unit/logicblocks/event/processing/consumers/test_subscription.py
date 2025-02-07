@@ -39,6 +39,30 @@ class CapturingEventBroker(EventBroker):
 
 
 class TestEventSubscriptionConsumer:
+    async def test_exposes_required_properties(self):
+        delegate_factory = CapturingEventConsumerFactory()
+
+        category_name_1 = data.random_event_category_name()
+        category_name_2 = data.random_event_category_name()
+        sequence_1 = CategoryIdentifier(category=category_name_1)
+        sequence_2 = CategoryIdentifier(category=category_name_2)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        sequences = [sequence_1, sequence_2]
+
+        subscription_consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            sequences=sequences,
+            delegate_factory=delegate_factory.factory,
+        )
+
+        assert subscription_consumer.group == subscriber_group
+        assert subscription_consumer.id == subscriber_id
+        assert subscription_consumer.sequences == sequences
+
     async def test_consumes_from_received_source_on_consume_all(self):
         delegate_factory = CapturingEventConsumerFactory()
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -49,7 +73,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequence=sequence,
+            sequences=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 
@@ -75,7 +99,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequence=sequence,
+            sequences=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 
@@ -118,7 +142,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequence=sequence,
+            sequences=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 

@@ -22,6 +22,7 @@ from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
+from logicblocks.event.types import EventSequenceIdentifier
 from logicblocks.event.types.identifier import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -43,6 +44,10 @@ class CapturingEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        return []
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY

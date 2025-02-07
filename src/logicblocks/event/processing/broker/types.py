@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
 from logicblocks.event.store import EventSource
+from logicblocks.event.types.identifier import EventSequenceIdentifier
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,11 @@ class EventSubscriber(ABC):
     @property
     def key(self) -> EventSubscriberKey:
         return EventSubscriberKey(self.group, self.id)
+
+    @property
+    @abstractmethod
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        raise NotImplementedError
 
     @abstractmethod
     def health(self) -> EventSubscriberHealth:

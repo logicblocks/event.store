@@ -27,7 +27,11 @@ from logicblocks.event.processing.broker import (
 from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
-from logicblocks.event.types import EventSourceIdentifier, StreamIdentifier
+from logicblocks.event.types import (
+    EventSequenceIdentifier,
+    EventSourceIdentifier,
+    StreamIdentifier,
+)
 from logicblocks.event.types.identifier import CategoryIdentifier
 
 
@@ -45,6 +49,10 @@ class CapturingEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        return []
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY

@@ -2,6 +2,7 @@ import asyncio
 from datetime import timedelta
 from typing import Self
 
+from ..sources import EventSubscriptionSourceMappingStore
 from ..types import EventSubscriber, EventSubscriberHealth
 from .stores import EventSubscriberStateStore, EventSubscriberStore
 
@@ -12,6 +13,7 @@ class EventSubscriberManager:
         node_id: str,
         subscriber_store: EventSubscriberStore,
         subscriber_state_store: EventSubscriberStateStore,
+        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
         heartbeat_interval: timedelta = timedelta(seconds=10),
         purge_interval: timedelta = timedelta(minutes=1),
         subscriber_max_age: timedelta = timedelta(minutes=10),
@@ -19,6 +21,9 @@ class EventSubscriberManager:
         self._node_id = node_id
         self._subscriber_store = subscriber_store
         self._subscriber_state_store = subscriber_state_store
+        self._subscription_source_mapping_store = (
+            subscription_source_mapping_store
+        )
         self._heartbeat_interval = heartbeat_interval
         self._purge_interval = purge_interval
         self._subscriber_max_age = subscriber_max_age
@@ -41,10 +46,16 @@ class EventSubscriberManager:
     async def register(self):
         for subscriber in await self._subscriber_store.list():
             await self._subscriber_state_store.add(subscriber.key)
+            await self._subscription_source_mapping_store.add(
+                subscriber.group, subscriber.sequences
+            )
 
     async def unregister(self):
         for subscriber in await self._subscriber_store.list():
             await self._subscriber_state_store.remove(subscriber.key)
+            await self._subscription_source_mapping_store.remove(
+                subscriber.group
+            )
 
     async def heartbeat(self):
         while True:

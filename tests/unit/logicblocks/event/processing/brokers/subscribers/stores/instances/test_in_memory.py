@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Sequence
 
 import pytest
 
@@ -12,6 +13,7 @@ from logicblocks.event.processing.broker.types import (
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
+from logicblocks.event.types import EventSequenceIdentifier
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,10 @@ class DummyEventSubscriber(EventSubscriber):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+        return []
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY

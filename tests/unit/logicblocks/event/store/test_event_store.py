@@ -7,6 +7,8 @@ from logicblocks.event.store import EventStore, conditions, constraints
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
+from logicblocks.event.testlogging import TestLogger
+from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import (
     CategoryIdentifier,
     NewEvent,
@@ -448,6 +450,116 @@ class TestStreamPublishing:
             )
 
 
+class TestStreamLogging:
+    async def test_logs_on_publish(self):
+        logger = TestLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        log_events = logger.events
+        log_event = next(
+            (ev for ev in log_events if ev.event == "event.stream.publishing"),
+            None,
+        )
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+            "event_count": 2,
+            "event_names": ["first-thing-happened", "second-thing-happened"],
+            "conditions": [],
+        }
+
+    async def test_logs_on_latest(self):
+        logger = TestLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        await stream.latest()
+
+        log_events = logger.events
+        log_event = next(
+            (
+                ev
+                for ev in log_events
+                if ev.event == "event.stream.reading-latest"
+            ),
+            None,
+        )
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+        }
+
+    async def test_logs_on_iterating(self):
+        logger = TestLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        stream.iterate()
+
+        log_events = logger.events
+        log_event = next(
+            (ev for ev in log_events if ev.event == "event.stream.iterating"),
+            None,
+        )
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is False
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+            "constraints": [],
+        }
+
+
 class TestCategoryIdentifier:
     def test_exposes_identifier(self):
         category_name = data.random_event_category_name()
@@ -708,6 +820,41 @@ class TestCategoryRead:
         assert read_events == expected_events
 
 
+class TestCategoryLatest:
+    async def test_reads_latest_event_in_category_if_present(self):
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category = store.category(category=category_name)
+
+        await category.stream(stream=stream_1_name).publish(
+            events=stream_1_new_events
+        )
+        stored_events_2 = await category.stream(stream=stream_2_name).publish(
+            events=stream_2_new_events
+        )
+
+        latest_event = await category.latest()
+
+        assert latest_event == stored_events_2[-1]
+
+    async def test_returns_none_if_category_is_empty(self):
+        category_name = data.random_event_category_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        latest_event = await category.latest()
+
+        assert latest_event is None
+
+
 class TestCategoryIteration:
     async def test_can_treat_category_as_iterable_over_all_events(self):
         category_name = data.random_event_category_name()
@@ -812,6 +959,92 @@ class TestCategoryIteration:
         ]
 
         assert stream_event_keys == new_event_keys
+
+
+class TestCategoryLogging:
+    async def test_logs_on_latest(self):
+        logger = TestLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        category = store.category(category=category_name)
+
+        await category.stream(stream=stream_name).publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        await category.latest()
+
+        log_events = logger.events
+        log_event = next(
+            (
+                ev
+                for ev in log_events
+                if ev.event == "event.category.reading-latest"
+            ),
+            None,
+        )
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+        }
+
+    async def test_logs_on_iterating(self):
+        logger = TestLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        category = store.category(category=category_name)
+        stream_1 = category.stream(stream=stream_1_name)
+        stream_2 = category.stream(stream=stream_2_name)
+
+        await stream_1.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+        await stream_2.publish(
+            events=[
+                NewEventBuilder().with_name("third-thing-happened").build(),
+                NewEventBuilder().with_name("fourth-thing-happened").build(),
+            ]
+        )
+
+        category.iterate()
+
+        log_events = logger.events
+        log_event = next(
+            (
+                ev
+                for ev in log_events
+                if ev.event == "event.category.iterating"
+            ),
+            None,
+        )
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is False
+        assert log_event.context == {
+            "category": category_name,
+            "constraints": [],
+        }
 
 
 if __name__ == "__main__":

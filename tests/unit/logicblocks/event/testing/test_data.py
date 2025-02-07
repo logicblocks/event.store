@@ -22,11 +22,11 @@ def test_generates_random_integers_with_specified_minimum():
 
 
 def test_generates_random_integers_with_specified_maximum():
-    ints = [data.random_int(max=200000) for _ in range(100)]
+    ints = [data.random_int(max=10000000) for _ in range(100)]
 
     assert all(isinstance(i, int) for i in ints)
     assert len(set(ints)) == 100
-    assert all(i <= 200000 for i in ints)
+    assert all(i <= 10000000 for i in ints)
 
 
 def test_generates_random_characters_from_provided_character_string_by_default():

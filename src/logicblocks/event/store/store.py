@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any
 
+import structlog
+from structlog.typing import FilteringBoundLogger
+
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
@@ -12,6 +15,8 @@ from logicblocks.event.types import (
     StoredEvent,
     StreamIdentifier,
 )
+
+_default_logger = structlog.get_logger("logicblocks.event.store")
 
 
 class EventSource(ABC):
@@ -49,15 +54,24 @@ class EventStream(EventSource):
     iterable, supporting `aiter`.
     """
 
-    def __init__(self, adapter: EventStorageAdapter, stream: StreamIdentifier):
-        self._adapter: EventStorageAdapter = adapter
-        self._identifier: StreamIdentifier = stream
+    def __init__(
+        self,
+        adapter: EventStorageAdapter,
+        stream: StreamIdentifier,
+        logger: FilteringBoundLogger = _default_logger,
+    ):
+        self._adapter = adapter
+        self._logger = logger.bind(
+            category=stream.category, stream=stream.stream
+        )
+        self._identifier = stream
 
     @property
     def identifier(self) -> EventSequenceIdentifier:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        await self._logger.ainfo("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
     async def publish(
@@ -67,6 +81,13 @@ class EventStream(EventSource):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
+        await self._logger.ainfo(
+            "event.stream.publishing",
+            event_count=len(events),
+            event_names=[event.name for event in events],
+            conditions=list(conditions),
+        )
+
         return await self._adapter.save(
             target=self._identifier,
             events=events,
@@ -85,6 +106,10 @@ class EventStream(EventSource):
         Returns:
             an async iterator over the events in the stream.
         """
+        self._logger.info(
+            "event.stream.iterating", constraints=list(constraints)
+        )
+
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
@@ -110,17 +135,22 @@ class EventCategory(EventSource):
     """
 
     def __init__(
-        self, adapter: EventStorageAdapter, category: CategoryIdentifier
+        self,
+        adapter: EventStorageAdapter,
+        category: CategoryIdentifier,
+        logger: FilteringBoundLogger = _default_logger,
     ):
-        self._adapter: EventStorageAdapter = adapter
-        self._identifier: CategoryIdentifier = category
+        self._adapter = adapter
+        self._logger = logger.bind(category=category.category)
+        self._identifier = category
 
     @property
     def identifier(self) -> EventSequenceIdentifier:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
-        pass
+        await self._logger.ainfo("event.category.reading-latest")
+        return await self._adapter.latest(target=self._identifier)
 
     def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.
@@ -133,6 +163,7 @@ class EventCategory(EventSource):
         """
         return EventStream(
             adapter=self._adapter,
+            logger=self._logger,
             stream=StreamIdentifier(
                 category=self._identifier.category, stream=stream
             ),
@@ -150,6 +181,9 @@ class EventCategory(EventSource):
         Returns:
             an async iterator over the events in the category.
         """
+        self._logger.info(
+            "event.category.iterating", constraints=list(constraints)
+        )
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
@@ -184,10 +218,13 @@ class EventStore:
     stream of events.
     """
 
-    adapter: EventStorageAdapter
-
-    def __init__(self, adapter: EventStorageAdapter):
-        self.adapter = adapter
+    def __init__(
+        self,
+        adapter: EventStorageAdapter,
+        logger: FilteringBoundLogger = _default_logger,
+    ):
+        self._adapter = adapter
+        self._logger = logger
 
     def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.
@@ -208,7 +245,8 @@ class EventStore:
             an event store scoped to the specified stream.
         """
         return EventStream(
-            adapter=self.adapter,
+            adapter=self._adapter,
+            logger=self._logger,
             stream=StreamIdentifier(category=category, stream=stream),
         )
 
@@ -229,6 +267,7 @@ class EventStore:
             an event store scoped to the specified category.
         """
         return EventCategory(
-            adapter=self.adapter,
+            adapter=self._adapter,
+            logger=self._logger,
             category=CategoryIdentifier(category=category),
         )

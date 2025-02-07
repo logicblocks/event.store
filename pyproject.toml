@@ -20,6 +20,8 @@ python = ">=3.13,<4.0"
 psycopg = { extras = ["binary", "pool"], version = "^3.2.3" }
 uvloop = "^0.21.0"
 pyheck = "^0.1.5"
+structlog = "^25.1.0"
+rich = "^13.9.4"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.6.10"

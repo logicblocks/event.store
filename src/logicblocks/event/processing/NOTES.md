@@ -47,7 +47,7 @@ columns: subscriber_name             | subscriber_id | node_id  | subscriber_eve
 ### Components
 
 EventBroker 
-  - chooses strategy for managing subscribers and subscriptions based on 
+  + chooses strategy for managing subscribers and subscriptions based on 
     backing technology
 NodeManager
   + maintains state on active nodes in the system
@@ -106,7 +106,6 @@ EventConsumerStateStore
 
 ## Todo
 
-* Implement EventBroker
 * Implement EventSubscriptionConsumer error management
 * Add logging
 * Add support for partitioning

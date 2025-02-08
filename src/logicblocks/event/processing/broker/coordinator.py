@@ -6,7 +6,10 @@ from datetime import timedelta
 from enum import StrEnum
 from typing import Any
 
+from structlog.types import FilteringBoundLogger
+
 from .locks import LockManager
+from .logger import default_logger
 from .sources import EventSubscriptionSourceMappingStore
 from .subscribers import EventSubscriberStateStore
 from .subscriptions import (
@@ -28,6 +31,10 @@ def class_fullname(klass: type[Any]):
     return module + "." + klass.__qualname__
 
 
+def log_event_name(event: str) -> str:
+    return f"event.processing.broker.coordinator.{event}"
+
+
 class EventSubscriptionCoordinatorStatus(StrEnum):
     STOPPED = "stopped"
     RUNNING = "running"
@@ -36,15 +43,20 @@ class EventSubscriptionCoordinatorStatus(StrEnum):
 
 class EventSubscriptionCoordinator:
     def __init__(
-        self,
-        lock_manager: LockManager,
-        subscriber_state_store: EventSubscriberStateStore,
-        subscription_state_store: EventSubscriptionStateStore,
-        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
-        subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
-        distribution_interval: timedelta = timedelta(seconds=20),
+            self,
+            node_id: str,
+            lock_manager: LockManager,
+            subscriber_state_store: EventSubscriberStateStore,
+            subscription_state_store: EventSubscriptionStateStore,
+            subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
+            logger: FilteringBoundLogger = default_logger,
+            subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
+            distribution_interval: timedelta = timedelta(seconds=20),
     ):
+        self._node_id = node_id
+
         self._lock_manager = lock_manager
+        self._logger = logger
         self._subscriber_store = subscriber_state_store
         self._subscription_store = subscription_state_store
         self._subscription_sources_store = subscription_source_mapping_store
@@ -60,20 +72,37 @@ class EventSubscriptionCoordinator:
         return self._status
 
     async def coordinate(self) -> None:
-        async with self._lock_manager.wait_for_lock(LOCK_NAME):
-            self._status = EventSubscriptionCoordinatorStatus.RUNNING
-            try:
+        await self._logger.ainfo(
+            log_event_name("starting"),
+            node=self._node_id,
+            distribution_interval_seconds=\
+                self._distribution_interval.total_seconds(),
+            subscriber_max_time_since_last_seen_seconds=\
+                self._subscriber_max_time_since_last_seen.total_seconds()
+        )
+        try:
+            async with self._lock_manager.wait_for_lock(LOCK_NAME):
+                self._status = EventSubscriptionCoordinatorStatus.RUNNING
                 while True:
                     await self.distribute()
                     await asyncio.sleep(
                         self._distribution_interval.total_seconds()
                     )
-            except (asyncio.CancelledError, GeneratorExit):
-                self._status = EventSubscriptionCoordinatorStatus.STOPPED
-                raise
-            except:
-                self._status = EventSubscriptionCoordinatorStatus.ERRORED
-                raise
+        except (asyncio.CancelledError, GeneratorExit):
+            self._status = EventSubscriptionCoordinatorStatus.STOPPED
+            await self._logger.ainfo(
+                log_event_name("stopped"),
+                node=self._node_id,
+            )
+            raise
+        except BaseException as e:
+            self._status = EventSubscriptionCoordinatorStatus.ERRORED
+            await self._logger.aexception(
+                log_event_name("failed"),
+                node=self._node_id,
+                error=e
+            )
+            raise
 
     async def distribute(self) -> None:
         subscribers = await self._subscriber_store.list(
@@ -105,8 +134,8 @@ class EventSubscriptionCoordinator:
             subscription.group for subscription in subscriptions
         }
         removed_subscriber_groups = (
-            subscriber_groups_with_subscriptions
-            - subscriber_groups_with_instances
+                subscriber_groups_with_subscriptions
+                - subscriber_groups_with_instances
         )
 
         changes: list[EventSubscriptionStateChange] = []

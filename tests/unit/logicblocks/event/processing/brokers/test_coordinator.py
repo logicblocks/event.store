@@ -27,6 +27,7 @@ from logicblocks.event.processing.broker import (
 from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.types import (
     EventSequenceIdentifier,
     EventSourceIdentifier,
@@ -149,6 +150,7 @@ class Context:
     coordinator: EventSubscriptionCoordinator
     node_id: str
     lock_manager: LockManager
+    logger: CapturingLogger
     subscriber_state_store: EventSubscriberStateStore
     subscription_state_store: EventSubscriptionStateStore
     subscription_source_mapping_store: EventSubscriptionSourceMappingStore
@@ -169,6 +171,8 @@ def make_coordinator(
     distribution_interval: timedelta | None = None,
 ) -> Context:
     node_id = data.random_node_id()
+
+    logger = CapturingLogger.create()
     subscriber_state_store = subscriber_state_store_class(node_id=node_id)
     subscription_state_store = subscription_state_store_class(node_id=node_id)
     subscription_source_mapping_store = (
@@ -177,7 +181,9 @@ def make_coordinator(
     lock_manager = InMemoryLockManager()
 
     kwargs = {
+        "node_id": node_id,
         "lock_manager": lock_manager,
+        "logger": logger,
         "subscriber_state_store": subscriber_state_store,
         "subscription_state_store": subscription_state_store,
         "subscription_source_mapping_store": subscription_source_mapping_store,
@@ -195,6 +201,7 @@ def make_coordinator(
         coordinator=coordinator,
         node_id=node_id,
         lock_manager=lock_manager,
+        logger=logger,
         subscriber_state_store=subscriber_state_store,
         subscription_state_store=subscription_state_store,
         subscription_source_mapping_store=subscription_source_mapping_store,
@@ -1387,3 +1394,108 @@ class TestCoordinateDistribution:
         await asyncio.gather(task, return_exceptions=True)
 
         assert subscription_state_store.counts["apply"] == 3
+
+class TestCoordinateLogging:
+    async def test_logs_on_startup(self):
+        context = make_coordinator(
+            distribution_interval=timedelta(seconds=5),
+            subscriber_max_time_since_last_seen=timedelta(minutes=5)
+        )
+        node_id = context.node_id
+        coordinator = context.coordinator
+        logger = context.logger
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        try:
+            async def coordinator_running():
+                while True:
+                    await asyncio.sleep(0)
+                    status = coordinator.status
+                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                        return
+
+            await asyncio.wait_for(
+                coordinator_running(),
+                timeout=timedelta(milliseconds=50).total_seconds()
+            )
+
+            startup_event = logger.find_event(
+                "event.processing.broker.coordinator.starting"
+            )
+
+            assert startup_event is not None
+            assert startup_event.level == LogLevel.INFO
+            assert startup_event.is_async is True
+            assert startup_event.context == {
+                "node": node_id,
+                "distribution_interval_seconds": 5.0,
+                "subscriber_max_time_since_last_seen_seconds": 300.0,
+            }
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_logs_on_shutdown(self):
+        context = make_coordinator(
+            distribution_interval=timedelta(seconds=5),
+            subscriber_max_time_since_last_seen=timedelta(minutes=5)
+        )
+        node_id = context.node_id
+        coordinator = context.coordinator
+        logger = context.logger
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        try:
+            async def coordinator_running():
+                while True:
+                    await asyncio.sleep(0)
+                    status = coordinator.status
+                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                        return
+
+            await asyncio.wait_for(
+                coordinator_running(),
+                timeout=timedelta(milliseconds=50).total_seconds()
+            )
+
+            task.cancel()
+
+            await asyncio.gather(task, return_exceptions=True)
+
+            shutdown_event = logger.find_event(
+                "event.processing.broker.coordinator.stopped"
+            )
+
+            assert shutdown_event is not None
+            assert shutdown_event.level == LogLevel.INFO
+            assert shutdown_event.is_async is True
+            assert shutdown_event.context == {
+                "node": node_id
+            }
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_logs_on_error(self):
+        context = make_coordinator(
+            subscriber_state_store_class=ThrowingEventSubscriberStateStore
+        )
+        node_id = context.node_id
+        coordinator = context.coordinator
+        logger = context.logger
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        await asyncio.gather(task, return_exceptions=True)
+
+        failed_event = logger.find_event(
+            "event.processing.broker.coordinator.failed"
+        )
+
+        assert failed_event is not None
+        assert failed_event.level == LogLevel.ERROR
+        assert failed_event.is_async is True
+        assert failed_event.context["node"] == node_id
+        assert isinstance(failed_event.context["error"], RuntimeError)

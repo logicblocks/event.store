@@ -126,6 +126,7 @@ def make_event_broker():
         subscription_source_mapping_store=subscription_source_mapping_store,
     )
     event_subscription_coordinator = DummyEventSubscriptionCoordinator(
+        node_id=node_id,
         lock_manager=InMemoryLockManager(),
         subscriber_state_store=subscriber_state_store,
         subscription_state_store=subscription_state_store,

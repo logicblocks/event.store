@@ -22,6 +22,16 @@ class CapturingEventProcessor(EventProcessor):
         self.processed_events.append(event)
 
 
+class ThrowingEventProcessor(EventProcessor):
+    def __init__(
+        self, error: BaseException | type[BaseException] = RuntimeError
+    ):
+        self._error = error
+
+    async def process_event(self, event: StoredEvent):
+        raise self._error
+
+
 class TestEventSourceConsumer:
     async def test_consumes_all_events_on_first_consume(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -331,4 +341,53 @@ class TestEventSourceConsumer:
         assert consuming_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
             "envelope": stored_events_2[0].envelope(),
+        }
+
+    async def test_logs_error_during_event_processing(self):
+        logger = CapturingLogger.create()
+
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(category=state_category)
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        error = RuntimeError("Oops")
+        processor = ThrowingEventProcessor(error=error)
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            logger=logger,
+        )
+
+        stream = event_store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+
+        try:
+            await consumer.consume_all()
+        except BaseException:
+            pass
+
+        error_log_events = logger.find_events(
+            "event.consumer.source.processor-failed"
+        )
+
+        assert len(error_log_events) == 1
+
+        assert error_log_events[0].level == LogLevel.ERROR
+        assert error_log_events[0].is_async is True
+        assert error_log_events[0].context == {
+            "source": {"type": "category", "category": category_name},
+            "envelope": stored_events[0].envelope(),
+            "error": error,
         }

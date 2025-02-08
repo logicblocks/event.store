@@ -1395,11 +1395,12 @@ class TestCoordinateDistribution:
 
         assert subscription_state_store.counts["apply"] == 3
 
+
 class TestCoordinateLogging:
     async def test_logs_on_startup(self):
         context = make_coordinator(
             distribution_interval=timedelta(seconds=5),
-            subscriber_max_time_since_last_seen=timedelta(minutes=5)
+            subscriber_max_time_since_last_seen=timedelta(minutes=5),
         )
         node_id = context.node_id
         coordinator = context.coordinator
@@ -1408,6 +1409,7 @@ class TestCoordinateLogging:
         task = asyncio.create_task(coordinator.coordinate())
 
         try:
+
             async def coordinator_running():
                 while True:
                     await asyncio.sleep(0)
@@ -1417,7 +1419,7 @@ class TestCoordinateLogging:
 
             await asyncio.wait_for(
                 coordinator_running(),
-                timeout=timedelta(milliseconds=50).total_seconds()
+                timeout=timedelta(milliseconds=50).total_seconds(),
             )
 
             startup_event = logger.find_event(
@@ -1439,7 +1441,7 @@ class TestCoordinateLogging:
     async def test_logs_on_shutdown(self):
         context = make_coordinator(
             distribution_interval=timedelta(seconds=5),
-            subscriber_max_time_since_last_seen=timedelta(minutes=5)
+            subscriber_max_time_since_last_seen=timedelta(minutes=5),
         )
         node_id = context.node_id
         coordinator = context.coordinator
@@ -1448,6 +1450,7 @@ class TestCoordinateLogging:
         task = asyncio.create_task(coordinator.coordinate())
 
         try:
+
             async def coordinator_running():
                 while True:
                     await asyncio.sleep(0)
@@ -1457,7 +1460,7 @@ class TestCoordinateLogging:
 
             await asyncio.wait_for(
                 coordinator_running(),
-                timeout=timedelta(milliseconds=50).total_seconds()
+                timeout=timedelta(milliseconds=50).total_seconds(),
             )
 
             task.cancel()
@@ -1471,9 +1474,7 @@ class TestCoordinateLogging:
             assert shutdown_event is not None
             assert shutdown_event.level == LogLevel.INFO
             assert shutdown_event.is_async is True
-            assert shutdown_event.context == {
-                "node": node_id
-            }
+            assert shutdown_event.context == {"node": node_id}
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

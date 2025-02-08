@@ -43,15 +43,15 @@ class EventSubscriptionCoordinatorStatus(StrEnum):
 
 class EventSubscriptionCoordinator:
     def __init__(
-            self,
-            node_id: str,
-            lock_manager: LockManager,
-            subscriber_state_store: EventSubscriberStateStore,
-            subscription_state_store: EventSubscriptionStateStore,
-            subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
-            logger: FilteringBoundLogger = default_logger,
-            subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
-            distribution_interval: timedelta = timedelta(seconds=20),
+        self,
+        node_id: str,
+        lock_manager: LockManager,
+        subscriber_state_store: EventSubscriberStateStore,
+        subscription_state_store: EventSubscriptionStateStore,
+        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
+        logger: FilteringBoundLogger = default_logger,
+        subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
+        distribution_interval: timedelta = timedelta(seconds=20),
     ):
         self._node_id = node_id
 
@@ -75,10 +75,8 @@ class EventSubscriptionCoordinator:
         await self._logger.ainfo(
             log_event_name("starting"),
             node=self._node_id,
-            distribution_interval_seconds=\
-                self._distribution_interval.total_seconds(),
-            subscriber_max_time_since_last_seen_seconds=\
-                self._subscriber_max_time_since_last_seen.total_seconds()
+            distribution_interval_seconds=self._distribution_interval.total_seconds(),
+            subscriber_max_time_since_last_seen_seconds=self._subscriber_max_time_since_last_seen.total_seconds(),
         )
         try:
             async with self._lock_manager.wait_for_lock(LOCK_NAME):
@@ -98,9 +96,7 @@ class EventSubscriptionCoordinator:
         except BaseException as e:
             self._status = EventSubscriptionCoordinatorStatus.ERRORED
             await self._logger.aexception(
-                log_event_name("failed"),
-                node=self._node_id,
-                error=e
+                log_event_name("failed"), node=self._node_id, error=e
             )
             raise
 
@@ -134,8 +130,8 @@ class EventSubscriptionCoordinator:
             subscription.group for subscription in subscriptions
         }
         removed_subscriber_groups = (
-                subscriber_groups_with_subscriptions
-                - subscriber_groups_with_instances
+            subscriber_groups_with_subscriptions
+            - subscriber_groups_with_instances
         )
 
         changes: list[EventSubscriptionStateChange] = []

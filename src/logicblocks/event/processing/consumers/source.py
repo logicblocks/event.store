@@ -7,6 +7,10 @@ from .state import EventConsumerStateStore
 from .types import EventConsumer, EventProcessor
 
 
+def log_event_name(event: str) -> str:
+    return f"event.consumer.source.{event}"
+
+
 class EventSourceConsumer(EventConsumer):
     def __init__(
         self,
@@ -28,7 +32,7 @@ class EventSourceConsumer(EventConsumer):
         )
 
         await self._logger.ainfo(
-            "event.consumer.source.starting-consume",
+            log_event_name("starting-consume"),
             source=self._source.identifier.dict(),
             last_sequence_number=last_sequence_number,
         )
@@ -44,17 +48,26 @@ class EventSourceConsumer(EventConsumer):
         consumed_count = 0
         async for event in source:
             await self._logger.adebug(
-                "event.consumer.source.consuming-event",
+                log_event_name("consuming-event"),
                 source=self._source.identifier.dict(),
                 envelope=event.envelope(),
             )
-            await self._processor.process_event(event)
-            await self._state_store.record_processed(event)
-            consumed_count += 1
+            try:
+                await self._processor.process_event(event)
+                await self._state_store.record_processed(event)
+                consumed_count += 1
+            except BaseException as e:
+                await self._logger.aexception(
+                    log_event_name("processor-failed"),
+                    source=self._source.identifier.dict(),
+                    envelope=event.envelope(),
+                    error=e,
+                )
+                raise
 
         await self._state_store.save()
         await self._logger.ainfo(
-            "event.consumer.source.completed-consume",
+            log_event_name("completed-consume"),
             source=self._source.identifier.dict(),
             consumed_count=consumed_count,
         )

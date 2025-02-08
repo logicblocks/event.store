@@ -67,7 +67,9 @@ def make_postgres_event_broker(
     subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10),
     subscriber_manager_purge_interval: timedelta = timedelta(minutes=1),
     subscriber_manager_subscriber_max_age: timedelta = timedelta(minutes=10),
-    coordinator_subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
+    coordinator_subscriber_max_time_since_last_seen: timedelta = timedelta(
+        seconds=60
+    ),
     coordinator_distribution_interval: timedelta = timedelta(seconds=20),
     observer_synchronisation_interval: timedelta = timedelta(seconds=20),
 ) -> EventBroker:
@@ -81,7 +83,7 @@ def make_postgres_event_broker(
         node_state_store=node_state_store,
         heartbeat_interval=node_manager_heartbeat_interval,
         purge_interval=node_manager_purge_interval,
-        node_max_age=node_manager_node_max_age
+        node_max_age=node_manager_node_max_age,
     )
 
     event_subscriber_store = InMemoryEventSubscriberStore()
@@ -102,7 +104,7 @@ def make_postgres_event_broker(
         subscription_source_mapping_store=event_subscription_source_mapping_store,
         heartbeat_interval=subscriber_manager_heartbeat_interval,
         purge_interval=subscriber_manager_purge_interval,
-        subscriber_max_age=subscriber_manager_subscriber_max_age
+        subscriber_max_age=subscriber_manager_subscriber_max_age,
     )
 
     lock_manager = PostgresLockManager(connection_settings=connection_settings)
@@ -115,7 +117,6 @@ def make_postgres_event_broker(
         subscription_source_mapping_store=event_subscription_source_mapping_store,
         subscriber_max_time_since_last_seen=coordinator_subscriber_max_time_since_last_seen,
         distribution_interval=coordinator_distribution_interval,
-
     )
     event_source_factory = PostgresEventStoreEventSourceFactory(
         adapter=event_storage_adapter

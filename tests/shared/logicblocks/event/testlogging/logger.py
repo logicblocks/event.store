@@ -1,10 +1,13 @@
 import asyncio
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 
-from structlog.typing import FilteringBoundLogger
+from structlog.typing import ExcInfo, FilteringBoundLogger
+
+type OptionalExceptionInfo = ExcInfo | tuple[None, None, None] | None
 
 
 class LogLevel(IntEnum):
@@ -23,6 +26,7 @@ class LogEvent:
     context: Mapping[str, Any]
     args: Sequence[Any]
     is_async: bool
+    exc_info: OptionalExceptionInfo
 
 
 class CapturingLogger(FilteringBoundLogger):
@@ -103,6 +107,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -114,6 +119,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -126,6 +132,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -137,6 +144,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -149,6 +157,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -160,6 +169,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -172,6 +182,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -183,6 +194,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -195,6 +207,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -206,6 +219,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -218,6 +232,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -229,6 +244,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -240,6 +256,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -252,6 +269,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=sys.exc_info(),
             )
         )
 
@@ -263,6 +281,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=sys.exc_info(),
             )
         )
         await asyncio.sleep(0)
@@ -275,6 +294,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -286,6 +306,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -298,6 +319,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -309,6 +331,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)
@@ -321,6 +344,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=False,
+                exc_info=None,
             )
         )
 
@@ -332,6 +356,7 @@ class CapturingLogger(FilteringBoundLogger):
                 context={**self._context, **kw},
                 args=args,
                 is_async=True,
+                exc_info=None,
             )
         )
         await asyncio.sleep(0)

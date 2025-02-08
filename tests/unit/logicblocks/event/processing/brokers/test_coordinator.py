@@ -1410,15 +1410,15 @@ class TestCoordinateLogging:
 
         try:
 
-            async def coordinator_running():
+            async def coordinator_starting():
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                    if status == EventSubscriptionCoordinatorStatus.STARTING:
                         return
 
             await asyncio.wait_for(
-                coordinator_running(),
+                coordinator_starting(),
                 timeout=timedelta(milliseconds=50).total_seconds(),
             )
 
@@ -1433,6 +1433,45 @@ class TestCoordinateLogging:
                 "node": node_id,
                 "distribution_interval_seconds": 5.0,
                 "subscriber_max_time_since_last_seen_seconds": 300.0,
+            }
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_logs_on_running(self):
+        context = make_coordinator(
+            distribution_interval=timedelta(seconds=5),
+            subscriber_max_time_since_last_seen=timedelta(minutes=5),
+        )
+        node_id = context.node_id
+        coordinator = context.coordinator
+        logger = context.logger
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        try:
+
+            async def coordinator_running():
+                while True:
+                    await asyncio.sleep(0)
+                    status = coordinator.status
+                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                        return
+
+            await asyncio.wait_for(
+                coordinator_running(),
+                timeout=timedelta(milliseconds=50).total_seconds(),
+            )
+
+            running_event = logger.find_event(
+                "event.processing.broker.coordinator.running"
+            )
+
+            assert running_event is not None
+            assert running_event.level == LogLevel.INFO
+            assert running_event.is_async is True
+            assert running_event.context == {
+                "node": node_id,
             }
         finally:
             task.cancel()
@@ -1498,5 +1537,6 @@ class TestCoordinateLogging:
         assert failed_event is not None
         assert failed_event.level == LogLevel.ERROR
         assert failed_event.is_async is True
-        assert failed_event.context["node"] == node_id
-        assert isinstance(failed_event.context["error"], RuntimeError)
+        assert failed_event.context == {"node": node_id}
+        assert failed_event.exc_info is not None
+        assert failed_event.exc_info[0] is RuntimeError

@@ -210,7 +210,7 @@ class TestAsynchronousProjections:
             connection_settings=connection_settings,
             connection_pool=self.connection_pool,
             coordinator_distribution_interval=timedelta(milliseconds=100),
-            observer_synchronisation_interval=timedelta(milliseconds=100)
+            observer_synchronisation_interval=timedelta(milliseconds=100),
         )
 
         await event_broker.register(subscriber=subscriber)

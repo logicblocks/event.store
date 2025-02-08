@@ -37,6 +37,7 @@ def log_event_name(event: str) -> str:
 
 class EventSubscriptionCoordinatorStatus(StrEnum):
     STOPPED = "stopped"
+    STARTING = "starting"
     RUNNING = "running"
     ERRORED = "errored"
 
@@ -72,20 +73,31 @@ class EventSubscriptionCoordinator:
         return self._status
 
     async def coordinate(self) -> None:
+        distribution_interval_seconds = (
+            self._distribution_interval.total_seconds()
+        )
+        subscriber_max_last_seen_time = (
+            self._subscriber_max_time_since_last_seen.total_seconds()
+        )
+
         await self._logger.ainfo(
             log_event_name("starting"),
             node=self._node_id,
-            distribution_interval_seconds=self._distribution_interval.total_seconds(),
-            subscriber_max_time_since_last_seen_seconds=self._subscriber_max_time_since_last_seen.total_seconds(),
+            distribution_interval_seconds=distribution_interval_seconds,
+            subscriber_max_time_since_last_seen_seconds=subscriber_max_last_seen_time,
         )
+        self._status = EventSubscriptionCoordinatorStatus.STARTING
+
         try:
             async with self._lock_manager.wait_for_lock(LOCK_NAME):
+                await self._logger.ainfo(
+                    log_event_name("running"),
+                    node=self._node_id,
+                )
                 self._status = EventSubscriptionCoordinatorStatus.RUNNING
                 while True:
                     await self.distribute()
-                    await asyncio.sleep(
-                        self._distribution_interval.total_seconds()
-                    )
+                    await asyncio.sleep(distribution_interval_seconds)
         except (asyncio.CancelledError, GeneratorExit):
             self._status = EventSubscriptionCoordinatorStatus.STOPPED
             await self._logger.ainfo(
@@ -93,10 +105,10 @@ class EventSubscriptionCoordinator:
                 node=self._node_id,
             )
             raise
-        except BaseException as e:
+        except BaseException:
             self._status = EventSubscriptionCoordinatorStatus.ERRORED
             await self._logger.aexception(
-                log_event_name("failed"), node=self._node_id, error=e
+                log_event_name("failed"), node=self._node_id
             )
             raise
 

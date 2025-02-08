@@ -389,5 +389,6 @@ class TestEventSourceConsumer:
         assert error_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
             "envelope": stored_events[0].envelope(),
-            "error": error,
         }
+        assert error_log_events[0].exc_info is not None
+        assert error_log_events[0].exc_info[1] == error

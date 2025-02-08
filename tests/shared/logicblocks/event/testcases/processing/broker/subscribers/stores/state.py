@@ -12,7 +12,7 @@ from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.testing import (
     data,
 )
-from logicblocks.event.utils.clock import Clock, StaticClock
+from logicblocks.event.utils.clock import Clock, TimezoneRequiredStaticClock
 
 
 class EventSubscriberStateStoreCases:
@@ -24,7 +24,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_adds_single_subscriber_details(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now=now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -49,7 +49,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_adds_many_subscriber_details(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now=now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -86,7 +86,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_adding_already_added_subscriber_updates_last_seen(self):
         time_1 = datetime.now(UTC)
-        clock = StaticClock(time_1)
+        clock = TimezoneRequiredStaticClock(now=time_1, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -115,7 +115,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_removes_subscriber(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -149,7 +149,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_raises_if_removing_unknown_subscriber(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -174,7 +174,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_lists_subscribers_by_group(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -228,7 +228,7 @@ class EventSubscriberStateStoreCases:
         )
         recent_time = now - timedelta(seconds=5)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -309,7 +309,7 @@ class EventSubscriberStateStoreCases:
         older_than_max_age_time = now - timedelta(seconds=90)
         newer_than_max_age_time = now - timedelta(seconds=30)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -388,7 +388,7 @@ class EventSubscriberStateStoreCases:
         previous_last_seen_time = now - timedelta(seconds=10)
         updated_last_seen_time = now
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -431,7 +431,7 @@ class EventSubscriberStateStoreCases:
 
     async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -450,7 +450,7 @@ class EventSubscriberStateStoreCases:
         five_minutes_ago = now - timedelta(minutes=5)
         just_under_five_minutes_ago = now - timedelta(minutes=4, seconds=59)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 
@@ -493,7 +493,7 @@ class EventSubscriberStateStoreCases:
         two_minutes_ago = now - timedelta(minutes=2)
         just_under_two_minutes_ago = now - timedelta(minutes=1, seconds=59)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(node_id=node_id, clock=clock)
 

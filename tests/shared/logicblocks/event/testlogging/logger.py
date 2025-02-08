@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Mapping, Sequence, Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
@@ -30,9 +30,7 @@ class CapturingLogger(FilteringBoundLogger):
     _context: dict[str, Any] = {}
 
     def find_events(
-            self,
-            event: str,
-            filter: Callable[[LogEvent], bool] = lambda _: True
+        self, event: str, filter: Callable[[LogEvent], bool] = lambda _: True
     ) -> Sequence[LogEvent]:
         return [
             log_event
@@ -41,9 +39,7 @@ class CapturingLogger(FilteringBoundLogger):
         ]
 
     def find_event(
-            self,
-            event: str,
-            filter: Callable[[LogEvent], bool] = lambda x: True
+        self, event: str, filter: Callable[[LogEvent], bool] = lambda x: True
     ) -> LogEvent | None:
         events = self.find_events(event, filter)
         if len(events) == 0:

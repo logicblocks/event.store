@@ -6,7 +6,7 @@ import pytest
 
 from logicblocks.event.processing.broker import NodeState, NodeStateStore
 from logicblocks.event.testing import data
-from logicblocks.event.utils.clock import Clock, StaticClock
+from logicblocks.event.utils.clock import Clock, TimezoneRequiredStaticClock
 
 
 class NodeStateStoreCases:
@@ -21,7 +21,7 @@ class NodeStateStoreCases:
     async def test_add_adds_node(self):
         node_id = data.random_node_id()
         last_seen = datetime.now(UTC)
-        clock = StaticClock(now=last_seen)
+        clock = TimezoneRequiredStaticClock(now=last_seen, tz=UTC)
 
         store = self.construct_store(clock=clock)
 
@@ -34,7 +34,7 @@ class NodeStateStoreCases:
 
     async def test_add_updates_last_seen_if_already_added(self):
         time_1 = datetime.now(UTC)
-        clock = StaticClock(time_1)
+        clock = TimezoneRequiredStaticClock(now=time_1, tz=UTC)
         node_id = data.random_node_id()
 
         store = self.construct_store(clock=clock)
@@ -59,7 +59,7 @@ class NodeStateStoreCases:
         last_seen_1 = datetime.now(UTC)
         last_seen_2 = last_seen_1 + timedelta(seconds=5)
 
-        clock = StaticClock(now=last_seen_1)
+        clock = TimezoneRequiredStaticClock(now=last_seen_1, tz=UTC)
 
         store = self.construct_store(clock=clock)
 
@@ -76,7 +76,7 @@ class NodeStateStoreCases:
 
     async def test_raises_if_heartbeat_called_for_unknown_node(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(clock=clock)
 
@@ -85,7 +85,7 @@ class NodeStateStoreCases:
 
     async def test_list_lists_nodes(self):
         now = datetime.now(UTC)
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         store = self.construct_store(clock=clock)
 
         node_id_1 = data.random_node_id()
@@ -115,7 +115,7 @@ class NodeStateStoreCases:
         )
         recent_time = now - timedelta(seconds=5)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
 
         store = self.construct_store(clock=clock)
 
@@ -169,8 +169,7 @@ class NodeStateStoreCases:
     async def test_remove_removes_node(self):
         node_id = data.random_node_id()
         last_seen = datetime.now(UTC)
-
-        clock = StaticClock(now=last_seen)
+        clock = TimezoneRequiredStaticClock(now=last_seen, tz=UTC)
 
         store = self.construct_store(clock=clock)
 
@@ -183,8 +182,8 @@ class NodeStateStoreCases:
         assert len(nodes) == 0
 
     async def test_remove_raises_if_removing_unknown_subscriber(self):
-        now = datetime.now(UTC)
-        clock = StaticClock(now)
+        now = datetime.now()
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         store = self.construct_store(clock=clock)
 
         node_id_1 = data.random_node_id()
@@ -202,7 +201,7 @@ class NodeStateStoreCases:
         five_minutes_ago = now - timedelta(minutes=5)
         just_under_five_minutes_ago = now - timedelta(minutes=4, seconds=59)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
 
         store = self.construct_store(clock=clock)
 
@@ -234,7 +233,7 @@ class NodeStateStoreCases:
         two_minutes_ago = now - timedelta(minutes=2)
         just_under_two_minutes_ago = now - timedelta(minutes=1, seconds=59)
 
-        clock = StaticClock(now)
+        clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         store = self.construct_store(clock=clock)
 
         node_id_1 = data.random_node_id()

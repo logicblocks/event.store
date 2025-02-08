@@ -288,7 +288,7 @@ class PostgresNodeStateStore(NodeStateStore):
                 FilterClause(
                     Operator.GREATER_THAN,
                     Path("last_seen"),
-                    self.clock.now() - max_time_since_last_seen,
+                    self.clock.now(UTC) - max_time_since_last_seen,
                 )
             )
         query = self.query_converter.convert_query(Search(filters=filters))
@@ -312,7 +312,7 @@ class PostgresNodeStateStore(NodeStateStore):
                 await heartbeat(
                     cursor,
                     node=NodeState(
-                        node_id=node_id, last_seen=self.clock.now()
+                        node_id=node_id, last_seen=self.clock.now(UTC)
                     ),
                     table_settings=self.table_settings,
                 )

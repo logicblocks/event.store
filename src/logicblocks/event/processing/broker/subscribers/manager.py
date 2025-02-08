@@ -111,7 +111,7 @@ class EventSubscriberManager:
                 if health == EventSubscriberHealth.HEALTHY:
                     await self._logger.ainfo(
                         log_event_name("subscriber-healthy"),
-                        subscriber=subscriber.key.dict()
+                        subscriber=subscriber.key.dict(),
                     )
                     await self._subscriber_state_store.heartbeat(
                         subscriber.key
@@ -119,7 +119,7 @@ class EventSubscriberManager:
                 else:
                     await self._logger.aerror(
                         log_event_name("subscriber-unhealthy"),
-                        subscriber=subscriber.key.dict()
+                        subscriber=subscriber.key.dict(),
                     )
             await asyncio.sleep(self._heartbeat_interval.total_seconds())
 

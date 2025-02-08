@@ -253,7 +253,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                             id=subscriber.id,
                             group=subscriber.group,
                             node_id=self.node_id,
-                            last_seen=self.clock.now(),
+                            last_seen=self.clock.now(UTC),
                         ),
                         self.table_settings,
                     )
@@ -286,7 +286,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                 FilterClause(
                     Operator.GREATER_THAN,
                     Path("last_seen"),
-                    self.clock.now() - max_time_since_last_seen,
+                    self.clock.now(UTC) - max_time_since_last_seen,
                 )
             )
         query = self.query_converter.convert_query(Search(filters=filters))
@@ -315,7 +315,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                             id=subscriber.id,
                             group=subscriber.group,
                             node_id=self.node_id,
-                            last_seen=self.clock.now(),
+                            last_seen=self.clock.now(UTC),
                         ),
                         self.table_settings,
                     )

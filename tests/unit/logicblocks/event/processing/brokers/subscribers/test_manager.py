@@ -1040,14 +1040,14 @@ class TestEventSubscriberManager:
         subscriber_1_log_events = logger.find_events(
             "event.processing.broker.subscriber-manager.subscriber-healthy",
             lambda log_event: (
-                    log_event.context["subscriber"]["id"] == subscriber_1.id
-            )
+                log_event.context["subscriber"]["id"] == subscriber_1.id
+            ),
         )
         subscriber_2_log_events = logger.find_events(
             "event.processing.broker.subscriber-manager.subscriber-healthy",
             lambda log_event: (
-                    log_event.context["subscriber"]["id"] == subscriber_2.id
-            )
+                log_event.context["subscriber"]["id"] == subscriber_2.id
+            ),
         )
 
         assert len(subscriber_1_log_events) > 1
@@ -1055,10 +1055,7 @@ class TestEventSubscriberManager:
         assert subscriber_1_log_events[0].is_async is True
         assert subscriber_1_log_events[0].context == {
             "node": node_id,
-            "subscriber": {
-                "group": subscriber_1.group,
-                "id": subscriber_1.id
-            }
+            "subscriber": {"group": subscriber_1.group, "id": subscriber_1.id},
         }
 
         assert len(subscriber_2_log_events) > 1
@@ -1066,10 +1063,7 @@ class TestEventSubscriberManager:
         assert subscriber_2_log_events[0].is_async is True
         assert subscriber_2_log_events[0].context == {
             "node": node_id,
-            "subscriber": {
-                "group": subscriber_2.group,
-                "id": subscriber_2.id
-            }
+            "subscriber": {"group": subscriber_2.group, "id": subscriber_2.id},
         }
 
     async def test_execute_logs_unhealthy_subscribers_on_heartbeat(self):
@@ -1118,14 +1112,14 @@ class TestEventSubscriberManager:
         subscriber_1_log_events = logger.find_events(
             "event.processing.broker.subscriber-manager.subscriber-unhealthy",
             lambda log_event: (
-                    log_event.context["subscriber"]["id"] == subscriber_1.id
-            )
+                log_event.context["subscriber"]["id"] == subscriber_1.id
+            ),
         )
         subscriber_2_log_events = logger.find_events(
             "event.processing.broker.subscriber-manager.subscriber-unhealthy",
             lambda log_event: (
-                    log_event.context["subscriber"]["id"] == subscriber_2.id
-            )
+                log_event.context["subscriber"]["id"] == subscriber_2.id
+            ),
         )
 
         assert len(subscriber_1_log_events) > 1
@@ -1133,10 +1127,7 @@ class TestEventSubscriberManager:
         assert subscriber_1_log_events[0].is_async is True
         assert subscriber_1_log_events[0].context == {
             "node": node_id,
-            "subscriber": {
-                "group": subscriber_1.group,
-                "id": subscriber_1.id
-            }
+            "subscriber": {"group": subscriber_1.group, "id": subscriber_1.id},
         }
 
         assert len(subscriber_2_log_events) > 1
@@ -1144,8 +1135,5 @@ class TestEventSubscriberManager:
         assert subscriber_2_log_events[0].is_async is True
         assert subscriber_2_log_events[0].context == {
             "node": node_id,
-            "subscriber": {
-                "group": subscriber_2.group,
-                "id": subscriber_2.id
-            }
+            "subscriber": {"group": subscriber_2.group, "id": subscriber_2.id},
         }

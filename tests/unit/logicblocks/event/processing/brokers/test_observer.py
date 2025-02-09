@@ -22,6 +22,7 @@ from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.types import EventSequenceIdentifier
 from logicblocks.event.types.identifier import (
     CategoryIdentifier,
@@ -115,6 +116,7 @@ class Context:
     node_id: str
     subscriber_store: EventSubscriberStore
     subscription_state_store: EventSubscriptionStateStore
+    logger: CapturingLogger
     event_storage_adapter: EventStorageAdapter
 
 
@@ -134,6 +136,7 @@ def make_observer(
         subscription_state_store = InMemoryEventSubscriptionStateStore(
             node_id=node_id
         )
+    logger = CapturingLogger.create()
     subscription_difference = EventSubscriptionDifference()
     event_storage_adapter = InMemoryEventStorageAdapter()
     event_source_factory = InMemoryEventStoreEventSourceFactory(
@@ -141,9 +144,11 @@ def make_observer(
     )
 
     kwargs = {
+        "node_id": node_id,
         "subscriber_store": subscriber_store,
         "subscription_state_store": subscription_state_store,
         "subscription_difference": subscription_difference,
+        "logger": logger,
         "event_source_factory": event_source_factory,
     }
     if synchronisation_interval is not None:
@@ -156,6 +161,7 @@ def make_observer(
         node_id,
         subscriber_store,
         subscription_state_store,
+        logger,
         event_storage_adapter,
     )
 
@@ -380,6 +386,102 @@ class TestObserveStatus:
         await asyncio.gather(observer.observe(), return_exceptions=True)
 
         assert observer.status == EventSubscriptionObserverStatus.ERRORED
+
+
+class TestObserveLogging:
+    async def test_logs_on_startup(self):
+        context = make_observer(synchronisation_interval=timedelta(seconds=5))
+        observer = context.observer
+        node_id = context.node_id
+        logger = context.logger
+
+        async def observer_running():
+            while True:
+                await asyncio.sleep(0)
+                status = observer.status
+                if status == EventSubscriptionObserverStatus.RUNNING:
+                    return
+
+        task = asyncio.create_task(observer.observe())
+
+        try:
+            await asyncio.wait_for(
+                observer_running(),
+                timeout=timedelta(milliseconds=100).total_seconds(),
+            )
+
+            startup_log_event = logger.find_event(
+                "event.processing.broker.observer.starting",
+            )
+
+            assert startup_log_event is not None
+            assert startup_log_event.level == LogLevel.INFO
+            assert startup_log_event.is_async is True
+            assert startup_log_event.context == {
+                "node": node_id,
+                "synchronisation_interval_seconds": 5.0,
+            }
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_logs_on_shutdown(self):
+        context = make_observer()
+        observer = context.observer
+        logger = context.logger
+        node_id = context.node_id
+
+        async def wait_until_running():
+            while True:
+                await asyncio.sleep(0)
+                status = observer.status
+                if status == EventSubscriptionObserverStatus.RUNNING:
+                    return
+
+        task = asyncio.create_task(observer.observe())
+
+        await asyncio.wait_for(
+            wait_until_running(),
+            timeout=timedelta(milliseconds=100).total_seconds(),
+        )
+
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+        shutdown_log_event = logger.find_event(
+            "event.processing.broker.observer.stopped"
+        )
+
+        assert shutdown_log_event is not None
+        assert shutdown_log_event.level == LogLevel.INFO
+        assert shutdown_log_event.is_async is True
+        assert shutdown_log_event.context == {
+            "node": node_id,
+        }
+
+    async def test_logs_on_error(self):
+        node_id = data.random_node_id()
+        context = make_observer(
+            node_id=node_id,
+            subscription_state_store=ThrowingEventSubscriptionStateStore(
+                node_id=node_id
+            ),
+        )
+        observer = context.observer
+        logger = context.logger
+
+        await asyncio.gather(observer.observe(), return_exceptions=True)
+
+        failed_log_event = logger.find_event(
+            "event.processing.broker.observer.failed"
+        )
+
+        assert failed_log_event is not None
+        assert failed_log_event.level == LogLevel.ERROR
+        assert failed_log_event.is_async is True
+        assert failed_log_event.context == {"node": node_id}
+        assert failed_log_event.exc_info is not None
+        assert failed_log_event.exc_info[0] is RuntimeError
 
 
 class TestObserveSynchronisation:

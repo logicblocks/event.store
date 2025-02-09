@@ -3,10 +3,17 @@ from collections.abc import Sequence
 from datetime import timedelta
 from enum import StrEnum
 
+from structlog.types import FilteringBoundLogger
+
 from .difference import EventSubscriptionDifference
+from .logger import default_logger
 from .sources import EventSourceFactory
 from .subscribers import EventSubscriberStore
 from .subscriptions import EventSubscriptionState, EventSubscriptionStateStore
+
+
+def log_event_name(event: str) -> str:
+    return f"event.processing.broker.observer.{event}"
 
 
 class EventSubscriptionObserverStatus(StrEnum):
@@ -20,16 +27,19 @@ class EventSubscriptionObserver:
 
     def __init__(
         self,
+        node_id: str,
         subscriber_store: EventSubscriberStore,
         subscription_state_store: EventSubscriptionStateStore,
         event_source_factory: EventSourceFactory,
         subscription_difference: EventSubscriptionDifference = EventSubscriptionDifference(),
+        logger: FilteringBoundLogger = default_logger,
         synchronisation_interval: timedelta = timedelta(seconds=20),
     ):
         self._subscriber_store = subscriber_store
         self._subscription_state_store = subscription_state_store
         self._subscription_difference = subscription_difference
         self._event_source_factory = event_source_factory
+        self._logger = logger.bind(node=node_id)
 
         self._existing_subscriptions = []
 
@@ -41,6 +51,10 @@ class EventSubscriptionObserver:
         return self._status
 
     async def observe(self):
+        await self._logger.ainfo(
+            log_event_name("starting"),
+            synchronisation_interval_seconds=self._synchronisation_interval.total_seconds(),
+        )
         self._status = EventSubscriptionObserverStatus.RUNNING
         try:
             while True:
@@ -50,9 +64,11 @@ class EventSubscriptionObserver:
                 )
         except (asyncio.CancelledError, GeneratorExit):
             self._status = EventSubscriptionObserverStatus.STOPPED
+            await self._logger.ainfo(log_event_name("stopped"))
             raise
         except:
             self._status = EventSubscriptionObserverStatus.ERRORED
+            await self._logger.aexception(log_event_name("failed"))
             raise
 
     async def synchronise(self):

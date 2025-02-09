@@ -122,6 +122,7 @@ def make_postgres_event_broker(
         adapter=event_storage_adapter
     )
     event_subscription_observer = EventSubscriptionObserver(
+        node_id=node_id,
         subscriber_store=event_subscriber_store,
         subscription_state_store=event_subscription_state_store,
         event_source_factory=event_source_factory,

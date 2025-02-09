@@ -133,6 +133,7 @@ def make_event_broker():
         subscription_source_mapping_store=subscription_source_mapping_store,
     )
     event_subscription_observer = DummyEventSubscriptionObserver(
+        node_id=node_id,
         subscriber_store=subscriber_store,
         subscription_state_store=subscription_state_store,
         subscription_difference=EventSubscriptionDifference(),

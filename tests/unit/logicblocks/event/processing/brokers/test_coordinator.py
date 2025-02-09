@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol, cast
 
+from pytest_unordered import unordered
+
 from logicblocks.event.processing.broker import (
     COORDINATOR_LOCK_NAME,
     EventSubscriber,
@@ -1540,3 +1542,297 @@ class TestCoordinateLogging:
         assert failed_event.context == {"node": node_id}
         assert failed_event.exc_info is not None
         assert failed_event.exc_info[0] is RuntimeError
+
+
+class TestDistributeLogging:
+    async def test_logs_on_starting_distribution(self):
+        context = make_coordinator()
+        coordinator = context.coordinator
+        logger = context.logger
+        node_id = context.node_id
+
+        await coordinator.distribute()
+
+        startup_log_event = logger.find_event(
+            "event.processing.broker.coordinator.distribution.starting",
+        )
+
+        assert startup_log_event is not None
+        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.is_async is True
+        assert startup_log_event.context == {"node": node_id}
+
+    async def test_logs_existing_status_on_distribution(self):
+        subscriber = random_subscriber()
+
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        node_id = context.node_id
+        logger = context.logger
+        subscription_state_store = context.subscription_state_store
+
+        await subscription_state_store.add(
+            EventSubscriptionState(
+                group=subscriber.group,
+                id=subscriber.id,
+                node_id=node_id,
+                event_sources=[
+                    event_sequence_identifier_1,
+                    event_sequence_identifier_2,
+                ],
+            ),
+        )
+
+        await coordinator.distribute()
+
+        initial_status_log_event = logger.find_event(
+            "event.processing.broker.coordinator.distribution.existing-status",
+        )
+
+        assert initial_status_log_event is not None
+        assert initial_status_log_event.level == LogLevel.DEBUG
+        assert initial_status_log_event.is_async is True
+        assert initial_status_log_event.context == {
+            "node": node_id,
+            "subscriber_groups": {
+                subscriber.group: {
+                    subscriber.id: {
+                        "sources": [
+                            event_sequence_identifier_1.dict(),
+                            event_sequence_identifier_2.dict(),
+                        ]
+                    }
+                }
+            },
+        }
+
+    async def test_logs_latest_status_on_distribution(self):
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
+        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
+
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        logger = context.logger
+        node_id = context.node_id
+        subscriber_state_store = context.subscriber_state_store
+        subscription_source_mapping_store = (
+            context.subscription_source_mapping_store
+        )
+
+        await subscriber_state_store.add(subscriber_1.key)
+        await subscriber_state_store.add(subscriber_2.key)
+
+        await subscription_source_mapping_store.add(
+            subscriber_group=subscriber_group,
+            event_sources=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_1,
+            ],
+        )
+
+        await coordinator.distribute()
+
+        initial_status_log_event = logger.find_event(
+            "event.processing.broker.coordinator.distribution.latest-status",
+        )
+
+        assert initial_status_log_event is not None
+        assert initial_status_log_event.level == LogLevel.DEBUG
+        assert initial_status_log_event.is_async is True
+        assert initial_status_log_event.context == {
+            "node": node_id,
+            "subscriber_groups": {
+                subscriber_group: {
+                    "subscribers": unordered(
+                        [subscriber_1.id, subscriber_2.id]
+                    ),
+                    "sources": unordered(
+                        [
+                            event_sequence_identifier_1.dict(),
+                            event_sequence_identifier_2.dict(),
+                            event_sequence_identifier_3.dict(),
+                            event_sequence_identifier_4.dict(),
+                        ]
+                    ),
+                }
+            },
+        }
+
+    async def test_logs_updated_status_on_distribution(self):
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
+        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
+
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        logger = context.logger
+        node_id = context.node_id
+        subscriber_state_store = context.subscriber_state_store
+        subscription_state_store = context.subscription_state_store
+        subscription_source_mapping_store = (
+            context.subscription_source_mapping_store
+        )
+
+        await subscriber_state_store.add(subscriber_1.key)
+        await subscriber_state_store.add(subscriber_2.key)
+
+        await subscription_source_mapping_store.add(
+            subscriber_group=subscriber_group,
+            event_sources=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_1,
+            ],
+        )
+
+        await subscription_state_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_1.id,
+                node_id=node_id,
+                event_sources=[
+                    event_sequence_identifier_1,
+                    event_sequence_identifier_2,
+                ],
+            )
+        )
+
+        await coordinator.distribute()
+
+        updated_status_log_event = logger.find_event(
+            "event.processing.broker.coordinator.distribution.updated-status",
+        )
+
+        assert updated_status_log_event is not None
+        assert updated_status_log_event.level == LogLevel.DEBUG
+        assert updated_status_log_event.is_async is True
+
+        context = updated_status_log_event.context
+        subscriber_1_status = context["subscriber_groups"][subscriber_group][
+            subscriber_1.id
+        ]
+        subscriber_2_status = context["subscriber_groups"][subscriber_group][
+            subscriber_2.id
+        ]
+
+        assert context["node"] == node_id
+        assert len(subscriber_1_status["sources"]) > 0
+        assert len(subscriber_2_status["sources"]) > 0
+        assert (
+            event_sequence_identifier_1.dict()
+            in subscriber_1_status["sources"]
+        )
+        assert (
+            event_sequence_identifier_2.dict()
+            in subscriber_1_status["sources"]
+        )
+        assert [
+            *subscriber_1_status["sources"],
+            *subscriber_2_status["sources"],
+        ] == unordered(
+            [
+                event_sequence_identifier_1.dict(),
+                event_sequence_identifier_2.dict(),
+                event_sequence_identifier_3.dict(),
+                event_sequence_identifier_4.dict(),
+            ]
+        )
+
+    async def test_logs_on_completing_distribution(self):
+        subscriber_group = data.random_subscriber_group()
+
+        old_subscriber = random_subscriber(subscriber_group=subscriber_group)
+        continuing_subscriber = random_subscriber(
+            subscriber_group=subscriber_group
+        )
+        new_subscriber = random_subscriber(subscriber_group=subscriber_group)
+
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+        event_sequence_identifier_3 = random_event_source_identifier()
+        event_sequence_identifier_4 = random_event_source_identifier()
+        event_sequence_identifier_5 = random_event_source_identifier()
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        logger = context.logger
+        node_id = context.node_id
+        subscriber_state_store = context.subscriber_state_store
+        subscription_state_store = context.subscription_state_store
+        subscription_source_mapping_store = (
+            context.subscription_source_mapping_store
+        )
+
+        await subscriber_state_store.add(continuing_subscriber.key)
+        await subscriber_state_store.add(new_subscriber.key)
+
+        await subscription_state_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=old_subscriber.id,
+                node_id=node_id,
+                event_sources=[
+                    event_sequence_identifier_1,
+                    event_sequence_identifier_2,
+                ],
+            ),
+        )
+        await subscription_state_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=continuing_subscriber.id,
+                node_id=node_id,
+                event_sources=[
+                    event_sequence_identifier_3,
+                    event_sequence_identifier_4,
+                ],
+            ),
+        )
+
+        await subscription_source_mapping_store.add(
+            subscriber_group=subscriber_group,
+            event_sources=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+                event_sequence_identifier_5,
+            ],
+        )
+
+        await coordinator.distribute()
+
+        startup_log_event = logger.find_event(
+            "event.processing.broker.coordinator.distribution.complete",
+        )
+
+        assert startup_log_event is not None
+        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.is_async is True
+        assert startup_log_event.context == {
+            "node": node_id,
+            "subscription_changes": {
+                "additions": 1,
+                "removals": 1,
+                "replacements": 1,
+            },
+        }

@@ -21,20 +21,13 @@ class InMemoryEventSubscriptionSourceMappingStore(
         subscriber_group: str,
         event_sources: Sequence[EventSourceIdentifier],
     ) -> None:
-        if subscriber_group in self.event_subscription_sources:
-            raise ValueError(
-                "Can't add event sources for existing subscription."
-            )
-
         self.event_subscription_sources[subscriber_group] = tuple(
             event_sources
         )
 
     async def remove(self, subscriber_group: str) -> None:
         if subscriber_group not in self.event_subscription_sources:
-            raise ValueError(
-                "Can't remove event sources for missing subscriber group."
-            )
+            return
 
         self.event_subscription_sources.pop(subscriber_group)
 

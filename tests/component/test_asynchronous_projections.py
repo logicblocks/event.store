@@ -1,10 +1,8 @@
-import asyncio
 import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from types import NoneType
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Callable, Mapping
 
 import pytest_asyncio
 from psycopg import AsyncConnection, abc, sql
@@ -17,7 +15,7 @@ from logicblocks.event.processing.consumers import (
     ProjectionEventProcessor,
     make_subscriber,
 )
-from logicblocks.event.processing.services import Service, ServiceManager
+from logicblocks.event.processing.services import ServiceManager, PollingService
 from logicblocks.event.projection import (
     PostgresProjectionStorageAdapter,
     ProjectionStore,
@@ -214,23 +212,6 @@ class TestAsynchronousProjections:
         )
 
         await event_broker.register(subscriber=subscriber)
-
-        class PollingService(Service[NoneType]):
-            _callable: Callable[[], Awaitable]
-            _poll_interval: timedelta = timedelta(milliseconds=200)
-
-            def __init__(
-                self,
-                callable: Callable[[], Awaitable],
-                poll_interval: timedelta = timedelta(milliseconds=200),
-            ):
-                self._callable = callable
-                self._poll_interval = poll_interval
-
-            async def execute(self):
-                while True:
-                    await self._callable()
-                    await asyncio.sleep(self._poll_interval.total_seconds())
 
         subscriber_service = PollingService(
             callable=subscriber.consume_all,

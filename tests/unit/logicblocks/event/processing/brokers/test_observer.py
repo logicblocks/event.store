@@ -166,7 +166,7 @@ def make_observer(
     )
 
 
-class TestSynchronise:
+class TestSynchroniseSynchronisation:
     async def test_applies_new_subscription_to_subscriber(self):
         context = make_observer()
         observer = context.observer
@@ -319,6 +319,103 @@ class TestSynchronise:
                 adapter=event_storage_adapter, category=category_identifier
             )
         ]
+
+
+class TestSynchroniseLogging:
+    async def test_logs_on_starting_synchronisation(self):
+        context = make_observer()
+        observer = context.observer
+        logger = context.logger
+        node_id = context.node_id
+
+        await observer.synchronise()
+
+        startup_log_event = logger.find_event(
+            "event.processing.broker.observer.synchronisation.starting",
+        )
+
+        assert startup_log_event is not None
+        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.is_async is True
+        assert startup_log_event.context == {"node": node_id}
+
+    async def test_logs_on_completing_synchronisation(self):
+        context = make_observer()
+        observer = context.observer
+        logger = context.logger
+        node_id = context.node_id
+        subscriber_store = context.subscriber_store
+        subscription_state_store = context.subscription_state_store
+
+        old_subscriber_group = data.random_subscriber_group()
+        old_subscriber_id = data.random_subscriber_id()
+
+        old_category_identifier = CategoryIdentifier(
+            category=data.random_event_category_name()
+        )
+
+        old_subscriber = CapturingEventSubscriber(
+            group=old_subscriber_group,
+            id=old_subscriber_id,
+        )
+
+        await subscriber_store.add(old_subscriber)
+
+        old_subscription_state = EventSubscriptionState(
+            group=old_subscriber_group,
+            id=old_subscriber_id,
+            node_id=node_id,
+            event_sources=[old_category_identifier],
+        )
+
+        await subscription_state_store.add(old_subscription_state)
+
+        await observer.synchronise()
+
+        await subscription_state_store.remove(old_subscription_state)
+
+        new_subscriber_group = data.random_subscriber_group()
+        new_subscriber_id = data.random_subscriber_id()
+
+        new_category_identifier = CategoryIdentifier(
+            category=data.random_event_category_name()
+        )
+
+        new_subscriber = CapturingEventSubscriber(
+            group=new_subscriber_group,
+            id=new_subscriber_id,
+        )
+
+        await subscriber_store.add(new_subscriber)
+
+        new_subscription_state = EventSubscriptionState(
+            group=new_subscriber_group,
+            id=new_subscriber_id,
+            node_id=node_id,
+            event_sources=[new_category_identifier],
+        )
+
+        await subscription_state_store.add(new_subscription_state)
+
+        await observer.synchronise()
+
+        completion_log_events = logger.find_events(
+            "event.processing.broker.observer.synchronisation.complete",
+        )
+
+        assert len(completion_log_events) == 2
+
+        last_completion_log_event = completion_log_events[-1]
+
+        assert last_completion_log_event.level == LogLevel.INFO
+        assert last_completion_log_event.is_async is True
+        assert last_completion_log_event.context == {
+            "node": node_id,
+            "changes": {
+                "allocation_count": 1,
+                "revocation_count": 1,
+            },
+        }
 
 
 class TestObserveStatus:

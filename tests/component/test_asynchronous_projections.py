@@ -15,7 +15,10 @@ from logicblocks.event.processing.consumers import (
     ProjectionEventProcessor,
     make_subscriber,
 )
-from logicblocks.event.processing.services import ServiceManager, PollingService
+from logicblocks.event.processing.services import (
+    PollingService,
+    ServiceManager,
+)
 from logicblocks.event.projection import (
     PostgresProjectionStorageAdapter,
     ProjectionStore,

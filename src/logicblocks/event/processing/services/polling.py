@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
 
@@ -11,9 +11,9 @@ class PollingService[T = Any](Service[T]):
     _poll_interval: timedelta = timedelta(milliseconds=200)
 
     def __init__(
-            self,
-            callable: Callable[[], Awaitable[T]],
-            poll_interval: timedelta = timedelta(milliseconds=200),
+        self,
+        callable: Callable[[], Awaitable[T]],
+        poll_interval: timedelta = timedelta(milliseconds=200),
     ):
         self._callable = callable
         self._poll_interval = poll_interval

@@ -10,11 +10,10 @@ class TestPollingService:
 
         async def count() -> None:
             nonlocal counter
-            counter +=1
+            counter += 1
 
         service = PollingService(
-            callable=count,
-            poll_interval=timedelta(milliseconds=20)
+            callable=count, poll_interval=timedelta(milliseconds=20)
         )
 
         task = asyncio.create_task(service.execute())

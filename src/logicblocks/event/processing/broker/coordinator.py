@@ -167,11 +167,11 @@ class EventSubscriptionCoordinator:
                     await asyncio.sleep(distribution_interval_seconds)
         except asyncio.CancelledError:
             self._status = EventSubscriptionCoordinatorStatus.STOPPED
-            self._logger.info(log_event_name("stopped"))
+            await self._logger.ainfo(log_event_name("stopped"))
             raise
         except BaseException:
             self._status = EventSubscriptionCoordinatorStatus.ERRORED
-            self._logger.exception(log_event_name("failed"))
+            await self._logger.aexception(log_event_name("failed"))
             raise
 
     async def distribute(self) -> None:

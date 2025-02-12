@@ -1514,7 +1514,7 @@ class TestCoordinateLogging:
 
             assert shutdown_event is not None
             assert shutdown_event.level == LogLevel.INFO
-            assert shutdown_event.is_async is False
+            assert shutdown_event.is_async is True
             assert shutdown_event.context == {"node": node_id}
         finally:
             task.cancel()
@@ -1538,7 +1538,7 @@ class TestCoordinateLogging:
 
         assert failed_event is not None
         assert failed_event.level == LogLevel.ERROR
-        assert failed_event.is_async is False
+        assert failed_event.is_async is True
         assert failed_event.context == {"node": node_id}
         assert failed_event.exc_info is not None
         assert failed_event.exc_info[0] is RuntimeError

@@ -64,11 +64,11 @@ class EventSubscriptionObserver:
                 )
         except asyncio.CancelledError:
             self._status = EventSubscriptionObserverStatus.STOPPED
-            self._logger.info(log_event_name("stopped"))
+            await self._logger.ainfo(log_event_name("stopped"))
             raise
         except BaseException:
             self._status = EventSubscriptionObserverStatus.ERRORED
-            self._logger.exception(log_event_name("failed"))
+            await self._logger.aexception(log_event_name("failed"))
             raise
 
     async def synchronise(self):

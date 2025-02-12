@@ -54,6 +54,7 @@ class CoordinatorObserverEventBroker(EventBroker):
             self._event_subscriber_manager.execute(),
             self._event_subscription_coordinator.coordinate(),
             self._event_subscription_observer.observe(),
+            return_exceptions=True,
         )
 
 

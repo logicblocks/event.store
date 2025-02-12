@@ -62,13 +62,13 @@ class EventSubscriptionObserver:
                 await asyncio.sleep(
                     self._synchronisation_interval.total_seconds()
                 )
-        except (asyncio.CancelledError, GeneratorExit):
+        except asyncio.CancelledError:
             self._status = EventSubscriptionObserverStatus.STOPPED
-            await self._logger.ainfo(log_event_name("stopped"))
+            self._logger.info(log_event_name("stopped"))
             raise
-        except:
+        except BaseException:
             self._status = EventSubscriptionObserverStatus.ERRORED
-            await self._logger.aexception(log_event_name("failed"))
+            self._logger.exception(log_event_name("failed"))
             raise
 
     async def synchronise(self):

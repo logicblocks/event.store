@@ -551,7 +551,7 @@ class TestObserveLogging:
 
         assert shutdown_log_event is not None
         assert shutdown_log_event.level == LogLevel.INFO
-        assert shutdown_log_event.is_async is True
+        assert shutdown_log_event.is_async is False
         assert shutdown_log_event.context == {
             "node": node_id,
         }
@@ -575,7 +575,7 @@ class TestObserveLogging:
 
         assert failed_log_event is not None
         assert failed_log_event.level == LogLevel.ERROR
-        assert failed_log_event.is_async is True
+        assert failed_log_event.is_async is False
         assert failed_log_event.context == {"node": node_id}
         assert failed_log_event.exc_info is not None
         assert failed_log_event.exc_info[0] is RuntimeError

@@ -38,7 +38,9 @@ class NodeManager:
             heartbeat_task = asyncio.create_task(self.heartbeat())
             purge_task = asyncio.create_task(self.purge())
 
-            await asyncio.gather(heartbeat_task, purge_task)
+            await asyncio.gather(
+                heartbeat_task, purge_task, return_exceptions=True
+            )
         finally:
             await self.unregister()
             await self._logger.ainfo(

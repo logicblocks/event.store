@@ -16,7 +16,6 @@ from logicblocks.event.store.store import StoredEvents
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import (
-    EventSourceIdentifier,
     Projection,
     StoredEvent,
     StreamIdentifier,
@@ -41,18 +40,14 @@ class Aggregate:
         self.something_else_occurred_at = something_else_occurred_at
 
 
-class AggregateProjector(Projector[Aggregate]):
+class AggregateProjector(Projector[Aggregate, StreamIdentifier]):
     def initial_state_factory(self) -> Aggregate:
         return Aggregate()
 
     def id_factory(
-        self, state: Aggregate, coordinates: EventSourceIdentifier
+        self, state: Aggregate, coordinates: StreamIdentifier
     ) -> str:
-        match coordinates:
-            case StreamIdentifier(stream=stream):
-                return stream
-            case _:
-                raise ValueError("Unexpected coordinates.")
+        return coordinates.stream
 
     @staticmethod
     def something_occurred(state: Aggregate, event: StoredEvent) -> Aggregate:
@@ -363,20 +358,14 @@ class TestProjectorProjection:
         class Thing:
             value: int = 5
 
-        class CustomTypeProjector(Projector[Thing]):
+        class CustomTypeProjector(Projector[Thing, StreamIdentifier]):
             name = "specific-thing"
 
             def initial_state_factory(self) -> Thing:
                 return Thing()
 
-            def id_factory(
-                self, state: Thing, coordinates: EventSourceIdentifier
-            ):
-                match coordinates:
-                    case StreamIdentifier(stream=stream):
-                        return stream
-                    case _:
-                        raise ValueError("Unexpected coordinates.")
+            def id_factory(self, state: Thing, coordinates: StreamIdentifier):
+                return coordinates.stream
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:

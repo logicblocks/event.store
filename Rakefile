@@ -204,6 +204,9 @@ namespace :library do
   desc 'Run all checks'
   task check: %i[lint:check format:check type:check]
 
+  desc 'Run and fix all checks'
+  task fix: %i[lint:fix format:fix type:check]
+
   namespace :dependencies do
     desc 'Install dependencies'
     task :install do

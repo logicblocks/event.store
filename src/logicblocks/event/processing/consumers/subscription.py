@@ -29,7 +29,9 @@ def make_subscriber(
         persistence_interval=subscriber_state_persistence_interval,
     )
 
-    def delegate_factory(source: EventSource) -> EventSourceConsumer:
+    def delegate_factory[S: EventSource[EventSourceIdentifier]](
+        source: S,
+    ) -> EventSourceConsumer[S]:
         return EventSourceConsumer(
             source=source, processor=event_processor, state_store=state_store
         )
@@ -48,7 +50,9 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         group: str,
         id: str,
         sequences: Sequence[EventSourceIdentifier],
-        delegate_factory: Callable[[EventSource], EventConsumer],
+        delegate_factory: Callable[
+            [EventSource[EventSourceIdentifier]], EventConsumer
+        ],
         logger: FilteringBoundLogger = default_logger,
     ):
         self._group = group
@@ -75,14 +79,16 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def identifiers(self) -> Sequence[EventSourceIdentifier]:
         return self._sequences
 
-    async def accept(self, source: EventSource) -> None:
+    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.accepting-source",
             source=source.identifier.dict(),
         )
         self._delegates[source.identifier] = self._delegate_factory(source)
 
-    async def withdraw(self, source: EventSource) -> None:
+    async def withdraw(
+        self, source: EventSource[EventSourceIdentifier]
+    ) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.withdrawing-source",
             source=source.identifier.dict(),

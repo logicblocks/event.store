@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 from structlog.typing import FilteringBoundLogger
 
@@ -13,11 +14,11 @@ def log_event_name(event: str) -> str:
     return f"event.consumer.source.{event}"
 
 
-class EventSourceConsumer(EventConsumer):
+class EventSourceConsumer[S: EventSource[Any]](EventConsumer):
     def __init__(
         self,
         *,
-        source: EventSource,
+        source: S,
         processor: EventProcessor,
         state_store: EventConsumerStateStore,
         logger: FilteringBoundLogger = default_logger,

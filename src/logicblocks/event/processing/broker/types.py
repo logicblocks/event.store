@@ -47,9 +47,11 @@ class EventSubscriber(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def accept(self, source: EventSource) -> None:
+    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def withdraw(self, source: EventSource) -> None:
+    async def withdraw(
+        self, source: EventSource[EventSourceIdentifier]
+    ) -> None:
         raise NotImplementedError

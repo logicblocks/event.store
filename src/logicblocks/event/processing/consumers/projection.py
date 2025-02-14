@@ -9,12 +9,9 @@ from .types import EventProcessor
 
 
 class ProjectionEventProcessor[T](EventProcessor):
-    projection_store: ProjectionStore
-    projector: Projector[T]
-
     def __init__(
         self,
-        projector: Projector[T],
+        projector: Projector[T, StreamIdentifier],
         projection_store: ProjectionStore,
         from_dict_converter: Callable[[Mapping[str, Any]], T],
         to_dict_converter: Callable[[T], Mapping[str, Any]],

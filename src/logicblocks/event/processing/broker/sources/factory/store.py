@@ -30,14 +30,37 @@ def construct_event_stream(
     return EventStream(adapter, identifier)
 
 
+type AdaptorConstructor[I: EventSourceIdentifier] = Callable[
+    [I, EventStorageAdapter], EventSource[I]
+]
+
+
+class EventStoreEventSourceConstructors:
+    def __init__(self):
+        self._d: dict[
+            type[EventSourceIdentifier],
+            AdaptorConstructor[Any],
+        ] = {}
+
+    def set_constructor[I: EventSourceIdentifier](
+        self,
+        identifier: type[I],
+        constructor: AdaptorConstructor[I],
+    ) -> Self:
+        self._d[identifier] = constructor
+        return self
+
+    def get_constructor[I: EventSourceIdentifier](
+        self, identifier: type[I]
+    ) -> AdaptorConstructor[I]:
+        return self._d[identifier]
+
+
 class EventStoreEventSourceFactory(
     EventSourceFactory[EventStorageAdapter], ABC
 ):
     def __init__(self):
-        self._constructors: dict[
-            type[EventSourceIdentifier],
-            Callable[[Any, EventStorageAdapter], EventSource],
-        ] = {}
+        self._constructors = EventStoreEventSourceConstructors()
 
         (
             self.register_constructor(
@@ -50,16 +73,18 @@ class EventStoreEventSourceFactory(
     def storage_adapter(self) -> EventStorageAdapter:
         raise NotImplementedError()
 
-    def register_constructor[T: EventSourceIdentifier](
+    def register_constructor[I: EventSourceIdentifier](
         self,
-        identifier_type: type[T],
-        constructor: Callable[[T, EventStorageAdapter], EventSource],
+        identifier_type: type[I],
+        constructor: AdaptorConstructor[I],
     ) -> Self:
-        self._constructors[identifier_type] = constructor
+        self._constructors.set_constructor(identifier_type, constructor)
         return self
 
-    def construct(self, identifier: EventSourceIdentifier) -> EventSource:
-        return self._constructors[type(identifier)](
+    def construct[I: EventSourceIdentifier](
+        self, identifier: I
+    ) -> EventSource[I]:
+        return self._constructors.get_constructor(type(identifier))(
             identifier, self.storage_adapter
         )
 

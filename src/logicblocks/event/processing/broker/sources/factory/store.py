@@ -30,30 +30,30 @@ def construct_event_stream(
     return EventStream(adapter, identifier)
 
 
-type AdaptorConstructor[I: EventSourceIdentifier] = Callable[
+type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
     [I, EventStorageAdapter], EventSource[I]
 ]
 
 
 class EventStoreEventSourceConstructors:
     def __init__(self):
-        self._d: dict[
+        self._constructors: dict[
             type[EventSourceIdentifier],
-            AdaptorConstructor[Any],
+            EventSourceConstructor[Any],
         ] = {}
 
     def set_constructor[I: EventSourceIdentifier](
         self,
         identifier: type[I],
-        constructor: AdaptorConstructor[I],
+        constructor: EventSourceConstructor[I],
     ) -> Self:
-        self._d[identifier] = constructor
+        self._constructors[identifier] = constructor
         return self
 
     def get_constructor[I: EventSourceIdentifier](
         self, identifier: type[I]
-    ) -> AdaptorConstructor[I]:
-        return self._d[identifier]
+    ) -> EventSourceConstructor[I]:
+        return self._constructors[identifier]
 
 
 class EventStoreEventSourceFactory(
@@ -76,7 +76,7 @@ class EventStoreEventSourceFactory(
     def register_constructor[I: EventSourceIdentifier](
         self,
         identifier_type: type[I],
-        constructor: AdaptorConstructor[I],
+        constructor: EventSourceConstructor[I],
     ) -> Self:
         self._constructors.set_constructor(identifier_type, constructor)
         return self

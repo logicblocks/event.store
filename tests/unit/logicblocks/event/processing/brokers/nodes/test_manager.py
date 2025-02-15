@@ -42,6 +42,7 @@ class TestNodeManager:
         task = asyncio.create_task(manager.execute())
 
         try:
+
             async def get_nodes():
                 while True:
                     nodes = await node_state_store.list()
@@ -226,9 +227,7 @@ class TestNodeManager:
             assert register_event is not None
             assert register_event.level == LogLevel.INFO
             assert register_event.is_async is True
-            assert register_event.context == {
-                "node": node_id
-            }
+            assert register_event.context == {"node": node_id}
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
@@ -246,6 +245,7 @@ class TestNodeManager:
         task = asyncio.create_task(manager.execute())
 
         try:
+
             async def has_node():
                 while True:
                     nodes = await node_state_store.list()
@@ -270,9 +270,7 @@ class TestNodeManager:
             assert unregister_event is not None
             assert unregister_event.level == LogLevel.INFO
             assert unregister_event.is_async is True
-            assert unregister_event.context == {
-                "node": node_id
-            }
+            assert unregister_event.context == {"node": node_id}
         finally:
             if not task.cancelled():
                 task.cancel()

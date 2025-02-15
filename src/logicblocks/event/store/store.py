@@ -71,7 +71,7 @@ class EventStream(EventSource):
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
-        await self._logger.ainfo("event.stream.reading-latest")
+        await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
     async def publish(
@@ -106,7 +106,7 @@ class EventStream(EventSource):
         Returns:
             an async iterator over the events in the stream.
         """
-        self._logger.info(
+        self._logger.debug(
             "event.stream.iterating", constraints=list(constraints)
         )
 
@@ -149,7 +149,7 @@ class EventCategory(EventSource):
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
-        await self._logger.ainfo("event.category.reading-latest")
+        await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
     def stream(self, *, stream: str) -> EventStream:
@@ -181,7 +181,7 @@ class EventCategory(EventSource):
         Returns:
             an async iterator over the events in the category.
         """
-        self._logger.info(
+        self._logger.debug(
             "event.category.iterating", constraints=list(constraints)
         )
         return self._adapter.scan(

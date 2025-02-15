@@ -33,7 +33,7 @@ class EventSourceConsumer(EventConsumer):
             None if state is None else state.last_sequence_number
         )
 
-        await self._logger.ainfo(
+        await self._logger.adebug(
             log_event_name("starting-consume"),
             source=self._source.identifier.dict(),
             last_sequence_number=last_sequence_number,
@@ -69,7 +69,7 @@ class EventSourceConsumer(EventConsumer):
                 raise
 
         await self._state_store.save()
-        await self._logger.ainfo(
+        await self._logger.adebug(
             log_event_name("completed-consume"),
             source=self._source.identifier.dict(),
             consumed_count=consumed_count,

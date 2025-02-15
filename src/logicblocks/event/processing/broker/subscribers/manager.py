@@ -101,7 +101,7 @@ class EventSubscriberManager:
 
     async def heartbeat(self):
         while True:
-            await self._logger.ainfo(
+            await self._logger.adebug(
                 log_event_name("sending-heartbeats"),
                 subscribers=[
                     subscriber.key.dict()
@@ -111,7 +111,7 @@ class EventSubscriberManager:
             for subscriber in await self._subscriber_store.list():
                 health = subscriber.health()
                 if health == EventSubscriberHealth.HEALTHY:
-                    await self._logger.ainfo(
+                    await self._logger.adebug(
                         log_event_name("subscriber-healthy"),
                         subscriber=subscriber.key.dict(),
                     )
@@ -127,7 +127,7 @@ class EventSubscriberManager:
 
     async def purge(self):
         while True:
-            await self._logger.ainfo(
+            await self._logger.adebug(
                 log_event_name("purging-subscribers"),
                 subscriber_max_age_seconds=self._subscriber_max_age.total_seconds(),
             )

@@ -927,7 +927,7 @@ class TestEventSubscriberManager:
         )
 
         assert len(purge_log_events) > 1
-        assert purge_log_events[0].level == LogLevel.INFO
+        assert purge_log_events[0].level == LogLevel.DEBUG
         assert purge_log_events[0].is_async is True
         assert purge_log_events[0].context == {
             "node": node_id,
@@ -982,7 +982,7 @@ class TestEventSubscriberManager:
         )
 
         assert len(heartbeat_log_events) > 1
-        assert heartbeat_log_events[0].level == LogLevel.INFO
+        assert heartbeat_log_events[0].level == LogLevel.DEBUG
         assert heartbeat_log_events[0].is_async is True
         assert heartbeat_log_events[0].context == {
             "node": node_id,
@@ -1051,7 +1051,7 @@ class TestEventSubscriberManager:
         )
 
         assert len(subscriber_1_log_events) > 1
-        assert subscriber_1_log_events[0].level == LogLevel.INFO
+        assert subscriber_1_log_events[0].level == LogLevel.DEBUG
         assert subscriber_1_log_events[0].is_async is True
         assert subscriber_1_log_events[0].context == {
             "node": node_id,
@@ -1059,7 +1059,7 @@ class TestEventSubscriberManager:
         }
 
         assert len(subscriber_2_log_events) > 1
-        assert subscriber_2_log_events[0].level == LogLevel.INFO
+        assert subscriber_2_log_events[0].level == LogLevel.DEBUG
         assert subscriber_2_log_events[0].is_async is True
         assert subscriber_2_log_events[0].context == {
             "node": node_id,

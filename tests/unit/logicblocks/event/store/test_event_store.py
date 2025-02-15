@@ -505,7 +505,7 @@ class TestStreamLogging:
         log_event = logger.find_event("event.stream.reading-latest")
 
         assert log_event is not None
-        assert log_event.level == LogLevel.INFO
+        assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is True
         assert log_event.context == {
             "category": category_name,
@@ -535,7 +535,7 @@ class TestStreamLogging:
         log_event = logger.find_event("event.stream.iterating")
 
         assert log_event is not None
-        assert log_event.level == LogLevel.INFO
+        assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is False
         assert log_event.context == {
             "category": category_name,
@@ -969,7 +969,7 @@ class TestCategoryLogging:
         log_event = logger.find_event("event.category.reading-latest")
 
         assert log_event is not None
-        assert log_event.level == LogLevel.INFO
+        assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is True
         assert log_event.context == {
             "category": category_name,
@@ -1007,7 +1007,7 @@ class TestCategoryLogging:
         log_event = logger.find_event("event.category.iterating")
 
         assert log_event is not None
-        assert log_event.level == LogLevel.INFO
+        assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is False
         assert log_event.context == {
             "category": category_name,

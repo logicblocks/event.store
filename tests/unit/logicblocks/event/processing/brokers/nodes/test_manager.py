@@ -42,7 +42,6 @@ class TestNodeManager:
         task = asyncio.create_task(manager.execute())
 
         try:
-
             async def get_nodes():
                 while True:
                     nodes = await node_state_store.list()
@@ -193,6 +192,92 @@ class TestNodeManager:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
 
+    async def test_logs_on_registering_node(self):
+        logger = CapturingLogger.create()
+
+        node_id = data.random_node_id()
+        node_state_store = InMemoryNodeStateStore()
+
+        manager = NodeManager(
+            node_id=node_id, node_state_store=node_state_store, logger=logger
+        )
+
+        task = asyncio.create_task(manager.execute())
+
+        try:
+
+            async def has_node():
+                while True:
+                    nodes = await node_state_store.list()
+                    if len(nodes) > 0:
+                        return nodes
+                    else:
+                        await asyncio.sleep(0)
+
+            await asyncio.wait_for(
+                has_node(),
+                timeout=timedelta(milliseconds=100).total_seconds(),
+            )
+
+            register_event = logger.find_event(
+                "event.processing.broker.node-manager.registering-node"
+            )
+
+            assert register_event is not None
+            assert register_event.level == LogLevel.INFO
+            assert register_event.is_async is True
+            assert register_event.context == {
+                "node": node_id
+            }
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def test_logs_on_unregistering_node(self):
+        logger = CapturingLogger.create()
+
+        node_id = data.random_node_id()
+        node_state_store = InMemoryNodeStateStore()
+
+        manager = NodeManager(
+            node_id=node_id, node_state_store=node_state_store, logger=logger
+        )
+
+        task = asyncio.create_task(manager.execute())
+
+        try:
+            async def has_node():
+                while True:
+                    nodes = await node_state_store.list()
+                    if len(nodes) > 0:
+                        return nodes
+                    else:
+                        await asyncio.sleep(0)
+
+            await asyncio.wait_for(
+                has_node(),
+                timeout=timedelta(milliseconds=100).total_seconds(),
+            )
+
+            task.cancel()
+
+            await asyncio.gather(task, return_exceptions=True)
+
+            unregister_event = logger.find_event(
+                "event.processing.broker.node-manager.unregistering-node"
+            )
+
+            assert unregister_event is not None
+            assert unregister_event.level == LogLevel.INFO
+            assert unregister_event.is_async is True
+            assert unregister_event.context == {
+                "node": node_id
+            }
+        finally:
+            if not task.cancelled():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
     async def test_logs_on_shutdown(self):
         logger = CapturingLogger.create()
 
@@ -265,7 +350,7 @@ class TestNodeManager:
         )
 
         assert len(heartbeat_log_events) > 0
-        assert heartbeat_log_events[0].level == LogLevel.INFO
+        assert heartbeat_log_events[0].level == LogLevel.DEBUG
         assert heartbeat_log_events[0].is_async is True
         assert heartbeat_log_events[0].context == {"node": node_id}
 
@@ -296,7 +381,7 @@ class TestNodeManager:
         )
 
         assert len(purge_log_events) > 0
-        assert purge_log_events[0].level == LogLevel.INFO
+        assert purge_log_events[0].level == LogLevel.DEBUG
         assert purge_log_events[0].is_async is True
         assert purge_log_events[0].context == {
             "node": node_id,

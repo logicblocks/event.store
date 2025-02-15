@@ -175,7 +175,7 @@ class EventSubscriptionCoordinator:
             raise
 
     async def distribute(self) -> None:
-        await self._logger.ainfo(log_event_name("distribution.starting"))
+        await self._logger.adebug(log_event_name("distribution.starting"))
 
         subscriptions = await self._subscription_state_store.list()
         subscription_map = {
@@ -317,7 +317,7 @@ class EventSubscriptionCoordinator:
             subscriber_groups=subscription_status(subscriptions),
         )
 
-        await self._logger.ainfo(
+        await self._logger.adebug(
             log_event_name("distribution.complete"),
             subscription_changes=subscription_change_summary(changes),
         )

@@ -72,7 +72,7 @@ class EventSubscriptionObserver:
             raise
 
     async def synchronise(self):
-        await self._logger.ainfo(log_event_name("synchronisation.starting"))
+        await self._logger.adebug(log_event_name("synchronisation.starting"))
 
         existing = self._existing_subscriptions
         updated = await self._subscription_state_store.list()
@@ -101,7 +101,7 @@ class EventSubscriptionObserver:
 
         self._existing_subscriptions = updated
 
-        await self._logger.ainfo(
+        await self._logger.adebug(
             log_event_name("synchronisation.complete"),
             changes={
                 "allocation_count": len(changeset.allocations),

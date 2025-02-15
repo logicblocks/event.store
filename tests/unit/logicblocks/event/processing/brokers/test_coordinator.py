@@ -1558,7 +1558,7 @@ class TestDistributeLogging:
         )
 
         assert startup_log_event is not None
-        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.level == LogLevel.DEBUG
         assert startup_log_event.is_async is True
         assert startup_log_event.context == {"node": node_id}
 
@@ -1826,7 +1826,7 @@ class TestDistributeLogging:
         )
 
         assert startup_log_event is not None
-        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.level == LogLevel.DEBUG
         assert startup_log_event.is_async is True
         assert startup_log_event.context == {
             "node": node_id,

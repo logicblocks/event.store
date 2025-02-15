@@ -343,7 +343,7 @@ class TestEventSubscriptionConsumer:
         )
 
         assert startup_event is not None
-        assert startup_event.level == LogLevel.INFO
+        assert startup_event.level == LogLevel.DEBUG
         assert startup_event.is_async is True
         assert startup_event.context == {
             "subscriber": {"group": subscriber_group, "id": subscriber_id},
@@ -360,7 +360,7 @@ class TestEventSubscriptionConsumer:
         )
 
         assert complete_event is not None
-        assert complete_event.level == LogLevel.INFO
+        assert complete_event.level == LogLevel.DEBUG
         assert complete_event.is_async is True
         assert complete_event.context == {
             "subscriber": {"group": subscriber_group, "id": subscriber_id},
@@ -412,10 +412,10 @@ class TestEventSubscriptionConsumer:
         )
 
         assert len(consume_events) == 2
-        assert consume_events[0].level == LogLevel.INFO
+        assert consume_events[0].level == LogLevel.DEBUG
         assert consume_events[0].is_async is True
 
-        assert consume_events[1].level == LogLevel.INFO
+        assert consume_events[1].level == LogLevel.DEBUG
         assert consume_events[1].is_async is True
 
         assert [

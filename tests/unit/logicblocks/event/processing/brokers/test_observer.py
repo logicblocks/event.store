@@ -335,7 +335,7 @@ class TestSynchroniseLogging:
         )
 
         assert startup_log_event is not None
-        assert startup_log_event.level == LogLevel.INFO
+        assert startup_log_event.level == LogLevel.DEBUG
         assert startup_log_event.is_async is True
         assert startup_log_event.context == {"node": node_id}
 
@@ -407,7 +407,7 @@ class TestSynchroniseLogging:
 
         last_completion_log_event = completion_log_events[-1]
 
-        assert last_completion_log_event.level == LogLevel.INFO
+        assert last_completion_log_event.level == LogLevel.DEBUG
         assert last_completion_log_event.is_async is True
         assert last_completion_log_event.context == {
             "node": node_id,

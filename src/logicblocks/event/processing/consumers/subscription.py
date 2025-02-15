@@ -91,7 +91,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self._delegates.pop(source.identifier)
 
     async def consume_all(self) -> None:
-        await self._logger.ainfo(
+        await self._logger.adebug(
             "event.consumer.subscription.starting-consume",
             sources=[
                 identifier.dict() for identifier in self._delegates.keys()
@@ -99,13 +99,13 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         )
 
         for identifier, delegate in self._delegates.items():
-            await self._logger.ainfo(
+            await self._logger.adebug(
                 "event.consumer.subscription.consuming-source",
                 source=identifier.dict(),
             )
             await delegate.consume_all()
 
-        await self._logger.ainfo(
+        await self._logger.adebug(
             "event.consumer.subscription.completed-consume",
             sources=[
                 identifier.dict() for identifier in self._delegates.keys()

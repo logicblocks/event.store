@@ -220,14 +220,14 @@ class TestEventSourceConsumer:
         )
         assert len(startup_log_events) == 2
 
-        assert startup_log_events[0].level == LogLevel.INFO
+        assert startup_log_events[0].level == LogLevel.DEBUG
         assert startup_log_events[0].is_async is True
         assert startup_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
             "last_sequence_number": None,
         }
 
-        assert startup_log_events[1].level == LogLevel.INFO
+        assert startup_log_events[1].level == LogLevel.DEBUG
         assert startup_log_events[1].is_async is True
         assert startup_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
@@ -276,7 +276,7 @@ class TestEventSourceConsumer:
 
         assert len(complete_log_events) == 1
 
-        assert complete_log_events[0].level == LogLevel.INFO
+        assert complete_log_events[0].level == LogLevel.DEBUG
         assert complete_log_events[0].is_async is True
         assert complete_log_events[0].context == {
             "source": {"type": "category", "category": category_name},

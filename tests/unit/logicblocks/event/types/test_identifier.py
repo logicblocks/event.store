@@ -7,36 +7,36 @@ from logicblocks.event.types import identifier
 
 
 class TestLogIdentifier:
-    def test_returns_json_representation(self):
+    def test_returns_json(self):
         assert identifier.LogIdentifier().json() == '{"type": "log"}'
 
-    def test_returns_debug_representation(self):
+    def test_returns_representation(self):
         assert repr(identifier.LogIdentifier()) == "LogIdentifier()"
 
-    def test_hashes_identifier_using_json_representation(self):
+    def test_hashes_identifier_using_representation(self):
         assert isinstance(identifier.LogIdentifier(), Hashable)
         assert hash(identifier.LogIdentifier()) == hash(
-            identifier.LogIdentifier().json()
+            repr(identifier.LogIdentifier())
         )
 
 
 class TestCategoryIdentifier:
-    def test_returns_json_representation(self):
+    def test_returns_json(self):
         assert (
             identifier.CategoryIdentifier(category="test").json()
             == '{"type": "category", "category": "test"}'
         )
 
-    def test_returns_debug_representation(self):
+    def test_returns_representation(self):
         assert (
             repr(identifier.CategoryIdentifier(category="test"))
             == "CategoryIdentifier(category='test')"
         )
 
-    def test_hashes_identifier_using_json_representation(self):
+    def test_hashes_identifier_using_representation(self):
         assert isinstance(identifier.CategoryIdentifier("test"), Hashable)
         assert hash(identifier.CategoryIdentifier(category="test")) == hash(
-            identifier.CategoryIdentifier(category="test").json()
+            repr(identifier.CategoryIdentifier(category="test"))
         )
 
     def test_exposes_category(self):
@@ -46,7 +46,7 @@ class TestCategoryIdentifier:
 
 
 class TestStreamIdentifier:
-    def test_returns_json_representation(self):
+    def test_returns_json(self):
         assert (
             identifier.StreamIdentifier(
                 category="test", stream="stream"
@@ -54,13 +54,13 @@ class TestStreamIdentifier:
             == '{"type": "stream", "category": "test", "stream": "stream"}'
         )
 
-    def test_returns_debug_representation(self):
+    def test_returns_representation(self):
         assert (
             repr(identifier.StreamIdentifier(category="test", stream="stream"))
             == "StreamIdentifier(category='test',stream='stream')"
         )
 
-    def test_hashes_identifier_using_json_representation(self):
+    def test_hashes_identifier_using_representation(self):
         assert isinstance(
             identifier.StreamIdentifier(category="test", stream="stream"),
             Hashable,
@@ -68,9 +68,7 @@ class TestStreamIdentifier:
         assert hash(
             identifier.StreamIdentifier(category="test", stream="stream")
         ) == hash(
-            identifier.StreamIdentifier(
-                category="test", stream="stream"
-            ).json()
+            repr(identifier.StreamIdentifier(category="test", stream="stream"))
         )
 
     def test_exposes_category(self):

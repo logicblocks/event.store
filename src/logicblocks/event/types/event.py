@@ -63,13 +63,13 @@ class NewEvent:
         return (
             f"NewEvent("
             f"name={self.name}, "
-            f"payload={dict(self.payload)}, "
+            f"payload={repr(self.payload)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )
 
     def __hash__(self):
-        return hash(self.json())
+        return hash(repr(self))
 
 
 @dataclass(frozen=True)
@@ -134,10 +134,10 @@ class StoredEvent:
             f"category={self.category}, "
             f"position={self.position}, "
             f"sequence_number={self.sequence_number}, "
-            f"payload={dict(self.payload)}, "
+            f"payload={repr(self.payload)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )
 
     def __hash__(self):
-        return hash(self.json())
+        return hash(repr(self))

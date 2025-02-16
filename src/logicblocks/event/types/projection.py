@@ -1,5 +1,7 @@
 import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any, cast
 
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -10,8 +12,17 @@ from logicblocks.event.types import (
 type Projectable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 
 
+def default_converter(value: object) -> Mapping[str, Any]:
+    if isinstance(value, Mapping):
+        value = cast(Mapping[Any, Any], value)
+        if all(isinstance(key, str) for key in value.keys()):
+            return value
+
+    return value.__dict__
+
+
 @dataclass(frozen=True)
-class Projection[T]:
+class Projection[T = Mapping[str, Any]]:
     id: str
     name: str
     state: T
@@ -33,27 +44,39 @@ class Projection[T]:
         object.__setattr__(self, "version", version)
         object.__setattr__(self, "source", source)
 
-    def json(self):
-        return json.dumps(
-            {
-                "id": self.id,
-                "name": self.name,
-                "state": self.state,
-                "version": self.version,
-                "source": self.source.dict(),
-            },
-            default=lambda o: o.__dict__,
-        )
+    def dict(
+        self, converter: Callable[[T], Mapping[str, Any]] = default_converter
+    ) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "state": converter(self.state),
+            "version": self.version,
+            "source": self.source.dict(),
+        }
+
+    def envelope(self) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "version": self.version,
+            "source": self.source.dict(),
+        }
+
+    def json(
+        self, converter: Callable[[T], Mapping[str, Any]] = default_converter
+    ):
+        return json.dumps(self.dict(converter))
 
     def __repr__(self):
         return (
             f"Projection("
             f"id='{self.id}',"
             f"name='{self.name}',"
-            f"state={self.state},"
+            f"state={repr(self.state)},"
             f"version={self.version},"
-            f"source={self.source})"
+            f"source={repr(self.source)})"
         )
 
     def __hash__(self):
-        return hash(self.json())
+        return hash(repr(self))

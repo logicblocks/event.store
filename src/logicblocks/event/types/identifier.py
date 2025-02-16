@@ -14,7 +14,7 @@ class Identifier(ABC):
         return json.dumps(self.dict())
 
     def __hash__(self):
-        return hash(self.json())
+        return hash(repr(self))
 
 
 class PartitionIdentifier(Identifier, ABC):

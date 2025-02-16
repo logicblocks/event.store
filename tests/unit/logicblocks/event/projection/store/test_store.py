@@ -14,6 +14,7 @@ from logicblocks.event.projection.store import (
     SortOrder,
 )
 from logicblocks.event.testing import BaseProjectionBuilder, data
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.types import StreamIdentifier
 
 
@@ -295,3 +296,73 @@ class TestProjectionStoreSearch:
         )
 
         assert located == []
+
+
+class TestProjectionStoreLogging:
+    async def test_logs_projection_on_save_when_debug(self):
+        logger = CapturingLogger.create(log_level=LogLevel.DEBUG)
+
+        projection_id = data.random_projection_id()
+
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter, logger=logger)
+
+        source = StreamIdentifier(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        projection = (
+            ThingProjectionBuilder()
+            .with_id(projection_id)
+            .with_name("thing")
+            .with_state(Thing(value=5))
+            .with_source(source)
+            .with_version(2)
+            .build()
+        )
+
+        await store.save(projection=projection, converter=to_dict)
+
+        log_event = logger.find_event("event.projection.saved")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "projection": projection.dict(to_dict),
+        }
+
+    async def test_logs_envelope_on_save_when_not_debug(self):
+        logger = CapturingLogger.create(log_level=LogLevel.INFO)
+
+        projection_id = data.random_projection_id()
+
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter, logger=logger)
+
+        source = StreamIdentifier(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        projection = (
+            ThingProjectionBuilder()
+            .with_id(projection_id)
+            .with_name("thing")
+            .with_state(Thing(value=5))
+            .with_source(source)
+            .with_version(2)
+            .build()
+        )
+
+        await store.save(projection=projection, converter=to_dict)
+
+        log_event = logger.find_event("event.projection.saved")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "projection": projection.envelope(),
+        }

@@ -366,3 +366,88 @@ class TestProjectionStoreLogging:
         assert log_event.context == {
             "projection": projection.envelope(),
         }
+
+    async def test_logs_on_load(self):
+        logger = CapturingLogger.create()
+
+        projection_id = data.random_projection_id()
+
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter, logger=logger)
+
+        projection = ThingProjectionBuilder().with_id(projection_id).build()
+
+        await store.save(projection=projection, converter=to_dict)
+
+        await store.load(id=projection_id, converter=from_dict(Thing))
+
+        log_event = logger.find_event("event.projection.loading")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "projection_id": projection_id,
+        }
+
+    async def test_logs_on_locate(self):
+        logger = CapturingLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        projection_name = data.random_projection_name()
+
+        source = StreamIdentifier(category=category_name, stream=stream_name)
+
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter, logger=logger)
+
+        projection = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_source(source)
+            .build()
+        )
+
+        await store.save(projection=projection, converter=to_dict)
+        await store.locate(
+            source=source, name=projection_name, converter=from_dict(Thing)
+        )
+
+        log_event = logger.find_event("event.projection.locating")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "projection_name": projection_name,
+            "projection_source": source.dict(),
+        }
+
+    async def test_logs_on_search(self):
+        logger = CapturingLogger.create()
+
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter, logger=logger)
+
+        filter = FilterClause(Operator.EQUAL, Path("state", "value"), 5)
+        sort = SortClause(fields=[SortField(Path("id"), SortOrder.DESC)])
+        paging = KeySetPagingClause(item_count=2)
+
+        await store.search(
+            filters=[filter],
+            sort=sort,
+            paging=paging,
+            converter=from_dict(Thing),
+        )
+
+        log_event = logger.find_event("event.projection.searching")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "filters": [repr(filter)],
+            "sort": repr(sort),
+            "paging": repr(paging),
+        }

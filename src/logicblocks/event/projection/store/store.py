@@ -56,6 +56,12 @@ class ProjectionStore:
         name: str,
         converter: Callable[[Mapping[str, Any]], T],
     ) -> Projection[T] | None:
+        await self._logger.adebug(
+            log_event_name("locating"),
+            projection_name=name,
+            projection_source=source.dict(),
+        )
+
         return await self._adapter.find_one(
             lookup=Lookup(
                 filters=[
@@ -69,6 +75,8 @@ class ProjectionStore:
     async def load[T](
         self, *, id: str, converter: Callable[[Mapping[str, Any]], T]
     ) -> Projection[T] | None:
+        await self._logger.adebug(log_event_name("loading"), projection_id=id)
+
         return await self._adapter.find_one(
             lookup=Lookup(
                 filters=[FilterClause(Operator.EQUAL, Path("id"), id)]
@@ -84,6 +92,13 @@ class ProjectionStore:
         paging: PagingClause,
         converter: Callable[[Mapping[str, Any]], T],
     ) -> Sequence[Projection[T]]:
+        await self._logger.adebug(
+            log_event_name("searching"),
+            filters=[repr(filter) for filter in filters],
+            sort=repr(sort),
+            paging=repr(paging),
+        )
+
         return await self._adapter.find_many(
             search=Search(filters=filters, sort=sort, paging=paging),
             converter=converter,

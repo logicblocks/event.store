@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any
@@ -8,6 +9,7 @@ from structlog.typing import FilteringBoundLogger
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
+from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSequenceIdentifier,
@@ -81,18 +83,42 @@ class EventStream(EventSource):
         conditions: Set[WriteCondition] = frozenset(),
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
-        await self._logger.ainfo(
+        await self._logger.adebug(
             "event.stream.publishing",
-            event_count=len(events),
-            event_names=[event.name for event in events],
-            conditions=list(conditions),
-        )
-
-        return await self._adapter.save(
-            target=self._identifier,
-            events=events,
+            category=self._identifier.category,
+            stream=self._identifier.stream,
+            events=[event.dict() for event in events],
             conditions=conditions,
         )
+
+        try:
+            stored_events = await self._adapter.save(
+                target=self._identifier,
+                events=events,
+                conditions=conditions,
+            )
+
+            if self._logger.is_enabled_for(logging.DEBUG):
+                await self._logger.ainfo(
+                    "event.stream.published",
+                    events=[event.dict() for event in stored_events],
+                )
+            else:
+                await self._logger.ainfo(
+                    "event.stream.published",
+                    events=[event.envelope() for event in stored_events],
+                )
+
+            return stored_events
+        except UnmetWriteConditionError as ex:
+            await self._logger.awarn(
+                "event.stream.publish-failed",
+                category=self._identifier.category,
+                stream=self._identifier.stream,
+                events=[event.envelope() for event in events],
+                reason=repr(ex),
+            )
+            raise
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()

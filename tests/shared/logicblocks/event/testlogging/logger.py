@@ -56,18 +56,24 @@ class CapturingLogger(FilteringBoundLogger):
         return events[0]
 
     @classmethod
-    def create(cls) -> "CapturingLogger":
-        return cls([], {})
+    def create(cls, log_level: int = LogLevel.NOTSET) -> "CapturingLogger":
+        return cls([], {}, log_level)
 
-    def __init__(self, events: list[LogEvent], context: dict[str, Any]):
+    def __init__(
+        self,
+        events: list[LogEvent],
+        context: dict[str, Any],
+        log_level: int = LogLevel.NOTSET,
+    ):
         self.events = events
         self._context = context
+        self._log_level = log_level
 
     def bind(self, **new_values: Any) -> FilteringBoundLogger:
         context = dict(self._context)
         context.update(new_values)
 
-        return CapturingLogger(self.events, context)
+        return CapturingLogger(self.events, context, self._log_level)
 
     def unbind(self, *keys: str) -> FilteringBoundLogger:
         context = dict(self._context)
@@ -76,7 +82,7 @@ class CapturingLogger(FilteringBoundLogger):
                 raise KeyError(f"No such binding: {key}")
             context.pop(key)
 
-        return CapturingLogger(self.events, context)
+        return CapturingLogger(self.events, context, self._log_level)
 
     def try_unbind(self, *keys: str) -> FilteringBoundLogger:
         context = dict(self._context)
@@ -85,19 +91,19 @@ class CapturingLogger(FilteringBoundLogger):
                 continue
             context.pop(key)
 
-        return CapturingLogger(self.events, context)
+        return CapturingLogger(self.events, context, self._log_level)
 
     def new(self, **new_values: Any) -> FilteringBoundLogger:
         context = {}
         context.update(new_values)
 
-        return CapturingLogger(self.events, context)
+        return CapturingLogger(self.events, context, self._log_level)
 
     def is_enabled_for(self, level: int) -> bool:
-        raise NotImplementedError
+        return level >= self._log_level
 
     def get_effective_level(self) -> int:
-        raise NotImplementedError
+        return self._log_level
 
     def debug(self, event: str, *args: Any, **kw: Any) -> Any:
         self.events.append(

@@ -1,4 +1,5 @@
 import sys
+from contextlib import suppress
 from datetime import datetime
 
 import pytest
@@ -451,7 +452,7 @@ class TestStreamPublishing:
 
 
 class TestStreamLogging:
-    async def test_logs_on_publish(self):
+    async def test_logs_event_and_conditions_pre_publish(self):
         logger = CapturingLogger.create()
 
         category_name = data.random_event_category_name()
@@ -462,14 +463,47 @@ class TestStreamLogging:
         )
         stream = store.stream(category=category_name, stream=stream_name)
 
+        new_events = [
+            NewEventBuilder().with_name("first-thing-happened").build(),
+            NewEventBuilder().with_name("second-thing-happened").build(),
+        ]
         await stream.publish(
+            events=new_events, conditions={conditions.stream_is_empty()}
+        )
+
+        log_event = logger.find_event("event.stream.publishing")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+            "events": [new_event.dict() for new_event in new_events],
+            "conditions": {conditions.stream_is_empty()},
+        }
+
+    async def test_logs_envelope_post_publish_when_not_debug_and_successful(
+        self,
+    ):
+        logger = CapturingLogger.create(log_level=LogLevel.INFO)
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(
             events=[
                 NewEventBuilder().with_name("first-thing-happened").build(),
                 NewEventBuilder().with_name("second-thing-happened").build(),
             ]
         )
 
-        log_event = logger.find_event("event.stream.publishing")
+        log_event = logger.find_event("event.stream.published")
 
         assert log_event is not None
         assert log_event.level == LogLevel.INFO
@@ -477,9 +511,71 @@ class TestStreamLogging:
         assert log_event.context == {
             "category": category_name,
             "stream": stream_name,
-            "event_count": 2,
-            "event_names": ["first-thing-happened", "second-thing-happened"],
-            "conditions": [],
+            "events": [
+                stored_event.envelope() for stored_event in stored_events
+            ],
+        }
+
+    async def test_logs_event_post_publish_when_debug_and_successful(self):
+        logger = CapturingLogger.create(log_level=LogLevel.DEBUG)
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        log_event = logger.find_event("event.stream.published")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.INFO
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+            "events": [stored_event.dict() for stored_event in stored_events],
+        }
+
+    async def test_logs_when_publish_unsuccessful(self):
+        logger = CapturingLogger.create(log_level=LogLevel.DEBUG)
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_event_1 = NewEventBuilder().with_name("a-thing-happened").build()
+        await stream.publish(events=[new_event_1])
+
+        new_event_2 = NewEventBuilder().with_name("b-thing-happened").build()
+
+        with suppress(UnmetWriteConditionError):
+            await stream.publish(
+                events=[new_event_2], conditions={conditions.stream_is_empty()}
+            )
+
+        log_event = logger.find_event("event.stream.publish-failed")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.WARNING
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "category": category_name,
+            "stream": stream_name,
+            "events": [new_event_2.envelope()],
+            "reason": repr(UnmetWriteConditionError("stream is not empty")),
         }
 
     async def test_logs_on_latest(self):

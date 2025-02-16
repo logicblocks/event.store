@@ -33,6 +33,21 @@ class NewEvent:
         object.__setattr__(self, "observed_at", observed_at)
         object.__setattr__(self, "occurred_at", occurred_at)
 
+    def dict(self):
+        return {
+            "name": self.name,
+            "payload": self.payload,
+            "observed_at": self.observed_at.isoformat(),
+            "occurred_at": self.occurred_at.isoformat(),
+        }
+
+    def envelope(self):
+        return {
+            "name": self.name,
+            "observed_at": self.observed_at.isoformat(),
+            "occurred_at": self.occurred_at.isoformat(),
+        }
+
     def json(self):
         return json.dumps(
             {
@@ -69,6 +84,31 @@ class StoredEvent:
     observed_at: datetime
     occurred_at: datetime
 
+    def dict(self) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "stream": self.stream,
+            "category": self.category,
+            "position": self.position,
+            "sequence_number": self.sequence_number,
+            "payload": dict(self.payload),
+            "observed_at": self.observed_at.isoformat(),
+            "occurred_at": self.occurred_at.isoformat(),
+        }
+
+    def envelope(self) -> Mapping[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "stream": self.stream,
+            "category": self.category,
+            "position": self.position,
+            "sequence_number": self.sequence_number,
+            "observed_at": self.observed_at.isoformat(),
+            "occurred_at": self.occurred_at.isoformat(),
+        }
+
     def json(self):
         return json.dumps(
             {
@@ -77,7 +117,7 @@ class StoredEvent:
                 "stream": self.stream,
                 "category": self.category,
                 "position": self.position,
-                "sequence_number": self.sequence_number,
+                "sequenceNumber": self.sequence_number,
                 "payload": self.payload,
                 "observedAt": self.observed_at.isoformat(),
                 "occurredAt": self.occurred_at.isoformat(),
@@ -101,15 +141,3 @@ class StoredEvent:
 
     def __hash__(self):
         return hash(self.json())
-
-    def envelope(self) -> Mapping[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "stream": self.stream,
-            "category": self.category,
-            "position": self.position,
-            "sequence_number": self.sequence_number,
-            "observed_at": self.observed_at.isoformat(),
-            "occurred_at": self.occurred_at.isoformat(),
-        }

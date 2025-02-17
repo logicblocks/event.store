@@ -19,24 +19,9 @@ class EventConsumerState:
         }
 
 
-@dataclass(frozen=True)
-class EventCount:
-    count: int = 0
-
-    def increment(self):
-        return EventCount(self.count + 1)
-
-    def __ge__(self, other: Self) -> bool:
-        return self.count >= other.count
-
-    def __gt__(self, other: Self) -> bool:
-        return self.count > other.count
-
-    def __le__(self, other: Self) -> bool:
-        return self.count <= other.count
-
-    def __lt__(self, other: Self) -> bool:
-        return self.count < other.count
+class EventCount(int):
+    def increment(self) -> Self:
+        return self.__class__(self + 1)
 
 
 class EventConsumerStateStore:
@@ -91,7 +76,7 @@ class EventConsumerStateStore:
                 continue
 
             lag = self._persistence_lags[partition]
-            if lag.count == 0:
+            if lag == 0:
                 continue
 
             position = self._positions.get(partition, None)

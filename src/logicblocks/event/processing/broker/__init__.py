@@ -3,6 +3,9 @@ from .broker import (
     EventBroker,
     make_postgres_event_broker,
 )
+from .broker import (
+    make_in_memory_event_broker as make_in_memory_event_broker,
+)
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
     EventSubscriptionCoordinator,

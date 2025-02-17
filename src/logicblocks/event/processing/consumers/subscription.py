@@ -43,6 +43,7 @@ def make_subscriber(
     )
 
 
+# Can this be a seq of different types of EventSequenceIdentifier?
 class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def __init__(
         self,

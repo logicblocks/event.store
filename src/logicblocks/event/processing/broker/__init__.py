@@ -1,6 +1,8 @@
 from .broker import (
     CoordinatorObserverEventBroker,
     EventBroker,
+    EventBrokerSettings,
+    make_in_memory_event_broker,
     make_postgres_event_broker,
 )
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
@@ -98,5 +100,7 @@ __all__ = (
     "PostgresEventSubscriptionStateStore",
     "PostgresLockManager",
     "PostgresNodeStateStore",
+    "EventBrokerSettings",
     "make_postgres_event_broker",
+    "make_in_memory_event_broker",
 )

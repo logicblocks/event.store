@@ -8,7 +8,7 @@ from ..subscribers import (
     InMemoryEventSubscriberStateStore,
 )
 from ..subscriptions import InMemoryEventSubscriptionStateStore
-from .broker import EventBroker
+from .base import EventBroker
 from .broker_builder import (
     EventBrokerBuilder,
     EventBrokerDependencies,

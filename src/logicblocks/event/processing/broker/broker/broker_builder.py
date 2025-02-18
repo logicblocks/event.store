@@ -17,7 +17,8 @@ from ..subscribers import (
     InMemoryEventSubscriberStore,
 )
 from ..subscriptions import EventSubscriptionStateStore
-from .broker import CoordinatorObserverEventBroker, EventBroker
+from .base import EventBroker
+from .coordinator_observer import CoordinatorObserverEventBroker
 
 
 @dataclass(frozen=True)

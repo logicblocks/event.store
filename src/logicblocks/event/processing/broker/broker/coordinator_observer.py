@@ -1,8 +1,5 @@
 import asyncio
-from abc import abstractmethod
-from types import NoneType
 
-from ...services import Service
 from ..coordinator import (
     EventSubscriptionCoordinator,
 )
@@ -14,12 +11,7 @@ from ..subscribers import (
     EventSubscriberManager,
 )
 from ..types import EventSubscriber
-
-
-class EventBroker(Service[NoneType]):
-    @abstractmethod
-    async def register(self, subscriber: EventSubscriber) -> None:
-        raise NotImplementedError
+from .base import EventBroker
 
 
 class CoordinatorObserverEventBroker(EventBroker):

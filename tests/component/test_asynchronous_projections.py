@@ -196,7 +196,7 @@ class TestAsynchronousProjections:
 
         subscriber = make_subscriber(
             subscriber_group=subscriber_group,
-            subscriber_sequence=CategoryIdentifier(category=category_name),
+            subscriber_identifier=CategoryIdentifier(category=category_name),
             subscriber_state_category=subscriber_state_category,
             subscriber_state_persistence_interval=EventCount(1),
             event_processor=event_processor,

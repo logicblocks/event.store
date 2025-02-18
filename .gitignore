@@ -60,6 +60,9 @@ cmake-build-*/
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 
+# CSV Editor plugin
+.idea/csv-editor.xml
+
 # git toolbox
 .idea/git_toolbox_blame.xml
 

@@ -19,7 +19,7 @@ from ..subscriptions import EventSubscriptionStateStore
 from .broker import CoordinatorObserverEventBroker, EventBroker
 
 
-class PrepareResults(TypedDict):
+class EventBrokerDependencies(TypedDict):
     node_state_store: NodeStateStore
     event_subscriber_state_store: EventSubscriberStateStore
     event_subscription_state_store: EventSubscriptionStateStore
@@ -40,11 +40,11 @@ class EventBrokerBuilder[**P = ...](ABC):
         self.node_id = node_id
 
     @abstractmethod
-    def _prepare(self, *args: P.args, **kwargs: P.kwargs) -> PrepareResults:
+    def dependencies(self, *args: P.args, **kwargs: P.kwargs) -> EventBrokerDependencies:
         pass
 
     def prepare(self, *args: P.args, **kwargs: P.kwargs) -> Self:
-        prepare = self._prepare(*args, **kwargs)
+        prepare = self.dependencies(*args, **kwargs)
         self.node_state_store = prepare["node_state_store"]
         self.event_subscriber_state_store = prepare[
             "event_subscriber_state_store"

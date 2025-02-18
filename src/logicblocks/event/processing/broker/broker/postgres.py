@@ -15,7 +15,7 @@ from ..subscribers import (
 )
 from ..subscriptions import PostgresEventSubscriptionStateStore
 from .broker import EventBroker
-from .broker_builder import EventBrokerBuilder, PrepareResults
+from .broker_builder import EventBrokerBuilder, EventBrokerDependencies
 
 
 class _PostgresEventBrokerBuilder(
@@ -23,12 +23,12 @@ class _PostgresEventBrokerBuilder(
         (PostgresConnectionSettings, AsyncConnectionPool[AsyncConnection])
     ]
 ):
-    def _prepare(
+    def dependencies(
         self,
         connection_settings: PostgresConnectionSettings,
         connection_pool: AsyncConnectionPool[AsyncConnection],
-    ) -> PrepareResults:
-        return PrepareResults(
+    ) -> EventBrokerDependencies:
+        return EventBrokerDependencies(
             node_state_store=PostgresNodeStateStore(connection_pool),
             event_subscriber_state_store=PostgresEventSubscriberStateStore(
                 node_id=self.node_id, connection_source=connection_pool

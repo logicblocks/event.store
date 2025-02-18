@@ -11,12 +11,12 @@ from ..subscribers import (
 )
 from ..subscriptions import InMemoryEventSubscriptionStateStore
 from .broker import EventBroker
-from .broker_builder import EventBrokerBuilder, PrepareResults
+from .broker_builder import EventBrokerBuilder, EventBrokerDependencies
 
 
 class _InMemoryEventBrokerBuilder(EventBrokerBuilder):
-    def _prepare(self) -> PrepareResults:
-        return PrepareResults(
+    def dependencies(self) -> EventBrokerDependencies:
+        return EventBrokerDependencies(
             node_state_store=InMemoryNodeStateStore(),
             event_subscriber_state_store=InMemoryEventSubscriberStateStore(
                 node_id=self.node_id,

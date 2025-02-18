@@ -46,7 +46,7 @@ class CapturingEventSubscriber(EventSubscriber):
         return self._id
 
     @property
-    def sequences(self) -> Sequence[EventSourceIdentifier]:
+    def identifiers(self) -> Sequence[EventSourceIdentifier]:
         return []
 
     def health(self) -> EventSubscriberHealth:

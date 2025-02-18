@@ -72,7 +72,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         return EventSubscriberHealth.HEALTHY
 
     @property
-    def sequences(self) -> Sequence[EventSourceIdentifier]:
+    def identifiers(self) -> Sequence[EventSourceIdentifier]:
         return self._sequences
 
     async def accept(self, source: EventSource) -> None:

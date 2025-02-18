@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Self
+from typing import Any, MutableMapping, Self
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import (
@@ -35,32 +35,14 @@ type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
 ]
 
 
-class EventStoreEventSourceConstructors:
-    def __init__(self):
-        self._constructors: dict[
-            type[EventSourceIdentifier],
-            EventSourceConstructor[Any],
-        ] = {}
-
-    def set_constructor[I: EventSourceIdentifier](
-        self,
-        identifier: type[I],
-        constructor: EventSourceConstructor[I],
-    ) -> Self:
-        self._constructors[identifier] = constructor
-        return self
-
-    def get_constructor[I: EventSourceIdentifier](
-        self, identifier: type[I]
-    ) -> EventSourceConstructor[I]:
-        return self._constructors[identifier]
-
-
 class EventStoreEventSourceFactory(
     EventSourceFactory[EventStorageAdapter], ABC
 ):
     def __init__(self):
-        self._constructors = EventStoreEventSourceConstructors()
+        self._constructors: MutableMapping[
+            type[EventSourceIdentifier],
+            EventSourceConstructor[Any],
+        ] = {}
 
         (
             self.register_constructor(
@@ -78,13 +60,13 @@ class EventStoreEventSourceFactory(
         identifier_type: type[I],
         constructor: EventSourceConstructor[I],
     ) -> Self:
-        self._constructors.set_constructor(identifier_type, constructor)
+        self._constructors[identifier_type] = constructor
         return self
 
     def construct[I: EventSourceIdentifier](
         self, identifier: I
     ) -> EventSource[I]:
-        return self._constructors.get_constructor(type(identifier))(
+        return self._constructors[type(identifier)](
             identifier, self.storage_adapter
         )
 

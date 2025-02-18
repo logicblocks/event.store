@@ -13,7 +13,7 @@ from logicblocks.event.processing.broker.types import (
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
-from logicblocks.event.types import EventSequenceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class DummyEventSubscriber(EventSubscriber):
         return self._id
 
     @property
-    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+    def sequences(self) -> Sequence[EventSourceIdentifier]:
         return []
 
     def health(self) -> EventSubscriberHealth:

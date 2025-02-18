@@ -31,7 +31,6 @@ from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.types import (
-    EventSequenceIdentifier,
     EventSourceIdentifier,
     StreamIdentifier,
 )
@@ -54,7 +53,7 @@ class CapturingEventSubscriber(EventSubscriber):
         return self._id
 
     @property
-    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+    def sequences(self) -> Sequence[EventSourceIdentifier]:
         return []
 
     def health(self) -> EventSubscriberHealth:

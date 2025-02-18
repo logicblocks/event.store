@@ -4,12 +4,10 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from logicblocks.event.types import (
-    CategoryIdentifier,
-    LogIdentifier,
-    StreamIdentifier,
+    EventSourceIdentifier,
 )
 
-type Projectable = LogIdentifier | CategoryIdentifier | StreamIdentifier
+type Projectable = EventSourceIdentifier
 
 
 def default_converter(value: object) -> Mapping[str, Any]:

@@ -20,7 +20,7 @@ from logicblocks.event.processing.broker.sources.stores.mappings.base import (
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.types import EventSequenceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 from logicblocks.event.types.identifier import CategoryIdentifier
 
 
@@ -32,7 +32,7 @@ class CapturingEventSubscriber(EventSubscriber):
         self,
         group: str,
         id: str,
-        sequences: Sequence[EventSequenceIdentifier],
+        sequences: Sequence[EventSourceIdentifier],
         health: EventSubscriberHealth = EventSubscriberHealth.HEALTHY,
     ):
         self.sources = []
@@ -51,7 +51,7 @@ class CapturingEventSubscriber(EventSubscriber):
         return self._id
 
     @property
-    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+    def sequences(self) -> Sequence[EventSourceIdentifier]:
         return self._sequences
 
     def health(self) -> EventSubscriberHealth:

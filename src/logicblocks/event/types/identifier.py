@@ -113,11 +113,6 @@ class StreamIdentifier(EventSourceIdentifier):
         )
 
 
-type EventSequenceIdentifier = (
-    LogIdentifier | CategoryIdentifier | StreamIdentifier
-)
-
-
 class LogIdentifierDict(TypedDict):
     type: str
 
@@ -135,6 +130,10 @@ class StreamIdentifierDict(TypedDict):
 
 type EventSequenceIdentifierDict = (
     LogIdentifierDict | CategoryIdentifierDict | StreamIdentifierDict
+)
+
+type EventSequenceIdentifier = (
+    LogIdentifier | CategoryIdentifier | StreamIdentifier
 )
 
 

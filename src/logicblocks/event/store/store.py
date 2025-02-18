@@ -12,7 +12,7 @@ from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     CategoryIdentifier,
-    EventSequenceIdentifier,
+    EventSourceIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
@@ -24,7 +24,7 @@ _default_logger = structlog.get_logger("logicblocks.event.store")
 class EventSource(ABC):
     @property
     @abstractmethod
-    def identifier(self) -> EventSequenceIdentifier:
+    def identifier(self) -> EventSourceIdentifier:
         raise NotImplementedError()
 
     @abstractmethod
@@ -69,7 +69,7 @@ class EventStream(EventSource):
         self._identifier = stream
 
     @property
-    def identifier(self) -> EventSequenceIdentifier:
+    def identifier(self) -> StreamIdentifier:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
@@ -171,7 +171,7 @@ class EventCategory(EventSource):
         self._identifier = category
 
     @property
-    def identifier(self) -> EventSequenceIdentifier:
+    def identifier(self) -> CategoryIdentifier:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
@@ -253,11 +253,11 @@ class StoredEvents(EventSource):
     """
 
     def __init__(self, events: list[StoredEvent], stream: StreamIdentifier):
-        self._events: list[StoredEvent] = events
-        self._identifier: StreamIdentifier = stream
+        self._events = events
+        self._identifier = stream
 
     @property
-    def identifier(self) -> EventSequenceIdentifier:
+    def identifier(self) -> StreamIdentifier:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:

@@ -31,7 +31,7 @@ from logicblocks.event.store import (
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import (
     CategoryIdentifier,
-    EventSequenceIdentifier,
+    EventSourceIdentifier,
     StoredEvent,
     StreamIdentifier,
 )
@@ -171,7 +171,7 @@ class TestAsynchronousProjections:
                 return Thing()
 
             def id_factory(
-                self, state: Thing, coordinates: EventSequenceIdentifier
+                self, state: Thing, coordinates: EventSourceIdentifier
             ):
                 match coordinates:
                     case StreamIdentifier(stream=stream):

@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 
 from logicblocks.event.store import EventSource
-from logicblocks.event.types.identifier import EventSequenceIdentifier
+from logicblocks.event.types.identifier import EventSourceIdentifier
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class EventSubscriber(ABC):
 
     @property
     @abstractmethod
-    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+    def sequences(self) -> Sequence[EventSourceIdentifier]:
         raise NotImplementedError
 
     @abstractmethod

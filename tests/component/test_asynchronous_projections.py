@@ -9,7 +9,10 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import make_postgres_event_broker
+from logicblocks.event.processing.broker import (
+    EventBrokerSettings,
+    make_postgres_event_broker,
+)
 from logicblocks.event.processing.consumers import (
     EventCount,
     ProjectionEventProcessor,
@@ -210,8 +213,10 @@ class TestAsynchronousProjections:
             node_id=node_id,
             connection_settings=connection_settings,
             connection_pool=self.connection_pool,
-            coordinator_distribution_interval=timedelta(milliseconds=100),
-            observer_synchronisation_interval=timedelta(milliseconds=100),
+            settings=EventBrokerSettings(
+                coordinator_distribution_interval=timedelta(milliseconds=100),
+                observer_synchronisation_interval=timedelta(milliseconds=100),
+            ),
         )
 
         await event_broker.register(subscriber=subscriber)

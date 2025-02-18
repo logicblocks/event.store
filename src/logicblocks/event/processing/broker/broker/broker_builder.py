@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Self, TypedDict
 
@@ -17,6 +18,21 @@ from ..subscribers import (
 )
 from ..subscriptions import EventSubscriptionStateStore
 from .broker import CoordinatorObserverEventBroker, EventBroker
+
+
+@dataclass(frozen=True)
+class EventBrokerSettings:
+    node_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
+    node_manager_purge_interval: timedelta = timedelta(minutes=1)
+    node_manager_node_max_age: timedelta = timedelta(minutes=10)
+    subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
+    subscriber_manager_purge_interval: timedelta = timedelta(minutes=1)
+    subscriber_manager_subscriber_max_age: timedelta = timedelta(minutes=10)
+    coordinator_subscriber_max_time_since_last_seen: timedelta = timedelta(
+        seconds=60
+    )
+    coordinator_distribution_interval: timedelta = timedelta(seconds=20)
+    observer_synchronisation_interval: timedelta = timedelta(seconds=20)
 
 
 class EventBrokerDependencies(TypedDict):
@@ -40,7 +56,9 @@ class EventBrokerBuilder[**P = ...](ABC):
         self.node_id = node_id
 
     @abstractmethod
-    def dependencies(self, *args: P.args, **kwargs: P.kwargs) -> EventBrokerDependencies:
+    def dependencies(
+        self, *args: P.args, **kwargs: P.kwargs
+    ) -> EventBrokerDependencies:
         pass
 
     def prepare(self, *args: P.args, **kwargs: P.kwargs) -> Self:
@@ -59,28 +77,14 @@ class EventBrokerBuilder[**P = ...](ABC):
 
     def build(
         self,
-        node_manager_heartbeat_interval: timedelta = timedelta(seconds=10),
-        node_manager_purge_interval: timedelta = timedelta(minutes=1),
-        node_manager_node_max_age: timedelta = timedelta(minutes=10),
-        subscriber_manager_heartbeat_interval: timedelta = timedelta(
-            seconds=10
-        ),
-        subscriber_manager_purge_interval: timedelta = timedelta(minutes=1),
-        subscriber_manager_subscriber_max_age: timedelta = timedelta(
-            minutes=10
-        ),
-        coordinator_subscriber_max_time_since_last_seen: timedelta = timedelta(
-            seconds=60
-        ),
-        coordinator_distribution_interval: timedelta = timedelta(seconds=20),
-        observer_synchronisation_interval: timedelta = timedelta(seconds=20),
+        settings: EventBrokerSettings,
     ) -> EventBroker:
         node_manager = NodeManager(
             node_id=self.node_id,
             node_state_store=self.node_state_store,
-            heartbeat_interval=node_manager_heartbeat_interval,
-            purge_interval=node_manager_purge_interval,
-            node_max_age=node_manager_node_max_age,
+            heartbeat_interval=settings.node_manager_heartbeat_interval,
+            purge_interval=settings.node_manager_purge_interval,
+            node_max_age=settings.node_manager_node_max_age,
         )
 
         event_subscriber_store = InMemoryEventSubscriberStore()
@@ -93,9 +97,9 @@ class EventBrokerBuilder[**P = ...](ABC):
             subscriber_store=event_subscriber_store,
             subscriber_state_store=self.event_subscriber_state_store,
             subscription_source_mapping_store=event_subscription_source_mapping_store,
-            heartbeat_interval=subscriber_manager_heartbeat_interval,
-            purge_interval=subscriber_manager_purge_interval,
-            subscriber_max_age=subscriber_manager_subscriber_max_age,
+            heartbeat_interval=settings.subscriber_manager_heartbeat_interval,
+            purge_interval=settings.subscriber_manager_purge_interval,
+            subscriber_max_age=settings.subscriber_manager_subscriber_max_age,
         )
 
         event_subscription_coordinator = EventSubscriptionCoordinator(
@@ -104,8 +108,8 @@ class EventBrokerBuilder[**P = ...](ABC):
             subscriber_state_store=self.event_subscriber_state_store,
             subscription_state_store=self.event_subscription_state_store,
             subscription_source_mapping_store=event_subscription_source_mapping_store,
-            subscriber_max_time_since_last_seen=coordinator_subscriber_max_time_since_last_seen,
-            distribution_interval=coordinator_distribution_interval,
+            subscriber_max_time_since_last_seen=settings.coordinator_subscriber_max_time_since_last_seen,
+            distribution_interval=settings.coordinator_distribution_interval,
         )
 
         event_subscription_observer = EventSubscriptionObserver(
@@ -113,7 +117,7 @@ class EventBrokerBuilder[**P = ...](ABC):
             subscriber_store=event_subscriber_store,
             subscription_state_store=self.event_subscription_state_store,
             event_source_factory=self.event_source_factory,
-            synchronisation_interval=observer_synchronisation_interval,
+            synchronisation_interval=settings.observer_synchronisation_interval,
         )
 
         return CoordinatorObserverEventBroker(

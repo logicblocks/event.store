@@ -2,18 +2,18 @@ import asyncio
 from abc import abstractmethod
 from types import NoneType
 
-from logicblocks.event.processing.broker.coordinator import (
+from ...services import Service
+from ..coordinator import (
     EventSubscriptionCoordinator,
 )
-from logicblocks.event.processing.broker.nodes import NodeManager
-from logicblocks.event.processing.broker.observer import (
+from ..nodes import NodeManager
+from ..observer import (
     EventSubscriptionObserver,
 )
-from logicblocks.event.processing.broker.subscribers import (
+from ..subscribers import (
     EventSubscriberManager,
 )
-from logicblocks.event.processing.broker.types import EventSubscriber
-from logicblocks.event.processing.services import Service
+from ..types import EventSubscriber
 
 
 class EventBroker(Service[NoneType]):

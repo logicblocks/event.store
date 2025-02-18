@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from ....store import InMemoryEventStorageAdapter
 from ..locks import InMemoryLockManager
 from ..nodes import InMemoryNodeStateStore
@@ -11,7 +9,11 @@ from ..subscribers import (
 )
 from ..subscriptions import InMemoryEventSubscriptionStateStore
 from .broker import EventBroker
-from .broker_builder import EventBrokerBuilder, EventBrokerDependencies
+from .broker_builder import (
+    EventBrokerBuilder,
+    EventBrokerDependencies,
+    EventBrokerSettings,
+)
 
 
 class _InMemoryEventBrokerBuilder(EventBrokerBuilder):
@@ -33,30 +35,6 @@ class _InMemoryEventBrokerBuilder(EventBrokerBuilder):
 
 def make_in_memory_event_broker(
     node_id: str,
-    node_manager_heartbeat_interval: timedelta = timedelta(seconds=10),
-    node_manager_purge_interval: timedelta = timedelta(minutes=1),
-    node_manager_node_max_age: timedelta = timedelta(minutes=10),
-    subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10),
-    subscriber_manager_purge_interval: timedelta = timedelta(minutes=1),
-    subscriber_manager_subscriber_max_age: timedelta = timedelta(minutes=10),
-    coordinator_subscriber_max_time_since_last_seen: timedelta = timedelta(
-        seconds=60
-    ),
-    coordinator_distribution_interval: timedelta = timedelta(seconds=20),
-    observer_synchronisation_interval: timedelta = timedelta(seconds=20),
+    settings: EventBrokerSettings,
 ) -> EventBroker:
-    return (
-        _InMemoryEventBrokerBuilder(node_id)
-        .prepare()
-        .build(
-            node_manager_heartbeat_interval=node_manager_heartbeat_interval,
-            node_manager_purge_interval=node_manager_purge_interval,
-            node_manager_node_max_age=node_manager_node_max_age,
-            subscriber_manager_heartbeat_interval=subscriber_manager_heartbeat_interval,
-            subscriber_manager_purge_interval=subscriber_manager_purge_interval,
-            subscriber_manager_subscriber_max_age=subscriber_manager_subscriber_max_age,
-            coordinator_subscriber_max_time_since_last_seen=coordinator_subscriber_max_time_since_last_seen,
-            coordinator_distribution_interval=coordinator_distribution_interval,
-            observer_synchronisation_interval=observer_synchronisation_interval,
-        )
-    )
+    return _InMemoryEventBrokerBuilder(node_id).prepare().build(settings)

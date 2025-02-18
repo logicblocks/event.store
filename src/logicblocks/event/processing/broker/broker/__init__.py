@@ -2,6 +2,7 @@ from .broker import (
     CoordinatorObserverEventBroker as CoordinatorObserverEventBroker,
 )
 from .broker import EventBroker as EventBroker
+from .broker_builder import EventBrokerSettings as EventBrokerSettings
 from .in_memory import (
     make_in_memory_event_broker as make_in_memory_event_broker,
 )

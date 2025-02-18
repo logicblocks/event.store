@@ -16,7 +16,7 @@ from logicblocks.event.store.store import StoredEvents
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import (
-    EventSequenceIdentifier,
+    EventSourceIdentifier,
     Projection,
     StoredEvent,
     StreamIdentifier,
@@ -46,7 +46,7 @@ class AggregateProjector(Projector[Aggregate]):
         return Aggregate()
 
     def id_factory(
-        self, state: Aggregate, coordinates: EventSequenceIdentifier
+        self, state: Aggregate, coordinates: EventSourceIdentifier
     ) -> str:
         match coordinates:
             case StreamIdentifier(stream=stream):
@@ -370,7 +370,7 @@ class TestProjectorProjection:
                 return Thing()
 
             def id_factory(
-                self, state: Thing, coordinates: EventSequenceIdentifier
+                self, state: Thing, coordinates: EventSourceIdentifier
             ):
                 match coordinates:
                     case StreamIdentifier(stream=stream):

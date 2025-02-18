@@ -5,7 +5,6 @@ from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.store import EventCategory, EventSource
 from logicblocks.event.types import (
-    EventSequenceIdentifier,
     EventSourceIdentifier,
 )
 
@@ -20,7 +19,7 @@ def make_subscriber(
     *,
     subscriber_group: str,
     subscriber_id: str = uuid4().hex,
-    subscriber_sequence: EventSequenceIdentifier,
+    subscriber_sequence: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
@@ -48,7 +47,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self,
         group: str,
         id: str,
-        sequences: Sequence[EventSequenceIdentifier],
+        sequences: Sequence[EventSourceIdentifier],
         delegate_factory: Callable[[EventSource], EventConsumer],
         logger: FilteringBoundLogger = default_logger,
     ):
@@ -73,7 +72,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         return EventSubscriberHealth.HEALTHY
 
     @property
-    def sequences(self) -> Sequence[EventSequenceIdentifier]:
+    def identifiers(self) -> Sequence[EventSourceIdentifier]:
         return self._sequences
 
     async def accept(self, source: EventSource) -> None:

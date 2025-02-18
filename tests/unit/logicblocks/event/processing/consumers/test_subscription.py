@@ -65,7 +65,7 @@ class TestEventSubscriptionConsumer:
 
         assert subscription_consumer.group == subscriber_group
         assert subscription_consumer.id == subscriber_id
-        assert subscription_consumer.sequences == sequences
+        assert subscription_consumer.identifiers == sequences
 
     async def test_consumes_from_received_source_on_consume_all(self):
         delegate_factory = CapturingEventConsumerFactory()

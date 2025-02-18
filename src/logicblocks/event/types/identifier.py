@@ -2,7 +2,7 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, TypedDict, cast
+from typing import Any, Literal, TypedDict
 
 
 class Identifier(ABC):
@@ -113,22 +113,17 @@ class StreamIdentifier(EventSourceIdentifier):
         )
 
 
-type EventSequenceIdentifier = (
-    LogIdentifier | CategoryIdentifier | StreamIdentifier
-)
-
-
 class LogIdentifierDict(TypedDict):
-    type: str
+    type: Literal["log"]
 
 
 class CategoryIdentifierDict(TypedDict):
-    type: str
+    type: Literal["category"]
     category: str
 
 
 class StreamIdentifierDict(TypedDict):
-    type: str
+    type: Literal["stream"]
     category: str
     stream: str
 
@@ -137,21 +132,21 @@ type EventSequenceIdentifierDict = (
     LogIdentifierDict | CategoryIdentifierDict | StreamIdentifierDict
 )
 
+type EventSequenceIdentifier = (
+    LogIdentifier | CategoryIdentifier | StreamIdentifier
+)
+
 
 def event_sequence_identifier(
     serialised: EventSequenceIdentifierDict,
 ) -> EventSequenceIdentifier:
-    match serialised["type"]:
-        case "log":
+    match serialised:
+        case {"type": "log"}:
             return LogIdentifier()
-        case "category":
-            resolved = cast(CategoryIdentifierDict, serialised)
-            return CategoryIdentifier(category=resolved["category"])
-        case "stream":
-            resolved = cast(StreamIdentifierDict, serialised)
-            return StreamIdentifier(
-                category=resolved["category"], stream=resolved["stream"]
-            )
+        case {"type": "category", "category": category}:
+            return CategoryIdentifier(category=category)
+        case {"type": "stream", "category": category, "stream": stream}:
+            return StreamIdentifier(category=category, stream=stream)
         case _:  # pragma: no cover
             raise ValueError("Invalid serialised event sequence identifier.")
 

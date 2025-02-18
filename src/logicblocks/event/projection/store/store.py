@@ -4,7 +4,7 @@ from typing import Any
 
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.types import EventSequenceIdentifier, Projection
+from logicblocks.event.types import EventSourceIdentifier, Projection
 
 from ..logger import default_logger
 from .adapters import ProjectionStorageAdapter
@@ -52,7 +52,7 @@ class ProjectionStore:
     async def locate[T](
         self,
         *,
-        source: EventSequenceIdentifier,
+        source: EventSourceIdentifier,
         name: str,
         converter: Callable[[Mapping[str, Any]], T],
     ) -> Projection[T] | None:

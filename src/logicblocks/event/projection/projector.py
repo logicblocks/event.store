@@ -7,7 +7,7 @@ from pyheck import snake as to_snake_case
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import (
-    EventSequenceIdentifier,
+    EventSourceIdentifier,
     Projection,
     StoredEvent,
 )
@@ -38,9 +38,7 @@ class Projector[T](ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def id_factory(
-        self, state: T, coordinates: EventSequenceIdentifier
-    ) -> str:
+    def id_factory(self, state: T, coordinates: EventSourceIdentifier) -> str:
         raise NotImplementedError()
 
     def apply(self, *, event: StoredEvent, state: T | None = None) -> T:

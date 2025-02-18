@@ -16,7 +16,7 @@ from .broker_builder import (
 )
 
 
-class _InMemoryEventBrokerBuilder(EventBrokerBuilder):
+class InMemoryEventBrokerBuilder(EventBrokerBuilder):
     def dependencies(self) -> EventBrokerDependencies:
         return EventBrokerDependencies(
             node_state_store=InMemoryNodeStateStore(),
@@ -37,4 +37,4 @@ def make_in_memory_event_broker(
     node_id: str,
     settings: EventBrokerSettings,
 ) -> EventBroker:
-    return _InMemoryEventBrokerBuilder(node_id).prepare().build(settings)
+    return InMemoryEventBrokerBuilder(node_id).prepare().build(settings)

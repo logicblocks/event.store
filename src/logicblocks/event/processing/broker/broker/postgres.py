@@ -20,7 +20,7 @@ from .broker_builder import (
 )
 
 
-class _PostgresEventBrokerBuilder(
+class PostgresEventBrokerBuilder(
     EventBrokerBuilder[
         (PostgresConnectionSettings, AsyncConnectionPool[AsyncConnection])
     ]
@@ -56,7 +56,7 @@ def make_postgres_event_broker(
     settings: EventBrokerSettings,
 ) -> EventBroker:
     return (
-        _PostgresEventBrokerBuilder(node_id)
+        PostgresEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool)
         .build(settings)
     )

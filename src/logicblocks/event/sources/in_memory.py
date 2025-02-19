@@ -18,19 +18,23 @@ class InMemoryEventSource[I: EventSourceIdentifier](EventSource[I]):
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
-        return self._events[-1] if self._events else None
+        return self._events[-1] if len(self._events) > 0 else None
 
     async def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         for event in self._events:
             await asyncio.sleep(0)
-            yield event
+            if all(
+                constraint.met_by(event=event) for constraint in constraints
+            ):
+                yield event
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, InMemoryEventSource):
             return NotImplemented
 
-        # TODO: Implement equality check for events
-        other_identifier = cast(Any, other.identifier)  # type: ignore
-        return self._identifier == other_identifier
+        return (
+            self._identifier == cast(Any, other.identifier)  # type: ignore
+            and self._events == other._events
+        )

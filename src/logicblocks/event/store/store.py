@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
-from typing import cast
+from typing import Any
 
 import structlog
 from structlog.typing import FilteringBoundLogger
@@ -48,9 +48,7 @@ class EventSource[I: EventSourceIdentifier](ABC):
         return self.iterate()
 
 
-class EventStream[A: EventStorageAdapter = EventStorageAdapter](
-    EventSource[StreamIdentifier]
-):
+class EventStream(EventSource[StreamIdentifier]):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
@@ -60,7 +58,7 @@ class EventStream[A: EventStorageAdapter = EventStorageAdapter](
 
     def __init__(
         self,
-        adapter: A,
+        adapter: EventStorageAdapter,
         stream: StreamIdentifier,
         logger: FilteringBoundLogger = _default_logger,
     ):
@@ -143,20 +141,16 @@ class EventStream[A: EventStorageAdapter = EventStorageAdapter](
             constraints=constraints,
         )
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, EventStream):
             return NotImplemented
-
-        other = cast(EventStream[EventStorageAdapter], other)
         return (
             self._adapter == other._adapter
             and self._identifier == other._identifier
         )
 
 
-class EventCategory[A: EventStorageAdapter = EventStorageAdapter](
-    EventSource[CategoryIdentifier]
-):
+class EventCategory(EventSource[CategoryIdentifier]):
     """A class for interacting with a specific category of events.
 
     Since a category consists of zero or more streams, the category
@@ -168,7 +162,7 @@ class EventCategory[A: EventStorageAdapter = EventStorageAdapter](
 
     def __init__(
         self,
-        adapter: A,
+        adapter: EventStorageAdapter,
         category: CategoryIdentifier,
         logger: FilteringBoundLogger = _default_logger,
     ):
@@ -184,7 +178,7 @@ class EventCategory[A: EventStorageAdapter = EventStorageAdapter](
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
-    def stream(self, *, stream: str) -> EventStream[A]:
+    def stream(self, *, stream: str) -> EventStream:
         """Get a stream of events in the category.
 
         Args:
@@ -221,18 +215,16 @@ class EventCategory[A: EventStorageAdapter = EventStorageAdapter](
             constraints=constraints,
         )
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, EventCategory):
             return NotImplemented
-
-        other = cast(EventCategory[EventStorageAdapter], other)
         return (
             self._adapter == other._adapter
             and self._identifier == other._identifier
         )
 
 
-class EventStore[A: EventStorageAdapter = EventStorageAdapter]:
+class EventStore:
     """The primary interface into the store of events.
 
     An [`EventStore`][logicblocks.event.store.EventStore] is backed by a
@@ -254,17 +246,13 @@ class EventStore[A: EventStorageAdapter = EventStorageAdapter]:
 
     def __init__(
         self,
-        adapter: A,
+        adapter: EventStorageAdapter,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
         self._logger = logger
 
-    @property
-    def adapter(self) -> A:
-        return self._adapter
-
-    def stream(self, *, category: str, stream: str) -> EventStream[A]:
+    def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped
@@ -288,7 +276,7 @@ class EventStore[A: EventStorageAdapter = EventStorageAdapter]:
             stream=StreamIdentifier(category=category, stream=stream),
         )
 
-    def category(self, *, category: str) -> EventCategory[A]:
+    def category(self, *, category: str) -> EventCategory:
         """Get a category of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped

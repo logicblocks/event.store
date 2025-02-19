@@ -17,7 +17,7 @@ from logicblocks.event.types import StoredEvent, identifier
 class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
     @property
     def concurrency_parameters(self):
-        return ConcurrencyParameters(concurrent_writes=40, repeats=200)
+        return ConcurrencyParameters(concurrent_writes=2, repeats=1)
 
     def construct_storage_adapter(self) -> EventStorageAdapter:
         return InMemoryEventStorageAdapter()

@@ -3,6 +3,8 @@ from collections import defaultdict
 from collections.abc import AsyncIterator, Sequence, Set
 from uuid import uuid4
 
+from aiologic import Lock
+
 from logicblocks.event.store.adapters.base import (
     EventStorageAdapter,
     Latestable,
@@ -28,14 +30,14 @@ type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
-    _lock: asyncio.Lock
+    _lock: Lock
     _events: list[StoredEvent]
     _log_index: EventPositionList
     _stream_index: EventIndexDict[StreamKey]
     _category_index: EventIndexDict[CategoryKey]
 
     def __init__(self):
-        self._lock = asyncio.Lock()
+        self._lock = Lock()
         self._events = []
         self._log_index = []
         self._stream_index = defaultdict(lambda: [])

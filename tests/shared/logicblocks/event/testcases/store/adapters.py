@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from itertools import batched
@@ -452,13 +453,6 @@ class WriteConditionCases(Base, ABC):
 
 
 class StorageAdapterSaveTask:
-    adapter: EventStorageAdapter
-    target: identifier.StreamIdentifier
-    events: Sequence[NewEvent]
-    conditions: Set[writeconditions.WriteCondition]
-    result: Sequence[StoredEvent] | None = None
-    exception: BaseException | None = None
-
     def __init__(
         self,
         *,
@@ -471,6 +465,8 @@ class StorageAdapterSaveTask:
         self.target = target
         self.events = events
         self.conditions = frozenset() if conditions is None else conditions
+        self.result: Sequence[StoredEvent] | None = None
+        self.exception: BaseException | None = None
 
     async def execute(
         self,
@@ -481,6 +477,7 @@ class StorageAdapterSaveTask:
                 events=self.events,
                 conditions=self.conditions,
             )
+            await asyncio.sleep(0)
         except BaseException as e:
             self.exception = e
 
@@ -493,8 +490,8 @@ class StorageAdapterSaveTask:
 #       Potentially through a combination of hooks and barriers, these could
 #       be made more reliable still but it would potentially leak implementation
 #       details.
-class ConcurrencyCases(Base, ABC):
-    async def test_simultaneous_checked_writes_to_empty_stream_write_once(
+class ThreadingConcurrencyCases(Base, ABC):
+    async def test_simultaneous_checked_writes_to_empty_stream_from_different_threads_write_once(
         self,
     ):
         test_concurrency = self.concurrency_parameters.concurrent_writes
@@ -502,7 +499,7 @@ class ConcurrencyCases(Base, ABC):
 
         test_results = []
 
-        for test_repeat in range(test_repeats):
+        for _ in range(test_repeats):
             await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
@@ -521,12 +518,12 @@ class ConcurrencyCases(Base, ABC):
                     events=[
                         (
                             NewEventBuilder()
-                            .with_name(f"event-1-for-thread-${thread_id}")
+                            .with_name(f"event-1-for-thread-{thread_id}")
                             .build()
                         ),
                         (
                             NewEventBuilder()
-                            .with_name(f"event-2-for-thread-${thread_id}")
+                            .with_name(f"event-2-for-thread-{thread_id}")
                             .build()
                         ),
                     ],
@@ -535,9 +532,8 @@ class ConcurrencyCases(Base, ABC):
                 for thread_id in range(test_concurrency)
             ]
 
-            await asyncio.gather(
-                *[task.execute() for task in tasks], return_exceptions=True
-            )
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.map(lambda task: asyncio.run(task.execute()), tasks)
 
             failed_saves = [
                 task.exception for task in tasks if task.exception is not None
@@ -585,7 +581,7 @@ class ConcurrencyCases(Base, ABC):
             f"{failing_tests}"
         )
 
-    async def test_simultaneous_checked_writes_to_existing_stream_write_once(
+    async def test_simultaneous_checked_writes_to_existing_stream_from_different_threads_write_once(
         self,
     ):
         test_concurrency = self.concurrency_parameters.concurrent_writes
@@ -593,7 +589,7 @@ class ConcurrencyCases(Base, ABC):
 
         test_results = []
 
-        for test_repeat in range(test_repeats):
+        for _ in range(test_repeats):
             await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
@@ -630,12 +626,12 @@ class ConcurrencyCases(Base, ABC):
                     events=[
                         (
                             NewEventBuilder()
-                            .with_name(f"event-1-for-thread-${thread_id}")
+                            .with_name(f"event-1-for-thread-{thread_id}")
                             .build()
                         ),
                         (
                             NewEventBuilder()
-                            .with_name(f"event-2-for-thread-${thread_id}")
+                            .with_name(f"event-2-for-thread-{thread_id}")
                             .build()
                         ),
                     ],
@@ -644,9 +640,8 @@ class ConcurrencyCases(Base, ABC):
                 for thread_id in range(test_concurrency)
             ]
 
-            await asyncio.gather(
-                *[task.execute() for task in tasks], return_exceptions=True
-            )
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.map(lambda task: asyncio.run(task.execute()), tasks)
 
             failed_saves = [
                 task.exception for task in tasks if task.exception is not None
@@ -696,13 +691,15 @@ class ConcurrencyCases(Base, ABC):
             f"{failing_tests}"
         )
 
-    async def test_simultaneous_unchecked_writes_are_serialised(self):
+    async def test_simultaneous_unchecked_writes_from_different_threads_are_serialised(
+        self,
+    ):
         test_concurrency = self.concurrency_parameters.concurrent_writes
         test_repeats = self.concurrency_parameters.repeats
 
         test_results = []
 
-        for test_repeat in range(test_repeats):
+        for _ in range(test_repeats):
             await self.clear_storage()
 
             adapter = self.construct_storage_adapter()
@@ -736,9 +733,8 @@ class ConcurrencyCases(Base, ABC):
                 for events in event_writes
             ]
 
-            await asyncio.gather(
-                *[task.execute() for task in tasks], return_exceptions=True
-            )
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.map(lambda task: asyncio.run(task.execute()), tasks)
 
             actual_events = await self.retrieve_events(
                 adapter=adapter,
@@ -786,6 +782,211 @@ class ConcurrencyCases(Base, ABC):
         assert len(failed_tests) == 0, (
             f"{len(failed_tests)} out of {test_repeats} failed: {failed_tests}"
         )
+
+
+class AsyncioConcurrencyCases(Base, ABC):
+    async def test_simultaneous_checked_writes_to_empty_stream_from_different_async_tasks_write_once(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        simultaneous_write_count = 2
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        target = identifier.StreamIdentifier(
+            category=event_category, stream=event_stream
+        )
+
+        tasks = [
+            StorageAdapterSaveTask(
+                adapter=adapter,
+                target=target,
+                events=[
+                    (
+                        NewEventBuilder()
+                        .with_name(f"event-1-for-task-${task_id}")
+                        .build()
+                    ),
+                    (
+                        NewEventBuilder()
+                        .with_name(f"event-2-for-task-${task_id}")
+                        .build()
+                    ),
+                ],
+                conditions={writeconditions.stream_is_empty()},
+            )
+            for task_id in range(simultaneous_write_count)
+        ]
+
+        await asyncio.gather(
+            *[task.execute() for task in tasks], return_exceptions=True
+        )
+
+        failed_saves = [
+            task.exception for task in tasks if task.exception is not None
+        ]
+        successful_saves = [
+            task.result for task in tasks if task.result is not None
+        ]
+
+        is_single_successful_save = len(successful_saves) == 1
+        is_all_others_failed_saves = (
+            len(failed_saves) == simultaneous_write_count - 1
+        )
+        is_correct_save_counts = (
+            is_single_successful_save and is_all_others_failed_saves
+        )
+
+        assert is_correct_save_counts
+
+        actual_records = await self.retrieve_events(
+            adapter=adapter, category=event_category, stream=event_stream
+        )
+        expected_records = successful_saves[0]
+
+        assert actual_records == expected_records
+
+    async def test_simultaneous_checked_writes_to_existing_stream_from_different_async_tasks_write_once(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        simultaneous_write_count = 2
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        preexisting_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                (NewEventBuilder().with_name("event-1-preexisting").build()),
+                (NewEventBuilder().with_name("event-2-preexisting").build()),
+            ],
+        )
+
+        target = identifier.StreamIdentifier(
+            category=event_category, stream=event_stream
+        )
+
+        tasks = [
+            StorageAdapterSaveTask(
+                adapter=adapter,
+                target=target,
+                events=[
+                    (
+                        NewEventBuilder()
+                        .with_name(f"event-1-for-task-${task_id}")
+                        .build()
+                    ),
+                    (
+                        NewEventBuilder()
+                        .with_name(f"event-2-for-task-${task_id}")
+                        .build()
+                    ),
+                ],
+                conditions={writeconditions.position_is(1)},
+            )
+            for task_id in range(simultaneous_write_count)
+        ]
+
+        await asyncio.gather(
+            *[task.execute() for task in tasks], return_exceptions=True
+        )
+
+        failed_saves = [
+            task.exception for task in tasks if task.exception is not None
+        ]
+        successful_saves = [
+            task.result for task in tasks if task.result is not None
+        ]
+
+        is_single_successful_save = len(successful_saves) == 1
+        is_all_others_failed_saves = (
+            len(failed_saves) == simultaneous_write_count - 1
+        )
+        is_correct_save_counts = (
+            is_single_successful_save and is_all_others_failed_saves
+        )
+
+        assert is_correct_save_counts
+
+        actual_records = await self.retrieve_events(
+            adapter=adapter, category=event_category, stream=event_stream
+        )
+        expected_records = list(preexisting_events) + list(successful_saves[0])
+
+        assert actual_records == expected_records
+
+    async def test_simultaneous_unchecked_writes_from_different_async_tasks_are_serialised(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        simultaneous_write_count = 2
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        event_writes = [
+            [
+                NewEventBuilder()
+                .with_name(f"event-1-write-{write_id}")
+                .build(),
+                NewEventBuilder()
+                .with_name(f"event-2-write-{write_id}")
+                .build(),
+                NewEventBuilder()
+                .with_name(f"event-3-write-{write_id}")
+                .build(),
+            ]
+            for write_id in range(simultaneous_write_count)
+        ]
+
+        target = identifier.StreamIdentifier(
+            category=event_category, stream=event_stream
+        )
+
+        tasks = [
+            StorageAdapterSaveTask(
+                adapter=adapter, target=target, events=events
+            )
+            for events in event_writes
+        ]
+
+        await asyncio.gather(
+            *[task.execute() for task in tasks], return_exceptions=True
+        )
+
+        actual_events = await self.retrieve_events(
+            adapter=adapter,
+            category=event_category,
+            stream=event_stream,
+        )
+        actual_names = [event.name for event in actual_events]
+        actual_name_groups = set(batched(actual_names, 3))
+        expected_name_groups = {
+            tuple(event.name for event in event_write)
+            for event_write in event_writes
+        }
+
+        actual_positions = [event.position for event in actual_events]
+        expected_positions = list(range(simultaneous_write_count * 3))
+
+        is_correct_event_count = (
+            len(actual_events) == simultaneous_write_count * 3
+        )
+        is_correct_event_sequencing = (
+            actual_name_groups == expected_name_groups
+        )
+        is_correct_event_positioning = actual_positions == expected_positions
+
+        assert is_correct_event_count
+        assert is_correct_event_sequencing
+        assert is_correct_event_positioning
 
 
 class ScanCases(Base, ABC):
@@ -1744,7 +1945,8 @@ class LatestCases(Base, ABC):
 class EventStorageAdapterCases(
     SaveCases,
     WriteConditionCases,
-    ConcurrencyCases,
+    ThreadingConcurrencyCases,
+    AsyncioConcurrencyCases,
     ScanCases,
     LatestCases,
     ABC,

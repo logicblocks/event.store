@@ -19,7 +19,7 @@ def make_subscriber(
     *,
     subscriber_group: str,
     subscriber_id: str = uuid4().hex,
-    subscriber_sequence: EventSourceIdentifier,
+    subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
@@ -29,7 +29,9 @@ def make_subscriber(
         persistence_interval=subscriber_state_persistence_interval,
     )
 
-    def delegate_factory(source: EventSource) -> EventSourceConsumer:
+    def delegate_factory[S: EventSource[EventSourceIdentifier]](
+        source: S,
+    ) -> EventSourceConsumer[S]:
         return EventSourceConsumer(
             source=source, processor=event_processor, state_store=state_store
         )
@@ -37,7 +39,7 @@ def make_subscriber(
     return EventSubscriptionConsumer(
         group=subscriber_group,
         id=subscriber_id,
-        sequences=[subscriber_sequence],
+        subscription_requests=[subscription_request],
         delegate_factory=delegate_factory,
     )
 
@@ -47,13 +49,15 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self,
         group: str,
         id: str,
-        sequences: Sequence[EventSourceIdentifier],
-        delegate_factory: Callable[[EventSource], EventConsumer],
+        subscription_requests: Sequence[EventSourceIdentifier],
+        delegate_factory: Callable[
+            [EventSource[EventSourceIdentifier]], EventConsumer
+        ],
         logger: FilteringBoundLogger = default_logger,
     ):
         self._group = group
         self._id = id
-        self._sequences = sequences
+        self._subscription_requests = subscription_requests
         self._delegate_factory = delegate_factory
         self._logger = logger.bind(subscriber={"group": group, "id": id})
         self._delegates: MutableMapping[
@@ -72,17 +76,19 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         return EventSubscriberHealth.HEALTHY
 
     @property
-    def identifiers(self) -> Sequence[EventSourceIdentifier]:
-        return self._sequences
+    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
+        return self._subscription_requests
 
-    async def accept(self, source: EventSource) -> None:
+    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.accepting-source",
             source=source.identifier.dict(),
         )
         self._delegates[source.identifier] = self._delegate_factory(source)
 
-    async def withdraw(self, source: EventSource) -> None:
+    async def withdraw(
+        self, source: EventSource[EventSourceIdentifier]
+    ) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.withdrawing-source",
             source=source.identifier.dict(),

@@ -8,13 +8,15 @@ from logicblocks.event.types import EventSourceIdentifier
 
 class EventSourceFactory[ConstructorArg = Any](ABC):
     @abstractmethod
-    def register_constructor[T: EventSourceIdentifier](
+    def register_constructor[I: EventSourceIdentifier](
         self,
-        identifier_type: type[T],
-        constructor: Callable[[T, ConstructorArg], EventSource],
+        identifier_type: type[I],
+        constructor: Callable[[I, ConstructorArg], EventSource[I]],
     ) -> Self:
         raise NotImplementedError()
 
     @abstractmethod
-    def construct(self, identifier: EventSourceIdentifier) -> EventSource:
+    def construct[I: EventSourceIdentifier](
+        self, identifier: I
+    ) -> EventSource[I]:
         raise NotImplementedError()

@@ -26,7 +26,7 @@ class MissingHandlerBehaviour(StrEnum):
     IGNORE = "ignore"
 
 
-class Projector[T](ABC):
+class Projector[T, I: EventSourceIdentifier](ABC):
     name: str | None = None
 
     missing_handler_behaviour: MissingHandlerBehaviour = (
@@ -38,7 +38,7 @@ class Projector[T](ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def id_factory(self, state: T, coordinates: EventSourceIdentifier) -> str:
+    def id_factory(self, state: T, coordinates: I) -> str:
         raise NotImplementedError()
 
     def apply(self, *, event: StoredEvent, state: T | None = None) -> T:
@@ -48,7 +48,7 @@ class Projector[T](ABC):
         return handler(state, event)
 
     async def project(
-        self, *, source: EventSource, state: T | None = None
+        self, *, source: EventSource[I], state: T | None = None
     ) -> Projection[T]:
         state = self._resolve_state(state)
         version = 0

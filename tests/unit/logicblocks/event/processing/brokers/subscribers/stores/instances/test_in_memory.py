@@ -30,7 +30,7 @@ class DummyEventSubscriber(EventSubscriber):
         return self._id
 
     @property
-    def identifiers(self) -> Sequence[EventSourceIdentifier]:
+    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
         return []
 
     def health(self) -> EventSubscriberHealth:

@@ -34,7 +34,6 @@ from logicblocks.event.store import (
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import (
     CategoryIdentifier,
-    EventSourceIdentifier,
     StoredEvent,
     StreamIdentifier,
 )
@@ -167,20 +166,14 @@ class TestAsynchronousProjections:
         class Thing:
             value: int = 5
 
-        class ThingProjector(Projector[Thing]):
+        class ThingProjector(Projector[Thing, StreamIdentifier]):
             name = projection_name
 
             def initial_state_factory(self) -> Thing:
                 return Thing()
 
-            def id_factory(
-                self, state: Thing, coordinates: EventSourceIdentifier
-            ):
-                match coordinates:
-                    case StreamIdentifier(stream=stream):
-                        return stream
-                    case _:
-                        raise ValueError("Unexpected coordinates.")
+            def id_factory(self, state: Thing, coordinates: StreamIdentifier):
+                return coordinates.stream
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
@@ -203,7 +196,7 @@ class TestAsynchronousProjections:
 
         subscriber = make_subscriber(
             subscriber_group=subscriber_group,
-            subscriber_sequence=CategoryIdentifier(category=category_name),
+            subscription_request=CategoryIdentifier(category=category_name),
             subscriber_state_category=subscriber_state_category,
             subscriber_state_persistence_interval=EventCount(1),
             event_processor=event_processor,

@@ -21,10 +21,10 @@ from logicblocks.event.types import (
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
 
-class EventSource(ABC):
+class EventSource[I: EventSourceIdentifier](ABC):
     @property
     @abstractmethod
-    def identifier(self) -> EventSourceIdentifier:
+    def identifier(self) -> I:
         raise NotImplementedError()
 
     @abstractmethod
@@ -48,7 +48,7 @@ class EventSource(ABC):
         return self.iterate()
 
 
-class EventStream(EventSource):
+class EventStream(EventSource[StreamIdentifier]):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
@@ -150,7 +150,7 @@ class EventStream(EventSource):
         )
 
 
-class EventCategory(EventSource):
+class EventCategory(EventSource[CategoryIdentifier]):
     """A class for interacting with a specific category of events.
 
     Since a category consists of zero or more streams, the category
@@ -244,7 +244,7 @@ class StoredEventsIterator(AsyncIterator[StoredEvent]):
             yield event
 
 
-class StoredEvents(EventSource):
+class StoredEvents(EventSource[StreamIdentifier]):
     """A class for interacting with a specific list of StoredEvent.
 
     Events can be published into the stream using the `publish` method, and

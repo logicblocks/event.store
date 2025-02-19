@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Self
+from typing import Any, MutableMapping, Self
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import (
@@ -30,13 +30,18 @@ def construct_event_stream(
     return EventStream(adapter, identifier)
 
 
+type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
+    [I, EventStorageAdapter], EventSource[I]
+]
+
+
 class EventStoreEventSourceFactory(
     EventSourceFactory[EventStorageAdapter], ABC
 ):
     def __init__(self):
-        self._constructors: dict[
+        self._constructors: MutableMapping[
             type[EventSourceIdentifier],
-            Callable[[Any, EventStorageAdapter], EventSource],
+            EventSourceConstructor[Any],
         ] = {}
 
         (
@@ -50,15 +55,17 @@ class EventStoreEventSourceFactory(
     def storage_adapter(self) -> EventStorageAdapter:
         raise NotImplementedError()
 
-    def register_constructor[T: EventSourceIdentifier](
+    def register_constructor[I: EventSourceIdentifier](
         self,
-        identifier_type: type[T],
-        constructor: Callable[[T, EventStorageAdapter], EventSource],
+        identifier_type: type[I],
+        constructor: EventSourceConstructor[I],
     ) -> Self:
         self._constructors[identifier_type] = constructor
         return self
 
-    def construct(self, identifier: EventSourceIdentifier) -> EventSource:
+    def construct[I: EventSourceIdentifier](
+        self, identifier: I
+    ) -> EventSource[I]:
         return self._constructors[type(identifier)](
             identifier, self.storage_adapter
         )

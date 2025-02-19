@@ -1,4 +1,5 @@
-from ....store import InMemoryEventStorageAdapter
+from logicblocks.event.store import InMemoryEventStorageAdapter
+
 from ..locks import InMemoryLockManager
 from ..nodes import InMemoryNodeStateStore
 from ..sources import (

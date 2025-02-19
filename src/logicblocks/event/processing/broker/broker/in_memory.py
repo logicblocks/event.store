@@ -1,6 +1,4 @@
-from typing import overload
-
-from ....store import EventStore, InMemoryEventStorageAdapter
+from ....store import InMemoryEventStorageAdapter
 from ..locks import InMemoryLockManager
 from ..nodes import InMemoryNodeStateStore
 from ..sources import (
@@ -39,36 +37,9 @@ class InMemoryEventBrokerBuilder(
         )
 
 
-@overload
 def make_in_memory_event_broker(
     node_id: str,
     settings: EventBrokerSettings,
-    *,
-    store: EventStore[InMemoryEventStorageAdapter],
-) -> EventBroker:
-    pass
-
-
-@overload
-def make_in_memory_event_broker(
-    node_id: str,
-    settings: EventBrokerSettings,
-    *,
     adapter: InMemoryEventStorageAdapter,
 ) -> EventBroker:
-    pass
-
-
-def make_in_memory_event_broker(
-    node_id: str,
-    settings: EventBrokerSettings,
-    *,
-    store: EventStore[InMemoryEventStorageAdapter] | None = None,
-    adapter: InMemoryEventStorageAdapter | None = None,
-) -> EventBroker:
-    if adapter is None:
-        if store is None:
-            raise ValueError("Either store or adapter must be provided")
-        adapter = store.adapter
-
     return InMemoryEventBrokerBuilder(node_id).prepare(adapter).build(settings)

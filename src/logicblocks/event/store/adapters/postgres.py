@@ -428,18 +428,18 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                 keep_querying = True
 
                 while keep_querying:
-                    sequence_number_constraint = (
-                        SequenceNumberAfterConstraint(
+                    if last_sequence_number is not None:
+                        constraint = SequenceNumberAfterConstraint(
                             sequence_number=last_sequence_number
                         )
-                        if last_sequence_number is not None
-                        else None
-                    )
-                    constraints = (
-                        {*constraints, sequence_number_constraint}
-                        if sequence_number_constraint
-                        else constraints
-                    )
+                        constraints = {
+                            constraint
+                            for constraint in constraints
+                            if not isinstance(
+                                constraint, SequenceNumberAfterConstraint
+                            )
+                        }
+                        constraints.add(constraint)
 
                     parameters = ScanQueryParameters(
                         target=target,

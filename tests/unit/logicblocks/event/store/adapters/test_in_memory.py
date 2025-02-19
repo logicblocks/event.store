@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pytest
 
 from logicblocks.event.store.adapters import (
+    EventOrderingGuarantee,
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
 )
@@ -19,8 +20,14 @@ class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
     def concurrency_parameters(self):
         return ConcurrencyParameters(concurrent_writes=2, repeats=1)
 
-    def construct_storage_adapter(self) -> EventStorageAdapter:
-        return InMemoryEventStorageAdapter()
+    def construct_storage_adapter(
+        self,
+        *,
+        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+    ) -> EventStorageAdapter:
+        return InMemoryEventStorageAdapter(
+            ordering_guarantee=ordering_guarantee
+        )
 
     async def clear_storage(self) -> None:
         pass

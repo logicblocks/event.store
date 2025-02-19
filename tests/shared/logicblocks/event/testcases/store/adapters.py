@@ -3,14 +3,20 @@ import concurrent.futures
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from itertools import batched
+from random import randint
+from typing import cast
 
 import pytest
+from pytest_unordered import unordered
 
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store import constraints
-from logicblocks.event.store.adapters import EventStorageAdapter
+from logicblocks.event.store.adapters import (
+    EventOrderingGuarantee,
+    EventStorageAdapter,
+)
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.testing import NewEventBuilder
+from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.data import (
     random_event_category_name,
     random_event_stream_name,
@@ -26,7 +32,11 @@ class ConcurrencyParameters:
 
 class Base(ABC):
     @abstractmethod
-    def construct_storage_adapter(self) -> EventStorageAdapter:
+    def construct_storage_adapter(
+        self,
+        *,
+        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+    ) -> EventStorageAdapter:
         raise NotImplementedError()
 
     @abstractmethod
@@ -987,6 +997,100 @@ class AsyncioConcurrencyCases(Base, ABC):
         assert is_correct_event_count
         assert is_correct_event_sequencing
         assert is_correct_event_positioning
+
+    async def test_simultaneous_reads_and_writes_are_totally_ordered_when_log_level_ordering_guarantee(
+        self,
+    ):
+        adapter = self.construct_storage_adapter(
+            ordering_guarantee=EventOrderingGuarantee.LOG
+        )
+
+        simultaneous_writer_count = 2
+        publish_count = 10
+
+        async def category_writer(
+            category: str, publish_count: int
+        ) -> Sequence[StoredEvent]:
+            return [
+                stored_event
+                for id in range(0, publish_count)
+                for stored_event in await adapter.save(
+                    target=identifier.StreamIdentifier(
+                        category=category, stream=random_event_stream_name()
+                    ),
+                    events=[
+                        NewEventBuilder().with_name(f"event-{id}-{n}").build()
+                        for n in range(0, randint(1, 10))
+                    ],
+                )
+            ]
+
+        async def log_reader(event: asyncio.Event) -> Sequence[StoredEvent]:
+            events: list[StoredEvent] = []
+            last_sequence_number = -1
+            while not event.is_set():
+                new_events = [
+                    event
+                    async for event in adapter.scan(
+                        target=identifier.LogIdentifier(),
+                        constraints={
+                            constraints.sequence_number_after(
+                                last_sequence_number
+                            )
+                        },
+                    )
+                ]
+
+                if len(new_events) > 0:
+                    last_sequence_number = new_events[-1].sequence_number
+
+                events.extend(new_events)
+
+            return events
+
+        event = asyncio.Event()
+        reader = log_reader(event)
+
+        categories = [
+            data.random_event_category_name()
+            for _ in range(simultaneous_writer_count)
+        ]
+        writers = [
+            category_writer(category, publish_count) for category in categories
+        ]
+
+        writer_tasks = [asyncio.create_task(writer) for writer in writers]
+        reader_task = asyncio.create_task(reader)
+
+        write_results = await asyncio.gather(
+            *writer_tasks, return_exceptions=True
+        )
+
+        event.set()
+
+        read_results = await asyncio.gather(
+            reader_task, return_exceptions=True
+        )
+        read_result = read_results[0]
+
+        assert not any(
+            isinstance(write_result, BaseException)
+            for write_result in write_results
+        )
+        assert not isinstance(read_result, BaseException)
+
+        written_sequence_numbers = [
+            stored_event.sequence_number
+            for write_result in write_results
+            for stored_event in cast(Sequence[StoredEvent], write_result)
+        ]
+
+        read_sequence_numbers = [
+            stored_event.sequence_number for stored_event in read_result
+        ]
+
+        assert read_sequence_numbers == unordered(written_sequence_numbers)
+        assert read_sequence_numbers == sorted(read_sequence_numbers)
 
 
 class ScanCases(Base, ABC):

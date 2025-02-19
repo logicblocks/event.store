@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
+from enum import StrEnum
 
 from logicblocks.event.store.conditions import WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
@@ -16,6 +17,10 @@ from logicblocks.event.types import (
 type Saveable = StreamIdentifier
 type Scannable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 type Latestable = LogIdentifier | CategoryIdentifier | StreamIdentifier
+
+
+class EventOrderingGuarantee(StrEnum):
+    LOG = "log"
 
 
 class EventStorageAdapter(ABC):

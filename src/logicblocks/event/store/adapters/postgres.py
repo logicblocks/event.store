@@ -15,6 +15,7 @@ from logicblocks.event.db.postgres import (
 )
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.adapters.base import (
+    EventOrderingGuarantee,
     Latestable,
     Saveable,
     Scannable,
@@ -339,6 +340,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         connection_source: ConnectionSource,
+        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(),
     ):
@@ -351,6 +353,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             self._connection_pool_owner = False
             self.connection_pool = connection_source
 
+        self.ordering_guarantee = ordering_guarantee
         self.query_settings: QuerySettings = query_settings
         self.table_settings: TableSettings = table_settings
 

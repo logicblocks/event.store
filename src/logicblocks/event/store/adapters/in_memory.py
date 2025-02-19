@@ -6,6 +6,7 @@ from uuid import uuid4
 from aiologic import Lock
 
 from logicblocks.event.store.adapters.base import (
+    EventOrderingGuarantee,
     EventStorageAdapter,
     Latestable,
     Saveable,
@@ -36,12 +37,17 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     _stream_index: EventIndexDict[StreamKey]
     _category_index: EventIndexDict[CategoryKey]
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+    ):
         self._lock = Lock()
         self._events = []
         self._log_index = []
         self._stream_index = defaultdict(lambda: [])
         self._category_index = defaultdict(lambda: [])
+        self._ordering_guarantee = ordering_guarantee
 
     async def save(
         self,
@@ -102,9 +108,12 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             return new_stored_events
 
     async def latest(self, *, target: Latestable) -> StoredEvent | None:
-        index = self._select_index(target)
+        async with self._lock:
+            await asyncio.sleep(0)
 
-        return self._events[index[-1]] if index else None
+            index = self._select_index(target)
+
+            return self._events[index[-1]] if index else None
 
     async def scan(
         self,
@@ -112,14 +121,19 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent]:
-        index = self._select_index(target)
-        for sequence_number in index:
-            event = self._events[sequence_number]
-            if not all(
-                constraint.met_by(event=event) for constraint in constraints
-            ):
-                continue
-            yield self._events[sequence_number]
+        async with self._lock:
+            await asyncio.sleep(0)
+
+            index = self._select_index(target)
+
+            for sequence_number in index:
+                event = self._events[sequence_number]
+                if not all(
+                    constraint.met_by(event=event)
+                    for constraint in constraints
+                ):
+                    continue
+                yield self._events[sequence_number]
 
     def _select_index(self, target: Scannable) -> EventPositionList:
         match target:

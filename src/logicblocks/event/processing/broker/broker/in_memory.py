@@ -1,4 +1,5 @@
-from ....store import InMemoryEventStorageAdapter
+from logicblocks.event.store import InMemoryEventStorageAdapter
+
 from ..locks import InMemoryLockManager
 from ..nodes import InMemoryNodeStateStore
 from ..sources import (
@@ -16,8 +17,12 @@ from .broker_builder import (
 )
 
 
-class InMemoryEventBrokerBuilder(EventBrokerBuilder):
-    def dependencies(self) -> EventBrokerDependencies:
+class InMemoryEventBrokerBuilder(
+    EventBrokerBuilder[(InMemoryEventStorageAdapter,)]
+):
+    def dependencies(
+        self, adapter: InMemoryEventStorageAdapter
+    ) -> EventBrokerDependencies:
         return EventBrokerDependencies(
             node_state_store=InMemoryNodeStateStore(),
             event_subscriber_state_store=InMemoryEventSubscriberStateStore(
@@ -28,7 +33,7 @@ class InMemoryEventBrokerBuilder(EventBrokerBuilder):
             ),
             lock_manager=InMemoryLockManager(),
             event_source_factory=InMemoryEventStoreEventSourceFactory(
-                adapter=InMemoryEventStorageAdapter()
+                adapter=adapter
             ),
         )
 
@@ -36,5 +41,6 @@ class InMemoryEventBrokerBuilder(EventBrokerBuilder):
 def make_in_memory_event_broker(
     node_id: str,
     settings: EventBrokerSettings,
+    adapter: InMemoryEventStorageAdapter,
 ) -> EventBroker:
-    return InMemoryEventBrokerBuilder(node_id).prepare().build(settings)
+    return InMemoryEventBrokerBuilder(node_id).prepare(adapter).build(settings)

@@ -10,9 +10,9 @@ from logicblocks.event.projection import (
     MissingProjectionHandlerError,
     Projector,
 )
+from logicblocks.event.sources import InMemoryEventSource
 from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
-from logicblocks.event.store.store import StoredEvents
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import (
@@ -328,9 +328,9 @@ class TestProjectorProjection:
             ),
         ]
 
-        source = StoredEvents(
+        source = InMemoryEventSource[StreamIdentifier](
             events=events,
-            stream=StreamIdentifier(
+            identifier=StreamIdentifier(
                 category=category_name, stream=stream_name
             ),
         )

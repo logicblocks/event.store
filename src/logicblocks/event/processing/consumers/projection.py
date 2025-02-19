@@ -2,9 +2,9 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from logicblocks.event.projection import ProjectionStore, Projector
+from logicblocks.event.sources import InMemoryEventSource
 from logicblocks.event.types import StoredEvent, StreamIdentifier
 
-from ...store.store import StoredEvents
 from .types import EventProcessor
 
 
@@ -30,9 +30,12 @@ class ProjectionEventProcessor[T](EventProcessor):
             name=self._projector.resolve_name(),
             converter=self._from_dict_converter,
         )
+        source = InMemoryEventSource[StreamIdentifier](
+            events=[event], identifier=identifier
+        )
         projection = await self._projector.project(
             state=current_state.state if current_state else None,
-            source=StoredEvents(events=[event], stream=identifier),
+            source=source,
         )
         await self._projection_store.save(
             projection=projection, converter=self._to_dict_converter

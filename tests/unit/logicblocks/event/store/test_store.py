@@ -20,20 +20,20 @@ from logicblocks.event.types import (
 
 
 class TestStoreOperations:
-    def test_exposes_adaptor(self):
+    def test_exposes_adapter(self):
         adapter = InMemoryEventStorageAdapter()
         store = EventStore(adapter=adapter)
 
         assert store.adapter == adapter
 
-    def test_adaptor_is_read_only(self):
+    def test_adapter_is_read_only(self):
         adapter = InMemoryEventStorageAdapter()
         store = EventStore(adapter=adapter)
 
         with pytest.raises(AttributeError):
             store.adapter = None  # type: ignore
 
-    def test_store_is_generic_over_adaptor(self):
+    def test_store_is_generic_over_adapter(self):
         adapter = InMemoryEventStorageAdapter()
         store = EventStore(adapter=adapter)
 

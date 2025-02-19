@@ -9,19 +9,19 @@ from logicblocks.event.store import EventStore, InMemoryEventStorageAdapter
 
 
 class TestMakeInMemoryBroker:
-    def test_make_in_memory_broker_uses_provided_adaptor(self):
-        adaptor = InMemoryEventStorageAdapter()
+    def test_make_in_memory_broker_uses_provided_adapter(self):
+        adapter = InMemoryEventStorageAdapter()
         broker = make_in_memory_event_broker(
             node_id="test.node",
             settings=EventBrokerSettings(),
-            adaptor=adaptor,
+            adapter=adapter,
         )
 
         assert_type(broker, EventBroker)
 
-    def test_make_in_memory_broker_uses_adaptor_from_store(self):
-        adaptor = InMemoryEventStorageAdapter()
-        store = EventStore(adapter=adaptor)
+    def test_make_in_memory_broker_uses_adapter_from_store(self):
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
 
         broker = make_in_memory_event_broker(
             node_id="test.node",

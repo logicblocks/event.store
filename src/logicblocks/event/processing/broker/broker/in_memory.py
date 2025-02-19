@@ -22,7 +22,7 @@ class InMemoryEventBrokerBuilder(
     EventBrokerBuilder[(InMemoryEventStorageAdapter,)]
 ):
     def dependencies(
-        self, adaptor: InMemoryEventStorageAdapter
+        self, adapter: InMemoryEventStorageAdapter
     ) -> EventBrokerDependencies:
         return EventBrokerDependencies(
             node_state_store=InMemoryNodeStateStore(),
@@ -34,7 +34,7 @@ class InMemoryEventBrokerBuilder(
             ),
             lock_manager=InMemoryLockManager(),
             event_source_factory=InMemoryEventStoreEventSourceFactory(
-                adapter=adaptor
+                adapter=adapter
             ),
         )
 
@@ -54,7 +54,7 @@ def make_in_memory_event_broker(
     node_id: str,
     settings: EventBrokerSettings,
     *,
-    adaptor: InMemoryEventStorageAdapter,
+    adapter: InMemoryEventStorageAdapter,
 ) -> EventBroker:
     pass
 
@@ -64,11 +64,11 @@ def make_in_memory_event_broker(
     settings: EventBrokerSettings,
     *,
     store: EventStore[InMemoryEventStorageAdapter] | None = None,
-    adaptor: InMemoryEventStorageAdapter | None = None,
+    adapter: InMemoryEventStorageAdapter | None = None,
 ) -> EventBroker:
-    if adaptor is None:
+    if adapter is None:
         if store is None:
-            raise ValueError("Either store or adaptor must be provided")
-        adaptor = store.adapter
+            raise ValueError("Either store or adapter must be provided")
+        adapter = store.adapter
 
-    return InMemoryEventBrokerBuilder(node_id).prepare(adaptor).build(settings)
+    return InMemoryEventBrokerBuilder(node_id).prepare(adapter).build(settings)

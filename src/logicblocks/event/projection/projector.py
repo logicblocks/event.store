@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import StrEnum
+import inspect
+from inspect import Parameter
 
 from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
@@ -71,6 +73,10 @@ class Projector[T, I: EventSourceIdentifier](ABC):
 
         return state
 
+    @staticmethod
+    def _default_handler(state: T, _: StoredEvent) -> T:
+        return state
+
     def _resolve_handler(
         self, event: StoredEvent
     ) -> Callable[[T, StoredEvent], T]:
@@ -81,7 +87,7 @@ class Projector[T, I: EventSourceIdentifier](ABC):
             if self.missing_handler_behaviour == MissingHandlerBehaviour.RAISE:
                 raise MissingProjectionHandlerError(event, self.__class__)
             else:
-                return lambda state, _: state
+                return self._default_handler
 
         return handler
 
@@ -91,3 +97,28 @@ class Projector[T, I: EventSourceIdentifier](ABC):
     def _default_name(self) -> str:
         projector_name = self.__class__.__name__.replace("Projector", "")
         return to_kebab_case(projector_name)
+
+class XProjector[T, I: EventSourceIdentifier](Projector[T | None, I], ABC):
+    def initial_state_factory(self) -> T | None:
+        return None
+
+    def _resolve_handler(
+            self, event: StoredEvent
+    ) -> Callable[[T | None, StoredEvent], T | None]:
+        handler = super()._resolve_handler(event)
+        handler_sig = inspect.signature(handler)
+        state_param = handler_sig.parameters.get("state")
+        state_annotation = state_param.annotation if state_param else Parameter.empty
+
+        def _wrapped_handler(state: T | None, event: StoredEvent) -> T | None:
+            match state_annotation, state:
+                case None, None:
+                    return handler(state, event)
+                case None, _:
+                    raise ValueError(f"Initial handler {handler.__name__} should not be passed a state")
+                case _, None:
+                    raise ValueError(f"Handler {handler.__name__} was passed None")
+                case _, _:
+                    return handler(state, event)
+
+        return _wrapped_handler

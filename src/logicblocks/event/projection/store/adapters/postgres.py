@@ -114,6 +114,9 @@ def filter_clause_applicator(
             else Value(
                 filter.value,
                 wrapper="to_jsonb" if filter.path.is_nested() else None,
+                cast_to_type="TEXT"
+                if filter.path.is_nested() and type(filter.value) is str
+                else None,
             )
         )
     )

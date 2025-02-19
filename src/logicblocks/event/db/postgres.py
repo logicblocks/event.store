@@ -137,9 +137,18 @@ class SortColumn:
 class Value:
     value: Any
     wrapper: LiteralString | None = None
+    cast_to_type: LiteralString | None = None
 
     def build_fragment(self) -> ParameterisedQueryFragment:
         operand_sql = sql.SQL("%s")
+        if self.cast_to_type is not None:
+            operand_sql = (
+                sql.SQL("CAST(")
+                + operand_sql
+                + sql.SQL(" AS {type})").format(
+                    type=sql.SQL(self.cast_to_type)
+                )
+            )
         if self.wrapper is not None:
             operand_sql = (
                 sql.SQL("{wrapper}(").format(wrapper=sql.SQL(self.wrapper))

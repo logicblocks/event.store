@@ -299,6 +299,44 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_2
 
+    async def test_finds_one_projection_by_nested_string_filter(self):
+        projection_name = data.random_event_stream_name()
+
+        adapter = self.construct_storage_adapter()
+
+        filter_value = data.random_lowercase_ascii_alphabetics_string(10)
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=10, value_2=filter_value))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+
+        located = await adapter.find_one(
+            lookup=Lookup(
+                filters=[
+                    FilterClause(
+                        Operator.EQUAL, Path("name"), projection_name
+                    ),
+                    FilterClause(
+                        Operator.EQUAL, Path("state", "value_2"), filter_value
+                    ),
+                ]
+            ),
+            converter=Thing.from_dict,
+        )
+
+        assert located == projection_2
+
     async def test_finds_none_when_no_projection_matches_lookup(self):
         adapter = self.construct_storage_adapter()
 

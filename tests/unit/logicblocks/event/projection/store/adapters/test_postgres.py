@@ -117,6 +117,29 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_single_string_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_clause_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.EQUAL,
+                    path=Path("state", "value"),
+                    value="test",
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            "WHERE \"state\"#>'{value}' = to_jsonb(CAST(%s AS TEXT))",
+            ["test"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
     def test_converts_multiple_filter_query_on_nested_attributes(
         self, query_type
     ):

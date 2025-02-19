@@ -59,13 +59,13 @@ class TestEventSubscriptionConsumer:
         subscription_consumer = EventSubscriptionConsumer(
             group=subscriber_group,
             id=subscriber_id,
-            identifiers=sequences,
+            subscription_requests=sequences,
             delegate_factory=delegate_factory.factory,
         )
 
         assert subscription_consumer.group == subscriber_group
         assert subscription_consumer.id == subscriber_id
-        assert subscription_consumer.identifiers == sequences
+        assert subscription_consumer.subscription_requests == sequences
 
     async def test_consumes_from_received_source_on_consume_all(self):
         delegate_factory = CapturingEventConsumerFactory()
@@ -77,7 +77,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 
@@ -103,7 +103,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 
@@ -146,7 +146,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
         )
 
@@ -197,7 +197,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=subscriber_group,
             id=subscriber_id,
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
             logger=logger,
         )
@@ -259,7 +259,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=subscriber_group,
             id=subscriber_id,
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
             logger=logger,
         )
@@ -317,7 +317,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=subscriber_group,
             id=subscriber_id,
-            identifiers=[
+            subscription_requests=[
                 CategoryIdentifier(category=data.random_event_category_name())
             ],
             delegate_factory=delegate_factory.factory,
@@ -387,7 +387,7 @@ class TestEventSubscriptionConsumer:
         consumer = EventSubscriptionConsumer(
             group=subscriber_group,
             id=subscriber_id,
-            identifiers=[sequence],
+            subscription_requests=[sequence],
             delegate_factory=delegate_factory.factory,
             logger=logger,
         )

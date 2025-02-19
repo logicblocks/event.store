@@ -39,7 +39,7 @@ class EventSubscriber(ABC):
 
     @property
     @abstractmethod
-    def identifiers(self) -> Sequence[EventSourceIdentifier]:
+    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
         raise NotImplementedError
 
     @abstractmethod

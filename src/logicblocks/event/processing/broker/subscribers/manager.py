@@ -79,13 +79,14 @@ class EventSubscriberManager:
                     "group": subscriber.group,
                     "id": subscriber.id,
                     "sequences": [
-                        sequence.dict() for sequence in subscriber.identifiers
+                        sequence.dict()
+                        for sequence in subscriber.subscription_requests
                     ],
                 },
             )
             await self._subscriber_state_store.add(subscriber.key)
             await self._subscription_source_mapping_store.add(
-                subscriber.group, subscriber.identifiers
+                subscriber.group, subscriber.subscription_requests
             )
 
     async def unregister(self):

@@ -19,7 +19,7 @@ def make_subscriber(
     *,
     subscriber_group: str,
     subscriber_id: str = uuid4().hex,
-    subscriber_identifier: EventSourceIdentifier,
+    subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
@@ -39,7 +39,7 @@ def make_subscriber(
     return EventSubscriptionConsumer(
         group=subscriber_group,
         id=subscriber_id,
-        identifiers=[subscriber_identifier],
+        subscription_requests=[subscription_request],
         delegate_factory=delegate_factory,
     )
 
@@ -49,7 +49,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self,
         group: str,
         id: str,
-        identifiers: Sequence[EventSourceIdentifier],
+        subscription_requests: Sequence[EventSourceIdentifier],
         delegate_factory: Callable[
             [EventSource[EventSourceIdentifier]], EventConsumer
         ],
@@ -57,7 +57,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     ):
         self._group = group
         self._id = id
-        self._identifiers = identifiers
+        self._subscription_requests = subscription_requests
         self._delegate_factory = delegate_factory
         self._logger = logger.bind(subscriber={"group": group, "id": id})
         self._delegates: MutableMapping[
@@ -76,8 +76,8 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         return EventSubscriberHealth.HEALTHY
 
     @property
-    def identifiers(self) -> Sequence[EventSourceIdentifier]:
-        return self._identifiers
+    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
+        return self._subscription_requests
 
     async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
         await self._logger.ainfo(

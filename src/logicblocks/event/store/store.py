@@ -224,11 +224,11 @@ class EventCategory(EventSource[CategoryIdentifier]):
         )
 
 
-class EventStore:
+class EventStore[A: EventStorageAdapter]:
     """The primary interface into the store of events.
 
     An [`EventStore`][logicblocks.event.store.EventStore] is backed by a
-    [`StorageAdapter`][logicblocks.event.store.adapters.StorageAdapter]
+    [`EventStorageAdapter`][logicblocks.event.store.adapters.EventStorageAdapter]
     which implements event storage. Typically, events are stored in an immutable
     append only log, the details of which are storage implementation specific.
 
@@ -246,11 +246,15 @@ class EventStore:
 
     def __init__(
         self,
-        adapter: EventStorageAdapter,
+        adapter: A,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
         self._logger = logger
+
+    @property
+    def adapter(self) -> A:
+        return self._adapter
 
     def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.

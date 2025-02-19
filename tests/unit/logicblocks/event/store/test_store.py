@@ -1,6 +1,7 @@
 import sys
 from contextlib import suppress
 from datetime import datetime
+from typing import assert_type
 
 import pytest
 
@@ -16,6 +17,27 @@ from logicblocks.event.types import (
     StoredEvent,
     StreamIdentifier,
 )
+
+
+class TestStoreOperations:
+    def test_exposes_adaptor(self):
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
+
+        assert store.adapter == adapter
+
+    def test_adaptor_is_read_only(self):
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
+
+        with pytest.raises(AttributeError):
+            store.adapter = None  # type: ignore
+
+    def test_store_is_generic_over_adaptor(self):
+        adapter = InMemoryEventStorageAdapter()
+        store = EventStore(adapter=adapter)
+
+        assert_type(store, EventStore[InMemoryEventStorageAdapter])
 
 
 class TestStreamIdentifier:

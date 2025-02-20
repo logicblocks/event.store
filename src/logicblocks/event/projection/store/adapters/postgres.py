@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, List, Self, TypeGuard
 
 from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg.rows import TupleRow, dict_row
@@ -89,6 +89,7 @@ operator_for_query_operator_map = {
     Operator.LESS_THAN_OR_EQUAL: DBOperator.LESS_THAN_OR_EQUAL,
     Operator.GREATER_THAN: DBOperator.GREATER_THAN,
     Operator.GREATER_THAN_OR_EQUAL: DBOperator.GREATER_THAN_OR_EQUAL,
+    Operator.IN: DBOperator.IN,
 }
 
 
@@ -99,27 +100,42 @@ def operator_for_query_operator(operator: Operator) -> DBOperator:
     return operator_for_query_operator_map[operator]
 
 
+def value_for_path(value: Any, path: Path) -> Value:
+    if path == Path("source"):
+        return Value(
+            Jsonb(value.dict()),
+        )
+    elif path.is_nested():
+        return Value(
+            value,
+            wrapper="to_jsonb",
+            cast_to_type="TEXT" if type(value) is str else None,
+        )
+    else:
+        return Value(value)
+
+
+def is_list(value: Any) -> TypeGuard[List[Any]]:
+    return isinstance(value, list)
+
+
 def filter_clause_applicator(
     filter: FilterClause, query: DBQuery, table_settings: PostgresTableSettings
 ) -> DBQuery:
-    return query.where(
+    condition = (
         Condition()
-        .left(Column(field=filter.path.top_level, path=filter.path.sub_levels))
+        .left(column_for_query_path(filter.path))
         .operator(operator_for_query_operator(filter.operator))
-        .right(
-            Value(
-                Jsonb(filter.value.dict()),
-            )
-            if filter.path == Path("source")
-            else Value(
-                filter.value,
-                wrapper="to_jsonb" if filter.path.is_nested() else None,
-                cast_to_type="TEXT"
-                if filter.path.is_nested() and type(filter.value) is str
-                else None,
-            )
-        )
     )
+
+    if is_list(filter.value):
+        condition = condition.right(
+            [value_for_path(value, filter.path) for value in filter.value]
+        )
+    else:
+        condition = condition.right(value_for_path(filter.value, filter.path))
+
+    return query.where(condition)
 
 
 def sort_clause_applicator(

@@ -87,22 +87,24 @@ def filter_clause_converter(
     clause: FilterClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def matches(projection: Projection[Mapping[str, Any]]) -> bool:
-        expected_value = clause.value
-        actual_value = lookup_projection_path(projection, clause.path)
+        comparison_value = clause.value
+        resolved_value = lookup_projection_path(projection, clause.path)
 
         match clause.operator:
             case Operator.EQUAL:
-                return actual_value == expected_value
+                return resolved_value == comparison_value
             case Operator.NOT_EQUAL:
-                return not actual_value == expected_value
+                return not resolved_value == comparison_value
             case Operator.GREATER_THAN:
-                return actual_value > expected_value
+                return resolved_value > comparison_value
             case Operator.GREATER_THAN_OR_EQUAL:
-                return actual_value >= expected_value
+                return resolved_value >= comparison_value
             case Operator.LESS_THAN:
-                return actual_value < expected_value
+                return resolved_value < comparison_value
             case Operator.LESS_THAN_OR_EQUAL:
-                return actual_value <= expected_value
+                return resolved_value <= comparison_value
+            case Operator.IN:
+                return resolved_value in comparison_value
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 

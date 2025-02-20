@@ -23,7 +23,13 @@ from logicblocks.event.db.postgres import (
 from logicblocks.event.db.postgres import (
     Query as DBQuery,
 )
-from logicblocks.event.types import Projection, identifier
+from logicblocks.event.types import (
+    CodecOrMapping,
+    Projection,
+    deserialise_projection,
+    identifier,
+    serialise_projection,
+)
 
 from ..query import (
     Clause,
@@ -672,7 +678,7 @@ class PostgresQueryConverter:
 
 
 def insert_query(
-    projection: Projection[Mapping[str, Any]],
+    projection: Projection[Mapping[str, Any], Mapping[str, Any]],
     table_settings: PostgresTableSettings,
 ) -> ParameterisedQuery:
     return (
@@ -681,24 +687,24 @@ def insert_query(
             INSERT INTO {0} (
               id, 
               name, 
-              state, 
               source,
-              version
+              state,
+              metadata
             )
               VALUES (%s, %s, %s, %s, %s)
               ON CONFLICT (id) 
               DO UPDATE
-            SET (state, version) = (%s, %s);
+            SET (state, metadata) = (%s, %s);
             """
         ).format(sql.Identifier(table_settings.projections_table_name)),
         [
             projection.id,
             projection.name,
-            Jsonb(projection.state),
             Jsonb(projection.source.dict()),
-            projection.version,
             Jsonb(projection.state),
-            projection.version,
+            Jsonb(projection.metadata),
+            Jsonb(projection.state),
+            Jsonb(projection.metadata),
         ],
     )
 
@@ -706,28 +712,16 @@ def insert_query(
 async def upsert(
     cursor: AsyncCursor[TupleRow],
     *,
-    projection: Projection[Mapping[str, Any]],
+    projection: Projection[Mapping[str, Any], Mapping[str, Any]],
     table_settings: PostgresTableSettings,
 ):
     await cursor.execute(*insert_query(projection, table_settings))
 
 
-def lift_projection[S, T](
-    projection: Projection[S],
-    converter: Callable[[S], T],
-) -> Projection[T]:
-    return Projection[T](
-        id=projection.id,
-        name=projection.name,
-        state=converter(projection.state),
-        version=projection.version,
-        source=projection.source,
-    )
-
-
-class PostgresProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
-    ProjectionStorageAdapter[OQ, MQ]
-):
+class PostgresProjectionStorageAdapter[
+    ItemQuery: Query = Lookup,
+    CollectionQuery: Query = Search,
+](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
     def __init__(
         self,
         *,
@@ -759,23 +753,29 @@ class PostgresProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
         if self._connection_pool_owner:
             await self.connection_pool.close()
 
-    async def save[T](
+    async def save(
         self,
         *,
-        projection: Projection[T],
-        converter: Callable[[T], Mapping[str, Any]],
+        projection: Projection[CodecOrMapping, CodecOrMapping],
     ) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await upsert(
                     cursor,
-                    projection=lift_projection(projection, converter),
+                    projection=serialise_projection(projection),
                     table_settings=self.table_settings,
                 )
 
-    async def find_one[T](
-        self, *, lookup: OQ, converter: Callable[[Mapping[str, Any]], T]
-    ) -> Projection[T] | None:
+    async def find_one[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
+        self,
+        *,
+        lookup: ItemQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Projection[State, Metadata] | None:
         query = self.query_converter.convert_query(lookup)
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(row_factory=dict_row) as cursor:
@@ -791,21 +791,30 @@ class PostgresProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
                 if projection_dict is None:
                     return None
 
-                projection = Projection[Mapping[str, Any]](
+                projection = Projection[Mapping[str, Any], Mapping[str, Any]](
                     id=projection_dict["id"],
                     name=projection_dict["name"],
-                    state=projection_dict["state"],
-                    version=projection_dict["version"],
                     source=identifier.event_sequence_identifier(
                         projection_dict["source"]
                     ),
+                    state=projection_dict["state"],
+                    metadata=projection_dict["metadata"],
                 )
 
-                return lift_projection(projection, converter)
+                return deserialise_projection(
+                    projection, state_type, metadata_type
+                )
 
-    async def find_many[T](
-        self, *, search: MQ, converter: Callable[[Mapping[str, Any]], T]
-    ) -> Sequence[Projection[T]]:
+    async def find_many[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
+        self,
+        *,
+        search: CollectionQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Sequence[Projection[State, Metadata]]:
         query = self.query_converter.convert_query(search)
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(row_factory=dict_row) as cursor:
@@ -814,19 +823,21 @@ class PostgresProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
                 projection_dicts = await results.fetchall()
 
                 projections = [
-                    Projection[Mapping[str, Any]](
+                    Projection[Mapping[str, Any], Mapping[str, Any]](
                         id=projection_dict["id"],
                         name=projection_dict["name"],
-                        state=projection_dict["state"],
-                        version=projection_dict["version"],
                         source=identifier.event_sequence_identifier(
                             projection_dict["source"]
                         ),
+                        state=projection_dict["state"],
+                        metadata=projection_dict["metadata"],
                     )
                     for projection_dict in projection_dicts
                 ]
 
                 return [
-                    lift_projection(projection, converter)
+                    deserialise_projection(
+                        projection, state_type, metadata_type
+                    )
                     for projection in projections
                 ]

@@ -2,7 +2,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping, Self
 
 import pytest_asyncio
 from psycopg import AsyncConnection, abc, sql
@@ -113,17 +113,6 @@ async def open_connection_pool():
         await pool.close()
 
 
-def to_dict(thing: object) -> Mapping[str, Any]:
-    return thing.__dict__
-
-
-def from_dict[T](target_type: type[T]) -> Callable[[Mapping[str, Any]], T]:
-    def converter(mapping: Mapping[str, Any]) -> T:
-        return target_type(**mapping)
-
-    return converter
-
-
 class TestAsynchronousProjections:
     connection_pool: AsyncConnectionPool[AsyncConnection]
 
@@ -166,14 +155,24 @@ class TestAsynchronousProjections:
         class Thing:
             value: int = 5
 
+            @classmethod
+            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+                return cls(value=value["value"])
+
+            def serialise(self) -> Mapping[str, Any]:
+                return {"value": self.value}
+
         class ThingProjector(Projector[Thing, StreamIdentifier]):
             name = projection_name
 
             def initial_state_factory(self) -> Thing:
                 return Thing()
 
-            def id_factory(self, state: Thing, coordinates: StreamIdentifier):
-                return coordinates.stream
+            def initial_metadata_factory(self) -> Mapping[str, Any]:
+                return {}
+
+            def id_factory(self, state: Thing, source: StreamIdentifier):
+                return source.stream
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
@@ -185,8 +184,8 @@ class TestAsynchronousProjections:
         event_processor = ProjectionEventProcessor(
             projector=thing_projector,
             projection_store=thing_projection_store,
-            from_dict_converter=from_dict(Thing),
-            to_dict_converter=to_dict,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         subscriber_group = data.random_subscriber_group()
@@ -252,7 +251,7 @@ class TestAsynchronousProjections:
                         stream=stream_name,
                     ),
                     name=projection_name,
-                    converter=from_dict(Thing),
+                    state_type=Thing,
                 )
                 if projected_thing:
                     break

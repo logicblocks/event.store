@@ -188,7 +188,6 @@ class TestMappingProjectionBuilder:
 
         assert projection.id is not None
         assert projection.name is not None
-        assert projection.version is not None
         assert projection.source is not None
 
     def test_randomises_projection_id(self):
@@ -208,13 +207,6 @@ class TestMappingProjectionBuilder:
         ]
 
         assert len(set(state_keys)) == 100
-
-    def test_randomises_projection_version(self):
-        versions = [
-            MappingProjectionBuilder().build().version for _ in range(100)
-        ]
-
-        assert len(set(versions)) == 100
 
     def test_randomises_projection_source(self):
         sources = [
@@ -243,13 +235,6 @@ class TestMappingProjectionBuilder:
         projection = builder.build()
 
         assert projection.state == {"key": "value"}
-
-    def test_builds_projection_with_specified_version(self):
-        builder = MappingProjectionBuilder().with_version(42)
-
-        projection = builder.build()
-
-        assert projection.version == 42
 
     def test_builds_projection_with_specified_source(self):
         builder = MappingProjectionBuilder().with_source(

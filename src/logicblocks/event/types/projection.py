@@ -1,80 +1,99 @@
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
-from logicblocks.event.types import (
-    EventSourceIdentifier,
-)
+from .codec import CodecOrMapping, deserialise, serialise
+from .identifier import EventSourceIdentifier
 
 type Projectable = EventSourceIdentifier
 
 
-def default_converter(value: object) -> Mapping[str, Any]:
-    if isinstance(value, Mapping):
-        value = cast(Mapping[Any, Any], value)
-        if all(isinstance(key, str) for key in value.keys()):
-            return value
-
-    return value.__dict__
-
-
 @dataclass(frozen=True)
-class Projection[T = Mapping[str, Any]]:
+class Projection[
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
+]:
     id: str
     name: str
-    state: T
-    version: int
     source: Projectable
+    state: State
+    metadata: Metadata
 
     def __init__(
         self,
         *,
         id: str,
         name: str,
-        state: T,
-        version: int,
         source: Projectable,
+        state: State,
+        metadata: Metadata,
     ):
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "name", name)
-        object.__setattr__(self, "state", state)
-        object.__setattr__(self, "version", version)
         object.__setattr__(self, "source", source)
+        object.__setattr__(self, "state", state)
+        object.__setattr__(self, "metadata", metadata)
 
-    def dict(
-        self, converter: Callable[[T], Mapping[str, Any]] = default_converter
-    ) -> Mapping[str, Any]:
+    def dict(self) -> Mapping[str, Any]:
+        state = serialise(self.state)
+        metadata = serialise(self.metadata)
         return {
             "id": self.id,
             "name": self.name,
-            "state": converter(self.state),
-            "version": self.version,
             "source": self.source.dict(),
+            "state": state,
+            "metadata": metadata,
         }
 
     def envelope(self) -> Mapping[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
-            "version": self.version,
             "source": self.source.dict(),
         }
 
-    def json(
-        self, converter: Callable[[T], Mapping[str, Any]] = default_converter
-    ):
-        return json.dumps(self.dict(converter))
+    def json(self):
+        return json.dumps(self.dict())
 
     def __repr__(self):
         return (
             f"Projection("
             f"id='{self.id}',"
             f"name='{self.name}',"
+            f"source={repr(self.source)},"
             f"state={repr(self.state)},"
-            f"version={self.version},"
-            f"source={repr(self.source)})"
+            f"metadata={repr(self.metadata)})"
         )
 
     def __hash__(self):
         return hash(repr(self))
+
+
+def serialise_projection(
+    projection: Projection[CodecOrMapping, CodecOrMapping],
+) -> Projection[Mapping[str, Any], Mapping[str, Any]]:
+    return Projection[Mapping[str, Any], Mapping[str, Any]](
+        id=projection.id,
+        name=projection.name,
+        state=serialise(projection.state),
+        source=projection.source,
+        metadata=serialise(projection.metadata),
+    )
+
+
+def deserialise_projection[
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
+](
+    projection: Projection[Mapping[str, Any], Mapping[str, Any]],
+    state_type: type[State] = Mapping[str, Any],
+    metadata_type: type[Metadata] = Mapping[str, Any],
+) -> Projection[State, Metadata]:
+    return Projection[State, Metadata](
+        id=projection.id,
+        name=projection.name,
+        state=deserialise(state_type, projection.state),
+        source=projection.source,
+        metadata=deserialise(metadata_type, projection.metadata),
+    )

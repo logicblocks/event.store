@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import pytest
 
@@ -45,15 +45,11 @@ class Thing:
     value_1: int
     value_2: str
 
-    @staticmethod
-    def to_dict(thing: "Thing") -> Mapping[str, Any]:
-        return thing.dict()
+    @classmethod
+    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+        return cls(value_1=value["value_1"], value_2=value["value_2"])
 
-    @staticmethod
-    def from_dict(mapping: Mapping[str, Any]) -> "Thing":
-        return Thing(value_1=mapping["value_1"], value_2=mapping["value_2"])
-
-    def dict(self) -> Mapping[str, Any]:
+    def serialise(self) -> Mapping[str, Any]:
         return {"value_1": self.value_1, "value_2": self.value_2}
 
 
@@ -63,6 +59,9 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
             value_1=data.random_int(1, 10),
             value_2=data.random_ascii_alphanumerics_string(),
         )
+
+    def default_metadata_factory(self) -> Mapping[str, Any]:
+        return {}
 
 
 class TestInMemoryProjectionStorageAdapter(ProjectionStorageAdapterCases):
@@ -80,7 +79,7 @@ class TestInMemoryProjectionStorageAdapter(ProjectionStorageAdapterCases):
         def identity(mapping: Mapping[str, Any]) -> Mapping[str, Any]:
             return mapping
 
-        return await adapter.find_many(search=Search(), converter=identity)
+        return await adapter.find_many(search=Search())
 
 
 class TestInMemoryQueryConverterClauseConverterRegistration:

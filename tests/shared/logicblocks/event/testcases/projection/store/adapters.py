@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import pytest
 
@@ -23,6 +23,9 @@ from logicblocks.event.testing import (
     data,
 )
 from logicblocks.event.types import Projection, StreamIdentifier
+from logicblocks.event.types.projection import (
+    serialise_projection,
+)
 
 
 @dataclass
@@ -30,15 +33,11 @@ class Thing:
     value_1: int
     value_2: str
 
-    @staticmethod
-    def to_dict(thing: "Thing") -> Mapping[str, Any]:
-        return thing.dict()
+    @classmethod
+    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+        return cls(value_1=value["value_1"], value_2=value["value_2"])
 
-    @staticmethod
-    def from_dict(mapping: Mapping[str, Any]) -> "Thing":
-        return Thing(value_1=mapping["value_1"], value_2=mapping["value_2"])
-
-    def dict(self) -> Mapping[str, Any]:
+    def serialise(self) -> Mapping[str, Any]:
         return {"value_1": self.value_1, "value_2": self.value_2}
 
 
@@ -49,18 +48,8 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
             value_2=data.random_ascii_alphanumerics_string(),
         )
 
-
-def lift_projection[S, T](
-    projection: Projection[S],
-    converter: Callable[[S], T],
-) -> Projection[T]:
-    return Projection[T](
-        id=projection.id,
-        name=projection.name,
-        state=converter(projection.state),
-        version=projection.version,
-        source=projection.source,
-    )
+    def default_metadata_factory(self) -> Mapping[str, Any]:
+        return {}
 
 
 class Base(ABC):
@@ -75,7 +64,7 @@ class Base(ABC):
     @abstractmethod
     async def retrieve_projections(
         self, *, adapter: ProjectionStorageAdapter
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         raise NotImplementedError()
 
 
@@ -87,15 +76,13 @@ class SaveCases(Base, ABC):
 
         projection = ThingProjectionBuilder().with_id(projection_1_id).build()
 
-        await adapter.save(projection=projection, converter=Thing.to_dict)
+        await adapter.save(projection=projection)
 
         retrieved_projections = await self.retrieve_projections(
             adapter=adapter
         )
 
-        assert retrieved_projections == [
-            lift_projection(projection, Thing.to_dict)
-        ]
+        assert retrieved_projections == [serialise_projection(projection)]
 
     async def test_stores_many_projections_for_later_retrieval(self):
         projection_1_id = data.random_projection_id()
@@ -110,36 +97,36 @@ class SaveCases(Base, ABC):
             ThingProjectionBuilder().with_id(projection_2_id).build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         retrieved_projections = await self.retrieve_projections(
             adapter=adapter
         )
 
         assert retrieved_projections == [
-            lift_projection(projection_1, Thing.to_dict),
-            lift_projection(projection_2, Thing.to_dict),
+            serialise_projection(projection_1),
+            serialise_projection(projection_2),
         ]
 
-    async def test_updates_existing_projection_state_and_version(self):
+    async def test_updates_existing_projection_state_and_metadata(self):
         projection_id = data.random_projection_id()
 
         projection_v1_name = data.random_projection_name()
-        projection_v1_state = Thing(value_1=5, value_2="first version")
-        projection_v1_version = data.random_projection_version()
         projection_v1_source = StreamIdentifier(
             category=data.random_event_category_name(),
             stream=data.random_event_stream_name(),
         )
+        projection_v1_state = Thing(value_1=5, value_2="first version")
+        projection_v1_metadata = {"updated_at": "2024-01-01T00:00:00Z"}
 
         projection_v2_name = data.random_projection_name()
-        projection_v2_state = Thing(value_1=10, value_2="second version")
-        projection_v2_version = projection_v1_version + 1
         projection_v2_source = StreamIdentifier(
             category=data.random_event_category_name(),
             stream=data.random_event_stream_name(),
         )
+        projection_v2_state = Thing(value_1=10, value_2="second version")
+        projection_v2_metadata = {"updated_at": "2024-02-02T00:00:00Z"}
 
         adapter = self.construct_storage_adapter()
 
@@ -147,25 +134,23 @@ class SaveCases(Base, ABC):
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name(projection_v1_name)
-            .with_state(projection_v1_state)
-            .with_version(projection_v1_version)
             .with_source(projection_v1_source)
+            .with_state(projection_v1_state)
+            .with_metadata(projection_v1_metadata)
             .build()
         )
         provided_projection_v2 = (
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name(projection_v2_name)
-            .with_state(projection_v2_state)
-            .with_version(projection_v2_version)
             .with_source(projection_v2_source)
+            .with_state(projection_v2_state)
+            .with_metadata(projection_v2_metadata)
             .build()
         )
 
-        await adapter.save(projection=projection_v1, converter=Thing.to_dict)
-        await adapter.save(
-            projection=provided_projection_v2, converter=Thing.to_dict
-        )
+        await adapter.save(projection=projection_v1)
+        await adapter.save(projection=provided_projection_v2)
 
         retrieved_projections = await self.retrieve_projections(
             adapter=adapter
@@ -175,14 +160,14 @@ class SaveCases(Base, ABC):
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name(projection_v1_name)
-            .with_state(projection_v2_state)
-            .with_version(projection_v2_version)
             .with_source(projection_v1_source)
+            .with_state(projection_v2_state)
+            .with_metadata(projection_v2_metadata)
             .build()
         )
 
         assert retrieved_projections == [
-            lift_projection(expected_updated_projection_v2, Thing.to_dict)
+            serialise_projection(expected_updated_projection_v2)
         ]
 
 
@@ -200,8 +185,8 @@ class FindOneCases(Base, ABC):
             ThingProjectionBuilder().with_name(projection_2_name).build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         located = await adapter.find_one(
             lookup=Lookup(
@@ -211,7 +196,7 @@ class FindOneCases(Base, ABC):
                     )
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == projection_1
@@ -245,8 +230,8 @@ class FindOneCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         located = await adapter.find_one(
             lookup=Lookup(
@@ -257,7 +242,7 @@ class FindOneCases(Base, ABC):
                     ),
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == projection_1
@@ -280,8 +265,8 @@ class FindOneCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         located = await adapter.find_one(
             lookup=Lookup(
@@ -294,7 +279,7 @@ class FindOneCases(Base, ABC):
                     ),
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == projection_2
@@ -318,8 +303,8 @@ class FindOneCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         located = await adapter.find_one(
             lookup=Lookup(
@@ -332,7 +317,7 @@ class FindOneCases(Base, ABC):
                     ),
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == projection_2
@@ -350,7 +335,7 @@ class FindOneCases(Base, ABC):
                     )
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located is None
@@ -373,8 +358,8 @@ class FindOneCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         with pytest.raises(ValueError):
             await adapter.find_one(
@@ -385,7 +370,7 @@ class FindOneCases(Base, ABC):
                         )
                     ]
                 ),
-                converter=Thing.from_dict,
+                state_type=Thing,
             )
 
 
@@ -403,8 +388,8 @@ class FindManyCases(Base, ABC):
             ThingProjectionBuilder().with_name(projection_2_name).build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
 
         located = await adapter.find_many(
             search=Search(
@@ -414,7 +399,7 @@ class FindManyCases(Base, ABC):
                     )
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == [projection_1]
@@ -447,10 +432,10 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
-        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+        await adapter.save(projection=projection_4)
 
         located = await adapter.find_many(
             search=Search(
@@ -461,7 +446,7 @@ class FindManyCases(Base, ABC):
                     ),
                 ]
             ),
-            converter=Thing.from_dict,
+            state_type=Thing,
         )
 
         assert located == [projection_3, projection_4]
@@ -488,9 +473,9 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
 
         search = Search(
             sort=SortClause(
@@ -501,9 +486,7 @@ class FindManyCases(Base, ABC):
                 ]
             )
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_3, projection_2, projection_1]
 
@@ -529,18 +512,16 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
 
         search = Search(
             paging=KeySetPagingClause(
                 last_id="1", direction=PagingDirection.FORWARDS, item_count=2
             )
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_2, projection_3]
 
@@ -566,9 +547,9 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
 
         search = Search(
             sort=SortClause(
@@ -580,9 +561,7 @@ class FindManyCases(Base, ABC):
             ),
             paging=KeySetPagingClause(item_count=2),
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_3, projection_2]
 
@@ -614,10 +593,10 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
-        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+        await adapter.save(projection=projection_4)
 
         search = Search(
             filters=[
@@ -627,9 +606,7 @@ class FindManyCases(Base, ABC):
             ],
             paging=KeySetPagingClause(item_count=2),
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_2, projection_3]
 
@@ -661,10 +638,10 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
-        await adapter.save(projection=projection_4, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+        await adapter.save(projection=projection_4)
 
         search = Search(
             filters=[
@@ -679,9 +656,7 @@ class FindManyCases(Base, ABC):
             ),
             paging=KeySetPagingClause(item_count=2),
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_4, projection_2]
 
@@ -711,9 +686,9 @@ class FindManyCases(Base, ABC):
             .build()
         )
 
-        await adapter.save(projection=projection_1, converter=Thing.to_dict)
-        await adapter.save(projection=projection_2, converter=Thing.to_dict)
-        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
 
         search = Search(
             filters=[
@@ -732,9 +707,7 @@ class FindManyCases(Base, ABC):
             ),
             paging=KeySetPagingClause(item_count=2),
         )
-        located = await adapter.find_many(
-            search=search, converter=Thing.from_dict
-        )
+        located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_1, projection_2]
 

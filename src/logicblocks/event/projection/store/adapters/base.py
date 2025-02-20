@@ -1,36 +1,46 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from logicblocks.event.types import Projection
+from logicblocks.event.types import CodecOrMapping, Projection
 
 from ..query import Lookup, Query, Search
 
 
-class ProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](ABC):
+class ProjectionStorageAdapter[
+    ItemQuery: Query = Lookup,
+    CollectionQuery: Query = Search,
+](ABC):
     @abstractmethod
-    async def save[T](
+    async def save(
         self,
         *,
-        projection: Projection[T],
-        converter: Callable[[T], Mapping[str, Any]],
+        projection: Projection[CodecOrMapping, CodecOrMapping],
     ) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def find_one[T](
+    async def find_one[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
         self,
         *,
-        lookup: OQ,
-        converter: Callable[[Mapping[str, Any]], T],
-    ) -> Projection[T] | None:
+        lookup: ItemQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Projection[State, Metadata] | None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def find_many[T](
+    async def find_many[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
         self,
         *,
-        search: MQ,
-        converter: Callable[[Mapping[str, Any]], T],
-    ) -> Sequence[Projection[T]]:
+        search: CollectionQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Sequence[Projection[State, Metadata]]:
         raise NotImplementedError()

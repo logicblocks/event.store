@@ -303,13 +303,5 @@ def test_generates_random_projection_states():
     assert len(all_vals) == len(unique_vals)
 
 
-def test_generates_random_projection_versions():
-    versions = [data.random_projection_version() for _ in range(100)]
-
-    assert all(isinstance(i, int) for i in versions)
-    assert len(set(versions)) == 100
-    assert all(0 <= i <= 10000000 for i in versions)
-
-
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

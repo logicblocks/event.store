@@ -3,7 +3,13 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Self
 
-from logicblocks.event.types import Projection
+from logicblocks.event.types import (
+    CodecOrMapping,
+    Projection,
+    deserialise_projection,
+    serialise,
+    serialise_projection,
+)
 
 from ..query import (
     Clause,
@@ -22,26 +28,15 @@ from ..query import (
 )
 from .base import ProjectionStorageAdapter
 
-type ProjectionResultSet = Sequence[Projection[Mapping[str, Any]]]
+type ProjectionResultSet = Sequence[
+    Projection[Mapping[str, Any], Mapping[str, Any]]
+]
 type InMemoryProjectionResultSetTransformer = Callable[
     [ProjectionResultSet], ProjectionResultSet
 ]
 type InMemoryClauseConverter[C: Clause] = Callable[
     [C], InMemoryProjectionResultSetTransformer
 ]
-
-
-def lift_projection[S, T](
-    projection: Projection[S],
-    converter: Callable[[S], T],
-) -> Projection[T]:
-    return Projection[T](
-        id=projection.id,
-        name=projection.name,
-        state=converter(projection.state),
-        version=projection.version,
-        source=projection.source,
-    )
 
 
 def compose_transformers(
@@ -63,7 +58,7 @@ def compose_transformers(
 
 
 def lookup_projection_path(
-    projection: Projection[Mapping[str, Any]], path: Path
+    projection: Projection[Mapping[str, Any], Mapping[str, Any]], path: Path
 ) -> Any:
     attribute_name = path.top_level
     remaining_path = path.sub_levels
@@ -86,7 +81,9 @@ def lookup_projection_path(
 def filter_clause_converter(
     clause: FilterClause,
 ) -> InMemoryProjectionResultSetTransformer:
-    def matches(projection: Projection[Mapping[str, Any]]) -> bool:
+    def matches(
+        projection: Projection[Mapping[str, Any], Mapping[str, Any]],
+    ) -> bool:
         comparison_value = clause.value
         resolved_value = lookup_projection_path(projection, clause.path)
 
@@ -109,8 +106,10 @@ def filter_clause_converter(
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 
     def handler(
-        projections: Sequence[Projection[Mapping[str, Any]]],
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         return list(
             projection for projection in projections if matches(projection)
         )
@@ -122,9 +121,11 @@ def sort_clause_converter(
     clause: SortClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def accumulator(
-        projections: Sequence[Projection[Mapping[str, Any]]],
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
         field: SortField,
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         result = sorted(
             projections,
             key=lambda projection: lookup_projection_path(
@@ -135,8 +136,10 @@ def sort_clause_converter(
         return result
 
     def handler(
-        projections: Sequence[Projection[Mapping[str, Any]]],
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         return reduce(accumulator, reversed(clause.fields), projections)
 
     return handler
@@ -158,7 +161,9 @@ def key_set_paging_clause_converter(
         index: int
 
     def determine_last_index(
-        projections: Sequence[Projection[Mapping[str, Any]]],
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
         last_id: str | None,
     ) -> Found | NotFound | NotProvided:
         if last_id is None:
@@ -175,8 +180,10 @@ def key_set_paging_clause_converter(
         return Found(last_indices[0])
 
     def handler(
-        projections: Sequence[Projection[Mapping[str, Any]]],
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         last_index_result = determine_last_index(projections, clause.last_id)
         direction = clause.direction
         item_count = clause.item_count
@@ -207,8 +214,10 @@ def offset_paging_clause_converter(
     clause: OffsetPagingClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def handler(
-        projections: Sequence[Projection[Mapping[str, Any]]],
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+        projections: Sequence[
+            Projection[Mapping[str, Any], Mapping[str, Any]]
+        ],
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         offset = clause.offset
         item_count = clause.item_count
 
@@ -268,50 +277,56 @@ class InMemoryQueryConverter:
                 raise ValueError(f"Unsupported query type: {query}.")
 
 
-class InMemoryProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
-    ProjectionStorageAdapter[OQ, MQ]
-):
+class InMemoryProjectionStorageAdapter[
+    ItemQuery: Query = Lookup,
+    CollectionQuery: Query = Search,
+](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
     def __init__(self, query_converter: InMemoryQueryConverter | None = None):
-        self._projections: dict[str, Projection[Mapping[str, Any]]] = {}
+        self._projections: dict[
+            str, Projection[Mapping[str, Any], Mapping[str, Any]]
+        ] = {}
         self._query_converter = (
             query_converter
             if query_converter is not None
             else InMemoryQueryConverter().with_default_clause_converters()
         )
 
-    async def save[T](
+    async def save(
         self,
         *,
-        projection: Projection[T],
-        converter: Callable[[T], Mapping[str, Any]],
+        projection: Projection[CodecOrMapping, CodecOrMapping],
     ) -> None:
         existing = self._projections.get(projection.id, None)
         if existing is not None:
-            self._projections[projection.id] = Projection(
+            self._projections[projection.id] = Projection[
+                Mapping[str, Any], Mapping[str, Any]
+            ](
                 id=existing.id,
                 name=existing.name,
-                state=converter(projection.state),
-                version=projection.version,
                 source=existing.source,
+                state=serialise(projection.state),
+                metadata=serialise(projection.metadata),
             )
         else:
-            self._projections[projection.id] = lift_projection(
-                projection, converter
-            )
+            self._projections[projection.id] = serialise_projection(projection)
 
     async def _find_raw(
         self, query: Query
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
         return self._query_converter.convert_query(query)(
             list(self._projections.values())
         )
 
-    async def find_one[T](
+    async def find_one[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
         self,
         *,
-        lookup: OQ,
-        converter: Callable[[Mapping[str, Any]], T],
-    ) -> Projection[T] | None:
+        lookup: ItemQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Projection[State, Metadata] | None:
         projections = await self._find_raw(lookup)
 
         if len(projections) > 1:
@@ -324,15 +339,19 @@ class InMemoryProjectionStorageAdapter[OQ: Query = Lookup, MQ: Query = Search](
 
         projection = projections[0]
 
-        return lift_projection(projection, converter)
+        return deserialise_projection(projection, state_type, metadata_type)
 
-    async def find_many[T](
+    async def find_many[
+        State: CodecOrMapping = Mapping[str, Any],
+        Metadata: CodecOrMapping = Mapping[str, Any],
+    ](
         self,
         *,
-        search: MQ,
-        converter: Callable[[Mapping[str, Any]], T],
-    ) -> Sequence[Projection[T]]:
+        search: CollectionQuery,
+        state_type: type[State] = Mapping[str, Any],
+        metadata_type: type[Metadata] = Mapping[str, Any],
+    ) -> Sequence[Projection[State, Metadata]]:
         return [
-            lift_projection(projection, converter)
+            deserialise_projection(projection, state_type, metadata_type)
             for projection in (await self._find_raw(search))
         ]

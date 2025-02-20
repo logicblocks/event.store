@@ -2,6 +2,7 @@ import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import reduce
+from typing import Any, Mapping, MutableMapping, Self
 
 import pytest
 
@@ -10,7 +11,6 @@ from logicblocks.event.projection import (
     MissingProjectionHandlerError,
     Projector,
 )
-from logicblocks.event.sources import InMemoryEventSource
 from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import NewEventBuilder, data
@@ -20,6 +20,7 @@ from logicblocks.event.types import (
     StoredEvent,
     StreamIdentifier,
 )
+from logicblocks.event.types.codec import Codec
 
 generic_event = (
     StoredEventBuilder()
@@ -30,7 +31,16 @@ generic_event = (
 
 
 @dataclass
-class Aggregate:
+class Aggregate(Codec):
+    @classmethod
+    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+        return cls(
+            something_occurred_at=value.get("something_occurred_at", None),
+            something_else_occurred_at=value.get(
+                "something_else_occurred_at", None
+            ),
+        )
+
     def __init__(
         self,
         something_occurred_at: datetime | None = None,
@@ -39,15 +49,32 @@ class Aggregate:
         self.something_occurred_at = something_occurred_at
         self.something_else_occurred_at = something_else_occurred_at
 
+    def something_occurred_at_string(self) -> str | None:
+        if self.something_occurred_at is None:
+            return None
+        return self.something_occurred_at.isoformat()
+
+    def something_else_occurred_at_string(self) -> str | None:
+        if self.something_else_occurred_at is None:
+            return None
+        return self.something_else_occurred_at.isoformat()
+
+    def serialise(self) -> Mapping[str, Any]:
+        return {
+            "something_occurred_at": self.something_occurred_at_string(),
+            "something_else_occurred_at": self.something_else_occurred_at_string(),
+        }
+
 
 class AggregateProjector(Projector[Aggregate, StreamIdentifier]):
     def initial_state_factory(self) -> Aggregate:
         return Aggregate()
 
-    def id_factory(
-        self, state: Aggregate, coordinates: StreamIdentifier
-    ) -> str:
-        return coordinates.stream
+    def initial_metadata_factory(self) -> Mapping[str, Any]:
+        return {}
+
+    def id_factory(self, state: Aggregate, source: StreamIdentifier) -> str:
+        return source.stream
 
     @staticmethod
     def something_occurred(state: Aggregate, event: StoredEvent) -> Aggregate:
@@ -255,7 +282,7 @@ class TestProjectorEventApplication:
 
 
 class TestProjectorProjection:
-    async def test_projects_from_event_source(self):
+    async def test_projects_state_using_event_source_as_generic_type(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
@@ -291,81 +318,357 @@ class TestProjectorProjection:
                 something_occurred_at=something_occurred_at,
                 something_else_occurred_at=something_else_occurred_at,
             ),
-            version=2,
             source=StreamIdentifier(
                 category=category_name, stream=stream_name
             ),
             name="aggregate",
+            metadata={},
         )
 
         assert expected_projection == actual_projection
 
-    async def test_projects_from_events(self):
+    async def test_projects_state_using_event_source_as_mapping_type(self):
+        class MappingProjector(Projector):
+            def initial_state_factory(self):
+                return {"names": []}
+
+            def initial_metadata_factory(self):
+                return {}
+
+            def id_factory(self, state, source):
+                return source.stream
+
+            @staticmethod
+            def thing_1_occurred(state, event):
+                state["names"].append(event.name)
+                return state
+
+            @staticmethod
+            def thing_2_occurred(state, event):
+                state["names"].append(event.name)
+                return state
+
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_events = [NewEventBuilder().with_name("thing-2-occurred").build()]
+
+        await stream.publish(events=new_events)
+
+        projector = MappingProjector()
+
+        actual_projection = await projector.project(
+            source=stream, state={"names": ["thing-1-occurred"]}
+        )
+        expected_projection = Projection(
+            id=stream_name,
+            state={"names": ["thing-1-occurred", "thing-2-occurred"]},
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="mapping",
+            metadata={},
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_projects_using_provided_initial_state(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
 
         something_occurred_at = datetime.now(UTC)
         something_else_occurred_at = datetime.now(UTC)
 
-        events = [
+        new_events = [
             (
-                StoredEventBuilder()
-                .with_position(0)
-                .with_category(category_name)
-                .with_stream(stream_name)
+                NewEventBuilder()
                 .with_name("something-occurred")
                 .with_occurred_at(something_occurred_at)
                 .build()
             ),
             (
-                StoredEventBuilder()
-                .with_position(1)
-                .with_category(category_name)
-                .with_stream(stream_name)
+                NewEventBuilder()
                 .with_name("something-else-occurred")
                 .with_occurred_at(something_else_occurred_at)
                 .build()
             ),
         ]
 
-        source = InMemoryEventSource[StreamIdentifier](
-            events=events,
-            identifier=StreamIdentifier(
-                category=category_name, stream=stream_name
-            ),
-        )
+        await stream.publish(events=new_events)
 
         projector = AggregateProjector()
 
-        actual_projection = await projector.project(source=source)
+        actual_projection = await projector.project(source=stream)
         expected_projection = Projection[Aggregate](
             id=stream_name,
             state=Aggregate(
                 something_occurred_at=something_occurred_at,
                 something_else_occurred_at=something_else_occurred_at,
             ),
-            version=2,
             source=StreamIdentifier(
                 category=category_name, stream=stream_name
             ),
             name="aggregate",
+            metadata={},
         )
 
         assert expected_projection == actual_projection
 
-    async def test_uses_defined_type_when_property_overridden(self):
+    async def test_updates_metadata_as_mapping_type_during_projection(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        something_occurred_at = datetime.now(UTC)
+        something_else_occurred_at = datetime.now(UTC)
+
+        new_events = [
+            (
+                NewEventBuilder()
+                .with_name("something-occurred")
+                .with_occurred_at(something_occurred_at)
+                .build()
+            ),
+            (
+                NewEventBuilder()
+                .with_name("something-else-occurred")
+                .with_occurred_at(something_else_occurred_at)
+                .build()
+            ),
+        ]
+
+        await stream.publish(events=new_events)
+
+        class MetadataMapProjector(
+            Projector[Aggregate, StreamIdentifier, MutableMapping[str, Any]],
+        ):
+            def initial_state_factory(self) -> Aggregate:
+                return Aggregate()
+
+            def initial_metadata_factory(self) -> MutableMapping[str, Any]:
+                return {"call_count": 0}
+
+            def id_factory(
+                self, state: Aggregate, source: StreamIdentifier
+            ) -> str:
+                return source.stream
+
+            def update_metadata(
+                self,
+                state: Aggregate,
+                metadata: MutableMapping[str, Any],
+                event: StoredEvent,
+            ) -> MutableMapping[str, Any]:
+                metadata["call_count"] += 1
+                return metadata
+
+            @staticmethod
+            def something_occurred(
+                state: Aggregate, event: StoredEvent
+            ) -> Aggregate:
+                return Aggregate(
+                    something_occurred_at=event.occurred_at,
+                    something_else_occurred_at=state.something_else_occurred_at,
+                )
+
+            @staticmethod
+            def something_else_occurred(
+                state: Aggregate, event: StoredEvent
+            ) -> Aggregate:
+                return Aggregate(
+                    something_occurred_at=state.something_occurred_at,
+                    something_else_occurred_at=event.occurred_at,
+                )
+
+        projector = MetadataMapProjector()
+
+        projection = await projector.project(source=stream)
+
+        assert projection.metadata == {"call_count": 2}
+
+    async def test_updates_metadata_as_generic_type_during_projection(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        something_occurred_at = datetime.now(UTC)
+        something_else_occurred_at = datetime.now(UTC)
+
+        new_events = [
+            (
+                NewEventBuilder()
+                .with_name("something-occurred")
+                .with_occurred_at(something_occurred_at)
+                .build()
+            ),
+            (
+                NewEventBuilder()
+                .with_name("something-else-occurred")
+                .with_occurred_at(something_else_occurred_at)
+                .build()
+            ),
+        ]
+
+        await stream.publish(events=new_events)
+
+        @dataclass
+        class AggregateMeta:
+            call_count: int = 0
+
+            @classmethod
+            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+                return cls(call_count=value["call_count"])
+
+            def serialise(self) -> Mapping[str, Any]:
+                return {"call_count": self.call_count}
+
+            def count_call(self) -> "AggregateMeta":
+                self.call_count += 1
+                return self
+
+        class AggregateMetaProjector(
+            Projector[Aggregate, StreamIdentifier, AggregateMeta],
+        ):
+            def initial_state_factory(self) -> Aggregate:
+                return Aggregate()
+
+            def initial_metadata_factory(self) -> AggregateMeta:
+                return AggregateMeta()
+
+            def id_factory(
+                self, state: Aggregate, source: StreamIdentifier
+            ) -> str:
+                return source.stream
+
+            def update_metadata(
+                self,
+                state: Aggregate,
+                metadata: AggregateMeta,
+                event: StoredEvent,
+            ) -> AggregateMeta:
+                return metadata.count_call()
+
+            @staticmethod
+            def something_occurred(
+                state: Aggregate, event: StoredEvent
+            ) -> Aggregate:
+                return Aggregate(
+                    something_occurred_at=event.occurred_at,
+                    something_else_occurred_at=state.something_else_occurred_at,
+                )
+
+            @staticmethod
+            def something_else_occurred(
+                state: Aggregate, event: StoredEvent
+            ) -> Aggregate:
+                return Aggregate(
+                    something_occurred_at=state.something_occurred_at,
+                    something_else_occurred_at=event.occurred_at,
+                )
+
+        projector = AggregateMetaProjector()
+
+        projection = await projector.project(source=stream)
+
+        assert projection.metadata == AggregateMeta(call_count=2)
+
+    async def test_projects_using_provided_initial_metadata(self):
+        class MetadataMapProjector(
+            Projector[
+                MutableMapping[str, Any],
+                StreamIdentifier,
+                MutableMapping[str, Any],
+            ],
+        ):
+            def initial_state_factory(self) -> MutableMapping[str, Any]:
+                return {"names": []}
+
+            def initial_metadata_factory(self) -> MutableMapping[str, Any]:
+                return {"call_count": 0}
+
+            def id_factory(
+                self, state: MutableMapping[str, Any], source: StreamIdentifier
+            ) -> str:
+                return source.stream
+
+            def update_metadata(
+                self,
+                state: MutableMapping[str, Any],
+                metadata: MutableMapping[str, Any],
+                event: StoredEvent,
+            ) -> MutableMapping[str, Any]:
+                metadata["call_count"] += 1
+                return metadata
+
+            @staticmethod
+            def first_thing_occurred(
+                state: MutableMapping[str, Any], event: StoredEvent
+            ) -> MutableMapping[str, Any]:
+                state["names"] += event.name
+                return state
+
+            @staticmethod
+            def second_thing_occurred(
+                state: MutableMapping[str, Any], event: StoredEvent
+            ) -> MutableMapping[str, Any]:
+                state["names"] += event.name
+                return state
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_events = [
+            NewEventBuilder().with_name("second-thing-occurred").build()
+        ]
+
+        await stream.publish(events=new_events)
+
+        projector = MetadataMapProjector()
+
+        projection = await projector.project(
+            source=stream, metadata={"call_count": 1}
+        )
+
+        assert projection.metadata == {"call_count": 2}
+
+    async def test_uses_defined_projection_name_when_property_overridden(self):
+        projection_name = "specific-thing"
+
         @dataclass
         class Thing:
             value: int = 5
 
+            @classmethod
+            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+                return cls(value=int(value["value"]))
+
+            def serialise(self) -> Mapping[str, Any]:
+                return {"value": self.value}
+
         class CustomTypeProjector(Projector[Thing, StreamIdentifier]):
-            name = "specific-thing"
+            name = projection_name
 
             def initial_state_factory(self) -> Thing:
                 return Thing()
 
-            def id_factory(self, state: Thing, coordinates: StreamIdentifier):
-                return coordinates.stream
+            def initial_metadata_factory(self):
+                return {}
+
+            def id_factory(self, state: Thing, source: StreamIdentifier):
+                return source.stream
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
@@ -391,16 +694,9 @@ class TestProjectorProjection:
 
         projector = CustomTypeProjector()
 
-        actual_projection = await projector.project(source=stream)
-        expected_projection = Projection[Thing](
-            id=stream_name,
-            state=Thing(value=42),
-            version=1,
-            source=stream.identifier,
-            name="specific-thing",
-        )
+        projection = await projector.project(source=stream)
 
-        assert expected_projection == actual_projection
+        assert projection.name == projection_name
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 from logicblocks.event.projection.store import (
     FilterClause,
@@ -22,16 +22,12 @@ from logicblocks.event.types import StreamIdentifier
 class Thing:
     value: int
 
+    @classmethod
+    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+        return cls(value=value["value"])
 
-def to_dict(thing: object) -> Mapping[str, Any]:
-    return thing.__dict__
-
-
-def from_dict[T](target_type: type[T]) -> Callable[[Mapping[str, Any]], T]:
-    def converter(mapping: Mapping[str, Any]) -> T:
-        return target_type(**mapping)
-
-    return converter
+    def serialise(self) -> Mapping[str, Any]:
+        return {"value": self.value}
 
 
 class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
@@ -39,6 +35,9 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
         return Thing(
             value=data.random_int(1, 10),
         )
+
+    def default_metadata_factory(self) -> Mapping[str, Any]:
+        return {}
 
 
 class TestProjectionStoreSave:
@@ -50,11 +49,9 @@ class TestProjectionStoreSave:
 
         projection = ThingProjectionBuilder().with_id(projection_id).build()
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
 
-        located = await store.load(
-            id=projection_id, converter=from_dict(Thing)
-        )
+        located = await store.load(id=projection_id, state_type=Thing)
 
         assert located == projection
 
@@ -76,11 +73,11 @@ class TestProjectionStoreSave:
             .with_name(projection_name)
             .with_state(Thing(value=5))
             .with_source(source)
-            .with_version(1)
+            .with_metadata({"updated_at": "2024-01-01T00:00:00Z"})
             .build()
         )
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
 
         updated_projection = (
             ThingProjectionBuilder()
@@ -88,15 +85,13 @@ class TestProjectionStoreSave:
             .with_name(projection_name)
             .with_state(Thing(value=10))
             .with_source(source)
-            .with_version(2)
+            .with_metadata({"updated_at": "2024-02-02T00:00:00Z"})
             .build()
         )
 
-        await store.save(projection=updated_projection, converter=to_dict)
+        await store.save(projection=updated_projection)
 
-        located = await store.load(
-            id=projection_id, converter=from_dict(Thing)
-        )
+        located = await store.load(id=projection_id, state_type=Thing)
 
         assert located == updated_projection
 
@@ -116,15 +111,11 @@ class TestProjectionStoreLoad:
             ThingProjectionBuilder().with_id(projection_2_id).build()
         )
 
-        await store.save(projection=projection_1, converter=to_dict)
-        await store.save(projection=projection_2, converter=to_dict)
+        await store.save(projection=projection_1)
+        await store.save(projection=projection_2)
 
-        located_1 = await store.load(
-            id=projection_1_id, converter=from_dict(Thing)
-        )
-        located_2 = await store.load(
-            id=projection_2_id, converter=from_dict(Thing)
-        )
+        located_1 = await store.load(id=projection_1_id, state_type=Thing)
+        located_2 = await store.load(id=projection_2_id, state_type=Thing)
 
         assert [located_1, located_2] == [projection_1, projection_2]
 
@@ -133,7 +124,7 @@ class TestProjectionStoreLoad:
         store = ProjectionStore(adapter=adapter)
 
         located = await store.load(
-            id=data.random_projection_id(), converter=from_dict(Thing)
+            id=data.random_projection_id(), state_type=Thing
         )
 
         assert located is None
@@ -177,12 +168,12 @@ class TestProjectionStoreLocate:
             .build()
         )
 
-        await store.save(projection=projection_1, converter=to_dict)
-        await store.save(projection=projection_2, converter=to_dict)
-        await store.save(projection=projection_3, converter=to_dict)
+        await store.save(projection=projection_1)
+        await store.save(projection=projection_2)
+        await store.save(projection=projection_3)
 
         located = await store.locate(
-            source=source_1, name=projection_name_1, converter=from_dict(Thing)
+            source=source_1, name=projection_name_1, state_type=Thing
         )
 
         assert located == projection_1
@@ -197,7 +188,7 @@ class TestProjectionStoreLocate:
                 stream=data.random_event_stream_name(),
             ),
             name=data.random_projection_name(),
-            converter=from_dict(Thing),
+            state_type=Thing,
         )
 
         assert located is None
@@ -233,16 +224,16 @@ class TestProjectionStoreSearch:
             .build()
         )
 
-        await store.save(projection=projection_1, converter=to_dict)
-        await store.save(projection=projection_2, converter=to_dict)
-        await store.save(projection=projection_3, converter=to_dict)
-        await store.save(projection=projection_4, converter=to_dict)
+        await store.save(projection=projection_1)
+        await store.save(projection=projection_2)
+        await store.save(projection=projection_3)
+        await store.save(projection=projection_4)
 
         located = await store.search(
             filters=[FilterClause(Operator.EQUAL, Path("state", "value"), 5)],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
             paging=KeySetPagingClause(item_count=2),
-            converter=from_dict(Thing),
+            state_type=Thing,
         )
 
         assert located == [projection_4, projection_2]
@@ -280,10 +271,10 @@ class TestProjectionStoreSearch:
             .build()
         )
 
-        await store.save(projection=projection_1, converter=to_dict)
-        await store.save(projection=projection_2, converter=to_dict)
-        await store.save(projection=projection_3, converter=to_dict)
-        await store.save(projection=projection_4, converter=to_dict)
+        await store.save(projection=projection_1)
+        await store.save(projection=projection_2)
+        await store.save(projection=projection_3)
+        await store.save(projection=projection_4)
 
         located = await store.search(
             filters=[
@@ -292,7 +283,7 @@ class TestProjectionStoreSearch:
             ],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
             paging=KeySetPagingClause(item_count=2),
-            converter=from_dict(Thing),
+            state_type=Thing,
         )
 
         assert located == []
@@ -318,11 +309,10 @@ class TestProjectionStoreLogging:
             .with_name("thing")
             .with_state(Thing(value=5))
             .with_source(source)
-            .with_version(2)
             .build()
         )
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
 
         log_event = logger.find_event("event.projection.saved")
 
@@ -330,7 +320,7 @@ class TestProjectionStoreLogging:
         assert log_event.level == LogLevel.INFO
         assert log_event.is_async is True
         assert log_event.context == {
-            "projection": projection.dict(to_dict),
+            "projection": projection.dict(),
         }
 
     async def test_logs_envelope_on_save_when_not_debug(self):
@@ -352,11 +342,10 @@ class TestProjectionStoreLogging:
             .with_name("thing")
             .with_state(Thing(value=5))
             .with_source(source)
-            .with_version(2)
             .build()
         )
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
 
         log_event = logger.find_event("event.projection.saved")
 
@@ -377,9 +366,9 @@ class TestProjectionStoreLogging:
 
         projection = ThingProjectionBuilder().with_id(projection_id).build()
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
 
-        await store.load(id=projection_id, converter=from_dict(Thing))
+        await store.load(id=projection_id, state_type=Thing)
 
         log_event = logger.find_event("event.projection.loading")
 
@@ -409,9 +398,9 @@ class TestProjectionStoreLogging:
             .build()
         )
 
-        await store.save(projection=projection, converter=to_dict)
+        await store.save(projection=projection)
         await store.locate(
-            source=source, name=projection_name, converter=from_dict(Thing)
+            source=source, name=projection_name, state_type=Thing
         )
 
         log_event = logger.find_event("event.projection.locating")
@@ -435,10 +424,7 @@ class TestProjectionStoreLogging:
         paging = KeySetPagingClause(item_count=2)
 
         await store.search(
-            filters=[filter],
-            sort=sort,
-            paging=paging,
-            converter=from_dict(Thing),
+            filters=[filter], sort=sort, paging=paging, state_type=Thing
         )
 
         log_event = logger.find_event("event.projection.searching")

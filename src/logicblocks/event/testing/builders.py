@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any, Self, TypedDict, Unpack
 
 from logicblocks.event.types import (
+    CodecOrMapping,
     NewEvent,
     Projectable,
     Projection,
@@ -22,9 +23,9 @@ from .data import (
     random_event_sequence_number,
     random_event_stream_name,
     random_projection_id,
+    random_projection_metadata,
     random_projection_name,
     random_projection_state,
-    random_projection_version,
 )
 
 
@@ -215,29 +216,35 @@ class StoredEventBuilder:
         )
 
 
-class ProjectionBuilderParams[T](TypedDict, total=False):
+class ProjectionBuilderParams[
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
+](TypedDict, total=False):
     id: str
     name: str
-    state: T
-    version: int
     source: Projectable
+    state: State
+    metadata: Metadata
 
 
-class BaseProjectionBuilder[T](ABC):
+class BaseProjectionBuilder[
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
+](ABC):
     id: str
     name: str
-    state: T
-    version: int
     source: Projectable
+    state: State
+    metadata: Metadata
 
     def __init__(
         self,
         *,
         id: str | None = None,
         name: str | None = None,
-        state: T | None = None,
-        version: int | None = None,
         source: Projectable | None = None,
+        state: State | None = None,
+        metadata: Metadata | None = None,
     ):
         object.__setattr__(
             self, "id", id if id is not None else random_projection_id()
@@ -249,16 +256,6 @@ class BaseProjectionBuilder[T](ABC):
         )
         object.__setattr__(
             self,
-            "state",
-            state if state is not None else self.default_state_factory(),
-        )
-        object.__setattr__(
-            self,
-            "version",
-            version if version is not None else random_projection_version(),
-        )
-        object.__setattr__(
-            self,
             "source",
             source
             if source is not None
@@ -267,18 +264,36 @@ class BaseProjectionBuilder[T](ABC):
                 stream=random_event_stream_name(),
             ),
         )
+        object.__setattr__(
+            self,
+            "state",
+            state if state is not None else self.default_state_factory(),
+        )
+        object.__setattr__(
+            self,
+            "metadata",
+            metadata
+            if metadata is not None
+            else self.default_metadata_factory(),
+        )
 
     @abstractmethod
-    def default_state_factory(self) -> T:
+    def default_state_factory(self) -> State:
         raise NotImplementedError()
 
-    def _clone(self, **kwargs: Unpack[ProjectionBuilderParams[T]]) -> Self:
+    @abstractmethod
+    def default_metadata_factory(self) -> Metadata:
+        raise NotImplementedError()
+
+    def _clone(
+        self, **kwargs: Unpack[ProjectionBuilderParams[State, Metadata]]
+    ) -> Self:
         return self.__class__(
             id=kwargs.get("id", self.id),
             name=kwargs.get("name", self.name),
-            state=kwargs.get("state", self.state),
-            version=kwargs.get("version", self.version),
             source=kwargs.get("source", self.source),
+            state=kwargs.get("state", self.state),
+            metadata=kwargs.get("metadata", self.metadata),
         )
 
     def with_id(self, id: str) -> Self:
@@ -287,25 +302,30 @@ class BaseProjectionBuilder[T](ABC):
     def with_name(self, name: str) -> Self:
         return self._clone(name=name)
 
-    def with_state(self, state: T) -> Self:
-        return self._clone(state=state)
-
-    def with_version(self, version: int) -> Self:
-        return self._clone(version=version)
-
     def with_source(self, source: Projectable) -> Self:
         return self._clone(source=source)
 
-    def build(self) -> Projection[T]:
-        return Projection[T](
+    def with_state(self, state: State) -> Self:
+        return self._clone(state=state)
+
+    def with_metadata(self, metadata: Metadata) -> Self:
+        return self._clone(metadata=metadata)
+
+    def build(self) -> Projection[State, Metadata]:
+        return Projection[State, Metadata](
             id=self.id,
             name=self.name,
-            state=self.state,
-            version=self.version,
             source=self.source,
+            state=self.state,
+            metadata=self.metadata,
         )
 
 
-class MappingProjectionBuilder(BaseProjectionBuilder[Mapping[str, Any]]):
+class MappingProjectionBuilder(
+    BaseProjectionBuilder[Mapping[str, Any], Mapping[str, Any]]
+):
     def default_state_factory(self) -> Mapping[str, Any]:
         return random_projection_state()
+
+    def default_metadata_factory(self) -> Mapping[str, Any]:
+        return random_projection_metadata()

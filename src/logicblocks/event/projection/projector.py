@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from enum import StrEnum
+from typing import Any
 
 from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import (
+    CodecOrMapping,
     EventSourceIdentifier,
     Projection,
     StoredEvent,
@@ -26,7 +28,11 @@ class MissingHandlerBehaviour(StrEnum):
     IGNORE = "ignore"
 
 
-class Projector[T, I: EventSourceIdentifier](ABC):
+class Projector[
+    State: CodecOrMapping,
+    Identifier: EventSourceIdentifier,
+    Metadata: CodecOrMapping = Mapping[str, Any],
+](ABC):
     name: str | None = None
 
     missing_handler_behaviour: MissingHandlerBehaviour = (
@@ -34,46 +40,71 @@ class Projector[T, I: EventSourceIdentifier](ABC):
     )
 
     @abstractmethod
-    def initial_state_factory(self) -> T:
+    def initial_state_factory(self) -> State:
         raise NotImplementedError()
 
     @abstractmethod
-    def id_factory(self, state: T, coordinates: I) -> str:
+    def initial_metadata_factory(self) -> Metadata:
         raise NotImplementedError()
 
-    def apply(self, *, event: StoredEvent, state: T | None = None) -> T:
+    @abstractmethod
+    def id_factory(self, state: State, source: Identifier) -> str:
+        raise NotImplementedError()
+
+    def update_metadata(
+        self, state: State, metadata: Metadata, event: StoredEvent
+    ) -> Metadata:
+        return metadata
+
+    @property
+    def projection_name(self):
+        return self.name if self.name is not None else self._default_name()
+
+    def apply(
+        self, *, event: StoredEvent, state: State | None = None
+    ) -> State:
         state = self._resolve_state(state)
         handler = self._resolve_handler(event)
 
         return handler(state, event)
 
     async def project(
-        self, *, source: EventSource[I], state: T | None = None
-    ) -> Projection[T]:
+        self,
+        *,
+        source: EventSource[Identifier],
+        state: State | None = None,
+        metadata: Metadata | None = None,
+    ) -> Projection[State, Metadata]:
         state = self._resolve_state(state)
-        version = 0
+        metadata = self._resolve_metadata(metadata)
 
         async for event in source:
             state = self.apply(state=state, event=event)
-            version = event.position + 1
+            metadata = self.update_metadata(state, metadata, event)
 
-        return Projection[T](
+        return Projection[State, Metadata](
             id=self.id_factory(state, source.identifier),
-            state=state,
-            version=version,
+            name=self.projection_name,
             source=source.identifier,
-            name=self.resolve_name(),
+            state=state,
+            metadata=metadata,
         )
 
-    def _resolve_state(self, state: T | None) -> T:
+    def _resolve_state(self, state: State | None) -> State:
         if state is None:
             return self.initial_state_factory()
 
         return state
 
+    def _resolve_metadata(self, metadata: Metadata | None) -> Metadata:
+        if metadata is None:
+            return self.initial_metadata_factory()
+
+        return metadata
+
     def _resolve_handler(
         self, event: StoredEvent
-    ) -> Callable[[T, StoredEvent], T]:
+    ) -> Callable[[State, StoredEvent], State]:
         handler_name = to_snake_case(event.name)
         handler = getattr(self, handler_name, None)
 
@@ -84,9 +115,6 @@ class Projector[T, I: EventSourceIdentifier](ABC):
                 return lambda state, _: state
 
         return handler
-
-    def resolve_name(self) -> str:
-        return self.name if self.name is not None else self._default_name()
 
     def _default_name(self) -> str:
         projector_name = self.__class__.__name__.replace("Projector", "")

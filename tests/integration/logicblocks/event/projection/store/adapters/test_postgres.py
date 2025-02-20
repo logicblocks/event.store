@@ -88,7 +88,7 @@ async def drop_table(
 async def read_projections(
     pool: AsyncConnectionPool[AsyncConnection],
     table: str,
-) -> Sequence[Projection[Mapping[str, Any]]]:
+) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
     async with pool.connection() as connection:
         async with connection.cursor(row_factory=dict_row) as cursor:
             results = await cursor.execute(read_projections_query(table))
@@ -96,11 +96,11 @@ async def read_projections(
                 Projection(
                     id=projection["id"],
                     name=projection["name"],
-                    state=projection["state"],
-                    version=projection["version"],
                     source=identifier.event_sequence_identifier(
                         projection["source"]
                     ),
+                    state=projection["state"],
+                    metadata=projection["metadata"],
                 )
                 for projection in await results.fetchall()
             ]

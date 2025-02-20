@@ -96,8 +96,13 @@ def random_projection_state() -> Mapping[str, Any]:
     }
 
 
-def random_projection_version() -> int:
-    return random_int(1, 10000000)
+def random_projection_metadata() -> Mapping[str, Any]:
+    return {
+        random_lowercase_ascii_alphabetics_string(
+            length=10
+        ): random_ascii_alphanumerics_string(length=20)
+        for _ in range(random_int(1, 10))
+    }
 
 
 def random_node_id() -> str:

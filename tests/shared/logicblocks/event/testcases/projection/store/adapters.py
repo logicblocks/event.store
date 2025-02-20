@@ -685,6 +685,59 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_4, projection_2]
 
+    async def test_filter_on_value_in_list(self):
+        adapter = self.construct_storage_adapter()
+
+        value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
+        value_to_filter_2 = data.random_ascii_alphanumerics_string(10)
+        other_value = data.random_ascii_alphanumerics_string(10)
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2=value_to_filter_1))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2=value_to_filter_2))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2=other_value))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1, converter=Thing.to_dict)
+        await adapter.save(projection=projection_2, converter=Thing.to_dict)
+        await adapter.save(projection=projection_3, converter=Thing.to_dict)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.IN,
+                    Path("state", "value_2"),
+                    [value_to_filter_1, value_to_filter_2],
+                )
+            ],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        path=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(item_count=2),
+        )
+        located = await adapter.find_many(
+            search=search, converter=Thing.from_dict
+        )
+
+        assert located == [projection_1, projection_2]
+
 
 class ProjectionStorageAdapterCases(
     SaveCases, FindOneCases, FindManyCases, ABC

@@ -870,3 +870,37 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         )
 
         assert results == []
+
+    def test_filter_on_value_in_list(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
+        value_to_filter_2 = data.random_ascii_alphanumerics_string(10)
+        other_value = data.random_ascii_alphanumerics_string(10)
+        clause = FilterClause(
+            Operator.IN,
+            Path("state", "value_2"),
+            [value_to_filter_1, value_to_filter_2],
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": value_to_filter_1})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 10, "value_2": value_to_filter_2})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 15, "value_2": other_value})
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_1, projection_2]

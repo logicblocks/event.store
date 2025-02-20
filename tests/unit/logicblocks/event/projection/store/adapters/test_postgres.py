@@ -22,6 +22,7 @@ from logicblocks.event.projection.store.adapters import (
     PostgresTableSettings,
 )
 from logicblocks.event.projection.store.query import PagingDirection
+from logicblocks.event.testing import data
 from logicblocks.event.testing.data import random_projection_id
 
 
@@ -137,6 +138,31 @@ class TestPostgresQueryConverterQueryConversion:
             'SELECT * FROM "projections" '
             "WHERE \"state\"#>'{value}' = to_jsonb(CAST(%s AS TEXT))",
             ["test"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_list_of_strings_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        value_1 = data.random_ascii_alphanumerics_string(10)
+        value_2 = data.random_ascii_alphanumerics_string(10)
+        converter = query_converter_with_default_clause_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.IN,
+                    path=Path("state", "value"),
+                    value=[value_1, value_2],
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            "WHERE \"state\"#>'{value}' IN (to_jsonb(CAST(%s AS TEXT)), to_jsonb(CAST(%s AS TEXT)))",
+            [value_1, value_2],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])

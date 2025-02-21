@@ -877,3 +877,23 @@ class TestPostgresQueryConverterQueryConversion:
             "LIMIT %s",
             [last_id, 1, 10, 10, 10, 10, 10],
         )
+
+    def test_converts_string_array_contains_query_on_nested_attribute(self):
+        converter = query_converter_with_default_clause_converters()
+        value = data.random_ascii_alphanumerics_string(10)
+        query = Search(
+            filters=[
+                FilterClause(
+                    operator=Operator.CONTAINS,
+                    path=Path("state", "arr"),
+                    value=value,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" WHERE "state"#>\'{arr}\' @> to_jsonb(CAST(%s AS TEXT))',
+            [value],
+        )

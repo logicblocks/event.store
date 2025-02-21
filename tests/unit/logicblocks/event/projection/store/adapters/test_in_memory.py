@@ -903,3 +903,41 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         results = transformer([projection_1, projection_2, projection_3])
 
         assert results == [projection_1, projection_2]
+
+    def test_filter_on_list_contains_value(self):
+        registry = InMemoryQueryConverter().with_default_clause_converters()
+
+        value_to_filter = data.random_ascii_alphanumerics_string(10)
+        other_value1 = data.random_ascii_alphanumerics_string(10)
+        other_value2 = data.random_ascii_alphanumerics_string(10)
+        clause = FilterClause(
+            Operator.CONTAINS,
+            Path("state", "value_2"),
+            value_to_filter,
+        )
+
+        transformer = registry.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": [other_value1]})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state(
+                {"value_1": 15, "value_2": [other_value1, other_value2]}
+            )
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state(
+                {"value_1": 25, "value_2": [other_value1, value_to_filter]}
+            )
+            .build()
+        )
+
+        results = transformer([projection_1, projection_2, projection_3])
+
+        assert results == [projection_3]

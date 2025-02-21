@@ -115,6 +115,7 @@ class Operator(StrEnum):
     LESS_THAN = "<"
     LESS_THAN_OR_EQUAL = "<="
     IN = "IN"
+    CONTAINS = "@>"
 
 
 class SetOperationMode(StrEnum):

@@ -96,6 +96,7 @@ operator_for_query_operator_map = {
     Operator.GREATER_THAN: DBOperator.GREATER_THAN,
     Operator.GREATER_THAN_OR_EQUAL: DBOperator.GREATER_THAN_OR_EQUAL,
     Operator.IN: DBOperator.IN,
+    Operator.CONTAINS: DBOperator.CONTAINS,
 }
 
 

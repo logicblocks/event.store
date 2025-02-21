@@ -29,9 +29,9 @@ class MissingHandlerBehaviour(StrEnum):
 
 
 class Projector[
-    State: CodecOrMapping | None,
+    State: CodecOrMapping,
     Identifier: EventSourceIdentifier,
-    Metadata: CodecOrMapping | None = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
 ](ABC):
     name: str | None = None
 

@@ -11,8 +11,8 @@ type Projectable = EventSourceIdentifier
 
 @dataclass(frozen=True)
 class Projection[
-    State: CodecOrMapping | None = Mapping[str, Any],
-    Metadata: CodecOrMapping | None = Mapping[str, Any],
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
 ]:
     id: str
     name: str
@@ -73,7 +73,7 @@ class Projection[
 
 
 def serialise_projection(
-    projection: Projection[CodecOrMapping | None, CodecOrMapping | None],
+    projection: Projection[CodecOrMapping, CodecOrMapping],
 ) -> Projection[Mapping[str, Any], Mapping[str, Any]]:
     return Projection[Mapping[str, Any], Mapping[str, Any]](
         id=projection.id,
@@ -85,8 +85,8 @@ def serialise_projection(
 
 
 def deserialise_projection[
-    State: CodecOrMapping | None = Mapping[str, Any],
-    Metadata: CodecOrMapping | None = Mapping[str, Any],
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
 ](
     projection: Projection[Mapping[str, Any], Mapping[str, Any]],
     state_type: type[State] = Mapping[str, Any],

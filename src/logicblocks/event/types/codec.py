@@ -14,10 +14,10 @@ class Codec(Protocol):
         raise NotImplementedError
 
 
-type CodecOrMapping = Codec | Mapping[str, Any]
+type CodecOrMapping = Codec | None | Mapping[str, Any]
 
 
-def serialise(value: CodecOrMapping | None) -> Mapping[str, Any]:
+def serialise(value: CodecOrMapping) -> Mapping[str, Any]:
     if value is None:
         raise ValueError("Cannot serialise None.")
     if isinstance(value, Codec):
@@ -25,7 +25,7 @@ def serialise(value: CodecOrMapping | None) -> Mapping[str, Any]:
     return value
 
 
-def deserialise[T: CodecOrMapping | None](
+def deserialise[T: CodecOrMapping](
     klass: type[T], value: Mapping[str, Any]
 ) -> T:
     if klass is NoneType:

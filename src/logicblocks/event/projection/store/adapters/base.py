@@ -21,8 +21,8 @@ class ProjectionStorageAdapter[
 
     @abstractmethod
     async def find_one[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: CodecOrMapping | None = Mapping[str, Any],
+        Metadata: CodecOrMapping | None = Mapping[str, Any],
     ](
         self,
         *,
@@ -34,8 +34,8 @@ class ProjectionStorageAdapter[
 
     @abstractmethod
     async def find_many[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: CodecOrMapping | None = Mapping[str, Any],
+        Metadata: CodecOrMapping | None = Mapping[str, Any],
     ](
         self,
         *,

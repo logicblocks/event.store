@@ -181,7 +181,7 @@ class TestAsynchronousProjections:
 
         thing_projector = ThingProjector()
 
-        event_processor = ProjectionEventProcessor(
+        event_processor = ProjectionEventProcessor[Thing](
             projector=thing_projector,
             projection_store=thing_projection_store,
             state_type=Thing,

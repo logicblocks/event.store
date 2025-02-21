@@ -11,8 +11,8 @@ type Projectable = EventSourceIdentifier
 
 @dataclass(frozen=True)
 class Projection[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State: CodecOrMapping | None = Mapping[str, Any],
+    Metadata: CodecOrMapping | None = Mapping[str, Any],
 ]:
     id: str
     name: str
@@ -36,8 +36,10 @@ class Projection[
         object.__setattr__(self, "metadata", metadata)
 
     def dict(self) -> Mapping[str, Any]:
-        state = serialise(self.state)
-        metadata = serialise(self.metadata)
+        state = serialise(self.state) if self.state is not None else None
+        metadata = (
+            serialise(self.metadata) if self.metadata is not None else None
+        )
         return {
             "id": self.id,
             "name": self.name,
@@ -71,7 +73,7 @@ class Projection[
 
 
 def serialise_projection(
-    projection: Projection[CodecOrMapping, CodecOrMapping],
+    projection: Projection[CodecOrMapping | None, CodecOrMapping | None],
 ) -> Projection[Mapping[str, Any], Mapping[str, Any]]:
     return Projection[Mapping[str, Any], Mapping[str, Any]](
         id=projection.id,
@@ -83,8 +85,8 @@ def serialise_projection(
 
 
 def deserialise_projection[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State: CodecOrMapping | None = Mapping[str, Any],
+    Metadata: CodecOrMapping | None = Mapping[str, Any],
 ](
     projection: Projection[Mapping[str, Any], Mapping[str, Any]],
     state_type: type[State] = Mapping[str, Any],

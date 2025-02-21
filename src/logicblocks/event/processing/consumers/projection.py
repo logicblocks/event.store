@@ -10,12 +10,12 @@ from .types import EventProcessor
 
 
 class ProjectionEventProcessor[
-    State: CodecOrMapping,
-    Metadata: CodecOrMapping,
+    State: CodecOrMapping = Mapping[str, Any],
+    Metadata: CodecOrMapping = Mapping[str, Any],
 ](EventProcessor):
     def __init__(
         self,
-        projector: Projector[State, StreamIdentifier],
+        projector: Projector[State, StreamIdentifier, Metadata],
         projection_store: ProjectionStore,
         state_type: type[State] = Mapping[str, Any],
         metadata_type: type[Metadata] = Mapping[str, Any],

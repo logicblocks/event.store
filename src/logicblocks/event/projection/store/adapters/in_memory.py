@@ -320,8 +320,8 @@ class InMemoryProjectionStorageAdapter[
         )
 
     async def find_one[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: CodecOrMapping | None = Mapping[str, Any],
+        Metadata: CodecOrMapping | None = Mapping[str, Any],
     ](
         self,
         *,
@@ -344,8 +344,8 @@ class InMemoryProjectionStorageAdapter[
         return deserialise_projection(projection, state_type, metadata_type)
 
     async def find_many[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: CodecOrMapping | None = Mapping[str, Any],
+        Metadata: CodecOrMapping | None = Mapping[str, Any],
     ](
         self,
         *,

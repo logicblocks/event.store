@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Self
 
 import pytest
@@ -31,21 +31,33 @@ from logicblocks.event.types.projection import (
 @dataclass
 class Thing:
     value_1: int
-    value_2: str
+    value_2: str = ""
+    value_3: list[str] = field(default_factory=list[str])
 
     @classmethod
     def deserialise(cls, value: Mapping[str, Any]) -> Self:
-        return cls(value_1=value["value_1"], value_2=value["value_2"])
+        return cls(
+            value_1=value["value_1"],
+            value_2=value["value_2"],
+            value_3=value["value_3"],
+        )
 
     def serialise(self) -> Mapping[str, Any]:
-        return {"value_1": self.value_1, "value_2": self.value_2}
+        return {
+            "value_1": self.value_1,
+            "value_2": self.value_2,
+            "value_3": self.value_3,
+        }
 
 
 class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
     def default_state_factory(self) -> Thing:
         return Thing(
             value_1=data.random_int(1, 10),
-            value_2=data.random_ascii_alphanumerics_string(),
+            value_2=data.random_ascii_alphanumerics_string(10),
+            value_3=[
+                data.random_ascii_alphanumerics_string(10) for _ in range(3)
+            ],
         )
 
     def default_metadata_factory(self) -> Mapping[str, Any]:
@@ -710,6 +722,74 @@ class FindManyCases(Base, ABC):
         located = await adapter.find_many(search=search, state_type=Thing)
 
         assert located == [projection_1, projection_2]
+
+    async def test_filter_on_list_contains_value(self):
+        adapter = self.construct_storage_adapter()
+
+        value_to_filter = data.random_ascii_alphanumerics_string(10)
+        other_value1 = data.random_ascii_alphanumerics_string(10)
+        other_value2 = data.random_ascii_alphanumerics_string(10)
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(
+                Thing(
+                    value_1=5,
+                    value_3=[other_value1, other_value2],
+                )
+            )
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_3=[value_to_filter]))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(
+                Thing(
+                    value_1=7,
+                    value_3=[value_to_filter, other_value1],
+                )
+            )
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_id("4")
+            .with_state(Thing(value_1=8, value_2="whatever", value_3=[]))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+        await adapter.save(projection=projection_4)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.CONTAINS,
+                    Path("state", "value_3"),
+                    value_to_filter,
+                )
+            ],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        path=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(item_count=2),
+        )
+        located = await adapter.find_many(search=search, state_type=Thing)
+
+        assert located == [projection_2, projection_3]
 
 
 class ProjectionStorageAdapterCases(

@@ -102,6 +102,8 @@ def filter_clause_converter(
                 return resolved_value <= comparison_value
             case Operator.IN:
                 return resolved_value in comparison_value
+            case Operator.CONTAINS:
+                return comparison_value in resolved_value
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 

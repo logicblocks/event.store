@@ -16,7 +16,7 @@ class PositionIsCondition(WriteCondition):
     position: int
 
     def assert_met_by(self, *, last_event: StoredEvent | None):
-        if last_event is None or last_event.position is not self.position:
+        if last_event is None or last_event.position != self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
 

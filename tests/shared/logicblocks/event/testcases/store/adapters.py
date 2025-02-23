@@ -1001,7 +1001,6 @@ class AsyncioConcurrencyCases(Base, ABC):
     async def test_simultaneous_reads_and_writes_are_totally_ordered_when_log_level_ordering_guarantee(
         self,
     ):
-        pytest.skip("flaky")
         adapter = self.construct_storage_adapter(
             ordering_guarantee=EventOrderingGuarantee.LOG
         )
@@ -1029,7 +1028,9 @@ class AsyncioConcurrencyCases(Base, ABC):
         async def log_reader(event: asyncio.Event) -> Sequence[StoredEvent]:
             events: list[StoredEvent] = []
             last_sequence_number = -1
-            while not event.is_set():
+            shutdown_requested = False
+            last_iteration_completed = False
+            while True:
                 new_events = [
                     event
                     async for event in adapter.scan(
@@ -1047,7 +1048,14 @@ class AsyncioConcurrencyCases(Base, ABC):
 
                 events.extend(new_events)
 
-            return events
+                if shutdown_requested:
+                    last_iteration_completed = True
+
+                if event.is_set() and last_iteration_completed is True:
+                    return events
+
+                elif event.is_set():
+                    shutdown_requested = True
 
         event = asyncio.Event()
         reader = log_reader(event)

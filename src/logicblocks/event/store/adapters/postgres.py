@@ -1,3 +1,4 @@
+import hashlib
 from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
 from functools import singledispatch
@@ -134,6 +135,12 @@ def sequence_number_after_query_constraint_to_sql(
     return sql.SQL("sequence_number > %s"), [constraint.sequence_number]
 
 
+def get_digest(lock_id: str) -> int:
+    return (
+        int(hashlib.sha256(lock_id.encode("utf-8")).hexdigest(), 16) % 10**16
+    )
+
+
 def scan_query(
     parameters: ScanQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
@@ -200,14 +207,14 @@ def scan_query(
     return query, params
 
 
-def lock_query(table_settings: TableSettings) -> ParameterisedQuery:
+def lock_log_query(table_settings: TableSettings) -> ParameterisedQuery:
     return (
         sql.SQL(
             """
-            LOCK TABLE ONLY {0} IN EXCLUSIVE MODE;
+            SELECT pg_advisory_xact_lock(%s);
             """
-        ).format(sql.Identifier(table_settings.events_table_name)),
-        [],
+        ),
+        [get_digest(table_settings.events_table_name)],
     )
 
 
@@ -300,10 +307,10 @@ def insert_query(
     )
 
 
-async def lock_table(
+async def lock_log(
     cursor: AsyncCursor[StoredEvent], *, table_settings: TableSettings
 ):
-    await cursor.execute(*lock_query(table_settings))
+    await cursor.execute(*lock_log_query(table_settings))
 
 
 async def read_last(
@@ -376,7 +383,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             async with connection.cursor(
                 row_factory=class_row(StoredEvent)
             ) as cursor:
-                await lock_table(cursor, table_settings=self.table_settings)
+                await lock_log(cursor, table_settings=self.table_settings)
 
                 last_event = await read_last(
                     cursor,

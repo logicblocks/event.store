@@ -285,7 +285,7 @@ class InMemoryProjectionStorageAdapter[
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
     def __init__(self, query_converter: InMemoryQueryConverter | None = None):
         self._projections: dict[
-            str, Projection[Mapping[str, Any], Mapping[str, Any]]
+            tuple[str, str], Projection[Mapping[str, Any], Mapping[str, Any]]
         ] = {}
         self._query_converter = (
             query_converter
@@ -298,9 +298,10 @@ class InMemoryProjectionStorageAdapter[
         *,
         projection: Projection[CodecOrMapping, CodecOrMapping],
     ) -> None:
-        existing = self._projections.get(projection.id, None)
+        projection_key = (projection.name, projection.id)
+        existing = self._projections.get(projection_key, None)
         if existing is not None:
-            self._projections[projection.id] = Projection[
+            self._projections[projection_key] = Projection[
                 Mapping[str, Any], Mapping[str, Any]
             ](
                 id=existing.id,
@@ -310,7 +311,9 @@ class InMemoryProjectionStorageAdapter[
                 metadata=serialise(projection.metadata),
             )
         else:
-            self._projections[projection.id] = serialise_projection(projection)
+            self._projections[projection_key] = serialise_projection(
+                projection
+            )
 
     async def _find_raw(
         self, query: Query

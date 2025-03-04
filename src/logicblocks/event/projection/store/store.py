@@ -87,6 +87,7 @@ class ProjectionStore:
         self,
         *,
         id: str,
+        name: str,
         state_type: type[State] = Mapping[str, Any],
         metadata_type: type[Metadata] = Mapping[str, Any],
     ) -> Projection[State, Metadata] | None:
@@ -94,7 +95,10 @@ class ProjectionStore:
 
         return await self._adapter.find_one(
             lookup=Lookup(
-                filters=[FilterClause(Operator.EQUAL, Path("id"), id)]
+                filters=[
+                    FilterClause(Operator.EQUAL, Path("name"), name),
+                    FilterClause(Operator.EQUAL, Path("id"), id),
+                ]
             ),
             state_type=state_type,
             metadata_type=metadata_type,

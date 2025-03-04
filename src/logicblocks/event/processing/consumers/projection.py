@@ -29,7 +29,7 @@ class ProjectionEventProcessor[
         identifier = StreamIdentifier(
             category=event.category, stream=event.stream
         )
-        current_state = await self._projection_store.locate(
+        current_projection = await self._projection_store.locate(
             source=identifier,
             name=self._projector.projection_name,
             state_type=self._state_type,
@@ -38,8 +38,11 @@ class ProjectionEventProcessor[
         source = InMemoryEventSource[StreamIdentifier](
             events=[event], identifier=identifier
         )
-        projection = await self._projector.project(
-            state=current_state.state if current_state else None,
+        updated_projection = await self._projector.project(
+            state=current_projection.state if current_projection else None,
+            metadata=current_projection.metadata
+            if current_projection
+            else None,
             source=source,
         )
-        await self._projection_store.save(projection=projection)
+        await self._projection_store.save(projection=updated_projection)

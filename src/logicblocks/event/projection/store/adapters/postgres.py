@@ -693,7 +693,7 @@ def insert_query(
               metadata
             )
               VALUES (%s, %s, %s, %s, %s)
-              ON CONFLICT (id) 
+              ON CONFLICT (name, id) 
               DO UPDATE
             SET (state, metadata) = (%s, %s);
             """

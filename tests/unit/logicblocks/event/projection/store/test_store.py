@@ -43,15 +43,23 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
 class TestProjectionStoreSave:
     async def test_stores_and_loads_projection(self):
         projection_id = data.random_projection_id()
+        projection_name = data.random_projection_name()
 
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
 
-        projection = ThingProjectionBuilder().with_id(projection_id).build()
+        projection = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_id(projection_id)
+            .build()
+        )
 
         await store.save(projection=projection)
 
-        located = await store.load(id=projection_id, state_type=Thing)
+        located = await store.load(
+            name=projection_name, id=projection_id, state_type=Thing
+        )
 
         assert located == projection
 
@@ -91,40 +99,71 @@ class TestProjectionStoreSave:
 
         await store.save(projection=updated_projection)
 
-        located = await store.load(id=projection_id, state_type=Thing)
+        located = await store.load(
+            name=projection_name, id=projection_id, state_type=Thing
+        )
 
         assert located == updated_projection
 
 
 class TestProjectionStoreLoad:
-    async def test_loads_correct_projection(self):
-        projection_1_id = data.random_projection_id()
-        projection_2_id = data.random_projection_id()
+    async def test_loads_correct_projection_by_name_and_id(self):
+        projection_id_1 = data.random_projection_id()
+        projection_id_2 = data.random_projection_id()
+
+        projection_name_1 = data.random_projection_name()
+        projection_name_2 = data.random_projection_name()
 
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
 
         projection_1 = (
-            ThingProjectionBuilder().with_id(projection_1_id).build()
+            ThingProjectionBuilder()
+            .with_name(projection_name_1)
+            .with_id(projection_id_1)
+            .build()
         )
         projection_2 = (
-            ThingProjectionBuilder().with_id(projection_2_id).build()
+            ThingProjectionBuilder()
+            .with_name(projection_name_2)
+            .with_id(projection_id_2)
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name_2)
+            .with_id(projection_id_1)
+            .build()
         )
 
         await store.save(projection=projection_1)
         await store.save(projection=projection_2)
+        await store.save(projection=projection_3)
 
-        located_1 = await store.load(id=projection_1_id, state_type=Thing)
-        located_2 = await store.load(id=projection_2_id, state_type=Thing)
+        located_1 = await store.load(
+            name=projection_name_1, id=projection_id_1, state_type=Thing
+        )
+        located_2 = await store.load(
+            name=projection_name_2, id=projection_id_2, state_type=Thing
+        )
+        located_3 = await store.load(
+            name=projection_name_2, id=projection_id_1, state_type=Thing
+        )
 
-        assert [located_1, located_2] == [projection_1, projection_2]
+        assert [located_1, located_2, located_3] == [
+            projection_1,
+            projection_2,
+            projection_3,
+        ]
 
     async def test_returns_none_when_no_projection(self):
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
 
         located = await store.load(
-            id=data.random_projection_id(), state_type=Thing
+            name=data.random_projection_name(),
+            id=data.random_projection_id(),
+            state_type=Thing,
         )
 
         assert located is None
@@ -360,15 +399,23 @@ class TestProjectionStoreLogging:
         logger = CapturingLogger.create()
 
         projection_id = data.random_projection_id()
+        projection_name = data.random_projection_name()
 
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter, logger=logger)
 
-        projection = ThingProjectionBuilder().with_id(projection_id).build()
+        projection = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_id(projection_id)
+            .build()
+        )
 
         await store.save(projection=projection)
 
-        await store.load(id=projection_id, state_type=Thing)
+        await store.load(
+            name=projection_name, id=projection_id, state_type=Thing
+        )
 
         log_event = logger.find_event("event.projection.loading")
 

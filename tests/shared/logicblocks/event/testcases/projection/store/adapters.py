@@ -122,9 +122,9 @@ class SaveCases(Base, ABC):
         ]
 
     async def test_updates_existing_projection_state_and_metadata(self):
+        projection_name = data.random_projection_name()
         projection_id = data.random_projection_id()
 
-        projection_v1_name = data.random_projection_name()
         projection_v1_source = StreamIdentifier(
             category=data.random_event_category_name(),
             stream=data.random_event_stream_name(),
@@ -132,7 +132,6 @@ class SaveCases(Base, ABC):
         projection_v1_state = Thing(value_1=5, value_2="first version")
         projection_v1_metadata = {"updated_at": "2024-01-01T00:00:00Z"}
 
-        projection_v2_name = data.random_projection_name()
         projection_v2_source = StreamIdentifier(
             category=data.random_event_category_name(),
             stream=data.random_event_stream_name(),
@@ -145,7 +144,7 @@ class SaveCases(Base, ABC):
         projection_v1 = (
             ThingProjectionBuilder()
             .with_id(projection_id)
-            .with_name(projection_v1_name)
+            .with_name(projection_name)
             .with_source(projection_v1_source)
             .with_state(projection_v1_state)
             .with_metadata(projection_v1_metadata)
@@ -154,7 +153,7 @@ class SaveCases(Base, ABC):
         provided_projection_v2 = (
             ThingProjectionBuilder()
             .with_id(projection_id)
-            .with_name(projection_v2_name)
+            .with_name(projection_name)
             .with_source(projection_v2_source)
             .with_state(projection_v2_state)
             .with_metadata(projection_v2_metadata)
@@ -171,7 +170,7 @@ class SaveCases(Base, ABC):
         expected_updated_projection_v2 = (
             ThingProjectionBuilder()
             .with_id(projection_id)
-            .with_name(projection_v1_name)
+            .with_name(projection_name)
             .with_source(projection_v1_source)
             .with_state(projection_v2_state)
             .with_metadata(projection_v2_metadata)

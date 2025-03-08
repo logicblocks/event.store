@@ -8,7 +8,6 @@ from pyheck import snake as to_snake_case
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import (
-    CodecOrMapping,
     EventSourceIdentifier,
     Projection,
     StoredEvent,
@@ -29,9 +28,9 @@ class MissingHandlerBehaviour(StrEnum):
 
 
 class Projector[
-    State: CodecOrMapping,
+    State,
     Identifier: EventSourceIdentifier,
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    Metadata = Mapping[str, Any],
 ](ABC):
     name: str | None = None
 

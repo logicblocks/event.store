@@ -17,12 +17,14 @@ class Codec(Protocol):
 type CodecOrMapping = Codec | None | Mapping[str, Any]
 
 
-def serialise(value: CodecOrMapping) -> Mapping[str, Any]:
+def serialise(value: CodecOrMapping | object) -> Mapping[str, Any]:
     if value is None:
         raise ValueError("Cannot serialise None.")
     if isinstance(value, Codec):
         return value.serialise()
-    return value
+    if isinstance(value, Mapping):
+        return cast(Mapping[str, Any], value)
+    return {"value": str(value)}
 
 
 def deserialise[T: CodecOrMapping](

@@ -11,8 +11,8 @@ type Projectable = EventSourceIdentifier
 
 @dataclass(frozen=True)
 class Projection[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State = Mapping[str, Any],
+    Metadata = Mapping[str, Any],
 ]:
     id: str
     name: str

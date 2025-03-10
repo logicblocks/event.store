@@ -369,7 +369,7 @@ class TestStreamPublishing:
         new_event = NewEventBuilder().build()
 
         stored_events = await stream.publish(
-            events=[new_event], conditions={conditions.position_is(9)}
+            events=[new_event], condition=conditions.position_is(9)
         )
 
         found_events = await stream.read()
@@ -391,7 +391,7 @@ class TestStreamPublishing:
 
         with pytest.raises(UnmetWriteConditionError):
             await stream.publish(
-                events=[new_event], conditions={conditions.position_is(5)}
+                events=[new_event], condition=conditions.position_is(5)
             )
 
     async def test_raises_if_stream_position_before_condition_position(self):
@@ -409,7 +409,7 @@ class TestStreamPublishing:
 
         with pytest.raises(UnmetWriteConditionError):
             await stream.publish(
-                events=[new_event], conditions={conditions.position_is(10)}
+                events=[new_event], condition=conditions.position_is(10)
             )
 
     async def test_publishes_if_stream_empty_and_empty_condition_specified(
@@ -424,7 +424,7 @@ class TestStreamPublishing:
         new_event = NewEventBuilder().build()
 
         stored_events = await stream.publish(
-            events=[new_event], conditions={conditions.stream_is_empty()}
+            events=[new_event], condition=conditions.stream_is_empty()
         )
 
         found_events = await stream.read()
@@ -448,7 +448,7 @@ class TestStreamPublishing:
 
         with pytest.raises(UnmetWriteConditionError):
             await stream.publish(
-                events=[new_event], conditions={conditions.stream_is_empty()}
+                events=[new_event], condition=conditions.stream_is_empty()
             )
 
 
@@ -469,7 +469,7 @@ class TestStreamLogging:
             NewEventBuilder().with_name("second-thing-happened").build(),
         ]
         await stream.publish(
-            events=new_events, conditions={conditions.stream_is_empty()}
+            events=new_events, condition=conditions.stream_is_empty()
         )
 
         log_event = logger.find_event("event.stream.publishing")
@@ -570,7 +570,7 @@ class TestStreamLogging:
 
         with suppress(UnmetWriteConditionError):
             await stream.publish(
-                events=[new_event_2], conditions={conditions.stream_is_empty()}
+                events=[new_event_2], condition=conditions.stream_is_empty()
             )
 
         log_event = logger.find_event("event.stream.publish-failed")

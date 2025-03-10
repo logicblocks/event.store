@@ -104,6 +104,15 @@ class WriteConditions(WriteCondition):
 
 
 @dataclass(frozen=True)
+class _NoCondition(WriteCondition):
+    def assert_met_by(self, *, last_event: StoredEvent | None):
+        pass
+
+
+NoCondition = _NoCondition()
+
+
+@dataclass(frozen=True)
 class PositionIsCondition(WriteCondition):
     position: int
 
@@ -111,20 +120,12 @@ class PositionIsCondition(WriteCondition):
         if last_event is None or last_event.position != self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
-    def __eq__(self, other: object):
-        if not isinstance(other, PositionIsCondition):
-            return False
-        return self.position == other.position
-
 
 @dataclass(frozen=True)
 class EmptyStreamCondition(WriteCondition):
     def assert_met_by(self, *, last_event: StoredEvent | None):
         if last_event is not None:
             raise UnmetWriteConditionError("stream is not empty")
-
-    def __eq__(self, other: object):
-        return isinstance(other, EmptyStreamCondition)
 
 
 def position_is(position: int) -> WriteCondition:

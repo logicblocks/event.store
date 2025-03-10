@@ -21,7 +21,7 @@ from logicblocks.event.store.adapters.base import (
     Saveable,
     Scannable,
 )
-from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.store.conditions import NoCondition, WriteCondition
 from logicblocks.event.store.constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
@@ -377,7 +377,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Saveable,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition] = frozenset(),
+        condition: WriteCondition = NoCondition,
     ) -> Sequence[StoredEvent]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
@@ -391,8 +391,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     table_settings=self.table_settings,
                 )
 
-                for condition in conditions:
-                    condition.assert_met_by(last_event=last_event)
+                condition.assert_met_by(last_event=last_event)
 
                 current_position = last_event.position + 1 if last_event else 0
 

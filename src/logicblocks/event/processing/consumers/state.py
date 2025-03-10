@@ -129,7 +129,7 @@ class EventConsumerStateStore:
                 events=[
                     NewEvent(name="state-changed", payload=state.serialise())
                 ],
-                conditions={condition},
+                condition=condition,
             )
             self._positions[partition] = stored_events[0].position
             self._persistence_lags[partition] = EventCount(0)

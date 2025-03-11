@@ -8,9 +8,9 @@ from logicblocks.event.utils.clock import Clock, SystemClock
 
 
 @dataclass(frozen=True)
-class NewEvent:
+class NewEvent[P: Mapping[str, Any] = Mapping[str, Any]]:
     name: str
-    payload: Mapping[str, Any]
+    payload: P
     observed_at: datetime
     occurred_at: datetime
 
@@ -18,7 +18,7 @@ class NewEvent:
         self,
         *,
         name: str,
-        payload: Mapping[str, Any],
+        payload: P,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),

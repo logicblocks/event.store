@@ -72,7 +72,7 @@ class TestNewEvent:
 
         assert event.observed_at == now and event.occurred_at == now
 
-    def test_includes_all_attributes_in_dictionary(self):
+    def test_includes_all_attributes_when_serialised(self):
         now = datetime.now(UTC)
         event = NewEvent(
             name="something-happened",
@@ -81,7 +81,7 @@ class TestNewEvent:
             occurred_at=now,
         )
 
-        assert event.dict() == {
+        assert event.serialise() == {
             "name": "something-happened",
             "payload": {"foo": "bar"},
             "observed_at": now.isoformat(),
@@ -301,7 +301,7 @@ class TestNewEvent:
 
         assert not hash(event1) == hash(event2)
 
-    def test_returns_envelope_as_dictionary_of_attributes_without_payload(
+    def test_returns_summary_as_dictionary_of_attributes_without_payload(
         self,
     ):
         now = datetime.now(UTC)
@@ -312,7 +312,7 @@ class TestNewEvent:
             occurred_at=now,
         )
 
-        assert event.envelope() == {
+        assert event.summarise() == {
             "name": "something-happened",
             "observed_at": now.isoformat(),
             "occurred_at": now.isoformat(),
@@ -320,7 +320,7 @@ class TestNewEvent:
 
 
 class TestStoredEvent:
-    def test_includes_all_attributes_in_dictionary(self):
+    def test_includes_all_attributes_when_serialised(self):
         now = datetime.now(UTC)
         stored_event = StoredEvent(
             id="some-id",
@@ -334,7 +334,7 @@ class TestStoredEvent:
             occurred_at=now,
         )
 
-        assert stored_event.dict() == {
+        assert stored_event.serialise() == {
             "id": "some-id",
             "name": "something-happened",
             "stream": "some-stream",
@@ -824,7 +824,7 @@ class TestStoredEvent:
 
         assert not hash(event1) == hash(event2)
 
-    def test_returns_envelope_as_dictionary_of_attributes_without_payload(
+    def test_returns_summary_as_dictionary_of_attributes_without_payload(
         self,
     ):
         now = datetime.now(UTC)
@@ -840,7 +840,7 @@ class TestStoredEvent:
             occurred_at=now,
         )
 
-        assert event.envelope() == {
+        assert event.summarise() == {
             "id": "some-id",
             "name": "something-happened",
             "stream": "some-stream",

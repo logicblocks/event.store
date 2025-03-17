@@ -33,7 +33,7 @@ class ThingMeta:
 
 
 class TestProjection:
-    def test_projection_returns_envelope(self):
+    def test_projection_returns_summary(self):
         projection = Projection(
             id="a",
             name="thing",
@@ -42,7 +42,7 @@ class TestProjection:
             metadata={"updated_at": "2024-01-01T00:00:00Z"},
         )
 
-        actual = projection.envelope()
+        actual = projection.summarise()
         expected = {
             "id": "a",
             "name": "thing",
@@ -50,7 +50,7 @@ class TestProjection:
         }
         assert actual == expected
 
-    def test_projection_returns_dict_for_dict_state_and_metadata(self):
+    def test_projection_can_serialise_for_dict_state_and_metadata(self):
         projection = Projection(
             id="a",
             name="thing",
@@ -59,7 +59,7 @@ class TestProjection:
             metadata={"updated_at": "2024-01-01T00:00:00Z"},
         )
 
-        actual = projection.dict()
+        actual = projection.serialise()
         expected = {
             "id": "a",
             "name": "thing",
@@ -69,7 +69,7 @@ class TestProjection:
         }
         assert actual == expected
 
-    def test_projection_returns_dict_for_generic_state_and_metadata(self):
+    def test_projection_can_serialise_for_generic_state_and_metadata(self):
         projection = Projection[Thing, ThingMeta](
             id="a",
             state=Thing(),
@@ -78,7 +78,7 @@ class TestProjection:
             metadata=ThingMeta(updated_at="2024-01-01T00:00:00Z"),
         )
 
-        actual = projection.dict()
+        actual = projection.serialise()
         expected = {
             "id": "a",
             "name": "thing",
@@ -86,48 +86,6 @@ class TestProjection:
             "state": {"value": 5},
             "metadata": {"updated_at": "2024-01-01T00:00:00Z"},
         }
-        assert actual == expected
-
-    def test_projection_returns_json_for_dict_state_and_metadata(self):
-        projection = Projection(
-            id="a",
-            name="thing",
-            source=identifier.StreamIdentifier(category="test", stream="a"),
-            state={"a": 1},
-            metadata={"updated_at": "2024-01-01T00:00:00Z"},
-        )
-
-        actual = projection.json()
-        expected = (
-            "{"
-            '"id": "a", '
-            '"name": "thing", '
-            '"source": {"type": "stream", "category": "test", "stream": "a"}, '
-            '"state": {"a": 1}, '
-            '"metadata": {"updated_at": "2024-01-01T00:00:00Z"}'
-            "}"
-        )
-        assert actual == expected
-
-    def test_projection_returns_json_for_generic_state_and_metadata(self):
-        projection = Projection[Thing, ThingMeta](
-            id="a",
-            name="thing",
-            source=identifier.StreamIdentifier(category="test", stream="a"),
-            state=Thing(),
-            metadata=ThingMeta(updated_at="2024-01-01T00:00:00Z"),
-        )
-
-        actual = projection.json()
-        expected = (
-            "{"
-            '"id": "a", '
-            '"name": "thing", '
-            '"source": {"type": "stream", "category": "test", "stream": "a"}, '
-            '"state": {"value": 5}, '
-            '"metadata": {"updated_at": "2024-01-01T00:00:00Z"}'
-            "}"
-        )
         assert actual == expected
 
     def test_projection_returns_representation(self):

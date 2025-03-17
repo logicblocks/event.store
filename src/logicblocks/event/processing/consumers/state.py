@@ -1,18 +1,32 @@
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Self
 
 from logicblocks.event.store import EventCategory, conditions
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import JsonValue, NewEvent, StoredEvent
+from logicblocks.event.types.json import is_json_object
 
 
 @dataclass(frozen=True)
 class EventConsumerState:
     last_sequence_number: int
-    state: Mapping[str, Any]
+    state: JsonValue
 
-    def dict(self) -> Mapping[str, Any]:
+    @classmethod
+    def deserialize(cls, value: JsonValue) -> Self:
+        if not is_json_object(value):
+            raise ValueError(f"Cannot deserialize {value}.")
+
+        last_sequence_number = value["last_sequence_number"]
+        if not isinstance(last_sequence_number, int):
+            raise ValueError(f"Cannot deserialize {value}.")
+
+        state = value["state"]
+
+        return cls(last_sequence_number, state)
+
+    def serialise(self) -> JsonValue:
         return {
             "last_sequence_number": self.last_sequence_number,
             "state": self.state,
@@ -44,12 +58,12 @@ class EventConsumerStateStore:
         self,
         event: StoredEvent,
         *,
-        state: Mapping[str, Any] | None = None,
+        state: JsonValue = None,
         partition: str = "default",
     ) -> EventConsumerState:
         self._states[partition] = EventConsumerState(
             last_sequence_number=event.sequence_number,
-            state=state if state is not None else {},
+            state=state,
         )
         self._persistence_lags[partition] = self._persistence_lags[
             partition
@@ -60,7 +74,7 @@ class EventConsumerStateStore:
 
         return EventConsumerState(
             last_sequence_number=event.sequence_number,
-            state=state if state is not None else {},
+            state=state,
         )
 
     async def save(self, partition: str | None = None) -> None:
@@ -94,7 +108,9 @@ class EventConsumerStateStore:
             stored_events = await self._category.stream(
                 stream=partition
             ).publish(
-                events=[NewEvent(name="state-changed", payload=state.dict())],
+                events=[
+                    NewEvent(name="state-changed", payload=state.serialise())
+                ],
                 conditions={condition},
             )
             self._positions[partition] = stored_events[0].position
@@ -109,9 +125,8 @@ class EventConsumerStateStore:
                 self._states[partition] = None
                 self._positions[partition] = None
             else:
-                self._states[partition] = EventConsumerState(
-                    last_sequence_number=event.payload["last_sequence_number"],
-                    state=event.payload["state"],
+                self._states[partition] = EventConsumerState.deserialize(
+                    event.payload
                 )
                 self._positions[partition] = event.position
 

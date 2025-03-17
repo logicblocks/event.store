@@ -34,8 +34,10 @@ from logicblocks.event.store import (
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import (
     CategoryIdentifier,
+    JsonValue,
     StoredEvent,
     StreamIdentifier,
+    deserialise,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -156,13 +158,23 @@ class TestAsynchronousProjections:
             value: int = 5
 
             @classmethod
-            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+            def deserialise(cls, value: JsonValue) -> Self:
+                if not isinstance(value, Mapping) or not isinstance(
+                    value["value"], int
+                ):
+                    raise ValueError(
+                        "Value must be a mapping containing a 'value' key "
+                        "with integral value."
+                    )
+
                 return cls(value=value["value"])
 
-            def serialise(self) -> Mapping[str, Any]:
+            def serialise(self) -> JsonValue:
                 return {"value": self.value}
 
-        class ThingProjector(Projector[Thing, StreamIdentifier]):
+        class ThingProjector(
+            Projector[Thing, StreamIdentifier, Mapping[str, Any]]
+        ):
             name = projection_name
 
             def initial_state_factory(self) -> Thing:
@@ -176,12 +188,13 @@ class TestAsynchronousProjections:
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
-                state.value = event.payload["value"]
+                payload = deserialise(Mapping[str, Any], event.payload)
+                state.value = payload["value"]
                 return state
 
         thing_projector = ThingProjector()
 
-        event_processor = ProjectionEventProcessor[Thing](
+        event_processor = ProjectionEventProcessor[Thing, Mapping[str, Any]](
             projector=thing_projector,
             projection_store=thing_projection_store,
             state_type=Thing,

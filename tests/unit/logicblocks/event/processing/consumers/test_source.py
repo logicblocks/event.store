@@ -333,14 +333,14 @@ class TestEventSourceConsumer:
         assert consuming_log_events[0].is_async is True
         assert consuming_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
-            "envelope": stored_events_1[0].envelope(),
+            "envelope": stored_events_1[0].summarise(),
         }
 
         assert consuming_log_events[1].level == LogLevel.DEBUG
         assert consuming_log_events[1].is_async is True
         assert consuming_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
-            "envelope": stored_events_2[0].envelope(),
+            "envelope": stored_events_2[0].summarise(),
         }
 
     async def test_logs_error_during_event_processing(self):
@@ -388,7 +388,7 @@ class TestEventSourceConsumer:
         assert error_log_events[0].is_async is True
         assert error_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
-            "envelope": stored_events[0].envelope(),
+            "envelope": stored_events[0].summarise(),
         }
         assert error_log_events[0].exc_info is not None
         assert error_log_events[0].exc_info[1] == error

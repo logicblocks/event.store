@@ -479,7 +479,7 @@ class TestStreamLogging:
         assert log_event.context == {
             "category": category_name,
             "stream": stream_name,
-            "events": [new_event.dict() for new_event in new_events],
+            "events": [new_event.serialise() for new_event in new_events],
             "conditions": {conditions.stream_is_empty()},
         }
 
@@ -512,7 +512,7 @@ class TestStreamLogging:
             "category": category_name,
             "stream": stream_name,
             "events": [
-                stored_event.envelope() for stored_event in stored_events
+                stored_event.summarise() for stored_event in stored_events
             ],
         }
 
@@ -542,7 +542,9 @@ class TestStreamLogging:
         assert log_event.context == {
             "category": category_name,
             "stream": stream_name,
-            "events": [stored_event.dict() for stored_event in stored_events],
+            "events": [
+                stored_event.serialise() for stored_event in stored_events
+            ],
         }
 
     async def test_logs_when_publish_unsuccessful(self):
@@ -574,7 +576,7 @@ class TestStreamLogging:
         assert log_event.context == {
             "category": category_name,
             "stream": stream_name,
-            "events": [new_event_2.envelope()],
+            "events": [new_event_2.summarise()],
             "reason": repr(UnmetWriteConditionError("stream is not empty")),
         }
 

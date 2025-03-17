@@ -5,8 +5,10 @@ from typing import Any
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.types import (
-    CodecOrMapping,
     EventSourceIdentifier,
+    JsonValue,
+    JsonValueType,
+    Persistable,
     Projection,
 )
 
@@ -39,34 +41,34 @@ class ProjectionStore:
     async def save(
         self,
         *,
-        projection: Projection[CodecOrMapping, CodecOrMapping],
+        projection: Projection[Persistable, Persistable],
     ) -> None:
         await self._adapter.save(projection=projection)
 
         if self._logger.is_enabled_for(logging.DEBUG):
             await self._logger.ainfo(
-                log_event_name("saved"), projection=projection.dict()
+                log_event_name("saved"), projection=projection.serialise()
             )
         else:
             await self._logger.ainfo(
-                log_event_name("saved"), projection=projection.envelope()
+                log_event_name("saved"), projection=projection.summarise()
             )
 
     async def locate[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         source: EventSourceIdentifier,
         name: str,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Projection[State, Metadata] | None:
         await self._logger.adebug(
             log_event_name("locating"),
             projection_name=name,
-            projection_source=source.dict(),
+            projection_source=source.serialise(),
         )
 
         return await self._adapter.find_one(
@@ -81,8 +83,8 @@ class ProjectionStore:
         )
 
     async def load[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = Mapping[str, Any],
+        Metadata: Persistable = Mapping[str, Any],
     ](
         self,
         *,
@@ -105,16 +107,16 @@ class ProjectionStore:
         )
 
     async def search[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         filters: Sequence[FilterClause],
         sort: SortClause,
         paging: PagingClause,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Sequence[Projection[State, Metadata]]:
         await self._logger.adebug(
             log_event_name("searching"),

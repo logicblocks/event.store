@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Mapping, Self
+from typing import Mapping, Self
 
 from logicblocks.event.processing.consumers import ProjectionEventProcessor
 from logicblocks.event.projection import (
@@ -12,53 +12,66 @@ from logicblocks.event.testing.builders import (
     BaseProjectionBuilder,
     StoredEventBuilder,
 )
-from logicblocks.event.types import Codec, StoredEvent, StreamIdentifier
+from logicblocks.event.types import (
+    JsonValue,
+    JsonValueConvertible,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 
 @dataclasses.dataclass
-class State(Codec):
+class State(JsonValueConvertible):
     value: int
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(self) -> JsonValue:
         return {"value": self.value}
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(cls, value: JsonValue) -> Self:
+        if not isinstance(value, Mapping) or not isinstance(
+            value["value"], int
+        ):
+            raise ValueError("Invalid value")
+
         return cls(value=int(value["value"]))
 
 
-class StateProjector(Projector[State, StreamIdentifier]):
+class StateProjector(Projector[State, StreamIdentifier, Mapping[str, int]]):
     def __init__(self, projection_name: str):
         self.name = projection_name
 
     def initial_state_factory(self) -> State:
         return State(value=0)
 
-    def initial_metadata_factory(self) -> Mapping[str, Any]:
+    def initial_metadata_factory(self) -> Mapping[str, int]:
         return {}
 
     def id_factory(self, state: State, source: StreamIdentifier) -> str:
         return source.stream
 
     def update_metadata(
-        self, state: State, metadata: Mapping[str, Any], event: StoredEvent
-    ) -> Mapping[str, Any]:
+        self, state: State, metadata: Mapping[str, int], event: StoredEvent
+    ) -> Mapping[str, int]:
         metadata = dict(metadata)
         metadata["event_count"] = metadata.get("event_count", 0) + 1
         return metadata
 
     @staticmethod
     def thing_occurred(state: State, event: StoredEvent) -> State:
+        assert isinstance(event.payload, Mapping)
+        assert isinstance(event.payload["value"], int)
+
         return State(
             value=state.value + event.payload["value"],
         )
 
 
-class StateProjectionBuilder(BaseProjectionBuilder[State]):
+class StateProjectionBuilder(BaseProjectionBuilder[State, Mapping[str, int]]):
     def default_state_factory(self) -> State:
         return State(value=0)
 
-    def default_metadata_factory(self) -> Mapping[str, Any]:
+    def default_metadata_factory(self) -> Mapping[str, int]:
         return {}
 
 
@@ -74,8 +87,11 @@ class TestProjectionEventProcessor:
         projector = StateProjector(projection_name=projection_name)
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
-        processor = ProjectionEventProcessor(
-            projector=projector, projection_store=store, state_type=State
+        processor = ProjectionEventProcessor[State, Mapping[str, int]](
+            projector=projector,
+            projection_store=store,
+            state_type=State,
+            metadata_type=Mapping[str, int],
         )
 
         event = (
@@ -90,7 +106,10 @@ class TestProjectionEventProcessor:
         await processor.process_event(event)
 
         loaded = await store.locate(
-            source=source, name=projection_name, state_type=State
+            source=source,
+            name=projection_name,
+            state_type=State,
+            metadata_type=Mapping[str, int],
         )
 
         assert loaded is not None
@@ -108,8 +127,11 @@ class TestProjectionEventProcessor:
         projector = StateProjector(projection_name=projection_name)
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
-        processor = ProjectionEventProcessor(
-            projector=projector, projection_store=store, state_type=State
+        processor = ProjectionEventProcessor[State, Mapping[str, int]](
+            projector=projector,
+            projection_store=store,
+            state_type=State,
+            metadata_type=Mapping[str, int],
         )
 
         projection = (
@@ -136,7 +158,10 @@ class TestProjectionEventProcessor:
         await processor.process_event(event)
 
         loaded = await store.locate(
-            source=source, name=projection_name, state_type=State
+            source=source,
+            name=projection_name,
+            state_type=State,
+            metadata_type=Mapping[str, int],
         )
 
         assert loaded is not None

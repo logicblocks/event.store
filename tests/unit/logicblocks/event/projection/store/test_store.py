@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Self
 
 from logicblocks.event.projection.store import (
     FilterClause,
@@ -15,7 +15,7 @@ from logicblocks.event.projection.store import (
 )
 from logicblocks.event.testing import BaseProjectionBuilder, data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.types import StreamIdentifier
+from logicblocks.event.types import JsonValue, StreamIdentifier
 
 
 @dataclass
@@ -23,20 +23,27 @@ class Thing:
     value: int
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(cls, value: JsonValue) -> Self:
+        if (
+            not isinstance(value, Mapping)
+            or "value" not in value
+            or not isinstance(value["value"], int)
+        ):
+            raise ValueError("Invalid Thing state")
+
         return cls(value=value["value"])
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(self) -> JsonValue:
         return {"value": self.value}
 
 
-class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
+class ThingProjectionBuilder(BaseProjectionBuilder[Thing, Mapping[str, str]]):
     def default_state_factory(self) -> Thing:
         return Thing(
             value=data.random_int(1, 10),
         )
 
-    def default_metadata_factory(self) -> Mapping[str, Any]:
+    def default_metadata_factory(self) -> Mapping[str, str]:
         return {}
 
 
@@ -359,7 +366,7 @@ class TestProjectionStoreLogging:
         assert log_event.level == LogLevel.INFO
         assert log_event.is_async is True
         assert log_event.context == {
-            "projection": projection.dict(),
+            "projection": projection.serialise(),
         }
 
     async def test_logs_envelope_on_save_when_not_debug(self):
@@ -392,7 +399,7 @@ class TestProjectionStoreLogging:
         assert log_event.level == LogLevel.INFO
         assert log_event.is_async is True
         assert log_event.context == {
-            "projection": projection.envelope(),
+            "projection": projection.summarise(),
         }
 
     async def test_logs_on_load(self):
@@ -457,7 +464,7 @@ class TestProjectionStoreLogging:
         assert log_event.is_async is True
         assert log_event.context == {
             "projection_name": projection_name,
-            "projection_source": source.dict(),
+            "projection_source": source.serialise(),
         }
 
     async def test_logs_on_search(self):

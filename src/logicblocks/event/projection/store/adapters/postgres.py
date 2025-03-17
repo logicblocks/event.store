@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, List, Self, TypeGuard
 
@@ -24,7 +24,9 @@ from logicblocks.event.db.postgres import (
     Query as DBQuery,
 )
 from logicblocks.event.types import (
-    CodecOrMapping,
+    JsonValue,
+    JsonValueType,
+    Persistable,
     Projection,
     deserialise_projection,
     identifier,
@@ -110,7 +112,7 @@ def operator_for_query_operator(operator: Operator) -> DBOperator:
 def value_for_path(value: Any, path: Path) -> Value:
     if path == Path("source"):
         return Value(
-            Jsonb(value.dict()),
+            Jsonb(value.serialise()),
         )
     elif path.is_nested():
         return Value(
@@ -679,7 +681,7 @@ class PostgresQueryConverter:
 
 
 def insert_query(
-    projection: Projection[Mapping[str, Any], Mapping[str, Any]],
+    projection: Projection[JsonValue, JsonValue],
     table_settings: PostgresTableSettings,
 ) -> ParameterisedQuery:
     return (
@@ -701,7 +703,7 @@ def insert_query(
         [
             projection.id,
             projection.name,
-            Jsonb(projection.source.dict()),
+            Jsonb(projection.source.serialise()),
             Jsonb(projection.state),
             Jsonb(projection.metadata),
             Jsonb(projection.state),
@@ -713,7 +715,7 @@ def insert_query(
 async def upsert(
     cursor: AsyncCursor[TupleRow],
     *,
-    projection: Projection[Mapping[str, Any], Mapping[str, Any]],
+    projection: Projection[JsonValue, JsonValue],
     table_settings: PostgresTableSettings,
 ):
     await cursor.execute(*insert_query(projection, table_settings))
@@ -757,7 +759,7 @@ class PostgresProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[CodecOrMapping, CodecOrMapping],
+        projection: Projection[Persistable, Persistable],
     ) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
@@ -768,14 +770,14 @@ class PostgresProjectionStorageAdapter[
                 )
 
     async def find_one[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         lookup: ItemQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Projection[State, Metadata] | None:
         query = self.query_converter.convert_query(lookup)
         async with self.connection_pool.connection() as connection:
@@ -792,7 +794,7 @@ class PostgresProjectionStorageAdapter[
                 if projection_dict is None:
                     return None
 
-                projection = Projection[Mapping[str, Any], Mapping[str, Any]](
+                projection = Projection[JsonValue, JsonValue](
                     id=projection_dict["id"],
                     name=projection_dict["name"],
                     source=identifier.event_sequence_identifier(
@@ -807,14 +809,14 @@ class PostgresProjectionStorageAdapter[
                 )
 
     async def find_many[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         search: CollectionQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Sequence[Projection[State, Metadata]]:
         query = self.query_converter.convert_query(search)
         async with self.connection_pool.connection() as connection:
@@ -824,7 +826,7 @@ class PostgresProjectionStorageAdapter[
                 projection_dicts = await results.fetchall()
 
                 projections = [
-                    Projection[Mapping[str, Any], Mapping[str, Any]](
+                    Projection[JsonValue, JsonValue](
                         id=projection_dict["id"],
                         name=projection_dict["name"],
                         source=identifier.event_sequence_identifier(

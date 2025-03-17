@@ -38,7 +38,7 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
 
         await self._logger.adebug(
             log_event_name("starting-consume"),
-            source=self._source.identifier.dict(),
+            source=self._source.identifier.serialise(),
             last_sequence_number=last_sequence_number,
         )
 
@@ -54,8 +54,8 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
         async for event in source:
             await self._logger.adebug(
                 log_event_name("consuming-event"),
-                source=self._source.identifier.dict(),
-                envelope=event.envelope(),
+                source=self._source.identifier.serialise(),
+                envelope=event.summarise(),
             )
             try:
                 await self._processor.process_event(event)
@@ -66,14 +66,14 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
             except BaseException:
                 await self._logger.aexception(
                     log_event_name("processor-failed"),
-                    source=self._source.identifier.dict(),
-                    envelope=event.envelope(),
+                    source=self._source.identifier.serialise(),
+                    envelope=event.summarise(),
                 )
                 raise
 
         await self._state_store.save()
         await self._logger.adebug(
             log_event_name("completed-consume"),
-            source=self._source.identifier.dict(),
+            source=self._source.identifier.serialise(),
             consumed_count=consumed_count,
         )

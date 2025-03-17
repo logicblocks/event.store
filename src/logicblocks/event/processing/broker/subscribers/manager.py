@@ -79,7 +79,7 @@ class EventSubscriberManager:
                     "group": subscriber.group,
                     "id": subscriber.id,
                     "sequences": [
-                        sequence.dict()
+                        sequence.serialise()
                         for sequence in subscriber.subscription_requests
                     ],
                 },

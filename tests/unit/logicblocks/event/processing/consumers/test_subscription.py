@@ -349,8 +349,8 @@ class TestEventSubscriptionConsumer:
             "subscriber": {"group": subscriber_group, "id": subscriber_id},
             "sources": unordered(
                 [
-                    stream_1_source.identifier.dict(),
-                    stream_2_source.identifier.dict(),
+                    stream_1_source.identifier.serialise(),
+                    stream_2_source.identifier.serialise(),
                 ]
             ),
         }
@@ -366,8 +366,8 @@ class TestEventSubscriptionConsumer:
             "subscriber": {"group": subscriber_group, "id": subscriber_id},
             "sources": unordered(
                 [
-                    stream_1_source.identifier.dict(),
-                    stream_2_source.identifier.dict(),
+                    stream_1_source.identifier.serialise(),
+                    stream_2_source.identifier.serialise(),
                 ]
             ),
         }

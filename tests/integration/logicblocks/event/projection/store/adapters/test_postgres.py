@@ -1,5 +1,5 @@
 import os
-from typing import Any, Mapping, Sequence
+from typing import Sequence
 
 import pytest_asyncio
 from psycopg import AsyncConnection, abc, sql
@@ -14,7 +14,7 @@ from logicblocks.event.projection.store.adapters import (
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
 )
-from logicblocks.event.types import Projection, identifier
+from logicblocks.event.types import JsonValue, Projection, identifier
 
 connection_settings = PostgresConnectionSettings(
     user="admin",
@@ -88,7 +88,7 @@ async def drop_table(
 async def read_projections(
     pool: AsyncConnectionPool[AsyncConnection],
     table: str,
-) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+) -> Sequence[Projection[JsonValue, JsonValue]]:
     async with pool.connection() as connection:
         async with connection.cursor(row_factory=dict_row) as cursor:
             results = await cursor.execute(read_projections_query(table))
@@ -141,5 +141,5 @@ class TestPostgresProjectionStorageAdapterCommonCases(
 
     async def retrieve_projections(
         self, *, adapter: ProjectionStorageAdapter
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         return await read_projections(self.pool, "projections")

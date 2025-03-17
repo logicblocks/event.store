@@ -87,7 +87,7 @@ class EventStream(EventSource[StreamIdentifier]):
             "event.stream.publishing",
             category=self._identifier.category,
             stream=self._identifier.stream,
-            events=[event.dict() for event in events],
+            events=[event.serialise() for event in events],
             conditions=conditions,
         )
 
@@ -101,12 +101,12 @@ class EventStream(EventSource[StreamIdentifier]):
             if self._logger.is_enabled_for(logging.DEBUG):
                 await self._logger.ainfo(
                     "event.stream.published",
-                    events=[event.dict() for event in stored_events],
+                    events=[event.serialise() for event in stored_events],
                 )
             else:
                 await self._logger.ainfo(
                     "event.stream.published",
-                    events=[event.envelope() for event in stored_events],
+                    events=[event.summarise() for event in stored_events],
                 )
 
             return stored_events
@@ -115,7 +115,7 @@ class EventStream(EventSource[StreamIdentifier]):
                 "event.stream.publish-failed",
                 category=self._identifier.category,
                 stream=self._identifier.stream,
-                events=[event.envelope() for event in events],
+                events=[event.summarise() for event in events],
                 reason=repr(ex),
             )
             raise

@@ -13,32 +13,46 @@ from logicblocks.event.projection import (
 )
 from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
-from logicblocks.event.testing import NewEventBuilder, data
-from logicblocks.event.testing.builders import StoredEventBuilder
+from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import (
+    JsonValue,
+    JsonValueConvertible,
     Projection,
     StoredEvent,
     StreamIdentifier,
 )
-from logicblocks.event.types.codec import Codec
 
 generic_event = (
-    StoredEventBuilder()
+    StoredEventBuilder[Mapping[str, Any]]()
     .with_category(data.random_event_category_name())
     .with_stream(data.random_event_stream_name())
     .with_payload({})
 )
 
 
+def to_datetime_or_none(value: JsonValue) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    return datetime.fromisoformat(value)
+
+
 @dataclass
-class Aggregate(Codec):
+class Aggregate(JsonValueConvertible):
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(cls, value: JsonValue) -> Self:
+        if not isinstance(value, Mapping):
+            raise ValueError("Cannot deserialise Aggregate.")
+
+        something_occurred_at = to_datetime_or_none(
+            value.get("something_occurred_at", None)
+        )
+        something_else_occurred_at = to_datetime_or_none(
+            value.get("something_else_occurred_at", None)
+        )
+
         return cls(
-            something_occurred_at=value.get("something_occurred_at", None),
-            something_else_occurred_at=value.get(
-                "something_else_occurred_at", None
-            ),
+            something_occurred_at=something_occurred_at,
+            something_else_occurred_at=something_else_occurred_at,
         )
 
     def __init__(
@@ -59,7 +73,7 @@ class Aggregate(Codec):
             return None
         return self.something_else_occurred_at.isoformat()
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(self) -> JsonValue:
         return {
             "something_occurred_at": self.something_occurred_at_string(),
             "something_else_occurred_at": self.something_else_occurred_at_string(),
@@ -671,7 +685,9 @@ class TestProjectorProjection:
                 return source.stream
 
             @staticmethod
-            def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
+            def thing_got_value(
+                state: Thing, event: StoredEvent[Mapping[str, Any]]
+            ) -> Thing:
                 state.value = event.payload["value"]
                 return state
 

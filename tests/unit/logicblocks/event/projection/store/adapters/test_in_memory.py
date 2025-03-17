@@ -37,7 +37,7 @@ from logicblocks.event.testing import (
     MappingProjectionBuilder,
     data,
 )
-from logicblocks.event.types import Projection
+from logicblocks.event.types import JsonValue, Projection
 
 
 @dataclass
@@ -46,14 +46,23 @@ class Thing:
     value_2: str
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(cls, value: JsonValue) -> Self:
+        if (
+            not isinstance(value, Mapping)
+            or "value_1" not in value
+            or "value_2" not in value
+            or not isinstance(value["value_1"], int)
+            or not isinstance(value["value_2"], str)
+        ):
+            raise ValueError("Invalid value.")
+
         return cls(value_1=value["value_1"], value_2=value["value_2"])
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(self) -> JsonValue:
         return {"value_1": self.value_1, "value_2": self.value_2}
 
 
-class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
+class ThingProjectionBuilder(BaseProjectionBuilder[Thing, Mapping[str, Any]]):
     def default_state_factory(self) -> Thing:
         return Thing(
             value_1=data.random_int(1, 10),
@@ -75,10 +84,7 @@ class TestInMemoryProjectionStorageAdapter(ProjectionStorageAdapterCases):
         self,
         *,
         adapter: ProjectionStorageAdapter,
-    ) -> Sequence[Projection[Mapping[str, Any]]]:
-        def identity(mapping: Mapping[str, Any]) -> Mapping[str, Any]:
-            return mapping
-
+    ) -> Sequence[Projection[JsonValue]]:
         return await adapter.find_many(search=Search())
 
 
@@ -93,8 +99,8 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
             take_clause: TakeClause,
         ) -> InMemoryProjectionResultSetTransformer:
             def apply_clause(
-                projections: Sequence[Projection[Mapping[str, Any]]],
-            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                projections: Sequence[Projection[JsonValue]],
+            ) -> Sequence[Projection[JsonValue]]:
                 return projections[: take_clause.value]
 
             return apply_clause
@@ -124,8 +130,8 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
             take_clause: TakeClause,
         ) -> InMemoryProjectionResultSetTransformer:
             def apply_clause(
-                projections: Sequence[Projection[Mapping[str, Any]]],
-            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                projections: Sequence[Projection[JsonValue]],
+            ) -> Sequence[Projection[JsonValue]]:
                 return projections[: take_clause.value]
 
             return apply_clause
@@ -134,8 +140,8 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
             _take_clause: TakeClause,
         ) -> InMemoryProjectionResultSetTransformer:
             def apply_clause(
-                projections: Sequence[Projection[Mapping[str, Any]]],
-            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                projections: Sequence[Projection[JsonValue]],
+            ) -> Sequence[Projection[JsonValue]]:
                 return projections
 
             return apply_clause
@@ -189,8 +195,8 @@ class TestInMemoryQueryConverterQueryConversion:
             skip_clause: SkipClause,
         ) -> InMemoryProjectionResultSetTransformer:
             def apply_clause(
-                projections: Sequence[Projection[Mapping[str, Any]]],
-            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                projections: Sequence[Projection[JsonValue]],
+            ) -> Sequence[Projection[JsonValue]]:
                 return projections[skip_clause.number :]
 
             return apply_clause
@@ -199,8 +205,8 @@ class TestInMemoryQueryConverterQueryConversion:
             take_clause: TakeClause,
         ) -> InMemoryProjectionResultSetTransformer:
             def apply_clause(
-                projections: Sequence[Projection[Mapping[str, Any]]],
-            ) -> Sequence[Projection[Mapping[str, Any]]]:
+                projections: Sequence[Projection[JsonValue]],
+            ) -> Sequence[Projection[JsonValue]]:
                 return projections[: take_clause.number]
 
             return apply_clause

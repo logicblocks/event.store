@@ -82,7 +82,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.accepting-source",
-            source=source.identifier.dict(),
+            source=source.identifier.serialise(),
         )
         self._delegates[source.identifier] = self._delegate_factory(source)
 
@@ -91,7 +91,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     ) -> None:
         await self._logger.ainfo(
             "event.consumer.subscription.withdrawing-source",
-            source=source.identifier.dict(),
+            source=source.identifier.serialise(),
         )
         self._delegates.pop(source.identifier)
 
@@ -99,20 +99,20 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         await self._logger.adebug(
             "event.consumer.subscription.starting-consume",
             sources=[
-                identifier.dict() for identifier in self._delegates.keys()
+                identifier.serialise() for identifier in self._delegates.keys()
             ],
         )
 
         for identifier, delegate in self._delegates.items():
             await self._logger.adebug(
                 "event.consumer.subscription.consuming-source",
-                source=identifier.dict(),
+                source=identifier.serialise(),
             )
             await delegate.consume_all()
 
         await self._logger.adebug(
             "event.consumer.subscription.completed-consume",
             sources=[
-                identifier.dict() for identifier in self._delegates.keys()
+                identifier.serialise() for identifier in self._delegates.keys()
             ],
         )

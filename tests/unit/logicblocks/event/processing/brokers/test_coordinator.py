@@ -1600,8 +1600,8 @@ class TestDistributeLogging:
                 subscriber.group: {
                     subscriber.id: {
                         "sources": [
-                            event_sequence_identifier_1.dict(),
-                            event_sequence_identifier_2.dict(),
+                            event_sequence_identifier_1.serialise(),
+                            event_sequence_identifier_2.serialise(),
                         ]
                     }
                 }
@@ -1659,10 +1659,10 @@ class TestDistributeLogging:
                     ),
                     "sources": unordered(
                         [
-                            event_sequence_identifier_1.dict(),
-                            event_sequence_identifier_2.dict(),
-                            event_sequence_identifier_3.dict(),
-                            event_sequence_identifier_4.dict(),
+                            event_sequence_identifier_1.serialise(),
+                            event_sequence_identifier_2.serialise(),
+                            event_sequence_identifier_3.serialise(),
+                            event_sequence_identifier_4.serialise(),
                         ]
                     ),
                 }
@@ -1737,11 +1737,11 @@ class TestDistributeLogging:
         assert len(subscriber_1_status["sources"]) > 0
         assert len(subscriber_2_status["sources"]) > 0
         assert (
-            event_sequence_identifier_1.dict()
+            event_sequence_identifier_1.serialise()
             in subscriber_1_status["sources"]
         )
         assert (
-            event_sequence_identifier_2.dict()
+            event_sequence_identifier_2.serialise()
             in subscriber_1_status["sources"]
         )
         assert [
@@ -1749,10 +1749,10 @@ class TestDistributeLogging:
             *subscriber_2_status["sources"],
         ] == unordered(
             [
-                event_sequence_identifier_1.dict(),
-                event_sequence_identifier_2.dict(),
-                event_sequence_identifier_3.dict(),
-                event_sequence_identifier_4.dict(),
+                event_sequence_identifier_1.serialise(),
+                event_sequence_identifier_2.serialise(),
+                event_sequence_identifier_3.serialise(),
+                event_sequence_identifier_4.serialise(),
             ]
         )
 

@@ -48,7 +48,7 @@ def subscription_status(
 
         existing[subscription.group][subscription.id] = {
             "sources": [
-                event_source.dict()
+                event_source.serialise()
                 for event_source in subscription.event_sources
             ]
         }
@@ -71,7 +71,7 @@ def subscriber_group_status(
         if latest.get(mapping.subscriber_group, None) is None:
             latest[mapping.subscriber_group] = {}
         latest[mapping.subscriber_group]["sources"] = [
-            event_source.dict() for event_source in mapping.event_sources
+            event_source.serialise() for event_source in mapping.event_sources
         ]
     return latest
 

@@ -157,7 +157,9 @@ def insert_query(
             subscription.id,
             subscription.group,
             subscription.node_id,
-            Jsonb([source.dict() for source in subscription.event_sources]),
+            Jsonb(
+                [source.serialise() for source in subscription.event_sources]
+            ),
         ],
     )
 
@@ -176,7 +178,9 @@ def upsert_query(
             """
         ).format(sql.Identifier(table_settings.subscriptions_table_name)),
         [
-            Jsonb([source.dict() for source in subscription.event_sources]),
+            Jsonb(
+                [source.serialise() for source in subscription.event_sources]
+            ),
             subscription.group,
             subscription.id,
         ],

@@ -1,10 +1,12 @@
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Self
 
 from logicblocks.event.types import (
-    CodecOrMapping,
+    JsonValue,
+    JsonValueType,
+    Persistable,
     Projection,
     deserialise_projection,
     serialise,
@@ -28,9 +30,7 @@ from ..query import (
 )
 from .base import ProjectionStorageAdapter
 
-type ProjectionResultSet = Sequence[
-    Projection[Mapping[str, Any], Mapping[str, Any]]
-]
+type ProjectionResultSet = Sequence[Projection[JsonValue, JsonValue]]
 type InMemoryProjectionResultSetTransformer = Callable[
     [ProjectionResultSet], ProjectionResultSet
 ]
@@ -58,7 +58,7 @@ def compose_transformers(
 
 
 def lookup_projection_path(
-    projection: Projection[Mapping[str, Any], Mapping[str, Any]], path: Path
+    projection: Projection[JsonValue, JsonValue], path: Path
 ) -> Any:
     attribute_name = path.top_level
     remaining_path = path.sub_levels
@@ -82,7 +82,7 @@ def filter_clause_converter(
     clause: FilterClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def matches(
-        projection: Projection[Mapping[str, Any], Mapping[str, Any]],
+        projection: Projection[JsonValue, JsonValue],
     ) -> bool:
         comparison_value = clause.value
         resolved_value = lookup_projection_path(projection, clause.path)
@@ -108,10 +108,8 @@ def filter_clause_converter(
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 
     def handler(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+        projections: Sequence[Projection[JsonValue, JsonValue]],
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         return list(
             projection for projection in projections if matches(projection)
         )
@@ -123,11 +121,9 @@ def sort_clause_converter(
     clause: SortClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def accumulator(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
+        projections: Sequence[Projection[JsonValue, JsonValue]],
         field: SortField,
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         result = sorted(
             projections,
             key=lambda projection: lookup_projection_path(
@@ -138,10 +134,8 @@ def sort_clause_converter(
         return result
 
     def handler(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+        projections: Sequence[Projection[JsonValue, JsonValue]],
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         return reduce(accumulator, reversed(clause.fields), projections)
 
     return handler
@@ -163,9 +157,7 @@ def key_set_paging_clause_converter(
         index: int
 
     def determine_last_index(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
+        projections: Sequence[Projection[JsonValue, JsonValue]],
         last_id: str | None,
     ) -> Found | NotFound | NotProvided:
         if last_id is None:
@@ -182,10 +174,8 @@ def key_set_paging_clause_converter(
         return Found(last_indices[0])
 
     def handler(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+        projections: Sequence[Projection[JsonValue, JsonValue]],
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         last_index_result = determine_last_index(projections, clause.last_id)
         direction = clause.direction
         item_count = clause.item_count
@@ -216,10 +206,8 @@ def offset_paging_clause_converter(
     clause: OffsetPagingClause,
 ) -> InMemoryProjectionResultSetTransformer:
     def handler(
-        projections: Sequence[
-            Projection[Mapping[str, Any], Mapping[str, Any]]
-        ],
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+        projections: Sequence[Projection[JsonValue, JsonValue]],
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         offset = clause.offset
         item_count = clause.item_count
 
@@ -285,7 +273,7 @@ class InMemoryProjectionStorageAdapter[
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
     def __init__(self, query_converter: InMemoryQueryConverter | None = None):
         self._projections: dict[
-            tuple[str, str], Projection[Mapping[str, Any], Mapping[str, Any]]
+            tuple[str, str], Projection[JsonValue, JsonValue]
         ] = {}
         self._query_converter = (
             query_converter
@@ -296,13 +284,13 @@ class InMemoryProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[CodecOrMapping, CodecOrMapping],
+        projection: Projection[Persistable, Persistable],
     ) -> None:
         projection_key = (projection.name, projection.id)
         existing = self._projections.get(projection_key, None)
         if existing is not None:
             self._projections[projection_key] = Projection[
-                Mapping[str, Any], Mapping[str, Any]
+                JsonValue, JsonValue
             ](
                 id=existing.id,
                 name=existing.name,
@@ -317,20 +305,20 @@ class InMemoryProjectionStorageAdapter[
 
     async def _find_raw(
         self, query: Query
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         return self._query_converter.convert_query(query)(
             list(self._projections.values())
         )
 
     async def find_one[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         lookup: ItemQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Projection[State, Metadata] | None:
         projections = await self._find_raw(lookup)
 
@@ -347,14 +335,14 @@ class InMemoryProjectionStorageAdapter[
         return deserialise_projection(projection, state_type, metadata_type)
 
     async def find_many[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         search: CollectionQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Sequence[Projection[State, Metadata]]:
         return [
             deserialise_projection(projection, state_type, metadata_type)

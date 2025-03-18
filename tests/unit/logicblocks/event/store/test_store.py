@@ -15,6 +15,7 @@ from logicblocks.event.types import (
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    str_serialisation_fallback,
 )
 
 
@@ -479,7 +480,10 @@ class TestStreamLogging:
         assert log_event.context == {
             "category": category_name,
             "stream": stream_name,
-            "events": [new_event.serialise() for new_event in new_events],
+            "events": [
+                new_event.serialise(fallback=str_serialisation_fallback)
+                for new_event in new_events
+            ],
             "conditions": {conditions.stream_is_empty()},
         }
 
@@ -543,7 +547,8 @@ class TestStreamLogging:
             "category": category_name,
             "stream": stream_name,
             "events": [
-                stored_event.serialise() for stored_event in stored_events
+                stored_event.serialise(fallback=str_serialisation_fallback)
+                for stored_event in stored_events
             ],
         }
 

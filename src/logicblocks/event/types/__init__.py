@@ -1,7 +1,22 @@
 from .conversion import Loggable as Loggable
 from .conversion import Persistable as Persistable
+from .conversion import (
+    default_deserialisation_fallback as default_deserialisation_fallback,
+)
+from .conversion import (
+    default_serialisation_fallback as default_serialisation_fallback,
+)
 from .conversion import deserialise as deserialise
+from .conversion import (
+    raising_deserialisation_fallback as raising_deserialisation_fallback,
+)
+from .conversion import (
+    raising_serialisation_fallback as raising_serialisation_fallback,
+)
 from .conversion import serialise as serialise
+from .conversion import (
+    str_serialisation_fallback as str_serialisation_fallback,
+)
 from .event import NewEvent as NewEvent
 from .event import StoredEvent as StoredEvent
 from .identifier import CategoryIdentifier as CategoryIdentifier

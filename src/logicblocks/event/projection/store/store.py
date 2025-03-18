@@ -11,6 +11,7 @@ from logicblocks.event.types import (
     Persistable,
     Projection,
 )
+from logicblocks.event.types.conversion import str_serialisation_fallback
 
 from ..logger import default_logger
 from .adapters import ProjectionStorageAdapter
@@ -47,11 +48,17 @@ class ProjectionStore:
 
         if self._logger.is_enabled_for(logging.DEBUG):
             await self._logger.ainfo(
-                log_event_name("saved"), projection=projection.serialise()
+                log_event_name("saved"),
+                projection=projection.serialise(
+                    fallback=str_serialisation_fallback
+                ),
             )
         else:
             await self._logger.ainfo(
-                log_event_name("saved"), projection=projection.summarise()
+                log_event_name("saved"),
+                projection=projection.summarise(
+                    fallback=str_serialisation_fallback
+                ),
             )
 
     async def locate[
@@ -68,7 +75,9 @@ class ProjectionStore:
         await self._logger.adebug(
             log_event_name("locating"),
             projection_name=name,
-            projection_source=source.serialise(),
+            projection_source=source.serialise(
+                fallback=str_serialisation_fallback
+            ),
         )
 
         return await self._adapter.find_one(

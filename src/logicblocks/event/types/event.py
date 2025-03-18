@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Callable
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
+from . import default_serialisation_fallback
 from .conversion import serialise
-from .json import JsonValue
+from .json import JsonValue, JsonValueSerialisable
 
 
 @dataclass(frozen=True)
-class NewEvent[Payload = JsonValue]:
+class NewEvent[Payload = JsonValue](JsonValueSerialisable):
     name: str
     payload: Payload
     observed_at: datetime
@@ -33,10 +35,15 @@ class NewEvent[Payload = JsonValue]:
         object.__setattr__(self, "observed_at", observed_at)
         object.__setattr__(self, "occurred_at", occurred_at)
 
-    def serialise(self) -> JsonValue:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "name": self.name,
-            "payload": serialise(self.payload),
+            "payload": serialise(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
@@ -62,7 +69,7 @@ class NewEvent[Payload = JsonValue]:
 
 
 @dataclass(frozen=True)
-class StoredEvent[Payload = JsonValue]:
+class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
     id: str
     name: str
     stream: str
@@ -73,7 +80,12 @@ class StoredEvent[Payload = JsonValue]:
     observed_at: datetime
     occurred_at: datetime
 
-    def serialise(self) -> JsonValue:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "id": self.id,
             "name": self.name,
@@ -81,7 +93,7 @@ class StoredEvent[Payload = JsonValue]:
             "category": self.category,
             "position": self.position,
             "sequence_number": self.sequence_number,
-            "payload": serialise(self.payload),
+            "payload": serialise(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }

@@ -22,6 +22,10 @@ def raising_serialisation_fallback(value: object) -> JsonValue:
     raise ValueError(f"Cannot serialise {value}.")
 
 
+def str_serialisation_fallback(value: object) -> JsonValue:
+    return str(value)
+
+
 def raising_deserialisation_fallback[T](klass: type[T], value: object) -> T:
     raise ValueError(f"Cannot deserialise {value} to type {klass}.")
 
@@ -35,13 +39,13 @@ def serialise(
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
 ) -> JsonValue:
     if isinstance(value, JsonValueSerialisable):
-        return value.serialise()
+        return value.serialise(fallback)
     if is_json_value(value):
         return value
     return fallback(value)
 
 
-def deserialise[T: object](
+def deserialise[T](
     klass: type[T],
     value: object,
     fallback: Callable[
@@ -133,6 +137,6 @@ def deserialise[T: object](
         and klass_is_class
         and issubclass(klass, JsonValueDeserialisable)
     ):
-        return klass.deserialise(value)
+        return klass.deserialise(value, fallback)
 
     return fallback(klass_original, value)

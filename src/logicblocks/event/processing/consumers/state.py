@@ -1,10 +1,15 @@
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Self
 
 from logicblocks.event.store import EventCategory, conditions
-from logicblocks.event.types import JsonValue, NewEvent, StoredEvent
+from logicblocks.event.types import (
+    JsonValue,
+    NewEvent,
+    StoredEvent,
+    default_serialisation_fallback,
+)
 from logicblocks.event.types.json import is_json_object
 
 
@@ -26,7 +31,12 @@ class EventConsumerState:
 
         return cls(last_sequence_number, state)
 
-    def serialise(self) -> JsonValue:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "last_sequence_number": self.last_sequence_number,
             "state": self.state,

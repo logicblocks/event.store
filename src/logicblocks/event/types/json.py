@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Protocol, Self, Sequence, TypeGuard, runtime_checkable
 
 type JsonObject = Mapping[str, JsonValue]
@@ -11,14 +11,16 @@ JsonValueType = JsonValue.__value__
 
 @runtime_checkable
 class JsonValueSerialisable(Protocol):
-    def serialise(self) -> JsonValue:
+    def serialise(self, fallback: Callable[[object], JsonValue]) -> JsonValue:
         raise NotImplementedError
 
 
 @runtime_checkable
 class JsonValueDeserialisable(Protocol):
     @classmethod
-    def deserialise(cls, value: JsonValue) -> Self:
+    def deserialise(
+        cls, value: JsonValue, fallback: Callable[[type[Any], JsonValue], Any]
+    ) -> Self:
         raise NotImplementedError
 
 

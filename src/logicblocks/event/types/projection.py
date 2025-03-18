@@ -1,6 +1,13 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
-from .conversion import Persistable, deserialise, serialise
+from .conversion import (
+    Persistable,
+    default_deserialisation_fallback,
+    default_serialisation_fallback,
+    deserialise,
+    serialise,
+)
 from .identifier import EventSourceIdentifier
 from .json import JsonValue, JsonValueType
 
@@ -33,10 +40,15 @@ class Projection[
         object.__setattr__(self, "state", state)
         object.__setattr__(self, "metadata", metadata)
 
-    def serialise(self) -> JsonValue:
-        state = serialise(self.state)
-        metadata = serialise(self.metadata)
-        source = self.source.serialise()
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
+        state = serialise(self.state, fallback)
+        metadata = serialise(self.metadata, fallback)
+        source = self.source.serialise(fallback)
 
         return {
             "id": self.id,
@@ -46,11 +58,16 @@ class Projection[
             "metadata": metadata,
         }
 
-    def summarise(self) -> JsonValue:
+    def summarise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "id": self.id,
             "name": self.name,
-            "source": self.source.serialise(),
+            "source": self.source.serialise(fallback),
         }
 
     def __repr__(self):
@@ -69,14 +86,25 @@ class Projection[
 
 def serialise_projection(
     projection: Projection[Persistable, Persistable],
+    fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
 ) -> Projection[JsonValue, JsonValue]:
     return Projection[JsonValue, JsonValue](
         id=projection.id,
         name=projection.name,
-        state=serialise(projection.state),
+        state=serialise(projection.state, fallback),
         source=projection.source,
-        metadata=serialise(projection.metadata),
+        metadata=serialise(projection.metadata, fallback),
     )
+
+
+# needed to prevent type narrowing
+def _state_deserialisation_fallback[S](klass: type[S], value: object) -> S:
+    return default_deserialisation_fallback(klass, value)
+
+
+# needed to prevent type narrowing
+def _metadata_deserialisation_fallback[M](klass: type[M], value: object) -> M:
+    return default_deserialisation_fallback(klass, value)
 
 
 def deserialise_projection[
@@ -86,11 +114,19 @@ def deserialise_projection[
     projection: Projection[JsonValue, JsonValue],
     state_type: type[State] = JsonValueType,
     metadata_type: type[Metadata] = JsonValueType,
+    state_fallback: Callable[
+        [type[State], object], State
+    ] = _state_deserialisation_fallback,
+    metadata_fallback: Callable[
+        [type[Metadata], object], Metadata
+    ] = _metadata_deserialisation_fallback,
 ) -> Projection[State, Metadata]:
     return Projection[State, Metadata](
         id=projection.id,
         name=projection.name,
-        state=deserialise(state_type, projection.state),
+        state=deserialise(state_type, projection.state, state_fallback),
         source=projection.source,
-        metadata=deserialise(metadata_type, projection.metadata),
+        metadata=deserialise(
+            metadata_type, projection.metadata, metadata_fallback
+        ),
     )

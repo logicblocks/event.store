@@ -1,5 +1,6 @@
 import dataclasses
-from typing import Mapping, Self
+from collections.abc import Callable
+from typing import Any, Mapping, Self
 
 from logicblocks.event.processing.consumers import ProjectionEventProcessor
 from logicblocks.event.projection import (
@@ -17,6 +18,7 @@ from logicblocks.event.types import (
     JsonValueConvertible,
     StoredEvent,
     StreamIdentifier,
+    default_serialisation_fallback,
 )
 
 
@@ -24,15 +26,22 @@ from logicblocks.event.types import (
 class State(JsonValueConvertible):
     value: int
 
-    def serialise(self) -> JsonValue:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"value": self.value}
 
     @classmethod
-    def deserialise(cls, value: JsonValue) -> Self:
+    def deserialise(
+        cls, value: JsonValue, fallback: Callable[[type[Any], JsonValue], Any]
+    ) -> Self:
         if not isinstance(value, Mapping) or not isinstance(
             value["value"], int
         ):
-            raise ValueError("Invalid value")
+            return fallback(cls, value)
 
         return cls(value=int(value["value"]))
 

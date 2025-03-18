@@ -2,7 +2,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Mapping, Self
+from typing import Any, Callable, Mapping, Self
 
 import pytest_asyncio
 from psycopg import AsyncConnection, abc, sql
@@ -37,8 +37,10 @@ from logicblocks.event.types import (
     JsonValue,
     StoredEvent,
     StreamIdentifier,
+    default_deserialisation_fallback,
     deserialise,
 )
+from logicblocks.event.types.json import JsonValueConvertible
 
 connection_settings = PostgresConnectionSettings(
     user="admin",
@@ -154,22 +156,27 @@ class TestAsynchronousProjections:
         )
 
         @dataclass
-        class Thing:
+        class Thing(JsonValueConvertible):
             value: int = 5
 
             @classmethod
-            def deserialise(cls, value: JsonValue) -> Self:
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[
+                    [Any, JsonValue], Any
+                ] = default_deserialisation_fallback,
+            ) -> Self:
                 if not isinstance(value, Mapping) or not isinstance(
                     value["value"], int
                 ):
-                    raise ValueError(
-                        "Value must be a mapping containing a 'value' key "
-                        "with integral value."
-                    )
+                    return fallback(cls, value)
 
                 return cls(value=value["value"])
 
-            def serialise(self) -> JsonValue:
+            def serialise(
+                self, fallback: Callable[[object], JsonValue]
+            ) -> JsonValue:
                 return {"value": self.value}
 
         class ThingProjector(

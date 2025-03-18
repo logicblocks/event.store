@@ -4,6 +4,7 @@ from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.store import EventSource, constraints
 from logicblocks.event.types import EventSourceIdentifier
+from logicblocks.event.types.conversion import str_serialisation_fallback
 
 from .logger import default_logger
 from .state import EventConsumerStateStore
@@ -38,7 +39,9 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
 
         await self._logger.adebug(
             log_event_name("starting-consume"),
-            source=self._source.identifier.serialise(),
+            source=self._source.identifier.serialise(
+                fallback=str_serialisation_fallback
+            ),
             last_sequence_number=last_sequence_number,
         )
 
@@ -54,7 +57,9 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
         async for event in source:
             await self._logger.adebug(
                 log_event_name("consuming-event"),
-                source=self._source.identifier.serialise(),
+                source=self._source.identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
                 envelope=event.summarise(),
             )
             try:
@@ -66,7 +71,9 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
             except BaseException:
                 await self._logger.aexception(
                     log_event_name("processor-failed"),
-                    source=self._source.identifier.serialise(),
+                    source=self._source.identifier.serialise(
+                        fallback=str_serialisation_fallback
+                    ),
                     envelope=event.summarise(),
                 )
                 raise
@@ -74,6 +81,8 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
         await self._state_store.save()
         await self._logger.adebug(
             log_event_name("completed-consume"),
-            source=self._source.identifier.serialise(),
+            source=self._source.identifier.serialise(
+                fallback=str_serialisation_fallback
+            ),
             consumed_count=consumed_count,
         )

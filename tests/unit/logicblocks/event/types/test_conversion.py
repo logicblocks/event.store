@@ -1,4 +1,4 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from types import NoneType
@@ -19,6 +19,7 @@ from logicblocks.event.types.json import (
 )
 
 
+@dataclass(frozen=True)
 class Thing:
     value: int = 5
 
@@ -343,12 +344,31 @@ class TestSerialise:
 
     def test_serialises_json_value_serialisable_using_serialise_method(self):
         class Serialisable(JsonValueSerialisable):
-            def serialise(self) -> JsonValue:
+            def serialise(
+                self, fallback: Callable[[object], JsonValue]
+            ) -> JsonValue:
                 return {"value": 10}
 
         instance = Serialisable()
 
         assert serialise(instance) == {"value": 10}
+
+    def test_uses_provided_fallback_when_serialising_if_unable_to_serialise(
+        self,
+    ):
+        def fallback(klass: type[Thing], value: object) -> Thing:
+            if (
+                not is_json_object(value)
+                or "value" not in value
+                or not isinstance(value["value"], int)
+            ):
+                raise ValueError(f"Cannot deserialise {value} as {klass}.")
+
+            return Thing(value=value["value"])
+
+        value = {"value": 10}
+
+        assert deserialise(Thing, value, fallback) == Thing(value=10)
 
 
 class TestDeserialise:
@@ -944,7 +964,11 @@ class TestDeserialise:
             value: int
 
             @classmethod
-            def deserialise(cls, value: JsonValue) -> Self:
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[[Any, JsonValue], Any],
+            ) -> Self:
                 if (
                     not is_json_object(value)
                     or "value" not in value
@@ -957,3 +981,20 @@ class TestDeserialise:
         value = {"value": 10}
 
         assert deserialise(Deserialisable, value) == Deserialisable(value=10)
+
+    def test_uses_provided_fallback_when_deserialising_if_unable_to_deserialise(
+        self,
+    ):
+        def fallback(klass: type[Thing], value: object) -> Thing:
+            if (
+                not is_json_object(value)
+                or "value" not in value
+                or not isinstance(value["value"], int)
+            ):
+                raise ValueError(f"Cannot deserialise {value} as {klass}.")
+
+            return Thing(value=value["value"])
+
+        value = {"value": 10}
+
+        assert deserialise(Thing, value, fallback) == Thing(value=10)

@@ -16,6 +16,7 @@ from logicblocks.event.types import (
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    str_serialisation_fallback,
 )
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
@@ -87,7 +88,10 @@ class EventStream(EventSource[StreamIdentifier]):
             "event.stream.publishing",
             category=self._identifier.category,
             stream=self._identifier.stream,
-            events=[event.serialise() for event in events],
+            events=[
+                event.serialise(fallback=str_serialisation_fallback)
+                for event in events
+            ],
             conditions=conditions,
         )
 
@@ -101,7 +105,10 @@ class EventStream(EventSource[StreamIdentifier]):
             if self._logger.is_enabled_for(logging.DEBUG):
                 await self._logger.ainfo(
                     "event.stream.published",
-                    events=[event.serialise() for event in stored_events],
+                    events=[
+                        event.serialise(fallback=str_serialisation_fallback)
+                        for event in stored_events
+                    ],
                 )
             else:
                 await self._logger.ainfo(

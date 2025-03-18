@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Callable, Self
 
 import pytest
 
@@ -37,16 +37,18 @@ from logicblocks.event.testing import (
     MappingProjectionBuilder,
     data,
 )
-from logicblocks.event.types import JsonValue, Projection
+from logicblocks.event.types import JsonValue, JsonValueConvertible, Projection
 
 
 @dataclass
-class Thing:
+class Thing(JsonValueConvertible):
     value_1: int
     value_2: str
 
     @classmethod
-    def deserialise(cls, value: JsonValue) -> Self:
+    def deserialise(
+        cls, value: JsonValue, fallback: Callable[[Any, JsonValue], Any]
+    ) -> Self:
         if (
             not isinstance(value, Mapping)
             or "value_1" not in value
@@ -54,11 +56,11 @@ class Thing:
             or not isinstance(value["value_1"], int)
             or not isinstance(value["value_2"], str)
         ):
-            raise ValueError("Invalid value.")
+            return fallback(cls, value)
 
         return cls(value_1=value["value_1"], value_2=value["value_2"])
 
-    def serialise(self) -> JsonValue:
+    def serialise(self, fallback: Callable[[object], JsonValue]) -> JsonValue:
         return {"value_1": self.value_1, "value_2": self.value_2}
 
 

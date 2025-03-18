@@ -1,39 +1,84 @@
 import sys
-from collections.abc import Hashable, Mapping
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from typing import Any, Self
 
 import pytest
 
-from logicblocks.event.types import Projection, identifier
+from logicblocks.event.types import (
+    JsonValue,
+    Projection,
+    default_serialisation_fallback,
+    identifier,
+)
+from logicblocks.event.types.json import JsonValueConvertible, is_json_object
+from tests.component.test_asynchronous_projections import (
+    default_deserialisation_fallback,
+)
 
 
 @dataclass
-class Thing:
+class ConvertibleThing(JsonValueConvertible):
     value: int = 5
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if (
+            not is_json_object(value)
+            or "value" not in value
+            or not isinstance(value["value"], int)
+        ):
+            return fallback(cls, value)
+
         return cls(value=int(value["value"]))
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"value": self.value}
 
 
 @dataclass
-class ThingMeta:
+class ConvertibleThingMeta(JsonValueConvertible):
     updated_at: str
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if (
+            not is_json_object(value)
+            or "updated_at" not in value
+            or not isinstance(value["updated_at"], str)
+        ):
+            return fallback(cls, value)
+
         return cls(updated_at=str(value["updated_at"]))
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"updated_at": self.updated_at}
 
 
 class TestProjection:
-    def test_projection_returns_summary(self):
+    def test_returns_summary(self):
         projection = Projection(
             id="a",
             name="thing",
@@ -50,7 +95,7 @@ class TestProjection:
         }
         assert actual == expected
 
-    def test_projection_can_serialise_for_dict_state_and_metadata(self):
+    def test_can_serialise_for_dict_state_and_metadata(self):
         projection = Projection(
             id="a",
             name="thing",
@@ -69,13 +114,13 @@ class TestProjection:
         }
         assert actual == expected
 
-    def test_projection_can_serialise_for_generic_state_and_metadata(self):
-        projection = Projection[Thing, ThingMeta](
+    def test_can_serialise_for_convertible_state_and_metadata(self):
+        projection = Projection[ConvertibleThing, ConvertibleThingMeta](
             id="a",
-            state=Thing(),
+            state=ConvertibleThing(),
             source=identifier.StreamIdentifier(category="test", stream="a"),
             name="thing",
-            metadata=ThingMeta(updated_at="2024-01-01T00:00:00Z"),
+            metadata=ConvertibleThingMeta(updated_at="2024-01-01T00:00:00Z"),
         )
 
         actual = projection.serialise()
@@ -88,7 +133,7 @@ class TestProjection:
         }
         assert actual == expected
 
-    def test_projection_returns_representation(self):
+    def test_returns_representation(self):
         projection = Projection(
             id="a",
             name="thing",
@@ -107,7 +152,7 @@ class TestProjection:
             ")"
         )
 
-    def test_hashes_projection_using_representation(self):
+    def test_hashes_using_representation(self):
         projection = Projection(
             id="a",
             name="thing",

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Self, cast
+from typing import Any, Callable, Self, cast
 
 import pytest
 
@@ -22,20 +22,31 @@ from logicblocks.event.testing import (
     BaseProjectionBuilder,
     data,
 )
-from logicblocks.event.types import JsonValue, Projection, StreamIdentifier
-from logicblocks.event.types.projection import (
+from logicblocks.event.types import (
+    JsonValue,
+    JsonValueConvertible,
+    Projection,
+    StreamIdentifier,
+    default_deserialisation_fallback,
+    default_serialisation_fallback,
     serialise_projection,
 )
 
 
 @dataclass
-class Thing:
+class Thing(JsonValueConvertible):
     value_1: int
     value_2: str = ""
     value_3: list[str] = field(default_factory=list[str])
 
     @classmethod
-    def deserialise(cls, value: JsonValue) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
         if (
             not isinstance(value, Mapping)
             or not isinstance(value["value_1"], int)
@@ -43,7 +54,7 @@ class Thing:
             or not isinstance(value["value_3"], Sequence)
             or not all(isinstance(value, str) for value in value["value_3"])
         ):
-            raise ValueError("Invalid value.")
+            return fallback(cls, value)
 
         resolved = cast(Mapping[str, Any], value)
 
@@ -53,7 +64,12 @@ class Thing:
             value_3=resolved["value_3"],
         )
 
-    def serialise(self) -> JsonValue:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "value_1": self.value_1,
             "value_2": self.value_2,

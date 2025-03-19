@@ -32,8 +32,10 @@ Usage
 ### Basic Example
 
 ```python
+from collections.abc import Dict
+
 from logicblocks.event.store import EventStore, adapters
-from logicblocks.event.types import NewEvent
+from logicblocks.event.types import NewEvent, StreamIdentifier
 from logicblocks.event.projection import Projector
 
 adapter = adapters.InMemoryEventStorageAdapter()
@@ -61,18 +63,32 @@ stream.publish(
     ]
 )
 
-projector = Projector(
-    handlers={
-        "profile-created": lambda state, event: state.merge({
-            "name": event.payload["name"],
-            "email": event.payload["email"]
-        }),
-        "date-of-birth-set": lambda state, event: state.merge({
-            "dob": event.payload["dob"]
-        })
-    }
-)
-profile = projector.project({}, stream.read())
+class ProfileProjector(
+    Projector[Dict[str, str], 
+    StreamIdentifier, 
+    Dict[str, str]]
+):
+    def initial_state_factory(self) -> Dict[str, str]:
+        return {}
+
+    def initial_metadata_factory(self) -> Dict[str, str]:
+        return {}
+
+    def id_factory(self, state, source: StreamIdentifier) -> str:
+        return source.stream
+
+    def profile_created(self, state, event):
+        state['name'] = event.payload['name']
+        state['email'] = event.payload['email']
+        return state
+
+    def date_of_birth_set(self, state, event):
+        state['dob'] = event.payload['dob']
+        return state
+
+projector = ProfileProjector()
+projection = projector.project(stream)
+profile = projection.state
 
 # profile == {
 #   "name": "Joe Bloggs", 

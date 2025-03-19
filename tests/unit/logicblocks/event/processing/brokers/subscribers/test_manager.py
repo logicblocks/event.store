@@ -20,8 +20,7 @@ from logicblocks.event.processing.broker.sources.stores.mappings.base import (
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.types import EventSourceIdentifier
-from logicblocks.event.types.identifier import CategoryIdentifier
+from logicblocks.event.types import CategoryIdentifier, EventSourceIdentifier
 
 
 class CapturingEventSubscriber(EventSubscriber):

@@ -19,8 +19,8 @@ from logicblocks.event.types import (
     JsonValue,
     StreamIdentifier,
     default_deserialisation_fallback,
+    str_serialisation_fallback,
 )
-from logicblocks.event.types.conversion import str_serialisation_fallback
 
 
 @dataclass

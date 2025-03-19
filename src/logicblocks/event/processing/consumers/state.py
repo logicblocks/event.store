@@ -1,31 +1,39 @@
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Self
+from typing import Any, Self
 
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
     JsonValue,
     NewEvent,
     StoredEvent,
+    default_deserialisation_fallback,
     default_serialisation_fallback,
+    is_json_object,
 )
-from logicblocks.event.types.json import is_json_object
+from logicblocks.event.types.json import JsonValueConvertible
 
 
 @dataclass(frozen=True)
-class EventConsumerState:
+class EventConsumerState(JsonValueConvertible):
     last_sequence_number: int
     state: JsonValue
 
     @classmethod
-    def deserialize(cls, value: JsonValue) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
         if not is_json_object(value):
-            raise ValueError(f"Cannot deserialize {value}.")
+            return fallback(cls, value)
 
         last_sequence_number = value["last_sequence_number"]
         if not isinstance(last_sequence_number, int):
-            raise ValueError(f"Cannot deserialize {value}.")
+            return fallback(cls, value)
 
         state = value["state"]
 
@@ -135,7 +143,7 @@ class EventConsumerStateStore:
                 self._states[partition] = None
                 self._positions[partition] = None
             else:
-                self._states[partition] = EventConsumerState.deserialize(
+                self._states[partition] = EventConsumerState.deserialise(
                     event.payload
                 )
                 self._positions[partition] = event.position

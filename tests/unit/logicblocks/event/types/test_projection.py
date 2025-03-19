@@ -7,13 +7,12 @@ import pytest
 
 from logicblocks.event.types import (
     JsonValue,
+    JsonValueConvertible,
     Projection,
+    default_deserialisation_fallback,
     default_serialisation_fallback,
     identifier,
-)
-from logicblocks.event.types.json import JsonValueConvertible, is_json_object
-from tests.component.test_asynchronous_projections import (
-    default_deserialisation_fallback,
+    is_json_object,
 )
 
 

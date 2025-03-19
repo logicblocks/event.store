@@ -3,8 +3,10 @@ import asyncio
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.store import EventSource, constraints
-from logicblocks.event.types import EventSourceIdentifier
-from logicblocks.event.types.conversion import str_serialisation_fallback
+from logicblocks.event.types import (
+    EventSourceIdentifier,
+    str_serialisation_fallback,
+)
 
 from .logger import default_logger
 from .state import EventConsumerStateStore

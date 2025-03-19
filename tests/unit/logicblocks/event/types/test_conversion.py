@@ -8,14 +8,12 @@ import pytest
 
 from logicblocks.event.types import (
     JsonValue,
+    JsonValueDeserialisable,
     JsonValueSerialisable,
     JsonValueType,
     deserialise,
-    serialise,
-)
-from logicblocks.event.types.json import (
-    JsonValueDeserialisable,
     is_json_object,
+    serialise,
 )
 
 

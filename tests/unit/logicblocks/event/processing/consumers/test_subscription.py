@@ -8,7 +8,7 @@ from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
-from logicblocks.event.types.identifier import CategoryIdentifier
+from logicblocks.event.types import CategoryIdentifier
 
 
 class CapturingEventConsumer(EventConsumer):

@@ -23,7 +23,7 @@ from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.types.identifier import (
+from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
 )

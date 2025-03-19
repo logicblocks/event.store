@@ -35,12 +35,12 @@ from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonValue,
+    JsonValueConvertible,
     StoredEvent,
     StreamIdentifier,
     default_deserialisation_fallback,
     deserialise,
 )
-from logicblocks.event.types.json import JsonValueConvertible
 
 connection_settings = PostgresConnectionSettings(
     user="admin",

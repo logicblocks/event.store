@@ -10,8 +10,8 @@ from logicblocks.event.types import (
     JsonValueType,
     Persistable,
     Projection,
+    str_serialisation_fallback,
 )
-from logicblocks.event.types.conversion import str_serialisation_fallback
 
 from ..logger import default_logger
 from .adapters import ProjectionStorageAdapter

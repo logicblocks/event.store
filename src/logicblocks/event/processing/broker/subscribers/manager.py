@@ -4,6 +4,8 @@ from typing import Self
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.types import str_serialisation_fallback
+
 from ..logger import default_logger
 from ..sources import EventSubscriptionSourceMappingStore
 from ..types import EventSubscriber, EventSubscriberHealth
@@ -79,7 +81,7 @@ class EventSubscriberManager:
                     "group": subscriber.group,
                     "id": subscriber.id,
                     "sequences": [
-                        sequence.dict()
+                        sequence.serialise(fallback=str_serialisation_fallback)
                         for sequence in subscriber.subscription_requests
                     ],
                 },

@@ -9,8 +9,7 @@ from logicblocks.event.store.constraints import (
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import StoredEventBuilder
-from logicblocks.event.types import StoredEvent
-from logicblocks.event.types.identifier import StreamIdentifier
+from logicblocks.event.types import StoredEvent, StreamIdentifier
 
 
 class TestConstrainedEventSource:

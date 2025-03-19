@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Any, Self, TypedDict, Unpack
 
 from logicblocks.event.types import (
-    CodecOrMapping,
+    JsonValue,
     NewEvent,
     Projectable,
     Projection,
@@ -29,17 +29,17 @@ from .data import (
 )
 
 
-class NewEventBuilderParams(TypedDict, total=False):
+class NewEventBuilderParams[Payload = JsonValue](TypedDict, total=False):
     name: str
-    payload: Mapping[str, Any]
+    payload: Payload
     occurred_at: datetime | None
     observed_at: datetime | None
 
 
 @dataclass(frozen=True)
-class NewEventBuilder:
+class NewEventBuilder[Payload = JsonValue]:
     name: str
-    payload: Mapping[str, Any]
+    payload: Payload
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -47,7 +47,7 @@ class NewEventBuilder:
         self,
         *,
         name: str | None = None,
-        payload: Mapping[str, Any] | None = None,
+        payload: Payload | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
     ):
@@ -56,7 +56,7 @@ class NewEventBuilder:
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
-    def _clone(self, **kwargs: Unpack[NewEventBuilderParams]):
+    def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Payload]]):
         return NewEventBuilder(
             name=kwargs.get("name", self.name),
             payload=kwargs.get("payload", self.payload),
@@ -67,7 +67,7 @@ class NewEventBuilder:
     def with_name(self, name: str):
         return self._clone(name=name)
 
-    def with_payload(self, payload: Mapping[str, Any]):
+    def with_payload(self, payload: Payload):
         return self._clone(payload=payload)
 
     def with_occurred_at(self, occurred_at: datetime | None):
@@ -77,7 +77,7 @@ class NewEventBuilder:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return NewEvent(
+        return NewEvent[Payload](
             name=self.name,
             payload=self.payload,
             occurred_at=self.occurred_at,
@@ -85,27 +85,27 @@ class NewEventBuilder:
         )
 
 
-class StoredEventBuilderParams(TypedDict, total=False):
+class StoredEventBuilderParams[Payload = JsonValue](TypedDict, total=False):
     id: str
     name: str
     stream: str
     category: str
     position: int
     sequence_number: int
-    payload: Mapping[str, Any]
+    payload: Payload
     occurred_at: datetime | None
     observed_at: datetime | None
 
 
 @dataclass(frozen=True)
-class StoredEventBuilder:
+class StoredEventBuilder[Payload = JsonValue]:
     id: str
     name: str
     stream: str
     category: str
     position: int
     sequence_number: int
-    payload: Mapping[str, Any]
+    payload: Payload
     occurred_at: datetime
     observed_at: datetime
 
@@ -118,7 +118,7 @@ class StoredEventBuilder:
         category: str | None = None,
         position: int | None = None,
         sequence_number: int | None = None,
-        payload: Mapping[str, Any] | None = None,
+        payload: Payload | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -152,7 +152,7 @@ class StoredEventBuilder:
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
-    def _clone(self, **kwargs: Unpack[StoredEventBuilderParams]):
+    def _clone(self, **kwargs: Unpack[StoredEventBuilderParams[Payload]]):
         return StoredEventBuilder(
             id=kwargs.get("id", self.id),
             name=kwargs.get("name", self.name),
@@ -167,7 +167,7 @@ class StoredEventBuilder:
             observed_at=kwargs.get("observed_at", self.observed_at),
         )
 
-    def from_new_event(self, event: NewEvent):
+    def from_new_event(self, event: NewEvent[Payload]):
         return self._clone(
             name=event.name,
             payload=event.payload,
@@ -193,7 +193,7 @@ class StoredEventBuilder:
     def with_sequence_number(self, sequence_number: int):
         return self._clone(sequence_number=sequence_number)
 
-    def with_payload(self, payload: Mapping[str, Any]):
+    def with_payload(self, payload: Payload):
         return self._clone(payload=payload)
 
     def with_occurred_at(self, occurred_at: datetime | None):
@@ -203,7 +203,7 @@ class StoredEventBuilder:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return StoredEvent(
+        return StoredEvent[Payload](
             id=self.id,
             name=self.name,
             stream=self.stream,
@@ -217,8 +217,8 @@ class StoredEventBuilder:
 
 
 class ProjectionBuilderParams[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State = JsonValue,
+    Metadata = JsonValue,
 ](TypedDict, total=False):
     id: str
     name: str
@@ -228,8 +228,8 @@ class ProjectionBuilderParams[
 
 
 class BaseProjectionBuilder[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State = JsonValue,
+    Metadata = JsonValue,
 ](ABC):
     id: str
     name: str
@@ -279,11 +279,11 @@ class BaseProjectionBuilder[
 
     @abstractmethod
     def default_state_factory(self) -> State:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def default_metadata_factory(self) -> Metadata:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _clone(
         self, **kwargs: Unpack[ProjectionBuilderParams[State, Metadata]]

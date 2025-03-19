@@ -1,17 +1,21 @@
-import json
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Literal, TypedDict
+from typing import Literal, TypedDict
+
+from . import default_serialisation_fallback
+from .json import JsonValue, JsonValueSerialisable
 
 
-class Identifier(ABC):
+class Identifier(ABC, JsonValueSerialisable):
     @abstractmethod
-    def dict(self) -> Mapping[str, Any]:
-        raise NotImplementedError()
-
-    def json(self) -> str:
-        return json.dumps(self.dict())
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
+        raise NotImplementedError
 
     def __hash__(self):
         return hash(repr(self))
@@ -29,7 +33,12 @@ class EventSourceIdentifier(Identifier, ABC):
 class StreamNamePrefixPartitionIdentifier(PartitionIdentifier):
     value: str
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"type": "stream-name-prefix", "value": self.value}
 
     def __repr__(self) -> str:
@@ -40,7 +49,12 @@ class StreamNamePrefixPartitionIdentifier(PartitionIdentifier):
 class LogIdentifier(EventSourceIdentifier):
     __hash__ = Identifier.__hash__
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"type": "log"}
 
     def __repr__(self) -> str:
@@ -51,8 +65,16 @@ class LogIdentifier(EventSourceIdentifier):
 class LogPartitionIdentifier(EventSourceIdentifier):
     partition: PartitionIdentifier
 
-    def dict(self):
-        return {"type": "log-partition", "partition": self.partition.dict()}
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
+        return {
+            "type": "log-partition",
+            "partition": self.partition.serialise(fallback),
+        }
 
     def __repr__(self) -> str:
         return f"LogPartitionIdentifier(partition={self.partition})"
@@ -64,7 +86,12 @@ class CategoryIdentifier(EventSourceIdentifier):
 
     category: str
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {"type": "category", "category": self.category}
 
     def __repr__(self) -> str:
@@ -76,10 +103,15 @@ class CategoryPartitionIdentifier(EventSourceIdentifier):
     category: str
     partition: PartitionIdentifier
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "type": "category-partition",
-            "partition": self.partition.dict(),
+            "partition": self.partition.serialise(fallback),
         }
 
     def __repr__(self) -> str:
@@ -98,7 +130,12 @@ class StreamIdentifier(EventSourceIdentifier):
     category: str
     stream: str
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "type": "stream",
             "category": self.category,

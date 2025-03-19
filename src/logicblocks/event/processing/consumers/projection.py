@@ -1,24 +1,26 @@
-from collections.abc import Mapping
-from typing import Any
-
 from logicblocks.event.projection import ProjectionStore, Projector
 from logicblocks.event.sources import InMemoryEventSource
-from logicblocks.event.types import StoredEvent, StreamIdentifier
-from logicblocks.event.types.codec import CodecOrMapping
+from logicblocks.event.types import (
+    JsonValue,
+    JsonValueType,
+    Persistable,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 from .types import EventProcessor
 
 
 class ProjectionEventProcessor[
-    State: CodecOrMapping = Mapping[str, Any],
-    Metadata: CodecOrMapping = Mapping[str, Any],
+    State: Persistable = JsonValue,
+    Metadata: Persistable = JsonValue,
 ](EventProcessor):
     def __init__(
         self,
         projector: Projector[State, StreamIdentifier, Metadata],
         projection_store: ProjectionStore,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ):
         self._projector = projector
         self._projection_store = projection_store
@@ -38,11 +40,11 @@ class ProjectionEventProcessor[
         source = InMemoryEventSource[StreamIdentifier](
             events=[event], identifier=identifier
         )
+        state = current_projection.state if current_projection else None
+        metadata = current_projection.metadata if current_projection else None
         updated_projection = await self._projector.project(
-            state=current_projection.state if current_projection else None,
-            metadata=current_projection.metadata
-            if current_projection
-            else None,
+            state=state,
+            metadata=metadata,
             source=source,
         )
         await self._projection_store.save(projection=updated_projection)

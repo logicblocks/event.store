@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from logicblocks.event.types.event import StoredEvent
+from logicblocks.event.types import StoredEvent
 
 
 class EventConsumer(ABC):

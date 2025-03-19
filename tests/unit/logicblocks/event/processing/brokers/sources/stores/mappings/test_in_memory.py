@@ -5,7 +5,7 @@ from logicblocks.event.processing.broker import (
     InMemoryEventSubscriptionSourceMappingStore,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.types.identifier import (
+from logicblocks.event.types import (
     EventSourceIdentifier,
     StreamIdentifier,
 )

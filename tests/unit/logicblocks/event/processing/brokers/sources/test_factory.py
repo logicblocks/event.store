@@ -15,7 +15,7 @@ from logicblocks.event.store.adapters.postgres import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.types.identifier import (
+from logicblocks.event.types import (
     CategoryIdentifier,
     StreamIdentifier,
 )

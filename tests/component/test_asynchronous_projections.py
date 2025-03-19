@@ -2,7 +2,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Mapping, Self
+from typing import Any, Callable, Mapping, Self
 
 import pytest_asyncio
 from psycopg import AsyncConnection, abc, sql
@@ -34,8 +34,12 @@ from logicblocks.event.store import (
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import (
     CategoryIdentifier,
+    JsonValue,
+    JsonValueConvertible,
     StoredEvent,
     StreamIdentifier,
+    default_deserialisation_fallback,
+    deserialise,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -152,17 +156,32 @@ class TestAsynchronousProjections:
         )
 
         @dataclass
-        class Thing:
+        class Thing(JsonValueConvertible):
             value: int = 5
 
             @classmethod
-            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[
+                    [Any, JsonValue], Any
+                ] = default_deserialisation_fallback,
+            ) -> Self:
+                if not isinstance(value, Mapping) or not isinstance(
+                    value["value"], int
+                ):
+                    return fallback(cls, value)
+
                 return cls(value=value["value"])
 
-            def serialise(self) -> Mapping[str, Any]:
+            def serialise(
+                self, fallback: Callable[[object], JsonValue]
+            ) -> JsonValue:
                 return {"value": self.value}
 
-        class ThingProjector(Projector[Thing, StreamIdentifier]):
+        class ThingProjector(
+            Projector[Thing, StreamIdentifier, Mapping[str, Any]]
+        ):
             name = projection_name
 
             def initial_state_factory(self) -> Thing:
@@ -176,12 +195,13 @@ class TestAsynchronousProjections:
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
-                state.value = event.payload["value"]
+                payload = deserialise(Mapping[str, Any], event.payload)
+                state.value = payload["value"]
                 return state
 
         thing_projector = ThingProjector()
 
-        event_processor = ProjectionEventProcessor[Thing](
+        event_processor = ProjectionEventProcessor[Thing, Mapping[str, Any]](
             projector=thing_projector,
             projection_store=thing_projection_store,
             state_type=Thing,

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from logicblocks.event.processing.broker.types import EventSubscriberKey
-from logicblocks.event.types.identifier import EventSourceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 
 
 @dataclass(frozen=True)

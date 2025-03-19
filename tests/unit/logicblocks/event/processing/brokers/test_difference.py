@@ -7,7 +7,7 @@ from logicblocks.event.processing.broker import (
     EventSubscriptionState,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.types.identifier import (
+from logicblocks.event.types import (
     CategoryIdentifier,
     StreamIdentifier,
 )

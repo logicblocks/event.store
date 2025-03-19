@@ -1,5 +1,7 @@
 import sys
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 
@@ -29,7 +31,12 @@ class TestNewEventBuilder:
 
     def test_randomises_event_payload(self):
         payload_keys = [
-            map(str, NewEventBuilder().build().payload.keys())
+            map(
+                str,
+                cast(
+                    Mapping[str, Any], NewEventBuilder().build().payload
+                ).keys(),
+            )
             for _ in range(100)
         ]
 
@@ -103,7 +110,12 @@ class TestStoredEventBuilder:
 
     def test_randomises_event_payload(self):
         payload_keys = [
-            map(str, StoredEventBuilder().build().payload.keys())
+            map(
+                str,
+                cast(
+                    Mapping[str, Any], StoredEventBuilder().build().payload
+                ).keys(),
+            )
             for _ in range(100)
         ]
 

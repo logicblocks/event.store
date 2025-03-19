@@ -1,16 +1,18 @@
-import json
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Callable
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
+from . import default_serialisation_fallback
+from .conversion import serialise
+from .json import JsonValue, JsonValueSerialisable
+
 
 @dataclass(frozen=True)
-class NewEvent:
+class NewEvent[Payload = JsonValue](JsonValueSerialisable):
     name: str
-    payload: Mapping[str, Any]
+    payload: Payload
     observed_at: datetime
     occurred_at: datetime
 
@@ -18,7 +20,7 @@ class NewEvent:
         self,
         *,
         name: str,
-        payload: Mapping[str, Any],
+        payload: Payload,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -33,31 +35,25 @@ class NewEvent:
         object.__setattr__(self, "observed_at", observed_at)
         object.__setattr__(self, "occurred_at", occurred_at)
 
-    def dict(self):
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "name": self.name,
-            "payload": self.payload,
+            "payload": serialise(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
 
-    def envelope(self):
+    def summarise(self):
         return {
             "name": self.name,
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
-
-    def json(self):
-        return json.dumps(
-            {
-                "name": self.name,
-                "payload": self.payload,
-                "observedAt": self.observed_at.isoformat(),
-                "occurredAt": self.occurred_at.isoformat(),
-            },
-            sort_keys=True,
-        )
 
     def __repr__(self):
         return (
@@ -73,18 +69,23 @@ class NewEvent:
 
 
 @dataclass(frozen=True)
-class StoredEvent:
+class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
     id: str
     name: str
     stream: str
     category: str
     position: int
     sequence_number: int
-    payload: Mapping[str, Any]
+    payload: Payload
     observed_at: datetime
     occurred_at: datetime
 
-    def dict(self) -> Mapping[str, Any]:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "id": self.id,
             "name": self.name,
@@ -92,12 +93,12 @@ class StoredEvent:
             "category": self.category,
             "position": self.position,
             "sequence_number": self.sequence_number,
-            "payload": dict(self.payload),
+            "payload": serialise(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
 
-    def envelope(self) -> Mapping[str, Any]:
+    def summarise(self) -> JsonValue:
         return {
             "id": self.id,
             "name": self.name,
@@ -108,22 +109,6 @@ class StoredEvent:
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
-
-    def json(self):
-        return json.dumps(
-            {
-                "id": self.id,
-                "name": self.name,
-                "stream": self.stream,
-                "category": self.category,
-                "position": self.position,
-                "sequenceNumber": self.sequence_number,
-                "payload": self.payload,
-                "observedAt": self.observed_at.isoformat(),
-                "occurredAt": self.occurred_at.isoformat(),
-            },
-            sort_keys=True,
-        )
 
     def __repr__(self):
         return (

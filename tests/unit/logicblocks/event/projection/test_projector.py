@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import reduce
@@ -13,32 +14,54 @@ from logicblocks.event.projection import (
 )
 from logicblocks.event.store import EventStore
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
-from logicblocks.event.testing import NewEventBuilder, data
-from logicblocks.event.testing.builders import StoredEventBuilder
+from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import (
+    JsonValue,
+    JsonValueConvertible,
     Projection,
     StoredEvent,
     StreamIdentifier,
+    default_deserialisation_fallback,
+    default_serialisation_fallback,
 )
-from logicblocks.event.types.codec import Codec
 
 generic_event = (
-    StoredEventBuilder()
+    StoredEventBuilder[Mapping[str, Any]]()
     .with_category(data.random_event_category_name())
     .with_stream(data.random_event_stream_name())
     .with_payload({})
 )
 
 
+def to_datetime_or_none(value: JsonValue) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    return datetime.fromisoformat(value)
+
+
 @dataclass
-class Aggregate(Codec):
+class Aggregate(JsonValueConvertible):
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if not isinstance(value, Mapping):
+            return fallback(cls, value)
+
+        something_occurred_at = to_datetime_or_none(
+            value.get("something_occurred_at", None)
+        )
+        something_else_occurred_at = to_datetime_or_none(
+            value.get("something_else_occurred_at", None)
+        )
+
         return cls(
-            something_occurred_at=value.get("something_occurred_at", None),
-            something_else_occurred_at=value.get(
-                "something_else_occurred_at", None
-            ),
+            something_occurred_at=something_occurred_at,
+            something_else_occurred_at=something_else_occurred_at,
         )
 
     def __init__(
@@ -59,7 +82,12 @@ class Aggregate(Codec):
             return None
         return self.something_else_occurred_at.isoformat()
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "something_occurred_at": self.something_occurred_at_string(),
             "something_else_occurred_at": self.something_else_occurred_at_string(),
@@ -526,10 +554,25 @@ class TestProjectorProjection:
             call_count: int = 0
 
             @classmethod
-            def deserialise(cls, value: Mapping[str, Any]) -> Self:
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[
+                    [Any, JsonValue], Any
+                ] = default_deserialisation_fallback,
+            ) -> Self:
+                if (
+                    not isinstance(value, Mapping)
+                    or "call_count" not in value
+                    or not isinstance(value["call_count"], int)
+                ):
+                    return fallback(cls, value)
+
                 return cls(call_count=value["call_count"])
 
-            def serialise(self) -> Mapping[str, Any]:
+            def serialise(
+                self, fallback: Callable[[object], JsonValue]
+            ) -> JsonValue:
                 return {"call_count": self.call_count}
 
             def count_call(self) -> "AggregateMeta":
@@ -652,10 +695,28 @@ class TestProjectorProjection:
             value: int = 5
 
             @classmethod
-            def deserialise(cls, value: Mapping[str, Any]) -> Self:
-                return cls(value=int(value["value"]))
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[
+                    [Any, JsonValue], Any
+                ] = default_deserialisation_fallback,
+            ) -> Self:
+                if (
+                    not isinstance(value, Mapping)
+                    or "value" not in value
+                    or not isinstance(value["value"], int)
+                ):
+                    return fallback(cls, value)
 
-            def serialise(self) -> Mapping[str, Any]:
+                return cls(value=value["value"])
+
+            def serialise(
+                self,
+                fallback: Callable[
+                    [object], JsonValue
+                ] = default_serialisation_fallback,
+            ) -> JsonValue:
                 return {"value": self.value}
 
         class CustomTypeProjector(Projector[Thing, StreamIdentifier]):
@@ -671,7 +732,9 @@ class TestProjectorProjection:
                 return source.stream
 
             @staticmethod
-            def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
+            def thing_got_value(
+                state: Thing, event: StoredEvent[Mapping[str, Any]]
+            ) -> Thing:
                 state.value = event.payload["value"]
                 return state
 

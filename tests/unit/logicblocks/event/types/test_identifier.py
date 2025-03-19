@@ -7,9 +7,6 @@ from logicblocks.event.types import identifier
 
 
 class TestLogIdentifier:
-    def test_returns_json(self):
-        assert identifier.LogIdentifier().json() == '{"type": "log"}'
-
     def test_returns_representation(self):
         assert repr(identifier.LogIdentifier()) == "LogIdentifier()"
 
@@ -21,12 +18,6 @@ class TestLogIdentifier:
 
 
 class TestCategoryIdentifier:
-    def test_returns_json(self):
-        assert (
-            identifier.CategoryIdentifier(category="test").json()
-            == '{"type": "category", "category": "test"}'
-        )
-
     def test_returns_representation(self):
         assert (
             repr(identifier.CategoryIdentifier(category="test"))
@@ -46,14 +37,6 @@ class TestCategoryIdentifier:
 
 
 class TestStreamIdentifier:
-    def test_returns_json(self):
-        assert (
-            identifier.StreamIdentifier(
-                category="test", stream="stream"
-            ).json()
-            == '{"type": "stream", "category": "test", "stream": "stream"}'
-        )
-
     def test_returns_representation(self):
         assert (
             repr(identifier.StreamIdentifier(category="test", stream="stream"))

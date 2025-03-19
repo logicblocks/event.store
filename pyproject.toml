@@ -35,8 +35,11 @@ pytest-cov = "^6.0.0"
 pytest-diff = "^0.1.14"
 pytest-pretty = "^1.2.0"
 pytest-repeat = "^0.9.3"
-ruff = "^0.9.2"
 pytest-unordered = "^0.6.1"
+ruff = "^0.9.2"
+
+[tool.poetry.group.changelog.dependencies]
+scriv = "^1.5.1"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs-material = "^9.5.47"
@@ -51,6 +54,8 @@ format-fix = "ruff format src tests"
 type-check = "pyright src tests"
 docs-serve = "mkdocs serve"
 docs-build = "mkdocs build"
+changelog-fragment-create = "scriv create"
+changelog-assemble = "scriv collect"
 
 [tool.poe.tasks.test-unit]
 shell = """
@@ -146,6 +151,10 @@ include = ["src", "tests/shared", "tests/unit", "tests/integration"]
 extraPaths = ["src", "tests/shared"]
 strict = ["src"]
 reportMissingTypeStubs = "error"
+
+[tool.scriv]
+version = "literal: pyproject.toml: tool.poetry.version"
+format = "md"
 
 [build-system]
 requires = ["poetry-core"]

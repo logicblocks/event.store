@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Sequence
 
-from logicblocks.event.types import CodecOrMapping, Projection
+from logicblocks.event.types import (
+    JsonValue,
+    JsonValueType,
+    Persistable,
+    Projection,
+)
 
 from ..query import Lookup, Query, Search
 
@@ -15,32 +19,32 @@ class ProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[CodecOrMapping, CodecOrMapping],
+        projection: Projection[Persistable, Persistable],
     ) -> None:
         raise NotImplementedError()
 
     @abstractmethod
     async def find_one[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         lookup: ItemQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Projection[State, Metadata] | None:
         raise NotImplementedError()
 
     @abstractmethod
     async def find_many[
-        State: CodecOrMapping = Mapping[str, Any],
-        Metadata: CodecOrMapping = Mapping[str, Any],
+        State: Persistable = JsonValue,
+        Metadata: Persistable = JsonValue,
     ](
         self,
         *,
         search: CollectionQuery,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State] = JsonValueType,
+        metadata_type: type[Metadata] = JsonValueType,
     ) -> Sequence[Projection[State, Metadata]]:
         raise NotImplementedError()

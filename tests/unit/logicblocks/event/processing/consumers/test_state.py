@@ -140,7 +140,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         state = await state_store.load()
 
         assert state == EventConsumerState(
-            last_sequence_number=processed_event.sequence_number, state={}
+            last_sequence_number=processed_event.sequence_number, state=None
         )
 
     async def test_captures_extra_state(self):
@@ -209,7 +209,10 @@ class TestEventConsumerStateStoreRecordProcessed:
         events = await state_category.stream(stream="default").read()
 
         assert len(events) == 1
-        assert events[0].payload == {"last_sequence_number": 100, "state": {}}
+        assert events[0].payload == {
+            "last_sequence_number": 100,
+            "state": None,
+        }
 
     async def test_does_not_store_default_state_before_threshold_reached(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -769,7 +772,7 @@ class TestEventConsumerStateStoreSave:
         assert len(state_events) == 1
         assert state_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
 
     async def test_skips_store_when_default_partition_already_saved(self):
@@ -795,7 +798,7 @@ class TestEventConsumerStateStoreSave:
         assert len(state_events) == 1
         assert state_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
     async def test_stores_default_partition_when_existing_state_events(self):
@@ -808,7 +811,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": {}},
+                    payload={"last_sequence_number": 1, "state": None},
                 )
             ]
         )
@@ -828,11 +831,11 @@ class TestEventConsumerStateStoreSave:
         assert len(state_events) == 2
         assert state_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert state_events[1].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
     async def test_stores_state_immediately_for_all_tracked_partitions(self):
@@ -872,12 +875,12 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
     async def test_skips_store_if_tracked_partition_already_saved(self):
@@ -925,12 +928,12 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
     async def test_stores_tracked_partitions_when_existing_state_events(self):
@@ -946,7 +949,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": {}},
+                    payload={"last_sequence_number": 1, "state": None},
                 )
             ]
         )
@@ -954,7 +957,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 2, "state": {}},
+                    payload={"last_sequence_number": 2, "state": None},
                 )
             ]
         )
@@ -984,21 +987,21 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert partition_1_events[1].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
         assert partition_2_events[1].payload == {
             "last_sequence_number": 4,
-            "state": {},
+            "state": None,
         }
 
     async def test_does_nothing_when_no_state_for_tracked_partitions(self):
@@ -1053,7 +1056,7 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 0
 
@@ -1103,7 +1106,7 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
     async def test_stores_specified_partition_when_existing_state_events(self):
@@ -1119,7 +1122,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": {}},
+                    payload={"last_sequence_number": 1, "state": None},
                 )
             ]
         )
@@ -1149,11 +1152,11 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert partition_1_events[1].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
         assert len(partition_2_events) == 0
@@ -1219,7 +1222,7 @@ class TestEventConsumerStateStoreSave:
         assert len(state_events) == 1
         assert state_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_stored_default_state(
@@ -1288,7 +1291,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": {}})
+                    .with_payload({"last_sequence_number": 1, "state": None})
                     .build()
                 ),
             ]
@@ -1325,11 +1328,11 @@ class TestEventConsumerStateStoreSave:
         assert len(state_events) == 2
         assert state_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert state_events[1].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_no_stored_partitioned_state_all_partitions(
@@ -1383,12 +1386,12 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_stored_partitioned_state_all_partitions(
@@ -1446,12 +1449,12 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_existing_partitioned_state_events_all_partitions(
@@ -1470,7 +1473,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": {}})
+                    .with_payload({"last_sequence_number": 1, "state": None})
                     .build()
                 ),
             ]
@@ -1479,7 +1482,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 2, "state": {}})
+                    .with_payload({"last_sequence_number": 2, "state": None})
                     .build()
                 ),
             ]
@@ -1529,22 +1532,22 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
         assert partition_2_events[1].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
         assert len(partition_3_events) == 1
         assert partition_3_events[0].payload == {
             "last_sequence_number": 4,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_stored_partitioned_state_specific_partitions(
@@ -1597,7 +1600,7 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_no_stored_partitioned_state_specific_partitions(
@@ -1652,7 +1655,7 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
     async def test_consistent_concurrent_execution_when_existing_partitioned_state_events_specific_partitions(
@@ -1671,7 +1674,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": {}})
+                    .with_payload({"last_sequence_number": 1, "state": None})
                     .build()
                 )
             ]
@@ -1680,7 +1683,7 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 2, "state": {}})
+                    .with_payload({"last_sequence_number": 2, "state": None})
                     .build()
                 )
             ]
@@ -1730,17 +1733,17 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
             "last_sequence_number": 1,
-            "state": {},
+            "state": None,
         }
 
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
             "last_sequence_number": 2,
-            "state": {},
+            "state": None,
         }
         assert partition_2_events[1].payload == {
             "last_sequence_number": 3,
-            "state": {},
+            "state": None,
         }
 
         assert len(partition_3_events) == 0

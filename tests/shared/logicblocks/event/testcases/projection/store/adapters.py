@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Self
+from typing import Any, Callable, Self, cast
 
 import pytest
 
@@ -22,27 +22,54 @@ from logicblocks.event.testing import (
     BaseProjectionBuilder,
     data,
 )
-from logicblocks.event.types import Projection, StreamIdentifier
-from logicblocks.event.types.projection import (
+from logicblocks.event.types import (
+    JsonValue,
+    JsonValueConvertible,
+    Projection,
+    StreamIdentifier,
+    default_deserialisation_fallback,
+    default_serialisation_fallback,
     serialise_projection,
 )
 
 
 @dataclass
-class Thing:
+class Thing(JsonValueConvertible):
     value_1: int
     value_2: str = ""
     value_3: list[str] = field(default_factory=list[str])
 
     @classmethod
-    def deserialise(cls, value: Mapping[str, Any]) -> Self:
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if (
+            not isinstance(value, Mapping)
+            or not isinstance(value["value_1"], int)
+            or not isinstance(value["value_2"], str)
+            or not isinstance(value["value_3"], Sequence)
+            or not all(isinstance(value, str) for value in value["value_3"])
+        ):
+            return fallback(cls, value)
+
+        resolved = cast(Mapping[str, Any], value)
+
         return cls(
-            value_1=value["value_1"],
-            value_2=value["value_2"],
-            value_3=value["value_3"],
+            value_1=resolved["value_1"],
+            value_2=resolved["value_2"],
+            value_3=resolved["value_3"],
         )
 
-    def serialise(self) -> Mapping[str, Any]:
+    def serialise(
+        self,
+        fallback: Callable[
+            [object], JsonValue
+        ] = default_serialisation_fallback,
+    ) -> JsonValue:
         return {
             "value_1": self.value_1,
             "value_2": self.value_2,
@@ -76,7 +103,7 @@ class Base(ABC):
     @abstractmethod
     async def retrieve_projections(
         self, *, adapter: ProjectionStorageAdapter
-    ) -> Sequence[Projection[Mapping[str, Any], Mapping[str, Any]]]:
+    ) -> Sequence[Projection[JsonValue, JsonValue]]:
         raise NotImplementedError()
 
 

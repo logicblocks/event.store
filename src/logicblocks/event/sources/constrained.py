@@ -3,8 +3,7 @@ from typing import Any
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.types import StoredEvent
-from logicblocks.event.types.identifier import EventSourceIdentifier
+from logicblocks.event.types import EventSourceIdentifier, StoredEvent
 
 
 class ConstrainedEventSource[I: EventSourceIdentifier](EventSource[I]):

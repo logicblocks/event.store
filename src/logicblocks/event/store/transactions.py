@@ -1,17 +1,25 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Awaitable, Callable, ClassVar, Final
+from typing import (
+    Awaitable,
+    Callable,
+    ClassVar,
+    Final,
+    Never,
+)
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 
 
-class event_store_transaction(ABC):
+class event_store_transaction[AdditionalReturn = Never](ABC):
     def __call__[**P, R](
         self,
         handler: Callable[P, Awaitable[R]],
-    ) -> Callable[P, Awaitable[R]]:
+    ) -> Callable[P, Awaitable[AdditionalReturn | R]]:
         @wraps(handler)
-        async def _wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        async def _wrapper(
+            *args: P.args, **kwargs: P.kwargs
+        ) -> AdditionalReturn | R:
             async def _handler() -> R:
                 return await handler(*args, **kwargs)
 
@@ -20,7 +28,9 @@ class event_store_transaction(ABC):
         return _wrapper
 
     @abstractmethod
-    async def wrap_handler[R](self, handler: Callable[[], Awaitable[R]]) -> R:
+    async def wrap_handler[R](
+        self, handler: Callable[[], Awaitable[R]]
+    ) -> AdditionalReturn | R:
         raise NotImplementedError
 
 
@@ -40,5 +50,21 @@ class retry_on_error(event_store_transaction, ABC):
         return await handler()
 
 
+class ignore_on_error(event_store_transaction[None], ABC):
+    exception: ClassVar[type[Exception]]
+
+    async def wrap_handler[R](
+        self, handler: Callable[[], Awaitable[R]]
+    ) -> R | None:
+        try:
+            return await handler()
+        except self.exception:
+            pass
+
+
 class retry_on_unmet_condition_error(retry_on_error):
+    exception = UnmetWriteConditionError
+
+
+class ignore_on_unmet_condition_error(ignore_on_error):
     exception = UnmetWriteConditionError

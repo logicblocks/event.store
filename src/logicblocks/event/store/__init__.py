@@ -15,6 +15,12 @@ from .transactions import (
     event_store_transaction as event_store_transaction,
 )
 from .transactions import (
+    ignore_on_error as ignore_on_error,
+)
+from .transactions import (
+    ignore_on_unmet_condition_error as ignore_on_unmet_condition_error,
+)
+from .transactions import (
     retry_on_error as retry_on_error,
 )
 from .transactions import (

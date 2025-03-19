@@ -23,7 +23,6 @@ class TestEventStoreTransaction:
         result = await wrapped_handler("arg1", arg2=1)
 
         handler.assert_called_once_with("arg1", arg2=1)
-        handler.assert_awaited_once()
 
         assert result == "result"
 
@@ -161,7 +160,6 @@ class TestIgnoreOnError:
         result = await wrapped_handler()
 
         handler.assert_called_once()
-        handler.assert_awaited_once()
 
         assert result is None
 

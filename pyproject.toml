@@ -153,7 +153,7 @@ strict = ["src"]
 reportMissingTypeStubs = "error"
 
 [tool.scriv]
-version = "literal: pyproject.toml: project.version"
+version = "literal: pyproject.toml: tool.poetry.version"
 format = "md"
 
 [build-system]

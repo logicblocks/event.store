@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import StoredEvent
@@ -13,10 +14,11 @@ class WriteCondition(ABC):
 
 @dataclass(frozen=True)
 class PositionIsCondition(WriteCondition):
-    position: int
+    position: Optional[int]
 
     def assert_met_by(self, *, last_event: StoredEvent | None):
-        if last_event is None or last_event.position != self.position:
+        latest_position = last_event.position if last_event else None
+        if latest_position != self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
 

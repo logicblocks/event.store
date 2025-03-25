@@ -484,7 +484,7 @@ class TestStreamLogging:
                 new_event.serialise(fallback=str_serialisation_fallback)
                 for new_event in new_events
             ],
-            "conditions": {conditions.stream_is_empty()},
+            "conditions": conditions.stream_is_empty(),
         }
 
     async def test_logs_envelope_post_publish_when_not_debug_and_successful(

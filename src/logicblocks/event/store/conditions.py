@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, final
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
@@ -19,70 +19,82 @@ class WriteCondition(ABC):
     def __hash__(self) -> int:
         raise NotImplementedError()
 
-    def __and__(self, other: "WriteCondition") -> "WriteCondition":
+    def _and(self, other: "WriteCondition") -> "WriteCondition":
+        make_write_conditions = WriteConditions.with_and
+
         match self, other:
             case WriteConditions(
                 conditions=self_conditions, combinator="and"
             ), WriteConditions(conditions=other_conditions, combinator="and"):
-                return WriteConditions(
-                    conditions={*self_conditions, *other_conditions},
-                    combinator="and",
+                return make_write_conditions(
+                    *self_conditions, *other_conditions
                 )
 
             case WriteConditions(
                 conditions=self_conditions, combinator="and"
             ), _:
-                return WriteConditions(
-                    conditions={*self_conditions, other}, combinator="and"
-                )
+                return make_write_conditions(*self_conditions, other)
 
             case _, WriteConditions(
                 conditions=other_conditions, combinator="and"
             ):
-                return WriteConditions(
-                    conditions={self, *other_conditions}, combinator="and"
-                )
+                return make_write_conditions(self, *other_conditions)
 
             case _, _:
-                return WriteConditions(
-                    conditions={self, other}, combinator="and"
-                )
+                return make_write_conditions(self, other)
 
-    def __or__(self, other: "WriteCondition") -> "WriteCondition":
+    def _or(self, other: "WriteCondition") -> "WriteCondition":
+        make_write_conditions = WriteConditions.with_or
+
         match self, other:
             case WriteConditions(
                 conditions=self_conditions, combinator="or"
             ), WriteConditions(conditions=other_conditions, combinator="or"):
-                return WriteConditions(
-                    conditions={*self_conditions, *other_conditions},
-                    combinator="or",
+                return make_write_conditions(
+                    *self_conditions, *other_conditions
                 )
 
             case WriteConditions(
                 conditions=self_conditions, combinator="or"
             ), _:
-                return WriteConditions(
-                    conditions={*self_conditions, other}, combinator="or"
-                )
+                return make_write_conditions(*self_conditions, other)
 
             case _, WriteConditions(
                 conditions=other_conditions, combinator="or"
             ):
-                return WriteConditions(
-                    conditions={self, *other_conditions}, combinator="or"
-                )
+                return make_write_conditions(self, *other_conditions)
 
             case _, _:
-                return WriteConditions(
-                    conditions={self, other}, combinator="or"
-                )
+                return make_write_conditions(self, other)
+
+    def __and__(self, other: "WriteCondition") -> "WriteCondition":
+        return self._and(other)
+
+    def __or__(self, other: "WriteCondition") -> "WriteCondition":
+        return self._or(other)
 
 
 @final
 @dataclass(frozen=True)
 class WriteConditions(WriteCondition):
-    conditions: set[WriteCondition] = field()
+    conditions: frozenset[WriteCondition]
     combinator: Literal["and", "or"]
+
+    @classmethod
+    def for_combinator(
+        cls, combinator: Literal["and", "or"], *conditions: WriteCondition
+    ) -> "WriteConditions":
+        return WriteConditions(
+            conditions=frozenset(conditions), combinator=combinator
+        )
+
+    @classmethod
+    def with_or(cls, *conditions: WriteCondition) -> "WriteConditions":
+        return WriteConditions.for_combinator("or", *conditions)
+
+    @classmethod
+    def with_and(cls, *conditions: WriteCondition) -> "WriteConditions":
+        return WriteConditions.for_combinator("and", *conditions)
 
     def assert_met_by(self, *, last_event: StoredEvent | None) -> None:
         match self.combinator:

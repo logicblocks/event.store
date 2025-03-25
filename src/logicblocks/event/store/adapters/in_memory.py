@@ -13,6 +13,7 @@ from logicblocks.event.store.adapters.base import (
     Scannable,
 )
 from logicblocks.event.store.conditions import (
+    NoCondition,
     WriteCondition,
 )
 from logicblocks.event.store.constraints import QueryConstraint
@@ -54,7 +55,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Saveable,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition] = frozenset(),
+        condition: WriteCondition = NoCondition,
     ) -> Sequence[StoredEvent]:
         category_key = target.category
         stream_key = (target.category, target.stream)
@@ -71,8 +72,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             last_event = stream_events[-1] if stream_events else None
             await asyncio.sleep(0)
 
-            for condition in conditions:
-                condition.assert_met_by(last_event=last_event)
+            condition.assert_met_by(last_event=last_event)
 
             last_sequence_number = len(self._events)
             last_stream_position = (

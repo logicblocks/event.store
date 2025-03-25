@@ -7,7 +7,7 @@ import structlog
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.store.adapters import EventStorageAdapter
-from logicblocks.event.store.conditions import WriteCondition
+from logicblocks.event.store.conditions import NoCondition, WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
@@ -81,7 +81,7 @@ class EventStream(EventSource[StreamIdentifier]):
         self,
         *,
         events: Sequence[NewEvent],
-        conditions: Set[WriteCondition] = frozenset(),
+        condition: WriteCondition = NoCondition,
     ) -> Sequence[StoredEvent]:
         """Publish a sequence of events into the stream."""
         await self._logger.adebug(
@@ -92,14 +92,14 @@ class EventStream(EventSource[StreamIdentifier]):
                 event.serialise(fallback=str_serialisation_fallback)
                 for event in events
             ],
-            conditions=conditions,
+            conditions=condition,
         )
 
         try:
             stored_events = await self._adapter.save(
                 target=self._identifier,
                 events=events,
-                conditions=conditions,
+                condition=condition,
             )
 
             if self._logger.is_enabled_for(logging.DEBUG):

@@ -1,7 +1,7 @@
 import asyncio
 import concurrent.futures
 from abc import ABC, abstractmethod
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
 from itertools import batched
 from random import randint
 from typing import cast
@@ -15,6 +15,7 @@ from logicblocks.event.store.adapters import (
     EventOrderingGuarantee,
     EventStorageAdapter,
 )
+from logicblocks.event.store.conditions import NoCondition
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.data import (
@@ -207,7 +208,7 @@ class WriteConditionCases(Base, ABC):
                 category=event_category, stream=event_stream
             ),
             events=[new_event],
-            conditions={writeconditions.stream_is_empty()},
+            condition=writeconditions.stream_is_empty(),
         )
         stored_event = stored_events[0]
 
@@ -254,7 +255,7 @@ class WriteConditionCases(Base, ABC):
                 category=event_category, stream=event_stream_2
             ),
             events=[new_event_2],
-            conditions={writeconditions.stream_is_empty()},
+            condition=writeconditions.stream_is_empty(),
         )
         stored_event = stored_events[0]
 
@@ -300,7 +301,7 @@ class WriteConditionCases(Base, ABC):
                 category=event_category_2, stream=event_stream_2
             ),
             events=[new_event_2],
-            conditions={writeconditions.stream_is_empty()},
+            condition=writeconditions.stream_is_empty(),
         )
         stored_event = stored_events[0]
 
@@ -342,7 +343,7 @@ class WriteConditionCases(Base, ABC):
                     category=event_category, stream=event_stream
                 ),
                 events=[NewEventBuilder().build()],
-                conditions={writeconditions.stream_is_empty()},
+                condition=writeconditions.stream_is_empty(),
             )
 
     async def test_writes_if_position_condition_and_correct_position(self):
@@ -367,7 +368,7 @@ class WriteConditionCases(Base, ABC):
                 category=event_category, stream=event_stream
             ),
             events=[new_event_2],
-            conditions={writeconditions.position_is(0)},
+            condition=writeconditions.position_is(0),
         )
 
         stored_event_2 = stored_events_2[0]
@@ -418,7 +419,7 @@ class WriteConditionCases(Base, ABC):
                     stream=random_event_stream_name(),
                 ),
                 events=[NewEventBuilder().build()],
-                conditions={writeconditions.position_is(1)},
+                condition=writeconditions.position_is(1),
             )
 
     async def test_raises_if_position_condition_and_greater_than_expected(
@@ -445,7 +446,7 @@ class WriteConditionCases(Base, ABC):
                     stream=random_event_stream_name(),
                 ),
                 events=[NewEventBuilder().build()],
-                conditions={writeconditions.position_is(1)},
+                condition=writeconditions.position_is(1),
             )
 
     async def test_raises_if_position_condition_and_stream_empty(self):
@@ -458,7 +459,7 @@ class WriteConditionCases(Base, ABC):
                     stream=random_event_stream_name(),
                 ),
                 events=[NewEventBuilder().build()],
-                conditions={writeconditions.position_is(0)},
+                condition=writeconditions.position_is(0),
             )
 
 
@@ -469,12 +470,12 @@ class StorageAdapterSaveTask:
         adapter: EventStorageAdapter,
         target: identifier.StreamIdentifier,
         events: Sequence[NewEvent],
-        conditions: Set[writeconditions.WriteCondition] | None = None,
+        condition: writeconditions.WriteCondition = NoCondition,
     ):
         self.adapter = adapter
         self.target = target
         self.events = events
-        self.conditions = frozenset() if conditions is None else conditions
+        self.condition = condition
         self.result: Sequence[StoredEvent] | None = None
         self.exception: BaseException | None = None
 
@@ -485,7 +486,7 @@ class StorageAdapterSaveTask:
             self.result = await self.adapter.save(
                 target=self.target,
                 events=self.events,
-                conditions=self.conditions,
+                condition=self.condition,
             )
             await asyncio.sleep(0)
         except BaseException as e:
@@ -537,7 +538,7 @@ class ThreadingConcurrencyCases(Base, ABC):
                             .build()
                         ),
                     ],
-                    conditions={writeconditions.stream_is_empty()},
+                    condition=writeconditions.stream_is_empty(),
                 )
                 for thread_id in range(test_concurrency)
             ]
@@ -645,7 +646,7 @@ class ThreadingConcurrencyCases(Base, ABC):
                             .build()
                         ),
                     ],
-                    conditions={writeconditions.position_is(1)},
+                    condition=writeconditions.position_is(1),
                 )
                 for thread_id in range(test_concurrency)
             ]
@@ -825,7 +826,7 @@ class AsyncioConcurrencyCases(Base, ABC):
                         .build()
                     ),
                 ],
-                conditions={writeconditions.stream_is_empty()},
+                condition=writeconditions.stream_is_empty(),
             )
             for task_id in range(simultaneous_write_count)
         ]
@@ -898,7 +899,7 @@ class AsyncioConcurrencyCases(Base, ABC):
                         .build()
                     ),
                 ],
-                conditions={writeconditions.position_is(1)},
+                condition=writeconditions.position_is(1),
             )
             for task_id in range(simultaneous_write_count)
         ]

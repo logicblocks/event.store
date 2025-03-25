@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal, final
+from enum import StrEnum
+from typing import final
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import StoredEvent
+
+
+class ConditionCombinators(StrEnum):
+    AND = "and"
+    OR = "or"
 
 
 class WriteCondition(ABC):
@@ -24,19 +30,23 @@ class WriteCondition(ABC):
 
         match self, other:
             case WriteConditions(
-                conditions=self_conditions, combinator="and"
-            ), WriteConditions(conditions=other_conditions, combinator="and"):
+                conditions=self_conditions, combinator=ConditionCombinators.AND
+            ), WriteConditions(
+                conditions=other_conditions,
+                combinator=ConditionCombinators.AND,
+            ):
                 return make_write_conditions(
                     *self_conditions, *other_conditions
                 )
 
             case WriteConditions(
-                conditions=self_conditions, combinator="and"
+                conditions=self_conditions, combinator=ConditionCombinators.AND
             ), _:
                 return make_write_conditions(*self_conditions, other)
 
             case _, WriteConditions(
-                conditions=other_conditions, combinator="and"
+                conditions=other_conditions,
+                combinator=ConditionCombinators.AND,
             ):
                 return make_write_conditions(self, *other_conditions)
 
@@ -48,19 +58,21 @@ class WriteCondition(ABC):
 
         match self, other:
             case WriteConditions(
-                conditions=self_conditions, combinator="or"
-            ), WriteConditions(conditions=other_conditions, combinator="or"):
+                conditions=self_conditions, combinator=ConditionCombinators.OR
+            ), WriteConditions(
+                conditions=other_conditions, combinator=ConditionCombinators.OR
+            ):
                 return make_write_conditions(
                     *self_conditions, *other_conditions
                 )
 
             case WriteConditions(
-                conditions=self_conditions, combinator="or"
+                conditions=self_conditions, combinator=ConditionCombinators.OR
             ), _:
                 return make_write_conditions(*self_conditions, other)
 
             case _, WriteConditions(
-                conditions=other_conditions, combinator="or"
+                conditions=other_conditions, combinator=ConditionCombinators.OR
             ):
                 return make_write_conditions(self, *other_conditions)
 
@@ -78,11 +90,11 @@ class WriteCondition(ABC):
 @dataclass(frozen=True)
 class WriteConditions(WriteCondition):
     conditions: frozenset[WriteCondition]
-    combinator: Literal["and", "or"]
+    combinator: ConditionCombinators
 
     @classmethod
     def for_combinator(
-        cls, combinator: Literal["and", "or"], *conditions: WriteCondition
+        cls, combinator: ConditionCombinators, *conditions: WriteCondition
     ) -> "WriteConditions":
         return WriteConditions(
             conditions=frozenset(conditions), combinator=combinator
@@ -90,18 +102,22 @@ class WriteConditions(WriteCondition):
 
     @classmethod
     def with_or(cls, *conditions: WriteCondition) -> "WriteConditions":
-        return WriteConditions.for_combinator("or", *conditions)
+        return WriteConditions.for_combinator(
+            ConditionCombinators.OR, *conditions
+        )
 
     @classmethod
     def with_and(cls, *conditions: WriteCondition) -> "WriteConditions":
-        return WriteConditions.for_combinator("and", *conditions)
+        return WriteConditions.for_combinator(
+            ConditionCombinators.AND, *conditions
+        )
 
     def assert_met_by(self, *, last_event: StoredEvent | None) -> None:
         match self.combinator:
-            case "and":
+            case ConditionCombinators.AND:
                 for condition in self.conditions:
                     condition.assert_met_by(last_event=last_event)
-            case "or":
+            case ConditionCombinators.OR:
                 first_exception = None
                 for condition in self.conditions:
                     try:

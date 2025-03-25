@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import pytest
 
 from logicblocks.event.store.conditions import (
+    ConditionCombinators,
     EmptyStreamCondition,
     NoCondition,
     PositionIsCondition,
@@ -101,7 +102,7 @@ class TestWriteConditions:
             condition2,
             condition3,
         }
-        assert combined_condition.combinator == "and"
+        assert combined_condition.combinator == ConditionCombinators.AND
 
     def test_combining_with_or_creates_write_conditions(self):
         event_name = data.random_event_name()
@@ -120,7 +121,7 @@ class TestWriteConditions:
             condition2,
             condition3,
         }
-        assert combined_condition.combinator == "or"
+        assert combined_condition.combinator == ConditionCombinators.OR
 
     class TestWriteConditionOperatorPrecedence:
         def test_and_takes_precedence_second(self):
@@ -134,12 +135,12 @@ class TestWriteConditions:
             combined_condition = condition1 | condition2 & condition3
 
             assert combined_condition == WriteConditions(
-                combinator="or",
+                combinator=ConditionCombinators.OR,
                 conditions=frozenset(
                     {
                         condition1,
                         WriteConditions(
-                            combinator="and",
+                            combinator=ConditionCombinators.AND,
                             conditions=frozenset({condition2, condition3}),
                         ),
                     }
@@ -157,12 +158,12 @@ class TestWriteConditions:
             combined_condition = condition1 & condition2 | condition3
 
             assert combined_condition == WriteConditions(
-                combinator="or",
+                combinator=ConditionCombinators.OR,
                 conditions=frozenset(
                     {
                         condition3,
                         WriteConditions(
-                            combinator="and",
+                            combinator=ConditionCombinators.AND,
                             conditions=frozenset({condition1, condition2}),
                         ),
                     }
@@ -180,12 +181,12 @@ class TestWriteConditions:
             combined_condition = (condition1 | condition2) & condition3
 
             assert combined_condition == WriteConditions(
-                combinator="and",
+                combinator=ConditionCombinators.AND,
                 conditions=frozenset(
                     {
                         condition3,
                         WriteConditions(
-                            combinator="or",
+                            combinator=ConditionCombinators.OR,
                             conditions=frozenset({condition1, condition2}),
                         ),
                     }
@@ -203,12 +204,12 @@ class TestWriteConditions:
             combined_condition = condition1 & (condition2 | condition3)
 
             assert combined_condition == WriteConditions(
-                combinator="and",
+                combinator=ConditionCombinators.AND,
                 conditions=frozenset(
                     {
                         condition1,
                         WriteConditions(
-                            combinator="or",
+                            combinator=ConditionCombinators.OR,
                             conditions=frozenset({condition2, condition3}),
                         ),
                     }

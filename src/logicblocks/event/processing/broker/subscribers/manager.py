@@ -86,10 +86,10 @@ class EventSubscriberManager:
                     ],
                 },
             )
-            await self._subscriber_state_store.add(subscriber.key)
             await self._subscription_source_mapping_store.add(
                 subscriber.group, subscriber.subscription_requests
             )
+            await self._subscriber_state_store.add(subscriber.key)
 
     async def unregister(self):
         for subscriber in await self._subscriber_store.list():

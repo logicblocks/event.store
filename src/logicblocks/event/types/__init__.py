@@ -23,6 +23,9 @@ from .identifier import CategoryIdentifier as CategoryIdentifier
 from .identifier import EventSourceIdentifier as EventSourceIdentifier
 from .identifier import LogIdentifier as LogIdentifier
 from .identifier import StreamIdentifier as StreamIdentifier
+from .json import JsonArray as JsonArray
+from .json import JsonObject as JsonObject
+from .json import JsonPrimitive as JsonPrimitive
 from .json import JsonValue as JsonValue
 from .json import JsonValueConvertible as JsonValueConvertible
 from .json import JsonValueDeserialisable as JsonValueDeserialisable

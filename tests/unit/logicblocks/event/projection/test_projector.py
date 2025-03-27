@@ -26,7 +26,7 @@ from logicblocks.event.types import (
 )
 
 generic_event = (
-    StoredEventBuilder[Mapping[str, Any]]()
+    StoredEventBuilder()
     .with_category(data.random_event_category_name())
     .with_stream(data.random_event_stream_name())
     .with_payload({})
@@ -94,11 +94,11 @@ class Aggregate(JsonValueConvertible):
         }
 
 
-class AggregateProjector(Projector[Aggregate, StreamIdentifier]):
+class AggregateProjector(Projector[StreamIdentifier, Aggregate]):
     def initial_state_factory(self) -> Aggregate:
         return Aggregate()
 
-    def initial_metadata_factory(self) -> Mapping[str, Any]:
+    def initial_metadata_factory(self) -> JsonValue:
         return {}
 
     def id_factory(self, state: Aggregate, source: StreamIdentifier) -> str:
@@ -476,7 +476,7 @@ class TestProjectorProjection:
         await stream.publish(events=new_events)
 
         class MetadataMapProjector(
-            Projector[Aggregate, StreamIdentifier, MutableMapping[str, Any]],
+            Projector[StreamIdentifier, Aggregate, MutableMapping[str, Any]],
         ):
             def initial_state_factory(self) -> Aggregate:
                 return Aggregate()
@@ -580,7 +580,7 @@ class TestProjectorProjection:
                 return self
 
         class AggregateMetaProjector(
-            Projector[Aggregate, StreamIdentifier, AggregateMeta],
+            Projector[StreamIdentifier, Aggregate, AggregateMeta],
         ):
             def initial_state_factory(self) -> Aggregate:
                 return Aggregate()
@@ -628,8 +628,8 @@ class TestProjectorProjection:
     async def test_projects_using_provided_initial_metadata(self):
         class MetadataMapProjector(
             Projector[
-                MutableMapping[str, Any],
                 StreamIdentifier,
+                MutableMapping[str, Any],
                 MutableMapping[str, Any],
             ],
         ):
@@ -719,7 +719,7 @@ class TestProjectorProjection:
             ) -> JsonValue:
                 return {"value": self.value}
 
-        class CustomTypeProjector(Projector[Thing, StreamIdentifier]):
+        class CustomTypeProjector(Projector[StreamIdentifier, Thing]):
             name = projection_name
 
             def initial_state_factory(self) -> Thing:
@@ -733,7 +733,7 @@ class TestProjectorProjection:
 
             @staticmethod
             def thing_got_value(
-                state: Thing, event: StoredEvent[Mapping[str, Any]]
+                state: Thing, event: StoredEvent[str, Mapping[str, Any]]
             ) -> Thing:
                 state.value = event.payload["value"]
                 return state

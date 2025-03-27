@@ -4,13 +4,13 @@ from functools import reduce
 from typing import Any, Self
 
 from logicblocks.event.types import (
+    JsonPersistable,
     JsonValue,
     JsonValueType,
-    Persistable,
     Projection,
     deserialise_projection,
-    serialise,
     serialise_projection,
+    serialise_to_json_value,
 )
 
 from ..query import (
@@ -284,7 +284,7 @@ class InMemoryProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[Persistable, Persistable],
+        projection: Projection[JsonPersistable, JsonPersistable],
     ) -> None:
         projection_key = (projection.name, projection.id)
         existing = self._projections.get(projection_key, None)
@@ -295,8 +295,8 @@ class InMemoryProjectionStorageAdapter[
                 id=existing.id,
                 name=existing.name,
                 source=existing.source,
-                state=serialise(projection.state),
-                metadata=serialise(projection.metadata),
+                state=serialise_to_json_value(projection.state),
+                metadata=serialise_to_json_value(projection.metadata),
             )
         else:
             self._projections[projection_key] = serialise_projection(
@@ -311,8 +311,8 @@ class InMemoryProjectionStorageAdapter[
         )
 
     async def find_one[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,
@@ -335,8 +335,8 @@ class InMemoryProjectionStorageAdapter[
         return deserialise_projection(projection, state_type, metadata_type)
 
     async def find_many[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,

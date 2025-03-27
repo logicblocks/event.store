@@ -39,7 +39,7 @@ from logicblocks.event.types import (
     StoredEvent,
     StreamIdentifier,
     default_deserialisation_fallback,
-    deserialise,
+    deserialise_from_json_value,
 )
 
 connection_settings = PostgresConnectionSettings(
@@ -195,7 +195,9 @@ class TestAsynchronousProjections:
 
             @staticmethod
             def thing_got_value(state: Thing, event: StoredEvent) -> Thing:
-                payload = deserialise(Mapping[str, Any], event.payload)
+                payload = deserialise_from_json_value(
+                    Mapping[str, Any], event.payload
+                )
                 state.value = payload["value"]
                 return state
 

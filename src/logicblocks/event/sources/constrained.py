@@ -3,7 +3,11 @@ from typing import Any
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.types import EventSourceIdentifier, StoredEvent
+from logicblocks.event.types import (
+    EventSourceIdentifier,
+    JsonValue,
+    StoredEvent,
+)
 
 
 class ConstrainedEventSource[I: EventSourceIdentifier](EventSource[I]):
@@ -17,12 +21,12 @@ class ConstrainedEventSource[I: EventSourceIdentifier](EventSource[I]):
     def identifier(self) -> I:
         return self._delegate.identifier
 
-    async def latest(self) -> StoredEvent | None:
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
         return await self._delegate.latest()
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         return self._delegate.iterate(
             constraints=self._constraints | constraints
         )

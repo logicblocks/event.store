@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 from logicblocks.event.types import StoredEvent
 
 
 class QueryConstraint(ABC):
     @abstractmethod
-    def met_by(self, *, event: StoredEvent) -> bool:
+    def met_by(self, *, event: StoredEvent[Any, Any]) -> bool:
         raise NotImplementedError()
 
 
@@ -14,7 +15,7 @@ class QueryConstraint(ABC):
 class SequenceNumberAfterConstraint(QueryConstraint):
     sequence_number: int
 
-    def met_by(self, *, event: StoredEvent) -> bool:
+    def met_by(self, *, event: StoredEvent[Any, Any]) -> bool:
         return event.sequence_number > self.sequence_number
 
 

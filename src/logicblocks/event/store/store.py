@@ -13,9 +13,12 @@ from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
+    JsonPersistable,
+    JsonValue,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    StringPersistable,
     str_serialisation_fallback,
 )
 
@@ -29,23 +32,23 @@ class EventSource[I: EventSourceIdentifier](ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def latest(self) -> StoredEvent | None:
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
         pass
 
     async def read(
         self,
         *,
         constraints: Set[QueryConstraint] = frozenset(),
-    ) -> Sequence[StoredEvent]:
+    ) -> Sequence[StoredEvent[str, JsonValue]]:
         return [event async for event in self.iterate(constraints=constraints)]
 
     @abstractmethod
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         raise NotImplementedError()
 
-    def __aiter__(self) -> AsyncIterator[StoredEvent]:
+    def __aiter__(self) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         return self.iterate()
 
 
@@ -73,16 +76,16 @@ class EventStream(EventSource[StreamIdentifier]):
     def identifier(self) -> StreamIdentifier:
         return self._identifier
 
-    async def latest(self) -> StoredEvent | None:
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
-    async def publish(
+    async def publish[Name: StringPersistable, Payload: JsonPersistable](
         self,
         *,
-        events: Sequence[NewEvent],
+        events: Sequence[NewEvent[Name, Payload]],
         condition: WriteCondition = NoCondition,
-    ) -> Sequence[StoredEvent]:
+    ) -> Sequence[StoredEvent[Name, Payload]]:
         """Publish a sequence of events into the stream."""
         await self._logger.adebug(
             "event.stream.publishing",
@@ -129,7 +132,7 @@ class EventStream(EventSource[StreamIdentifier]):
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         """Iterate over the events in the stream.
 
         Args:
@@ -181,7 +184,7 @@ class EventCategory(EventSource[CategoryIdentifier]):
     def identifier(self) -> CategoryIdentifier:
         return self._identifier
 
-    async def latest(self) -> StoredEvent | None:
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -204,7 +207,7 @@ class EventCategory(EventSource[CategoryIdentifier]):
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         """Iterate over the events in the category.
 
         Args:

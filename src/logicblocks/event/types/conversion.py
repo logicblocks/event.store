@@ -13,16 +13,23 @@ from .json import (
     is_json_object,
     is_json_value,
 )
+from .string import (
+    StringConvertible,
+    StringSerialisable,
+)
 
-type Persistable = JsonValueConvertible | JsonValue
-type Loggable = JsonValueSerialisable | JsonValue
+type JsonPersistable = JsonValueConvertible | JsonValue
+type JsonLoggable = JsonValueSerialisable | JsonValue
+
+type StringPersistable = StringConvertible | str
+type StringLoggable = StringSerialisable | str
 
 
-def raising_serialisation_fallback(value: object) -> JsonValue:
+def raising_serialisation_fallback(value: object) -> Any:
     raise ValueError(f"Cannot serialise {value}.")
 
 
-def str_serialisation_fallback(value: object) -> JsonValue:
+def str_serialisation_fallback(value: object) -> str:
     return str(value)
 
 
@@ -34,7 +41,7 @@ default_serialisation_fallback = raising_serialisation_fallback
 default_deserialisation_fallback = raising_deserialisation_fallback
 
 
-def serialise(
+def serialise_to_json_value(
     value: object,
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
 ) -> JsonValue:
@@ -45,7 +52,18 @@ def serialise(
     return fallback(value)
 
 
-def deserialise[T](
+def serialise_to_string(
+    value: object,
+    fallback: Callable[[object], str] = default_serialisation_fallback,
+) -> str:
+    if isinstance(value, StringSerialisable):
+        return value.serialise(fallback)
+    if isinstance(value, str):
+        return value
+    return fallback(value)
+
+
+def deserialise_from_json_value[T](
     klass: type[T],
     value: object,
     fallback: Callable[
@@ -84,7 +102,9 @@ def deserialise[T](
             errors: list[Exception] = []
             for item in mapping:
                 try:
-                    deserialise(klass_item_type, item, fallback)
+                    deserialise_from_json_value(
+                        klass_item_type, item, fallback
+                    )
                 except ValueError as e:
                     errors.append(e)
 
@@ -119,7 +139,9 @@ def deserialise[T](
                     continue
 
                 try:
-                    deserialise(klass_value_type, item_value, fallback)
+                    deserialise_from_json_value(
+                        klass_value_type, item_value, fallback
+                    )
                 except ValueError as e:
                     errors.append(e)
 
@@ -140,3 +162,26 @@ def deserialise[T](
         return klass.deserialise(value, fallback)
 
     return fallback(klass_original, value)
+
+
+def deserialise_from_string[T](
+    klass: type[T],
+    value: object,
+    fallback: Callable[
+        [type[T], object], T
+    ] = default_deserialisation_fallback,
+) -> T:
+    klass_is_class = isclass(klass)
+    value_is_string = isinstance(value, str)
+
+    if value_is_string and klass_is_class and issubclass(klass, str):
+        return cast(T, value)
+
+    if (
+        value_is_string
+        and klass_is_class
+        and issubclass(klass, JsonValueDeserialisable)
+    ):
+        return klass.deserialise(value, fallback)
+
+    return fallback(klass, value)

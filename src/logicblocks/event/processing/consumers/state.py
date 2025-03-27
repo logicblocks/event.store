@@ -74,7 +74,7 @@ class EventConsumerStateStore:
 
     async def record_processed(
         self,
-        event: StoredEvent,
+        event: StoredEvent[str, JsonValue],
         *,
         state: JsonValue = None,
         partition: str = "default",

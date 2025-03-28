@@ -11,9 +11,9 @@ from logicblocks.event.types import (
     JsonValueDeserialisable,
     JsonValueSerialisable,
     JsonValueType,
-    deserialise,
+    deserialise_from_json_value,
     is_json_object,
-    serialise,
+    serialise_to_json_value,
 )
 
 
@@ -24,34 +24,34 @@ class Thing:
 
 class TestSerialise:
     def test_serialises_none_to_none(self):
-        assert serialise(None) is None
+        assert serialise_to_json_value(None) is None
 
     def test_serialises_string_to_string(self):
-        assert serialise("string") == "string"
+        assert serialise_to_json_value("string") == "string"
 
     def test_serialises_int_to_int(self):
-        assert serialise(1) == 1
+        assert serialise_to_json_value(1) == 1
 
     def test_serialises_float_to_float(self):
-        assert serialise(1.0) == 1.0
+        assert serialise_to_json_value(1.0) == 1.0
 
     def test_serialises_true_to_true(self):
-        assert serialise(True) is True
+        assert serialise_to_json_value(True) is True
 
     def test_serialises_false_to_false(self):
-        assert serialise(False) is False
+        assert serialise_to_json_value(False) is False
 
     def test_raises_by_default_when_serialising_custom_class_instance(self):
         with pytest.raises(ValueError):
-            serialise(Thing())
+            serialise_to_json_value(Thing())
 
     def test_raises_by_default_when_serialising_datetime(self):
         with pytest.raises(ValueError):
-            serialise(datetime.now())
+            serialise_to_json_value(datetime.now())
 
     def test_raises_by_default_when_serialising_complex(self):
         with pytest.raises(ValueError):
-            serialise(1 + 2j)
+            serialise_to_json_value(1 + 2j)
 
     @pytest.mark.parametrize(
         "values",
@@ -68,7 +68,7 @@ class TestSerialise:
     )
     def test_raises_by_default_when_serialising_set_of_values(self, values):
         with pytest.raises(ValueError):
-            serialise({*values})
+            serialise_to_json_value({*values})
 
     @pytest.mark.parametrize(
         "values",
@@ -81,7 +81,7 @@ class TestSerialise:
         ],
     )
     def test_serialises_list_of_json_primitive_values_untouched(self, values):
-        assert serialise([*values]) == [*values]
+        assert serialise_to_json_value([*values]) == [*values]
 
     @pytest.mark.parametrize(
         "values",
@@ -95,7 +95,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise([*values])
+            serialise_to_json_value([*values])
 
     @pytest.mark.parametrize(
         "values",
@@ -108,7 +108,7 @@ class TestSerialise:
         ],
     )
     def test_serialises_tuple_of_json_primitive_values_untouched(self, values):
-        assert serialise(tuple(values)) == tuple(values)
+        assert serialise_to_json_value(tuple(values)) == tuple(values)
 
     @pytest.mark.parametrize(
         "values",
@@ -122,7 +122,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise(tuple(values))
+            serialise_to_json_value(tuple(values))
 
     @pytest.mark.parametrize(
         "values",
@@ -137,7 +137,10 @@ class TestSerialise:
     def test_serialises_list_of_lists_of_json_primitive_values_untouched(
         self, values
     ):
-        assert serialise([[*values], [*values]]) == [[*values], [*values]]
+        assert serialise_to_json_value([[*values], [*values]]) == [
+            [*values],
+            [*values],
+        ]
 
     @pytest.mark.parametrize(
         "values",
@@ -151,7 +154,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise([[*values], [*values]])
+            serialise_to_json_value([[*values], [*values]])
 
     @pytest.mark.parametrize(
         "values",
@@ -166,7 +169,7 @@ class TestSerialise:
     def test_serialises_tuple_of_tuples_of_json_primitive_values_untouched(
         self, values
     ):
-        assert serialise((tuple(values), tuple(values))) == (
+        assert serialise_to_json_value((tuple(values), tuple(values))) == (
             tuple(values),
             tuple(values),
         )
@@ -183,7 +186,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise((tuple(values), tuple(values)))
+            serialise_to_json_value((tuple(values), tuple(values)))
 
     def test_serialises_deeply_nested_list_with_mixed_json_values_untouched(
         self,
@@ -199,13 +202,13 @@ class TestSerialise:
             },
             [1, "2", True],
         ]
-        assert serialise(value) == value
+        assert serialise_to_json_value(value) == value
 
     def test_raises_by_default_when_serialising_deeply_nested_list_with_mixed_non_json_values(
         self,
     ):
         with pytest.raises(ValueError):
-            serialise(
+            serialise_to_json_value(
                 [
                     {"nested1": [Thing(), {"value": datetime.now()}]},
                     {
@@ -225,7 +228,7 @@ class TestSerialise:
         self, values
     ):
         value = {"key1": values[0], "key2": values[1]}
-        assert serialise(value) == value
+        assert serialise_to_json_value(value) == value
 
     @pytest.mark.parametrize(
         "values",
@@ -239,7 +242,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise({"key1": values[0], "key2": values[1]})
+            serialise_to_json_value({"key1": values[0], "key2": values[1]})
 
     @pytest.mark.parametrize(
         "keys", [[1, 2], [True, False], [Thing(), Thing()], [(1, 2), (3, 4)]]
@@ -248,7 +251,7 @@ class TestSerialise:
         self, keys
     ):
         with pytest.raises(ValueError):
-            serialise({keys[0]: 1, keys[1]: 2})
+            serialise_to_json_value({keys[0]: 1, keys[1]: 2})
 
     @pytest.mark.parametrize(
         "values", [[None, None], ["a", "b"], [1, 2], [1.1, 2.1], [True, False]]
@@ -266,7 +269,7 @@ class TestSerialise:
                 "nested2": values[1],
             },
         }
-        assert serialise(value) == value
+        assert serialise_to_json_value(value) == value
 
     @pytest.mark.parametrize(
         "values",
@@ -280,7 +283,7 @@ class TestSerialise:
         self, values
     ):
         with pytest.raises(ValueError):
-            serialise(
+            serialise_to_json_value(
                 {
                     "key1": {
                         "nested1": values[0],
@@ -300,7 +303,7 @@ class TestSerialise:
         self, keys
     ):
         with pytest.raises(ValueError):
-            serialise(
+            serialise_to_json_value(
                 {
                     "key1": {keys[0]: 1, keys[1]: 2},
                     "key2": {keys[0]: 1, keys[1]: 2},
@@ -321,13 +324,13 @@ class TestSerialise:
             },
             "key2": [1, "2", True],
         }
-        assert serialise(value) == value
+        assert serialise_to_json_value(value) == value
 
     def test_raises_by_default_when_serialising_deeply_nested_dict_with_mixed_non_json_values(
         self,
     ):
         with pytest.raises(ValueError):
-            serialise(
+            serialise_to_json_value(
                 {
                     "key1": {
                         "nested1": [Thing(), {"value": datetime.now()}],
@@ -349,7 +352,7 @@ class TestSerialise:
 
         instance = Serialisable()
 
-        assert serialise(instance) == {"value": 10}
+        assert serialise_to_json_value(instance) == {"value": 10}
 
     def test_uses_provided_fallback_when_serialising_if_unable_to_serialise(
         self,
@@ -366,57 +369,59 @@ class TestSerialise:
 
         value = {"value": 10}
 
-        assert deserialise(Thing, value, fallback) == Thing(value=10)
+        assert deserialise_from_json_value(Thing, value, fallback) == Thing(
+            value=10
+        )
 
 
 class TestDeserialise:
     def test_deserialises_none_to_json_value(self):
-        assert deserialise(JsonValueType, None) is None
+        assert deserialise_from_json_value(JsonValueType, None) is None
 
     def test_deserialises_none_to_none_type(self):
-        assert deserialise(NoneType, None) is None
+        assert deserialise_from_json_value(NoneType, None) is None
 
     def test_deserialises_string_to_json_value(self):
-        assert deserialise(JsonValueType, "string") == "string"
+        assert deserialise_from_json_value(JsonValueType, "string") == "string"
 
     def test_deserialises_string_to_str_type(self):
-        assert deserialise(str, "string") == "string"
+        assert deserialise_from_json_value(str, "string") == "string"
 
     def test_deserialises_int_to_json_value(self):
-        assert deserialise(JsonValueType, 10) == 10
+        assert deserialise_from_json_value(JsonValueType, 10) == 10
 
     def test_deserialises_int_to_int_type(self):
-        assert deserialise(int, 10) == 10
+        assert deserialise_from_json_value(int, 10) == 10
 
     def test_deserialises_float_to_json_value(self):
-        assert deserialise(JsonValueType, 10.2) == 10.2
+        assert deserialise_from_json_value(JsonValueType, 10.2) == 10.2
 
     def test_deserialises_float_to_float_type(self):
-        assert deserialise(float, 10.2) == 10.2
+        assert deserialise_from_json_value(float, 10.2) == 10.2
 
     def test_deserialises_true_to_json_value(self):
-        assert deserialise(JsonValueType, True) is True
+        assert deserialise_from_json_value(JsonValueType, True) is True
 
     def test_deserialises_true_to_bool_type(self):
-        assert deserialise(bool, True) is True
+        assert deserialise_from_json_value(bool, True) is True
 
     def test_deserialises_false_to_json_value(self):
-        assert deserialise(JsonValueType, False) is False
+        assert deserialise_from_json_value(JsonValueType, False) is False
 
     def test_deserialises_false_to_bool_type(self):
-        assert deserialise(bool, False) is False
+        assert deserialise_from_json_value(bool, False) is False
 
     def test_raises_by_default_when_deserialising_custom_class_instance(self):
         with pytest.raises(ValueError):
-            deserialise(Thing, {"a": 2})
+            deserialise_from_json_value(Thing, {"a": 2})
 
     def test_raises_by_default_when_deserialising_datetime(self):
         with pytest.raises(ValueError):
-            deserialise(JsonValueType, datetime.now())
+            deserialise_from_json_value(JsonValueType, datetime.now())
 
     def test_raises_by_default_when_deserialising_complex(self):
         with pytest.raises(ValueError):
-            deserialise(JsonValueType, 1 + 2j)
+            deserialise_from_json_value(JsonValueType, 1 + 2j)
 
     @pytest.mark.parametrize(
         "values",
@@ -433,7 +438,7 @@ class TestDeserialise:
     )
     def test_raises_by_default_when_deserialising_set_of_values(self, values):
         with pytest.raises(ValueError):
-            deserialise(Sequence[JsonValue], {*values})
+            deserialise_from_json_value(Sequence[JsonValue], {*values})
 
     @pytest.mark.parametrize(
         "values,type",
@@ -462,7 +467,7 @@ class TestDeserialise:
         ],
     )
     def test_deserialises_list_of_json_primitive_values(self, values, type):
-        assert deserialise(type, [*values]) == [*values]
+        assert deserialise_from_json_value(type, [*values]) == [*values]
 
     @pytest.mark.parametrize(
         "values,type",
@@ -490,13 +495,13 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, [*values])
+            deserialise_from_json_value(type, [*values])
 
     def test_raises_by_default_when_deserialising_list_of_one_json_primitive_to_sequence_of_other_json_primitive(
         self,
     ):
         with pytest.raises(ValueError):
-            deserialise(Sequence[str], [1, 2, 3])
+            deserialise_from_json_value(Sequence[str], [1, 2, 3])
 
     @pytest.mark.parametrize(
         "values,type",
@@ -518,7 +523,9 @@ class TestDeserialise:
         ],
     )
     def test_deserialises_tuple_of_json_primitive_values(self, values, type):
-        assert deserialise(type, tuple(values)) == tuple(values)
+        assert deserialise_from_json_value(type, tuple(values)) == tuple(
+            values
+        )
 
     @pytest.mark.parametrize(
         "values,type",
@@ -546,13 +553,13 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, tuple(values))
+            deserialise_from_json_value(type, tuple(values))
 
     def test_raises_by_default_when_deserialising_tuple_of_one_json_primitive_to_sequence_of_other_json_primitive(
         self,
     ):
         with pytest.raises(ValueError):
-            deserialise(Sequence[str], (1, 2, 3))
+            deserialise_from_json_value(Sequence[str], (1, 2, 3))
 
     @pytest.mark.parametrize(
         "values,type",
@@ -583,7 +590,7 @@ class TestDeserialise:
     def test_deserialises_list_of_lists_of_json_primitive_values(
         self, values, type
     ):
-        assert deserialise(type, [[*values], [*values]]) == [
+        assert deserialise_from_json_value(type, [[*values], [*values]]) == [
             [*values],
             [*values],
         ]
@@ -614,13 +621,13 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, [[*values], [*values]])
+            deserialise_from_json_value(type, [[*values], [*values]])
 
     def test_raises_by_default_when_deserialising_list_of_lists_of_one_json_primitive_to_sequence_of_sequence_of_other_json_primitive(
         self,
     ):
         with pytest.raises(ValueError):
-            deserialise(
+            deserialise_from_json_value(
                 Sequence[Sequence[Sequence[str]]], [[1, 2, 3], [1, 2, 3]]
             )
 
@@ -653,7 +660,9 @@ class TestDeserialise:
     def test_deserialises_tuple_of_tuples_of_json_primitive_values(
         self, values, type
     ):
-        assert deserialise(type, (tuple(values), tuple(values))) == (
+        assert deserialise_from_json_value(
+            type, (tuple(values), tuple(values))
+        ) == (
             tuple(values),
             tuple(values),
         )
@@ -684,7 +693,7 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, (tuple(values), tuple(values)))
+            deserialise_from_json_value(type, (tuple(values), tuple(values)))
 
     def test_deserialises_deeply_nested_list_with_mixed_json_values(
         self,
@@ -700,13 +709,13 @@ class TestDeserialise:
             },
             [1, "2", True],
         ]
-        assert deserialise(JsonValueType, value) == value
+        assert deserialise_from_json_value(JsonValueType, value) == value
 
     def test_raises_by_default_when_deserialising_deeply_nested_list_with_mixed_non_json_values(
         self,
     ):
         with pytest.raises(ValueError):
-            deserialise(
+            deserialise_from_json_value(
                 JsonValueType,
                 [
                     {"nested1": [Thing(), {"value": datetime.now()}]},
@@ -750,7 +759,7 @@ class TestDeserialise:
         self, values, type
     ):
         value = {"key1": values[0], "key2": values[1]}
-        assert deserialise(type, value) == value
+        assert deserialise_from_json_value(type, value) == value
 
     @pytest.mark.parametrize(
         "values,type",
@@ -778,7 +787,9 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, {"key1": values[0], "key2": values[1]})
+            deserialise_from_json_value(
+                type, {"key1": values[0], "key2": values[1]}
+            )
 
     @pytest.mark.parametrize(
         "keys,type",
@@ -802,7 +813,7 @@ class TestDeserialise:
         self, keys, type
     ):
         with pytest.raises(ValueError):
-            deserialise(type, {keys[0]: 1, keys[1]: 2})
+            deserialise_from_json_value(type, {keys[0]: 1, keys[1]: 2})
 
     @pytest.mark.parametrize(
         "values,type",
@@ -844,7 +855,7 @@ class TestDeserialise:
                 "nested2": values[1],
             },
         }
-        assert deserialise(type, value) == value
+        assert deserialise_from_json_value(type, value) == value
 
     @pytest.mark.parametrize(
         "values,type",
@@ -876,7 +887,7 @@ class TestDeserialise:
         self, values, type
     ):
         with pytest.raises(ValueError):
-            deserialise(
+            deserialise_from_json_value(
                 type,
                 {
                     "key1": {
@@ -912,7 +923,7 @@ class TestDeserialise:
         self, keys, type
     ):
         with pytest.raises(ValueError):
-            deserialise(
+            deserialise_from_json_value(
                 type,
                 {
                     "key1": {keys[0]: 1, keys[1]: 2},
@@ -934,13 +945,13 @@ class TestDeserialise:
             },
             "key2": [1, "2", True],
         }
-        assert deserialise(JsonValueType, value) == value
+        assert deserialise_from_json_value(JsonValueType, value) == value
 
     def test_raises_by_default_when_deserialising_deeply_nested_dict_with_mixed_non_json_values(
         self,
     ):
         with pytest.raises(ValueError):
-            deserialise(
+            deserialise_from_json_value(
                 JsonValueType,
                 {
                     "key1": {
@@ -978,7 +989,9 @@ class TestDeserialise:
 
         value = {"value": 10}
 
-        assert deserialise(Deserialisable, value) == Deserialisable(value=10)
+        assert deserialise_from_json_value(
+            Deserialisable, value
+        ) == Deserialisable(value=10)
 
     def test_uses_provided_fallback_when_deserialising_if_unable_to_deserialise(
         self,
@@ -995,4 +1008,6 @@ class TestDeserialise:
 
         value = {"value": 10}
 
-        assert deserialise(Thing, value, fallback) == Thing(value=10)
+        assert deserialise_from_json_value(Thing, value, fallback) == Thing(
+            value=10
+        )

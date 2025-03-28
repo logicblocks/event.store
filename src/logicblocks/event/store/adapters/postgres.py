@@ -28,10 +28,15 @@ from logicblocks.event.store.constraints import (
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
+    JsonPersistable,
+    JsonValue,
     LogIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    StringPersistable,
+    serialise_to_json_value,
+    serialise_to_string,
 )
 
 
@@ -273,7 +278,7 @@ def read_last_query(
 
 def insert_query(
     target: Saveable,
-    event: NewEvent,
+    event: NewEvent[StringPersistable, JsonPersistable],
     position: int,
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
@@ -296,11 +301,11 @@ def insert_query(
         ).format(sql.Identifier(table_settings.events_table_name)),
         [
             uuid4().hex,
-            event.name,
+            serialise_to_string(event.name),
             target.stream,
             target.category,
             position,
-            Jsonb(event.payload),
+            Jsonb(serialise_to_json_value(event.payload)),
             event.observed_at,
             event.occurred_at,
         ],
@@ -308,13 +313,15 @@ def insert_query(
 
 
 async def lock_log(
-    cursor: AsyncCursor[StoredEvent], *, table_settings: TableSettings
+    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    *,
+    table_settings: TableSettings,
 ):
     await cursor.execute(*lock_log_query(table_settings))
 
 
 async def read_last(
-    cursor: AsyncCursor[StoredEvent],
+    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
     *,
     parameters: LatestQueryParameters,
     table_settings: TableSettings,
@@ -323,14 +330,14 @@ async def read_last(
     return await cursor.fetchone()
 
 
-async def insert(
-    cursor: AsyncCursor[StoredEvent],
+async def insert[Name: StringPersistable, Payload: JsonPersistable](
+    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
     *,
     target: Saveable,
-    event: NewEvent,
+    event: NewEvent[Name, Payload],
     position: int,
     table_settings: TableSettings,
-):
+) -> StoredEvent[Name, Payload]:
     await cursor.execute(
         *insert_query(target, event, position, table_settings)
     )
@@ -339,7 +346,17 @@ async def insert(
     if stored_event is None:  # pragma: no cover
         raise RuntimeError("Insert failed")
 
-    return stored_event
+    return StoredEvent[Name, Payload](
+        id=stored_event.id,
+        name=event.name,
+        stream=stored_event.stream,
+        category=stored_event.category,
+        position=stored_event.position,
+        sequence_number=stored_event.sequence_number,
+        payload=event.payload,
+        observed_at=stored_event.observed_at,
+        occurred_at=stored_event.occurred_at,
+    )
 
 
 class PostgresEventStorageAdapter(EventStorageAdapter):
@@ -372,16 +389,16 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         if self._connection_pool_owner:
             await self.connection_pool.close()
 
-    async def save(
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent],
+        events: Sequence[NewEvent[Name, Payload]],
         condition: WriteCondition = NoCondition,
-    ) -> Sequence[StoredEvent]:
+    ) -> Sequence[StoredEvent[Name, Payload]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent)
+                row_factory=class_row(StoredEvent[JsonValue, JsonValue])
             ) as cursor:
                 await lock_log(cursor, table_settings=self.table_settings)
 
@@ -395,7 +412,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
                 current_position = last_event.position + 1 if last_event else 0
 
-                return [
+                stored_events = [
                     await insert(
                         cursor,
                         target=target,
@@ -406,10 +423,14 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     for position, event in enumerate(events, current_position)
                 ]
 
-    async def latest(self, *, target: Latestable) -> StoredEvent | None:
+                return stored_events
+
+    async def latest(
+        self, *, target: Latestable
+    ) -> StoredEvent[str, JsonValue] | None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent)
+                row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
                 await cursor.execute(
                     *read_last_query(
@@ -424,10 +445,10 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent)
+                row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
                 page_size = self.query_settings.scan_query_page_size
                 last_sequence_number = None

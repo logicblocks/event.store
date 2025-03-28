@@ -6,9 +6,9 @@ from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.types import (
     EventSourceIdentifier,
+    JsonPersistable,
     JsonValue,
     JsonValueType,
-    Persistable,
     Projection,
     str_serialisation_fallback,
 )
@@ -42,7 +42,7 @@ class ProjectionStore:
     async def save(
         self,
         *,
-        projection: Projection[Persistable, Persistable],
+        projection: Projection[JsonPersistable, JsonPersistable],
     ) -> None:
         await self._adapter.save(projection=projection)
 
@@ -62,8 +62,8 @@ class ProjectionStore:
             )
 
     async def locate[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,
@@ -92,8 +92,8 @@ class ProjectionStore:
         )
 
     async def load[
-        State: Persistable = Mapping[str, Any],
-        Metadata: Persistable = Mapping[str, Any],
+        State: JsonPersistable = Mapping[str, Any],
+        Metadata: JsonPersistable = Mapping[str, Any],
     ](
         self,
         *,
@@ -116,8 +116,8 @@ class ProjectionStore:
         )
 
     async def search[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,

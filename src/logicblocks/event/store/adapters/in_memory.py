@@ -19,10 +19,15 @@ from logicblocks.event.store.conditions import (
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
+    JsonPersistable,
+    JsonValue,
     LogIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    StringPersistable,
+    serialise_to_json_value,
+    serialise_to_string,
 )
 
 type StreamKey = tuple[str, str]
@@ -33,7 +38,7 @@ type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
     _lock: Lock
-    _events: list[StoredEvent]
+    _events: list[StoredEvent[str, JsonValue]]
     _log_index: EventPositionList
     _stream_index: EventIndexDict[StreamKey]
     _category_index: EventIndexDict[CategoryKey]
@@ -50,13 +55,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self._category_index = defaultdict(lambda: [])
         self._ordering_guarantee = ordering_guarantee
 
-    async def save(
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent],
+        events: Sequence[NewEvent[Name, Payload]],
         condition: WriteCondition = NoCondition,
-    ) -> Sequence[StoredEvent]:
+    ) -> Sequence[StoredEvent[Name, Payload]]:
         category_key = target.category
         stream_key = (target.category, target.stream)
 
@@ -83,7 +88,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                 last_sequence_number + i for i in range(len(events))
             ]
             new_stored_events = [
-                StoredEvent(
+                StoredEvent[Name, Payload](
                     id=uuid4().hex,
                     name=event.name,
                     stream=target.stream,
@@ -96,8 +101,22 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                 )
                 for event, count in zip(events, range(len(events)))
             ]
+            serialised_stored_events = [
+                StoredEvent[str, JsonValue](
+                    id=stored_event.id,
+                    name=serialise_to_string(stored_event.name),
+                    stream=stored_event.stream,
+                    category=stored_event.category,
+                    position=stored_event.position,
+                    sequence_number=stored_event.sequence_number,
+                    payload=serialise_to_json_value(stored_event.payload),
+                    observed_at=stored_event.observed_at,
+                    occurred_at=stored_event.occurred_at,
+                )
+                for stored_event in new_stored_events
+            ]
 
-            insertions = zip(new_stored_events, new_sequence_numbers)
+            insertions = zip(serialised_stored_events, new_sequence_numbers)
             for event, sequence_number in insertions:
                 self._events += [event]
                 self._log_index += [sequence_number]
@@ -107,7 +126,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
 
             return new_stored_events
 
-    async def latest(self, *, target: Latestable) -> StoredEvent | None:
+    async def latest(
+        self, *, target: Latestable
+    ) -> StoredEvent[str, JsonValue] | None:
         async with self._lock:
             await asyncio.sleep(0)
 
@@ -120,7 +141,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         async with self._lock:
             await asyncio.sleep(0)
 

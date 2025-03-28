@@ -1,19 +1,25 @@
-from .conversion import Loggable as Loggable
-from .conversion import Persistable as Persistable
+from .conversion import JsonLoggable as JsonLoggable
+from .conversion import JsonPersistable as JsonPersistable
+from .conversion import StringLoggable as StringLoggable
+from .conversion import StringPersistable as StringPersistable
 from .conversion import (
     default_deserialisation_fallback as default_deserialisation_fallback,
 )
 from .conversion import (
     default_serialisation_fallback as default_serialisation_fallback,
 )
-from .conversion import deserialise as deserialise
+from .conversion import (
+    deserialise_from_json_value as deserialise_from_json_value,
+)
+from .conversion import deserialise_from_string as deserialise_from_string
 from .conversion import (
     raising_deserialisation_fallback as raising_deserialisation_fallback,
 )
 from .conversion import (
     raising_serialisation_fallback as raising_serialisation_fallback,
 )
-from .conversion import serialise as serialise
+from .conversion import serialise_to_json_value as serialise_to_json_value
+from .conversion import serialise_to_string as serialise_to_string
 from .conversion import (
     str_serialisation_fallback as str_serialisation_fallback,
 )
@@ -39,3 +45,6 @@ from .projection import Projectable as Projectable
 from .projection import Projection as Projection
 from .projection import deserialise_projection as deserialise_projection
 from .projection import serialise_projection as serialise_projection
+from .string import StringConvertible as StringConvertible
+from .string import StringDeserialisable as StringDeserialisable
+from .string import StringSerialisable as StringSerialisable

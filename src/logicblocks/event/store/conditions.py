@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import final
+from typing import Any, final
 
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import StoredEvent
@@ -14,7 +14,9 @@ class ConditionCombinators(StrEnum):
 
 class WriteCondition(ABC):
     @abstractmethod
-    def assert_met_by(self, *, last_event: StoredEvent | None) -> None:
+    def assert_met_by(
+        self, *, last_event: StoredEvent[Any, Any] | None
+    ) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -112,7 +114,9 @@ class WriteConditions(WriteCondition):
             ConditionCombinators.AND, *conditions
         )
 
-    def assert_met_by(self, *, last_event: StoredEvent | None) -> None:
+    def assert_met_by(
+        self, *, last_event: StoredEvent[Any, Any] | None
+    ) -> None:
         match self.combinator:
             case ConditionCombinators.AND:
                 for condition in self.conditions:
@@ -133,7 +137,7 @@ class WriteConditions(WriteCondition):
 
 @dataclass(frozen=True)
 class _NoCondition(WriteCondition):
-    def assert_met_by(self, *, last_event: StoredEvent | None):
+    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
         pass
 
 
@@ -144,14 +148,14 @@ NoCondition = _NoCondition()
 class PositionIsCondition(WriteCondition):
     position: int
 
-    def assert_met_by(self, *, last_event: StoredEvent | None):
+    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
         if last_event is None or last_event.position != self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
 
 @dataclass(frozen=True)
 class EmptyStreamCondition(WriteCondition):
-    def assert_met_by(self, *, last_event: StoredEvent | None):
+    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
         if last_event is not None:
             raise UnmetWriteConditionError("stream is not empty")
 

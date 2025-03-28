@@ -5,7 +5,7 @@ from typing import Callable
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 from . import default_serialisation_fallback
-from .conversion import serialise
+from .conversion import JsonPersistable, serialise_to_json_value
 from .json import JsonValue, JsonValueSerialisable
 
 
@@ -42,8 +42,8 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
         ] = default_serialisation_fallback,
     ) -> JsonValue:
         return {
-            "name": serialise(self.name, fallback),
-            "payload": serialise(self.payload, fallback),
+            "name": serialise_to_json_value(self.name, fallback),
+            "payload": serialise_to_json_value(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
@@ -88,12 +88,12 @@ class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
     ) -> JsonValue:
         return {
             "id": self.id,
-            "name": serialise(self.name, fallback),
+            "name": serialise_to_json_value(self.name, fallback),
             "stream": self.stream,
             "category": self.category,
             "position": self.position,
             "sequence_number": self.sequence_number,
-            "payload": serialise(self.payload, fallback),
+            "payload": serialise_to_json_value(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
@@ -101,7 +101,7 @@ class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
     def summarise(self) -> JsonValue:
         return {
             "id": self.id,
-            "name": serialise(self.name),
+            "name": serialise_to_json_value(self.name),
             "stream": self.stream,
             "category": self.category,
             "position": self.position,
@@ -126,3 +126,20 @@ class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
 
     def __hash__(self):
         return hash(repr(self))
+
+
+def serialise_stored_event(
+    event: StoredEvent[JsonPersistable, JsonPersistable],
+    fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
+) -> StoredEvent[JsonValue, JsonValue]:
+    return StoredEvent[JsonValue, JsonValue](
+        id=event.id,
+        name=serialise_to_json_value(event.name, fallback),
+        stream=event.stream,
+        category=event.category,
+        position=event.position,
+        sequence_number=event.sequence_number,
+        payload=serialise_to_json_value(event.payload, fallback),
+        observed_at=event.observed_at,
+        occurred_at=event.occurred_at,
+    )

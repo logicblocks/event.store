@@ -24,9 +24,9 @@ from logicblocks.event.db.postgres import (
     Query as DBQuery,
 )
 from logicblocks.event.types import (
+    JsonPersistable,
     JsonValue,
     JsonValueType,
-    Persistable,
     Projection,
     deserialise_projection,
     identifier,
@@ -759,7 +759,7 @@ class PostgresProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[Persistable, Persistable],
+        projection: Projection[JsonPersistable, JsonPersistable],
     ) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
@@ -770,8 +770,8 @@ class PostgresProjectionStorageAdapter[
                 )
 
     async def find_one[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,
@@ -809,8 +809,8 @@ class PostgresProjectionStorageAdapter[
                 )
 
     async def find_many[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,

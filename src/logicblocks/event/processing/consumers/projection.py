@@ -1,9 +1,9 @@
 from logicblocks.event.projection import ProjectionStore, Projector
 from logicblocks.event.sources import InMemoryEventSource
 from logicblocks.event.types import (
+    JsonPersistable,
     JsonValue,
     JsonValueType,
-    Persistable,
     StoredEvent,
     StreamIdentifier,
 )
@@ -12,8 +12,8 @@ from .types import EventProcessor
 
 
 class ProjectionEventProcessor[
-    State: Persistable = JsonValue,
-    Metadata: Persistable = JsonValue,
+    State: JsonPersistable = JsonValue,
+    Metadata: JsonPersistable = JsonValue,
 ](EventProcessor):
     def __init__(
         self,
@@ -27,7 +27,7 @@ class ProjectionEventProcessor[
         self._state_type = state_type
         self._metadata_type = metadata_type
 
-    async def process_event(self, event: StoredEvent) -> None:
+    async def process_event(self, event: StoredEvent[str, JsonValue]) -> None:
         identifier = StreamIdentifier(
             category=event.category, stream=event.stream
         )

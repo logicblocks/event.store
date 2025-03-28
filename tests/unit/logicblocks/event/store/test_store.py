@@ -1,6 +1,9 @@
 import sys
+from collections.abc import Callable, Mapping
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Literal, Self
 
 import pytest
 
@@ -12,9 +15,12 @@ from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import (
     CategoryIdentifier,
+    JsonValue,
+    JsonValueConvertible,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
+    default_deserialisation_fallback,
     str_serialisation_fallback,
 )
 
@@ -352,7 +358,159 @@ class TestStreamIteration:
         assert stream_event_keys == new_event_keys
 
 
+@dataclass(frozen=True)
+class Payload1(JsonValueConvertible):
+    value: int
+
+    @classmethod
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if not isinstance(value, Mapping) or not isinstance(
+            value["value"], int
+        ):
+            return fallback(cls, value)
+
+        return cls(value=value["value"])
+
+    def serialise(self, fallback: Callable[[object], JsonValue]) -> JsonValue:
+        return {"value": self.value}
+
+
+@dataclass(frozen=True)
+class Payload2(JsonValueConvertible):
+    value: str
+
+    @classmethod
+    def deserialise(
+        cls,
+        value: JsonValue,
+        fallback: Callable[
+            [Any, JsonValue], Any
+        ] = default_deserialisation_fallback,
+    ) -> Self:
+        if not isinstance(value, Mapping) or not isinstance(
+            value["value"], str
+        ):
+            return fallback(cls, value)
+
+        return cls(value=value["value"])
+
+    def serialise(self, fallback: Callable[[object], JsonValue]) -> JsonValue:
+        return {"value": self.value}
+
+
 class TestStreamPublishing:
+    async def test_publishes_if_event_payload_type_is_persistable_type(self):
+        now = datetime.now()
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_event_1 = (
+            NewEventBuilder[str, Payload1]()
+            .with_payload(Payload1(value=45))
+            .with_occurred_at(now)
+            .with_observed_at(now)
+            .build()
+        )
+        new_event_2 = (
+            NewEventBuilder[str, Payload2]()
+            .with_payload(Payload2(value="hello"))
+            .with_occurred_at(now)
+            .with_observed_at(now)
+            .build()
+        )
+
+        stored_events = await stream.publish(events=[new_event_1, new_event_2])
+
+        read_events = await stream.read()
+        expected_events = [
+            StoredEvent(
+                id=stored_events[0].id,
+                name=new_event_1.name,
+                category=category_name,
+                stream=stream_name,
+                payload={"value": 45},
+                position=0,
+                sequence_number=stored_events[0].sequence_number,
+                occurred_at=now,
+                observed_at=now,
+            ),
+            StoredEvent(
+                id=stored_events[1].id,
+                name=new_event_2.name,
+                category=category_name,
+                stream=stream_name,
+                payload={"value": "hello"},
+                position=1,
+                sequence_number=stored_events[1].sequence_number,
+                occurred_at=now,
+                observed_at=now,
+            ),
+        ]
+
+        assert read_events == expected_events
+
+    async def test_publishes_if_event_name_type_is_string_literal(self):
+        now = datetime.now()
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_event_1 = (
+            NewEventBuilder[Literal["thing-1-happened", "thing-2-happened"]]()
+            .with_name("thing-1-happened")
+            .with_occurred_at(now)
+            .with_observed_at(now)
+            .build()
+        )
+        new_event_2 = (
+            NewEventBuilder[Literal["thing-1-happened", "thing-2-happened"]]()
+            .with_name("thing-2-happened")
+            .with_occurred_at(now)
+            .with_observed_at(now)
+            .build()
+        )
+
+        stored_events = await stream.publish(events=[new_event_1, new_event_2])
+
+        read_events = await stream.read()
+        expected_events = [
+            StoredEvent(
+                id=stored_events[0].id,
+                name=new_event_1.name,
+                category=category_name,
+                stream=stream_name,
+                payload=new_event_1.payload,
+                position=0,
+                sequence_number=stored_events[0].sequence_number,
+                occurred_at=now,
+                observed_at=now,
+            ),
+            StoredEvent(
+                id=stored_events[1].id,
+                name=new_event_2.name,
+                category=category_name,
+                stream=stream_name,
+                payload=new_event_2.payload,
+                position=1,
+                sequence_number=stored_events[1].sequence_number,
+                occurred_at=now,
+                observed_at=now,
+            ),
+        ]
+
+        assert read_events == expected_events
+
     async def test_publishes_if_stream_position_matches_position_condition(
         self,
     ):

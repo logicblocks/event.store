@@ -2,11 +2,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from .conversion import (
-    Persistable,
+    JsonPersistable,
     default_deserialisation_fallback,
     default_serialisation_fallback,
-    deserialise,
-    serialise,
+    deserialise_from_json_value,
+    serialise_to_json_value,
 )
 from .identifier import EventSourceIdentifier
 from .json import JsonValue, JsonValueType
@@ -46,8 +46,8 @@ class Projection[
             [object], JsonValue
         ] = default_serialisation_fallback,
     ) -> JsonValue:
-        state = serialise(self.state, fallback)
-        metadata = serialise(self.metadata, fallback)
+        state = serialise_to_json_value(self.state, fallback)
+        metadata = serialise_to_json_value(self.metadata, fallback)
         source = self.source.serialise(fallback)
 
         return {
@@ -85,15 +85,15 @@ class Projection[
 
 
 def serialise_projection(
-    projection: Projection[Persistable, Persistable],
+    projection: Projection[JsonPersistable, JsonPersistable],
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
 ) -> Projection[JsonValue, JsonValue]:
     return Projection[JsonValue, JsonValue](
         id=projection.id,
         name=projection.name,
-        state=serialise(projection.state, fallback),
+        state=serialise_to_json_value(projection.state, fallback),
         source=projection.source,
-        metadata=serialise(projection.metadata, fallback),
+        metadata=serialise_to_json_value(projection.metadata, fallback),
     )
 
 
@@ -108,8 +108,8 @@ def _metadata_deserialisation_fallback[M](klass: type[M], value: object) -> M:
 
 
 def deserialise_projection[
-    State: Persistable = JsonValue,
-    Metadata: Persistable = JsonValue,
+    State: JsonPersistable = JsonValue,
+    Metadata: JsonPersistable = JsonValue,
 ](
     projection: Projection[JsonValue, JsonValue],
     state_type: type[State] = JsonValueType,
@@ -124,9 +124,11 @@ def deserialise_projection[
     return Projection[State, Metadata](
         id=projection.id,
         name=projection.name,
-        state=deserialise(state_type, projection.state, state_fallback),
+        state=deserialise_from_json_value(
+            state_type, projection.state, state_fallback
+        ),
         source=projection.source,
-        metadata=deserialise(
+        metadata=deserialise_from_json_value(
             metadata_type, projection.metadata, metadata_fallback
         ),
     )

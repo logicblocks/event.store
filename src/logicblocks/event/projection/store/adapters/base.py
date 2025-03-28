@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from logicblocks.event.types import (
+    JsonPersistable,
     JsonValue,
     JsonValueType,
-    Persistable,
     Projection,
 )
 
@@ -19,14 +19,14 @@ class ProjectionStorageAdapter[
     async def save(
         self,
         *,
-        projection: Projection[Persistable, Persistable],
+        projection: Projection[JsonPersistable, JsonPersistable],
     ) -> None:
         raise NotImplementedError()
 
     @abstractmethod
     async def find_one[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,
@@ -38,8 +38,8 @@ class ProjectionStorageAdapter[
 
     @abstractmethod
     async def find_many[
-        State: Persistable = JsonValue,
-        Metadata: Persistable = JsonValue,
+        State: JsonPersistable = JsonValue,
+        Metadata: JsonPersistable = JsonValue,
     ](
         self,
         *,

@@ -4,11 +4,17 @@ from typing import Any, cast
 
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.types import EventSourceIdentifier, StoredEvent
+from logicblocks.event.types import (
+    EventSourceIdentifier,
+    JsonValue,
+    StoredEvent,
+)
 
 
 class InMemoryEventSource[I: EventSourceIdentifier](EventSource[I]):
-    def __init__(self, events: Sequence[StoredEvent], identifier: I):
+    def __init__(
+        self, events: Sequence[StoredEvent[str, JsonValue]], identifier: I
+    ):
         self._events = events
         self._identifier = identifier
 
@@ -16,12 +22,12 @@ class InMemoryEventSource[I: EventSourceIdentifier](EventSource[I]):
     def identifier(self) -> I:
         return self._identifier
 
-    async def latest(self) -> StoredEvent | None:
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
         return self._events[-1] if len(self._events) > 0 else None
 
     async def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         for event in self._events:
             await asyncio.sleep(0)
             if all(

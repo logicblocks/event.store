@@ -17,7 +17,7 @@ class ProjectionEventProcessor[
 ](EventProcessor):
     def __init__(
         self,
-        projector: Projector[State, StreamIdentifier, Metadata],
+        projector: Projector[StreamIdentifier, State, Metadata],
         projection_store: ProjectionStore,
         state_type: type[State] = JsonValueType,
         metadata_type: type[Metadata] = JsonValueType,

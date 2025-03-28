@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from enum import StrEnum
 from typing import Any
 
@@ -9,6 +9,7 @@ from pyheck import snake as to_snake_case
 from logicblocks.event.store import EventSource
 from logicblocks.event.types import (
     EventSourceIdentifier,
+    JsonValue,
     Projection,
     StoredEvent,
 )
@@ -28,9 +29,9 @@ class MissingHandlerBehaviour(StrEnum):
 
 
 class Projector[
-    State,
     Identifier: EventSourceIdentifier,
-    Metadata = Mapping[str, Any],
+    State,
+    Metadata = JsonValue,
 ](ABC):
     name: str | None = None
 

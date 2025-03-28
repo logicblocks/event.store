@@ -29,16 +29,18 @@ from .data import (
 )
 
 
-class NewEventBuilderParams[Payload = JsonValue](TypedDict, total=False):
-    name: str
+class NewEventBuilderParams[Name = str, Payload = JsonValue](
+    TypedDict, total=False
+):
+    name: Name
     payload: Payload
     occurred_at: datetime | None
     observed_at: datetime | None
 
 
 @dataclass(frozen=True)
-class NewEventBuilder[Payload = JsonValue]:
-    name: str
+class NewEventBuilder[Name = str, Payload = JsonValue]:
+    name: Name
     payload: Payload
     occurred_at: datetime | None
     observed_at: datetime | None
@@ -46,7 +48,7 @@ class NewEventBuilder[Payload = JsonValue]:
     def __init__(
         self,
         *,
-        name: str | None = None,
+        name: Name | None = None,
         payload: Payload | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
@@ -56,7 +58,7 @@ class NewEventBuilder[Payload = JsonValue]:
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
-    def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Payload]]):
+    def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Name, Payload]]):
         return NewEventBuilder(
             name=kwargs.get("name", self.name),
             payload=kwargs.get("payload", self.payload),
@@ -64,7 +66,7 @@ class NewEventBuilder[Payload = JsonValue]:
             observed_at=kwargs.get("observed_at", self.observed_at),
         )
 
-    def with_name(self, name: str):
+    def with_name(self, name: Name):
         return self._clone(name=name)
 
     def with_payload(self, payload: Payload):
@@ -77,7 +79,7 @@ class NewEventBuilder[Payload = JsonValue]:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return NewEvent[Payload](
+        return NewEvent[Name, Payload](
             name=self.name,
             payload=self.payload,
             occurred_at=self.occurred_at,
@@ -85,9 +87,11 @@ class NewEventBuilder[Payload = JsonValue]:
         )
 
 
-class StoredEventBuilderParams[Payload = JsonValue](TypedDict, total=False):
+class StoredEventBuilderParams[Name = str, Payload = JsonValue](
+    TypedDict, total=False
+):
     id: str
-    name: str
+    name: Name
     stream: str
     category: str
     position: int
@@ -98,9 +102,9 @@ class StoredEventBuilderParams[Payload = JsonValue](TypedDict, total=False):
 
 
 @dataclass(frozen=True)
-class StoredEventBuilder[Payload = JsonValue]:
+class StoredEventBuilder[Name = str, Payload = JsonValue]:
     id: str
-    name: str
+    name: Name
     stream: str
     category: str
     position: int
@@ -113,7 +117,7 @@ class StoredEventBuilder[Payload = JsonValue]:
         self,
         *,
         id: str | None = None,
-        name: str | None = None,
+        name: Name | None = None,
         stream: str | None = None,
         category: str | None = None,
         position: int | None = None,
@@ -152,7 +156,9 @@ class StoredEventBuilder[Payload = JsonValue]:
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
-    def _clone(self, **kwargs: Unpack[StoredEventBuilderParams[Payload]]):
+    def _clone(
+        self, **kwargs: Unpack[StoredEventBuilderParams[Name, Payload]]
+    ):
         return StoredEventBuilder(
             id=kwargs.get("id", self.id),
             name=kwargs.get("name", self.name),
@@ -167,7 +173,7 @@ class StoredEventBuilder[Payload = JsonValue]:
             observed_at=kwargs.get("observed_at", self.observed_at),
         )
 
-    def from_new_event(self, event: NewEvent[Payload]):
+    def from_new_event(self, event: NewEvent[Name, Payload]):
         return self._clone(
             name=event.name,
             payload=event.payload,
@@ -178,7 +184,7 @@ class StoredEventBuilder[Payload = JsonValue]:
     def with_id(self, id: str):
         return self._clone(id=id)
 
-    def with_name(self, name: str):
+    def with_name(self, name: Name):
         return self._clone(name=name)
 
     def with_stream(self, stream: str):
@@ -203,7 +209,7 @@ class StoredEventBuilder[Payload = JsonValue]:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return StoredEvent[Payload](
+        return StoredEvent[Name, Payload](
             id=self.id,
             name=self.name,
             stream=self.stream,

@@ -46,7 +46,7 @@ class State(JsonValueConvertible):
         return cls(value=int(value["value"]))
 
 
-class StateProjector(Projector[State, StreamIdentifier, Mapping[str, int]]):
+class StateProjector(Projector[StreamIdentifier, State, Mapping[str, int]]):
     def __init__(self, projection_name: str):
         self.name = projection_name
 

@@ -10,8 +10,8 @@ from .json import JsonValue, JsonValueSerialisable
 
 
 @dataclass(frozen=True)
-class NewEvent[Payload = JsonValue](JsonValueSerialisable):
-    name: str
+class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
+    name: Name
     payload: Payload
     observed_at: datetime
     occurred_at: datetime
@@ -19,7 +19,7 @@ class NewEvent[Payload = JsonValue](JsonValueSerialisable):
     def __init__(
         self,
         *,
-        name: str,
+        name: Name,
         payload: Payload,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
@@ -42,7 +42,7 @@ class NewEvent[Payload = JsonValue](JsonValueSerialisable):
         ] = default_serialisation_fallback,
     ) -> JsonValue:
         return {
-            "name": self.name,
+            "name": serialise(self.name, fallback),
             "payload": serialise(self.payload, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
@@ -69,9 +69,9 @@ class NewEvent[Payload = JsonValue](JsonValueSerialisable):
 
 
 @dataclass(frozen=True)
-class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
+class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
     id: str
-    name: str
+    name: Name
     stream: str
     category: str
     position: int
@@ -88,7 +88,7 @@ class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
     ) -> JsonValue:
         return {
             "id": self.id,
-            "name": self.name,
+            "name": serialise(self.name, fallback),
             "stream": self.stream,
             "category": self.category,
             "position": self.position,
@@ -101,7 +101,7 @@ class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
     def summarise(self) -> JsonValue:
         return {
             "id": self.id,
-            "name": self.name,
+            "name": serialise(self.name),
             "stream": self.stream,
             "category": self.category,
             "position": self.position,
@@ -114,7 +114,7 @@ class StoredEvent[Payload = JsonValue](JsonValueSerialisable):
         return (
             f"StoredEvent("
             f"id={self.id}, "
-            f"name={self.name}, "
+            f"name={repr(self.name)}, "
             f"stream={self.stream}, "
             f"category={self.category}, "
             f"position={self.position}, "

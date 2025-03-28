@@ -180,7 +180,7 @@ class TestAsynchronousProjections:
                 return {"value": self.value}
 
         class ThingProjector(
-            Projector[Thing, StreamIdentifier, Mapping[str, Any]]
+            Projector[StreamIdentifier, Thing, Mapping[str, Any]]
         ):
             name = projection_name
 

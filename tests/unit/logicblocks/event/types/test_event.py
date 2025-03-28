@@ -363,7 +363,7 @@ class TestStoredEvent:
         assert str(stored_event) == (
             "StoredEvent("
             "id=some-id, "
-            "name=something-happened, "
+            "name='something-happened', "
             "stream=some-stream, "
             "category=some-category, "
             "position=0, "

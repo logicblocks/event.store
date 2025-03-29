@@ -146,10 +146,11 @@ NoCondition = _NoCondition()
 
 @dataclass(frozen=True)
 class PositionIsCondition(WriteCondition):
-    position: int
+    position: int | None
 
     def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
-        if last_event is None or last_event.position != self.position:
+        latest_position = last_event.position if last_event else None
+        if latest_position != self.position:
             raise UnmetWriteConditionError("unexpected stream position")
 
 
@@ -160,7 +161,7 @@ class EmptyStreamCondition(WriteCondition):
             raise UnmetWriteConditionError("stream is not empty")
 
 
-def position_is(position: int) -> WriteCondition:
+def position_is(position: int | None) -> WriteCondition:
     return PositionIsCondition(position=position)
 
 

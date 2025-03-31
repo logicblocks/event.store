@@ -1,10 +1,12 @@
+import logging
 import sys
 from collections.abc import Sequence
 
 import pytest
+import structlog
 
 from logicblocks.event.store.adapters import (
-    EventOrderingGuarantee,
+    EventSerialisationGuarantee,
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
 )
@@ -13,6 +15,21 @@ from logicblocks.event.testcases.store.adapters import (
     EventStorageAdapterCases,
 )
 from logicblocks.event.types import StoredEvent, identifier
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
+        structlog.dev.ConsoleRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=False,
+)
 
 
 class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
@@ -23,10 +40,10 @@ class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
     def construct_storage_adapter(
         self,
         *,
-        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         return InMemoryEventStorageAdapter(
-            ordering_guarantee=ordering_guarantee
+            serialisation_guarantee=serialisation_guarantee
         )
 
     async def clear_storage(self) -> None:

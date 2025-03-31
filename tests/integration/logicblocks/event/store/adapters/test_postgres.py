@@ -12,7 +12,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
 from logicblocks.event.store.adapters import (
-    EventOrderingGuarantee,
+    EventSerialisationGuarantee,
     EventStorageAdapter,
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
@@ -199,10 +199,11 @@ class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
     def construct_storage_adapter(
         self,
         *,
-        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         return PostgresEventStorageAdapter(
-            connection_source=self.pool, ordering_guarantee=ordering_guarantee
+            connection_source=self.pool,
+            serialisation_guarantee=serialisation_guarantee,
         )
 
     async def clear_storage(self) -> None:

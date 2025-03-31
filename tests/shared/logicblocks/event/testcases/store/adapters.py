@@ -4,15 +4,15 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from itertools import batched
 from random import randint
-from typing import cast
 
 import pytest
+import structlog
 from pytest_unordered import unordered
 
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store import constraints
 from logicblocks.event.store.adapters import (
-    EventOrderingGuarantee,
+    EventSerialisationGuarantee,
     EventStorageAdapter,
 )
 from logicblocks.event.store.conditions import NoCondition
@@ -23,6 +23,8 @@ from logicblocks.event.testing.data import (
     random_event_stream_name,
 )
 from logicblocks.event.types import NewEvent, StoredEvent, identifier
+
+logger = structlog.get_logger()
 
 
 class ConcurrencyParameters:
@@ -36,7 +38,7 @@ class Base(ABC):
     def construct_storage_adapter(
         self,
         *,
-        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         raise NotImplementedError()
 
@@ -795,6 +797,250 @@ class ThreadingConcurrencyCases(Base, ABC):
         )
 
 
+class SequenceReader:
+    def __init__(
+        self,
+        adapter: EventStorageAdapter,
+        category: str | None = None,
+        stream: str | None = None,
+    ):
+        self.adapter = adapter
+        self.running_event = asyncio.Event()
+        self.shutdown_event = asyncio.Event()
+        self.category = category
+        self.stream = stream
+        self.events: list[StoredEvent] = []
+        self.exception: BaseException | None = None
+        self.task: asyncio.Task[None] | None = None
+
+    @property
+    def failed(self) -> bool:
+        return self.exception is not None
+
+    @property
+    def sequence_numbers(self) -> Sequence[int]:
+        return [event.sequence_number for event in self.events]
+
+    async def wait_until_running(self) -> None:
+        while True:
+            if self.running_event.is_set():
+                return
+            else:
+                await asyncio.sleep(0)
+
+    async def start(self) -> None:
+        await logger.ainfo(
+            "sequence.reader.starting",
+            category=self.category,
+            stream=self.stream,
+        )
+        self.task = asyncio.create_task(self.execute())
+        await asyncio.wait_for(self.wait_until_running(), timeout=0.5)
+        await logger.ainfo(
+            "sequence.reader.started",
+            category=self.category,
+            stream=self.stream,
+        )
+
+    async def stop(self) -> None:
+        await logger.ainfo(
+            "sequence.reader.stopping",
+            category=self.category,
+            stream=self.stream,
+        )
+        if not self.shutdown_event.is_set():
+            self.shutdown_event.set()
+        if self.task is not None:
+            await logger.ainfo(
+                "sequence.reader.waiting-to-stop",
+                category=self.category,
+                stream=self.stream,
+            )
+            while not self.task.done():
+                await asyncio.sleep(0)
+        await logger.ainfo(
+            "sequence.reader.stopped",
+            category=self.category,
+            stream=self.stream,
+        )
+
+    async def execute(self) -> None:
+        try:
+            last_sequence_number = -1
+            shutdown_requested = False
+            last_iteration_completed = False
+            await logger.ainfo(
+                "sequence.reader.running",
+                category=self.category,
+                stream=self.stream,
+            )
+            while True:
+                new_events = [
+                    event
+                    async for event in self.adapter.scan(
+                        target=identifier.target(
+                            category=self.category, stream=self.stream
+                        ),
+                        constraints={
+                            constraints.sequence_number_after(
+                                last_sequence_number
+                            )
+                        },
+                    )
+                ]
+
+                if len(new_events) > 0:
+                    last_sequence_number = new_events[-1].sequence_number
+
+                self.events.extend(new_events)
+
+                if shutdown_requested:
+                    last_iteration_completed = True
+
+                if (
+                    self.shutdown_event.is_set()
+                    and last_iteration_completed is True
+                ):
+                    return
+
+                elif self.shutdown_event.is_set():
+                    shutdown_requested = True
+
+                if not self.running_event.is_set():
+                    self.running_event.set()
+
+                await logger.ainfo(
+                    "sequence.reader.polling",
+                    category=self.category,
+                    stream=self.stream,
+                    event_count=len(self.events),
+                )
+
+                await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            await logger.ainfo(
+                "sequence.reader.cancelled",
+                category=self.category,
+                stream=self.stream,
+            )
+            raise
+        except BaseException as e:
+            await logger.aexception(
+                "sequence.reader.errored",
+                category=self.category,
+                stream=self.stream,
+            )
+            self.exception = e
+
+
+class SequenceWriter:
+    def __init__(
+        self,
+        adapter: EventStorageAdapter,
+        publish_count: int,
+        category: str | None = None,
+        stream: str | None = None,
+    ):
+        self.adapter = adapter
+        self.publish_count = publish_count
+        self.category = category
+        self.stream = stream
+        self.events: list[StoredEvent] = []
+        self.exception: BaseException | None = None
+        self.task: asyncio.Task[None] | None = None
+
+    @property
+    def failed(self) -> bool:
+        return self.exception is not None
+
+    @property
+    def sequence_numbers(self) -> Sequence[int]:
+        return [event.sequence_number for event in self.events]
+
+    def resolve_category(self) -> str:
+        return (
+            self.category
+            if self.category is not None
+            else data.random_event_category_name()
+        )
+
+    def resolve_stream(self) -> str:
+        return (
+            self.stream
+            if self.stream is not None
+            else data.random_event_stream_name()
+        )
+
+    async def start(self) -> None:
+        await logger.ainfo(
+            "sequence.writer.starting",
+            category=self.category,
+            stream=self.stream,
+        )
+        self.task = asyncio.create_task(self.execute())
+
+    async def complete(self) -> None:
+        await logger.ainfo(
+            "sequence.writer.completing",
+            category=self.category,
+            stream=self.stream,
+        )
+        if self.task is not None:
+            while not self.task.done():
+                await asyncio.sleep(0)
+        await logger.ainfo(
+            "sequence.writer.completed",
+            category=self.category,
+            stream=self.stream,
+        )
+
+    async def execute(self) -> None:
+        try:
+            await logger.ainfo(
+                "sequence.writer.running",
+                category=self.category,
+                stream=self.stream,
+            )
+            for id in range(0, self.publish_count):
+                event_count = randint(1, 10)
+                await logger.ainfo(
+                    "sequence.writer.publishing",
+                    category=self.category,
+                    stream=self.stream,
+                    publish_id=id,
+                    event_count=event_count,
+                )
+                await asyncio.sleep(0)
+                self.events.extend(
+                    await self.adapter.save(
+                        target=identifier.StreamIdentifier(
+                            category=self.resolve_category(),
+                            stream=self.resolve_stream(),
+                        ),
+                        events=[
+                            NewEventBuilder()
+                            .with_name(f"event-{id}-{n}")
+                            .build()
+                            for n in range(0, event_count)
+                        ],
+                    )
+                )
+        except asyncio.CancelledError:
+            await logger.ainfo(
+                "sequence.writer.cancelled",
+                category=self.category,
+                stream=self.stream,
+            )
+            raise
+        except BaseException as e:
+            await logger.aexception(
+                "sequence.writer.failed",
+                category=self.category,
+                stream=self.stream,
+            )
+            self.exception = e
+
+
 class AsyncioConcurrencyCases(Base, ABC):
     async def test_simultaneous_checked_writes_to_empty_stream_from_different_async_tasks_write_once(
         self,
@@ -999,108 +1245,144 @@ class AsyncioConcurrencyCases(Base, ABC):
         assert is_correct_event_sequencing
         assert is_correct_event_positioning
 
-    async def test_simultaneous_reads_and_writes_are_totally_ordered_when_log_level_ordering_guarantee(
+    async def test_all_writes_are_serialised_as_seen_by_readers_when_log_level_serialisation_guarantee(
         self,
     ):
         adapter = self.construct_storage_adapter(
-            ordering_guarantee=EventOrderingGuarantee.LOG
+            serialisation_guarantee=EventSerialisationGuarantee.LOG
         )
 
         simultaneous_writer_count = 2
         publish_count = 10
 
-        async def category_writer(
-            category: str, publish_count: int
-        ) -> Sequence[StoredEvent]:
-            return [
-                stored_event
-                for id in range(0, publish_count)
-                for stored_event in await adapter.save(
-                    target=identifier.StreamIdentifier(
-                        category=category, stream=random_event_stream_name()
-                    ),
-                    events=[
-                        NewEventBuilder().with_name(f"event-{id}-{n}").build()
-                        for n in range(0, randint(1, 10))
-                    ],
-                )
-            ]
+        reader = SequenceReader(adapter)
+        await reader.start()
 
-        async def log_reader(event: asyncio.Event) -> Sequence[StoredEvent]:
-            events: list[StoredEvent] = []
-            last_sequence_number = -1
-            shutdown_requested = False
-            last_iteration_completed = False
-            while True:
-                new_events = [
-                    event
-                    async for event in adapter.scan(
-                        target=identifier.LogIdentifier(),
-                        constraints={
-                            constraints.sequence_number_after(
-                                last_sequence_number
-                            )
-                        },
-                    )
-                ]
-
-                if len(new_events) > 0:
-                    last_sequence_number = new_events[-1].sequence_number
-
-                events.extend(new_events)
-
-                if shutdown_requested:
-                    last_iteration_completed = True
-
-                if event.is_set() and last_iteration_completed is True:
-                    return events
-
-                elif event.is_set():
-                    shutdown_requested = True
-
-        event = asyncio.Event()
-        reader = log_reader(event)
-
-        categories = [
-            data.random_event_category_name()
+        writers = [
+            SequenceWriter(adapter, publish_count=publish_count)
             for _ in range(simultaneous_writer_count)
         ]
-        writers = [
-            category_writer(category, publish_count) for category in categories
-        ]
+        await asyncio.gather(*[writer.start() for writer in writers])
+        await asyncio.gather(*[writer.complete() for writer in writers])
 
-        writer_tasks = [asyncio.create_task(writer) for writer in writers]
-        reader_task = asyncio.create_task(reader)
+        await reader.stop()
 
-        write_results = await asyncio.gather(
-            *writer_tasks, return_exceptions=True
-        )
-
-        event.set()
-
-        read_results = await asyncio.gather(
-            reader_task, return_exceptions=True
-        )
-        read_result = read_results[0]
-
-        assert not any(
-            isinstance(write_result, BaseException)
-            for write_result in write_results
-        )
-        assert not isinstance(read_result, BaseException)
+        assert not any(writer.failed for writer in writers)
+        assert not reader.failed
 
         written_sequence_numbers = [
-            stored_event.sequence_number
-            for write_result in write_results
-            for stored_event in cast(Sequence[StoredEvent], write_result)
+            sequence_number
+            for writer in writers
+            for sequence_number in writer.sequence_numbers
         ]
 
-        read_sequence_numbers = [
-            stored_event.sequence_number for stored_event in read_result
+        def no_sequence_numbers_missed_across_log() -> bool:
+            return reader.sequence_numbers == unordered(
+                written_sequence_numbers
+            )
+
+        def log_reader_reads_log_serially() -> bool:
+            return reader.sequence_numbers == sorted(reader.sequence_numbers)
+
+        assert no_sequence_numbers_missed_across_log()
+        assert log_reader_reads_log_serially()
+
+    async def test_category_writes_are_serialised_as_seen_by_readers_when_category_level_serialisation_guarantee(
+        self,
+    ):
+        adapter = self.construct_storage_adapter(
+            serialisation_guarantee=EventSerialisationGuarantee.CATEGORY
+        )
+
+        simultaneous_writer_count = 2
+        category_count = 2
+        publish_count = 10
+
+        log_reader = SequenceReader(adapter)
+        await log_reader.start()
+
+        categories = [
+            data.random_event_category_name() for _ in range(category_count)
         ]
 
-        assert read_sequence_numbers == unordered(written_sequence_numbers)
-        assert read_sequence_numbers == sorted(read_sequence_numbers)
+        category_readers = [
+            SequenceReader(adapter, category=category)
+            for category in categories
+        ]
+
+        await asyncio.gather(
+            *[category_reader.start() for category_reader in category_readers]
+        )
+
+        category_writers = [
+            SequenceWriter(
+                adapter, category=category, publish_count=publish_count
+            )
+            for category in categories
+            for _ in range(simultaneous_writer_count)
+        ]
+        await asyncio.gather(
+            *[category_writer.start() for category_writer in category_writers]
+        )
+        await asyncio.gather(
+            *[
+                category_writer.complete()
+                for category_writer in category_writers
+            ]
+        )
+
+        await log_reader.stop()
+        await asyncio.gather(
+            *[category_reader.stop() for category_reader in category_readers]
+        )
+
+        assert not any(
+            category_writer.failed for category_writer in category_writers
+        )
+        assert not any(
+            category_reader.failed for category_reader in category_readers
+        )
+        assert not log_reader.failed
+
+        all_written_sequence_numbers = [
+            sequence_number
+            for category_writer in category_writers
+            for sequence_number in category_writer.sequence_numbers
+        ]
+
+        all_read_sequence_numbers = [
+            sequence_number
+            for category_reader in category_readers
+            for sequence_number in category_reader.sequence_numbers
+        ]
+
+        def no_sequence_numbers_missed_across_categories() -> bool:
+            return all_read_sequence_numbers == unordered(
+                all_written_sequence_numbers
+            )
+
+        def category_reader_reads_category_serially(sequence_numbers) -> bool:
+            return sequence_numbers == sorted(sequence_numbers)
+
+        def log_reader_does_not_read_events_serially() -> bool:
+            return log_reader.sequence_numbers != sorted(
+                all_written_sequence_numbers
+            )
+
+        def log_reader_skips_events() -> bool:
+            return log_reader.sequence_numbers != unordered(
+                all_written_sequence_numbers
+            )
+
+        assert no_sequence_numbers_missed_across_categories()
+        assert all(
+            category_reader_reads_category_serially(
+                category_reader.sequence_numbers
+            )
+            for category_reader in category_readers
+        )
+        assert log_reader_does_not_read_events_serially()
+        assert log_reader_skips_events()
 
 
 class ScanCases(Base, ABC):

@@ -16,7 +16,7 @@ from logicblocks.event.db.postgres import (
 )
 from logicblocks.event.store.adapters import EventStorageAdapter
 from logicblocks.event.store.adapters.base import (
-    EventOrderingGuarantee,
+    EventSerialisationGuarantee,
     Latestable,
     Saveable,
     Scannable,
@@ -212,14 +212,21 @@ def scan_query(
     return query, params
 
 
-def lock_log_query(table_settings: TableSettings) -> ParameterisedQuery:
+def obtain_write_lock_query(
+    target: Saveable,
+    serialisation_guarantee: EventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> ParameterisedQuery:
+    lock_name = serialisation_guarantee.lock_name(
+        namespace=table_settings.events_table_name, target=target
+    )
     return (
         sql.SQL(
             """
             SELECT pg_advisory_xact_lock(%s);
             """
         ),
-        [get_digest(table_settings.events_table_name)],
+        [get_digest(lock_name)],
     )
 
 
@@ -312,12 +319,17 @@ def insert_query(
     )
 
 
-async def lock_log(
+async def obtain_write_lock(
     cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    target: Saveable,
     *,
+    serialisation_guarantee: EventSerialisationGuarantee,
     table_settings: TableSettings,
 ):
-    await cursor.execute(*lock_log_query(table_settings))
+    query = obtain_write_lock_query(
+        target, serialisation_guarantee, table_settings
+    )
+    await cursor.execute(*query)
 
 
 async def read_last(
@@ -364,7 +376,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         connection_source: ConnectionSource,
-        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(),
     ):
@@ -377,7 +389,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             self._connection_pool_owner = False
             self.connection_pool = connection_source
 
-        self.ordering_guarantee = ordering_guarantee
+        self.serialisation_guarantee = serialisation_guarantee
         self.query_settings: QuerySettings = query_settings
         self.table_settings: TableSettings = table_settings
 
@@ -400,7 +412,12 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[JsonValue, JsonValue])
             ) as cursor:
-                await lock_log(cursor, table_settings=self.table_settings)
+                await obtain_write_lock(
+                    cursor,
+                    target,
+                    serialisation_guarantee=self.serialisation_guarantee,
+                    table_settings=self.table_settings,
+                )
 
                 last_event = await read_last(
                     cursor,

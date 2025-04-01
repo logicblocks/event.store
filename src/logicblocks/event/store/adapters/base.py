@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
-from enum import StrEnum
+from typing import Self
 
 from logicblocks.event.store.conditions import NoCondition, WriteCondition
 from logicblocks.event.store.constraints import QueryConstraint
@@ -22,8 +22,34 @@ type Scannable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 type Latestable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 
 
-class EventOrderingGuarantee(StrEnum):
-    LOG = "log"
+class EventSerialisationGuarantee(ABC):
+    LOG: Self
+    CATEGORY: Self
+    STREAM: Self
+
+    @abstractmethod
+    def lock_name(self, namespace: str, target: Saveable) -> str:
+        raise NotImplementedError
+
+
+class LogEventSerialisationGuarantee(EventSerialisationGuarantee):
+    def lock_name(self, namespace: str, target: Saveable) -> str:
+        return namespace
+
+
+class CategoryEventSerialisationGuarantee(EventSerialisationGuarantee):
+    def lock_name(self, namespace: str, target: Saveable) -> str:
+        return f"{namespace}.{target.category}"
+
+
+class StreamEventSerialisationGuarantee(EventSerialisationGuarantee):
+    def lock_name(self, namespace: str, target: Saveable) -> str:
+        return f"{namespace}.{target.category}.{target.stream}"
+
+
+EventSerialisationGuarantee.LOG = LogEventSerialisationGuarantee()
+EventSerialisationGuarantee.CATEGORY = CategoryEventSerialisationGuarantee()
+EventSerialisationGuarantee.STREAM = StreamEventSerialisationGuarantee()
 
 
 class EventStorageAdapter(ABC):

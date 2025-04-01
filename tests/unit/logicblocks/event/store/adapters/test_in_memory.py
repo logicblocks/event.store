@@ -1,10 +1,12 @@
+import logging
 import sys
 from collections.abc import Sequence
 
 import pytest
+import structlog
 
 from logicblocks.event.store.adapters import (
-    EventOrderingGuarantee,
+    EventSerialisationGuarantee,
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
 )
@@ -21,23 +23,23 @@ class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
         return ConcurrencyParameters(concurrent_writes=2, repeats=1)
 
     def construct_storage_adapter(
-        self,
-        *,
-        ordering_guarantee: EventOrderingGuarantee = EventOrderingGuarantee.LOG,
+            self,
+            *,
+            serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         return InMemoryEventStorageAdapter(
-            ordering_guarantee=ordering_guarantee
+            serialisation_guarantee=serialisation_guarantee
         )
 
     async def clear_storage(self) -> None:
         pass
 
     async def retrieve_events(
-        self,
-        *,
-        adapter: EventStorageAdapter,
-        category: str | None = None,
-        stream: str | None = None,
+            self,
+            *,
+            adapter: EventStorageAdapter,
+            category: str | None = None,
+            stream: str | None = None,
     ) -> Sequence[StoredEvent]:
         return [
             event

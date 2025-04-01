@@ -16,21 +16,6 @@ from logicblocks.event.testcases.store.adapters import (
 )
 from logicblocks.event.types import StoredEvent, identifier
 
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
-        structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=False,
-)
-
 
 class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
     @property
@@ -38,9 +23,9 @@ class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
         return ConcurrencyParameters(concurrent_writes=2, repeats=1)
 
     def construct_storage_adapter(
-        self,
-        *,
-        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
+            self,
+            *,
+            serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         return InMemoryEventStorageAdapter(
             serialisation_guarantee=serialisation_guarantee
@@ -50,11 +35,11 @@ class TestInMemoryEventStorageAdapterCommonCases(EventStorageAdapterCases):
         pass
 
     async def retrieve_events(
-        self,
-        *,
-        adapter: EventStorageAdapter,
-        category: str | None = None,
-        stream: str | None = None,
+            self,
+            *,
+            adapter: EventStorageAdapter,
+            category: str | None = None,
+            stream: str | None = None,
     ) -> Sequence[StoredEvent]:
         return [
             event

@@ -25,6 +25,7 @@ type Latestable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 class EventSerialisationGuarantee(ABC):
     LOG: Self
     CATEGORY: Self
+    STREAM: Self
 
     @abstractmethod
     def lock_name(self, namespace: str, target: Saveable) -> str:
@@ -41,8 +42,14 @@ class CategoryEventSerialisationGuarantee(EventSerialisationGuarantee):
         return f"{namespace}.{target.category}"
 
 
+class StreamEventSerialisationGuarantee(EventSerialisationGuarantee):
+    def lock_name(self, namespace: str, target: Saveable) -> str:
+        return f"{namespace}.{target.category}.{target.stream}"
+
+
 EventSerialisationGuarantee.LOG = LogEventSerialisationGuarantee()
 EventSerialisationGuarantee.CATEGORY = CategoryEventSerialisationGuarantee()
+EventSerialisationGuarantee.STREAM = StreamEventSerialisationGuarantee()
 
 
 class EventStorageAdapter(ABC):

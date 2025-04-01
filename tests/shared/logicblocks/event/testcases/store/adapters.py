@@ -1384,6 +1384,131 @@ class AsyncioConcurrencyCases(Base, ABC):
         assert log_reader_does_not_read_events_serially()
         assert log_reader_skips_events()
 
+    async def test_stream_writes_are_serialised_as_seen_by_readers_when_stream_level_serialisation_guarantee(
+        self,
+    ):
+        adapter = self.construct_storage_adapter(
+            serialisation_guarantee=EventSerialisationGuarantee.STREAM
+        )
+
+        simultaneous_writer_count = 2
+        category_count = 2
+        stream_count = 2
+        publish_count = 10
+
+        log_reader = SequenceReader(adapter)
+        await log_reader.start()
+
+        categories = [
+            data.random_event_category_name() for _ in range(category_count)
+        ]
+        streams = [
+            (category, data.random_event_stream_name())
+            for _ in range(stream_count)
+            for category in categories
+        ]
+
+        category_readers = [
+            SequenceReader(adapter, category=category)
+            for category in categories
+        ]
+        stream_readers = [
+            SequenceReader(adapter, category=category, stream=stream)
+            for category, stream in streams
+        ]
+
+        await asyncio.gather(
+            *[category_reader.start() for category_reader in category_readers]
+        )
+        await asyncio.gather(
+            *[stream_reader.start() for stream_reader in stream_readers]
+        )
+
+        stream_writers = [
+            SequenceWriter(
+                adapter,
+                category=category,
+                stream=stream,
+                publish_count=publish_count
+            )
+            for category, stream in streams
+            for _ in range(simultaneous_writer_count)
+        ]
+        await asyncio.gather(
+            *[stream_writer.start() for stream_writer in stream_writers]
+        )
+        await asyncio.gather(
+            *[
+                stream_writer.complete()
+                for stream_writer in stream_writers
+            ]
+        )
+
+        await log_reader.stop()
+        await asyncio.gather(
+            *[category_reader.stop() for category_reader in category_readers]
+        )
+        await asyncio.gather(
+            *[stream_reader.stop() for stream_reader in stream_readers]
+        )
+
+        assert not any(
+            stream_writer.failed for stream_writer in stream_writers
+        )
+        assert not any(
+            category_reader.failed for category_reader in category_readers
+        )
+        assert not any(
+            stream_reader.failed for stream_reader in stream_readers
+        )
+        assert not log_reader.failed
+
+        all_written_sequence_numbers = [
+            sequence_number
+            for stream_writer in stream_writers
+            for sequence_number in stream_writer.sequence_numbers
+        ]
+
+        all_read_sequence_numbers = [
+            sequence_number
+            for stream_reader in stream_readers
+            for sequence_number in stream_reader.sequence_numbers
+        ]
+
+        def no_sequence_numbers_missed_across_streams() -> bool:
+            return all_read_sequence_numbers == unordered(
+                all_written_sequence_numbers
+            )
+
+        def stream_reader_reads_stream_serially(sequence_numbers) -> bool:
+            return sequence_numbers == sorted(sequence_numbers)
+
+        def reader_does_not_read_events_serially(reader) -> bool:
+            return reader.sequence_numbers != sorted(
+                all_written_sequence_numbers
+            )
+
+        def reader_skips_events(reader) -> bool:
+            return reader.sequence_numbers != unordered(
+                all_written_sequence_numbers
+            )
+
+        assert no_sequence_numbers_missed_across_streams()
+        assert all(
+            stream_reader_reads_stream_serially(
+                stream_reader.sequence_numbers
+            )
+            for stream_reader in stream_readers
+        )
+        assert all(
+            reader_does_not_read_events_serially(reader)
+            for reader in category_readers + [log_reader]
+        )
+        assert all(
+            reader_skips_events(reader)
+            for reader in category_readers + [log_reader]
+        )
+
 
 class ScanCases(Base, ABC):
     async def test_log_scan_scans_no_events_when_store_empty(self):

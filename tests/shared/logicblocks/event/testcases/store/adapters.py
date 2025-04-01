@@ -1429,7 +1429,7 @@ class AsyncioConcurrencyCases(Base, ABC):
                 adapter,
                 category=category,
                 stream=stream,
-                publish_count=publish_count
+                publish_count=publish_count,
             )
             for category, stream in streams
             for _ in range(simultaneous_writer_count)
@@ -1438,10 +1438,7 @@ class AsyncioConcurrencyCases(Base, ABC):
             *[stream_writer.start() for stream_writer in stream_writers]
         )
         await asyncio.gather(
-            *[
-                stream_writer.complete()
-                for stream_writer in stream_writers
-            ]
+            *[stream_writer.complete() for stream_writer in stream_writers]
         )
 
         await log_reader.stop()
@@ -1495,9 +1492,7 @@ class AsyncioConcurrencyCases(Base, ABC):
 
         assert no_sequence_numbers_missed_across_streams()
         assert all(
-            stream_reader_reads_stream_serially(
-                stream_reader.sequence_numbers
-            )
+            stream_reader_reads_stream_serially(stream_reader.sequence_numbers)
             for stream_reader in stream_readers
         )
         assert all(

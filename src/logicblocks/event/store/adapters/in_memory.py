@@ -50,17 +50,15 @@ class InMemorySequence:
 
 class InMemoryEventsDB:
     def __init__(
-            self,
-            *,
-            events: list[StoredEvent[str, JsonValue] | None] | None,
-            log_index: EventPositionList | None,
-            category_index: EventIndexDict[CategoryKey] | None,
-            stream_index: EventIndexDict[StreamKey] | None,
+        self,
+        *,
+        events: list[StoredEvent[str, JsonValue] | None] | None,
+        log_index: EventPositionList | None,
+        category_index: EventIndexDict[CategoryKey] | None,
+        stream_index: EventIndexDict[StreamKey] | None,
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
-            events
-            if events is not None
-            else []
+            events if events is not None else []
         )
         self._log_index: EventPositionList = (
             log_index if log_index is not None else []
@@ -87,7 +85,9 @@ class InMemoryEventsDB:
     def transaction(self) -> "InMemoryEventsDBTransaction":
         return InMemoryEventsDBTransaction(db=self)
 
-    def stream_events(self, target: Saveable) -> list[StoredEvent[str, JsonValue]]:
+    def stream_events(
+        self, target: Saveable
+    ) -> list[StoredEvent[str, JsonValue]]:
         stream_key = (target.category, target.stream)
         events = [self._events[i] for i in self._stream_index[stream_key]]
         if any(event is None for event in events):
@@ -98,7 +98,9 @@ class InMemoryEventsDB:
 
         return cast(list[StoredEvent[str, JsonValue]], events)
 
-    def last_stream_event(self, target: Saveable) -> StoredEvent[str, JsonValue] | None:
+    def last_stream_event(
+        self, target: Saveable
+    ) -> StoredEvent[str, JsonValue] | None:
         stream_events = self.stream_events(target)
         return stream_events[-1] if stream_events else None
 
@@ -110,21 +112,25 @@ class InMemoryEventsDB:
         category_key = event.category
         stream_key = (event.category, event.stream)
         if len(self._events) <= event.sequence_number:
-            self._events += [None] * (event.sequence_number - len(self._events) + 1)
+            self._events += [None] * (
+                event.sequence_number - len(self._events) + 1
+            )
         self._events[event.sequence_number] = event
         self._log_index += [event.sequence_number]
         self._stream_index[stream_key] += [event.sequence_number]
         self._category_index[category_key] += [event.sequence_number]
 
-    def last_event(self, target: Latestable) -> StoredEvent[str, JsonValue] | None:
+    def last_event(
+        self, target: Latestable
+    ) -> StoredEvent[str, JsonValue] | None:
         index = self._select_index(target)
 
         return self._events[index[-1]] if index else None
 
     async def scan_events(
-            self,
-            target: Scannable,
-            constraints: Set[QueryConstraint] = frozenset(),
+        self,
+        target: Scannable,
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         index = self._select_index(target)
 
@@ -136,7 +142,7 @@ class InMemoryEventsDB:
                     f"is None"
                 )
             if not all(
-                    constraint.met_by(event=event) for constraint in constraints
+                constraint.met_by(event=event) for constraint in constraints
             ):
                 continue
             yield event
@@ -165,7 +171,9 @@ class InMemoryEventsDBTransaction:
         for event in self._added_events:
             self._db.add(event)
 
-    def last_stream_event(self, target: Saveable) -> StoredEvent[str, JsonValue] | None:
+    def last_stream_event(
+        self, target: Saveable
+    ) -> StoredEvent[str, JsonValue] | None:
         return self._db.last_stream_event(target)
 
     def last_stream_position(self, target: Saveable) -> int:
@@ -174,9 +182,9 @@ class InMemoryEventsDBTransaction:
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
     def __init__(
-            self,
-            *,
-            serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
+        self,
+        *,
+        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ):
         self._locks: dict[str, Lock] = defaultdict(lambda: Lock())
         self._sequence = InMemorySequence()
@@ -194,11 +202,11 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         )
 
     async def save[Name: StringPersistable, Payload: JsonPersistable](
-            self,
-            *,
-            target: Saveable,
-            events: Sequence[NewEvent[Name, Payload]],
-            condition: WriteCondition = NoCondition,
+        self,
+        *,
+        target: Saveable,
+        events: Sequence[NewEvent[Name, Payload]],
+        condition: WriteCondition = NoCondition,
     ) -> Sequence[StoredEvent[Name, Payload]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would
@@ -247,7 +255,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             return new_stored_events
 
     async def latest(
-            self, *, target: Latestable
+        self, *, target: Latestable
     ) -> StoredEvent[str, JsonValue] | None:
         snapshot = self._db.snapshot()
         await asyncio.sleep(0)
@@ -255,10 +263,10 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         return snapshot.last_event(target)
 
     async def scan(
-            self,
-            *,
-            target: Scannable = LogIdentifier(),
-            constraints: Set[QueryConstraint] = frozenset(),
+        self,
+        *,
+        target: Scannable = LogIdentifier(),
+        constraints: Set[QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 

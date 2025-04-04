@@ -25,7 +25,11 @@ def make_subscriber(
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
 ) -> "EventSubscriptionConsumer":
-    subscriber_id = subscriber_id or uuid4().hex
+    subscriber_id = (
+        subscriber_id
+        if subscriber_id is not None
+        else str(uuid4())
+    )
     state_store = EventConsumerStateStore(
         category=subscriber_state_category,
         persistence_interval=subscriber_state_persistence_interval,

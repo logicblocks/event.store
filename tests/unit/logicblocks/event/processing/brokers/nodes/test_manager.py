@@ -31,120 +31,7 @@ class CountingInMemoryNodeStateStore(InMemoryNodeStateStore):
 
 
 class TestNodeManager:
-    async def test_execute_adds_node_state_when_started(self):
-        node_id = data.random_node_id()
-        node_state_store = InMemoryNodeStateStore()
-
-        manager = NodeManager(
-            node_id=node_id, node_state_store=node_state_store
-        )
-
-        task = asyncio.create_task(manager.execute())
-
-        try:
-
-            async def get_nodes():
-                while True:
-                    nodes = await node_state_store.list()
-                    if len(nodes) > 0:
-                        return nodes
-                    else:
-                        await asyncio.sleep(0)
-
-            nodes = await asyncio.wait_for(
-                get_nodes(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
-
-            assert len(nodes) == 1
-            assert nodes[0].node_id == node_id
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-
-    async def test_execute_removes_node_state_when_interrupted(self):
-        node_id = data.random_node_id()
-        node_state_store = InMemoryNodeStateStore()
-
-        manager = NodeManager(
-            node_id=node_id, node_state_store=node_state_store
-        )
-
-        task = asyncio.create_task(manager.execute())
-
-        try:
-
-            async def get_nodes():
-                while True:
-                    nodes = await node_state_store.list()
-                    if len(nodes) > 0:
-                        return nodes
-                    else:
-                        await asyncio.sleep(0)
-
-            await asyncio.wait_for(
-                get_nodes(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
-
-            task.cancel()
-
-            await asyncio.gather(task, return_exceptions=True)
-
-            nodes = await node_state_store.list()
-
-            assert len(nodes) == 0
-        finally:
-            if not task.cancelled():
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
-
-    async def test_execute_heartbeats_every_heartbeat_interval(self):
-        node_id = data.random_node_id()
-        node_state_store = CountingInMemoryNodeStateStore()
-
-        manager = NodeManager(
-            node_id=node_id,
-            node_state_store=node_state_store,
-            heartbeat_interval=timedelta(milliseconds=20),
-        )
-
-        task = asyncio.create_task(manager.execute())
-
-        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
-
-        task.cancel()
-
-        await asyncio.gather(task, return_exceptions=True)
-
-        heartbeat_count = node_state_store.counts[f"heartbeat:{node_id}"]
-
-        assert 2 <= heartbeat_count <= 3
-
-    async def test_execute_purges_every_purge_interval(self):
-        node_id = data.random_node_id()
-        node_state_store = CountingInMemoryNodeStateStore()
-
-        manager = NodeManager(
-            node_id=node_id,
-            node_state_store=node_state_store,
-            purge_interval=timedelta(milliseconds=20),
-            node_max_age=timedelta(minutes=3),
-        )
-
-        task = asyncio.create_task(manager.execute())
-
-        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
-
-        task.cancel()
-
-        await asyncio.gather(task, return_exceptions=True)
-
-        purge_count = node_state_store.counts["purge:180"]
-
-        assert 2 <= purge_count <= 3
-
-    async def test_logs_on_startup(self):
+    async def test_start_logs_starting(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -159,41 +46,38 @@ class TestNodeManager:
             node_max_age=timedelta(minutes=3),
         )
 
-        task = asyncio.create_task(manager.execute())
+        await manager.start()
 
-        try:
+        startup_event = logger.find_event(
+            "event.processing.broker.node-manager.starting"
+        )
 
-            async def startup_completed():
-                while True:
-                    if len(await node_state_store.list()) == 0:
-                        await asyncio.sleep(0)
-                    else:
-                        return
+        assert startup_event is not None
+        assert startup_event.level == LogLevel.INFO
+        assert startup_event.is_async is True
+        assert startup_event.context == {
+            "node": node_id,
+            "heartbeat_interval_seconds": 5.0,
+            "purge_interval_seconds": 30.0,
+            "node_max_age_seconds": 180.0,
+        }
 
-            await asyncio.wait_for(
-                startup_completed(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
+    async def test_start_registers_node(self):
+        node_id = data.random_node_id()
+        node_state_store = InMemoryNodeStateStore()
 
-            startup_event = logger.find_event(
-                "event.processing.broker.node-manager.starting"
-            )
+        manager = NodeManager(
+            node_id=node_id, node_state_store=node_state_store
+        )
 
-            assert startup_event is not None
-            assert startup_event.level == LogLevel.INFO
-            assert startup_event.is_async is True
-            assert startup_event.context == {
-                "node": node_id,
-                "heartbeat_interval_seconds": 5.0,
-                "purge_interval_seconds": 30.0,
-                "node_max_age_seconds": 180.0,
-            }
+        await manager.start()
 
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        nodes = await node_state_store.list()
 
-    async def test_logs_on_registering_node(self):
+        assert len(nodes) == 1
+        assert nodes[0].node_id == node_id
+
+    async def test_start_logs_registering_of_node(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -203,36 +87,18 @@ class TestNodeManager:
             node_id=node_id, node_state_store=node_state_store, logger=logger
         )
 
-        task = asyncio.create_task(manager.execute())
+        await manager.start()
 
-        try:
+        register_event = logger.find_event(
+            "event.processing.broker.node-manager.registering-node"
+        )
 
-            async def has_node():
-                while True:
-                    nodes = await node_state_store.list()
-                    if len(nodes) > 0:
-                        return nodes
-                    else:
-                        await asyncio.sleep(0)
+        assert register_event is not None
+        assert register_event.level == LogLevel.INFO
+        assert register_event.is_async is True
+        assert register_event.context == {"node": node_id}
 
-            await asyncio.wait_for(
-                has_node(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
-
-            register_event = logger.find_event(
-                "event.processing.broker.node-manager.registering-node"
-            )
-
-            assert register_event is not None
-            assert register_event.level == LogLevel.INFO
-            assert register_event.is_async is True
-            assert register_event.context == {"node": node_id}
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-
-    async def test_logs_on_unregistering_node(self):
+    async def test_stop_logs_shutdown(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -242,41 +108,38 @@ class TestNodeManager:
             node_id=node_id, node_state_store=node_state_store, logger=logger
         )
 
-        task = asyncio.create_task(manager.execute())
+        await node_state_store.add(node_id)
 
-        try:
+        await manager.stop()
 
-            async def has_node():
-                while True:
-                    nodes = await node_state_store.list()
-                    if len(nodes) > 0:
-                        return nodes
-                    else:
-                        await asyncio.sleep(0)
+        shutdown_event = logger.find_event(
+            "event.processing.broker.node-manager.stopped"
+        )
 
-            await asyncio.wait_for(
-                has_node(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
+        assert shutdown_event is not None
+        assert shutdown_event.level == LogLevel.INFO
+        assert shutdown_event.is_async is True
+        assert shutdown_event.context == {
+            "node": node_id,
+        }
 
-            task.cancel()
+    async def test_stop_unregisters_node(self):
+        node_id = data.random_node_id()
+        node_state_store = InMemoryNodeStateStore()
 
-            await asyncio.gather(task, return_exceptions=True)
+        manager = NodeManager(
+            node_id=node_id, node_state_store=node_state_store
+        )
 
-            unregister_event = logger.find_event(
-                "event.processing.broker.node-manager.unregistering-node"
-            )
+        await node_state_store.add(node_id)
 
-            assert unregister_event is not None
-            assert unregister_event.level == LogLevel.INFO
-            assert unregister_event.is_async is True
-            assert unregister_event.context == {"node": node_id}
-        finally:
-            if not task.cancelled():
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
+        await manager.stop()
 
-    async def test_logs_on_shutdown(self):
+        nodes = await node_state_store.list()
+
+        assert len(nodes) == 0
+
+    async def test_stop_logs_unregistering_of_node(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -286,43 +149,44 @@ class TestNodeManager:
             node_id=node_id, node_state_store=node_state_store, logger=logger
         )
 
-        task = asyncio.create_task(manager.execute())
+        await node_state_store.add(node_id)
 
-        try:
+        await manager.stop()
 
-            async def startup_completed():
-                while True:
-                    if len(await node_state_store.list()) == 0:
-                        await asyncio.sleep(0)
-                    else:
-                        return
+        unregister_event = logger.find_event(
+            "event.processing.broker.node-manager.unregistering-node"
+        )
 
-            await asyncio.wait_for(
-                startup_completed(),
-                timeout=timedelta(milliseconds=100).total_seconds(),
-            )
+        assert unregister_event is not None
+        assert unregister_event.level == LogLevel.INFO
+        assert unregister_event.is_async is True
+        assert unregister_event.context == {"node": node_id}
 
-            task.cancel()
+    async def test_maintain_heartbeats_every_heartbeat_interval(self):
+        node_id = data.random_node_id()
+        node_state_store = CountingInMemoryNodeStateStore()
 
-            await asyncio.gather(task, return_exceptions=True)
+        manager = NodeManager(
+            node_id=node_id,
+            node_state_store=node_state_store,
+            heartbeat_interval=timedelta(milliseconds=20),
+        )
 
-            shutdown_event = logger.find_event(
-                "event.processing.broker.node-manager.stopped"
-            )
+        await node_state_store.add(node_id)
 
-            assert shutdown_event is not None
-            assert shutdown_event.level == LogLevel.INFO
-            assert shutdown_event.is_async is True
-            assert shutdown_event.context == {
-                "node": node_id,
-            }
+        task = asyncio.create_task(manager.maintain())
 
-        finally:
-            if not task.cancelled():
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
+        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
 
-    async def test_logs_on_heartbeat(self):
+        task.cancel()
+
+        await asyncio.gather(task, return_exceptions=True)
+
+        heartbeat_count = node_state_store.counts[f"heartbeat:{node_id}"]
+
+        assert 2 <= heartbeat_count <= 3
+
+    async def test_maintain_logs_on_heartbeat(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -335,7 +199,7 @@ class TestNodeManager:
             logger=logger,
         )
 
-        task = asyncio.create_task(manager.execute())
+        task = asyncio.create_task(manager.maintain())
 
         await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
 
@@ -352,7 +216,30 @@ class TestNodeManager:
         assert heartbeat_log_events[0].is_async is True
         assert heartbeat_log_events[0].context == {"node": node_id}
 
-    async def test_logs_on_purge(self):
+    async def test_maintain_purges_every_purge_interval(self):
+        node_id = data.random_node_id()
+        node_state_store = CountingInMemoryNodeStateStore()
+
+        manager = NodeManager(
+            node_id=node_id,
+            node_state_store=node_state_store,
+            purge_interval=timedelta(milliseconds=20),
+            node_max_age=timedelta(minutes=3),
+        )
+
+        task = asyncio.create_task(manager.maintain())
+
+        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
+
+        task.cancel()
+
+        await asyncio.gather(task, return_exceptions=True)
+
+        purge_count = node_state_store.counts["purge:180"]
+
+        assert 2 <= purge_count <= 3
+
+    async def test_maintain_logs_on_purge(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
@@ -366,7 +253,7 @@ class TestNodeManager:
             node_max_age=timedelta(minutes=3),
         )
 
-        task = asyncio.create_task(manager.execute())
+        task = asyncio.create_task(manager.maintain())
 
         await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
 

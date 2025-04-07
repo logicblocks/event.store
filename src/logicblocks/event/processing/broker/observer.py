@@ -17,6 +17,7 @@ def log_event_name(event: str) -> str:
 
 
 class EventSubscriptionObserverStatus(StrEnum):
+    INITIALISED = "initialised"
     STOPPED = "stopped"
     RUNNING = "running"
     ERRORED = "errored"
@@ -44,7 +45,7 @@ class EventSubscriptionObserver:
         self._existing_subscriptions = []
 
         self._synchronisation_interval = synchronisation_interval
-        self._status = EventSubscriptionObserverStatus.STOPPED
+        self._status = EventSubscriptionObserverStatus.INITIALISED
 
     @property
     def status(self) -> EventSubscriptionObserverStatus:

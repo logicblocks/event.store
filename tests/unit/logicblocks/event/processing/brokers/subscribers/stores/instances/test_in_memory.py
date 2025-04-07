@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Sequence
 
-import pytest
-
 from logicblocks.event.processing.broker import (
     EventSubscriberHealth,
     InMemoryEventSubscriberStore,
@@ -118,16 +116,26 @@ class TestInMemoryEventSubscriberStore:
 
         assert found is None
 
-    async def test_raises_when_removing_missing_subscriber_instance(self):
-        subscriber = DummyEventSubscriber(
+    async def test_does_nothing_when_removing_missing_subscriber_instance(
+        self,
+    ):
+        stored = DummyEventSubscriber(
+            data.random_subscriber_group(),
+            data.random_subscriber_id(),
+        )
+        unstored = DummyEventSubscriber(
             data.random_subscriber_group(),
             data.random_subscriber_id(),
         )
 
         store = InMemoryEventSubscriberStore()
 
-        with pytest.raises(ValueError):
-            await store.remove(subscriber)
+        await store.add(stored)
+        await store.remove(unstored)
+
+        found = await store.list()
+
+        assert found == [stored]
 
     async def test_list_returns_all_subscriber_instances(self):
         stored_1 = DummyEventSubscriber(

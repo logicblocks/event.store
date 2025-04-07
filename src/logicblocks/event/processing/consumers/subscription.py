@@ -24,11 +24,10 @@ def make_subscriber(
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
+    logger: FilteringBoundLogger = default_logger,
 ) -> "EventSubscriptionConsumer":
     subscriber_id = (
-        subscriber_id
-        if subscriber_id is not None
-        else str(uuid4())
+        subscriber_id if subscriber_id is not None else str(uuid4())
     )
     state_store = EventConsumerStateStore(
         category=subscriber_state_category,
@@ -39,7 +38,10 @@ def make_subscriber(
         source: S,
     ) -> EventSourceConsumer[S]:
         return EventSourceConsumer(
-            source=source, processor=event_processor, state_store=state_store
+            source=source,
+            processor=event_processor,
+            state_store=state_store,
+            logger=logger,
         )
 
     return EventSubscriptionConsumer(
@@ -47,6 +49,7 @@ def make_subscriber(
         id=subscriber_id,
         subscription_requests=[subscription_request],
         delegate_factory=delegate_factory,
+        logger=logger,
     )
 
 
@@ -106,27 +109,27 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self._delegates.pop(source.identifier)
 
     async def consume_all(self) -> None:
-        await self._logger.adebug(
-            "event.consumer.subscription.starting-consume",
-            sources=[
-                identifier.serialise(fallback=str_serialisation_fallback)
-                for identifier in self._delegates.keys()
-            ],
-        )
+        # await self._logger.adebug(
+        #     "event.consumer.subscription.starting-consume",
+        #     sources=[
+        #         identifier.serialise(fallback=str_serialisation_fallback)
+        #         for identifier in self._delegates.keys()
+        #     ],
+        # )
 
-        for identifier, delegate in self._delegates.items():
-            await self._logger.adebug(
-                "event.consumer.subscription.consuming-source",
-                source=identifier.serialise(
-                    fallback=str_serialisation_fallback
-                ),
-            )
+        for _, delegate in dict(self._delegates).items():
+            # await self._logger.adebug(
+            #     "event.consumer.subscription.consuming-source",
+            #     source=identifier.serialise(
+            #         fallback=str_serialisation_fallback
+            #     ),
+            # )
             await delegate.consume_all()
 
-        await self._logger.adebug(
-            "event.consumer.subscription.completed-consume",
-            sources=[
-                identifier.serialise(fallback=str_serialisation_fallback)
-                for identifier in self._delegates.keys()
-            ],
-        )
+        # await self._logger.adebug(
+        #     "event.consumer.subscription.completed-consume",
+        #     sources=[
+        #         identifier.serialise(fallback=str_serialisation_fallback)
+        #         for identifier in self._delegates.keys()
+        #     ],
+        # )

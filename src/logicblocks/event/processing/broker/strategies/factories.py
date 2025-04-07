@@ -1,23 +1,53 @@
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
-from ....db import PostgresConnectionSettings
-from ....store import PostgresEventStorageAdapter
-from ..locks import PostgresLockManager
-from ..nodes import PostgresNodeStateStore
+from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.store import (
+    InMemoryEventStorageAdapter,
+    PostgresEventStorageAdapter,
+)
+
+from ..locks import InMemoryLockManager, PostgresLockManager
+from ..nodes import InMemoryNodeStateStore, PostgresNodeStateStore
 from ..sources import (
+    InMemoryEventStoreEventSourceFactory,
     PostgresEventStoreEventSourceFactory,
 )
 from ..subscribers import (
+    InMemoryEventSubscriberStateStore,
     PostgresEventSubscriberStateStore,
 )
-from ..subscriptions import PostgresEventSubscriptionStateStore
+from ..subscriptions import (
+    InMemoryEventSubscriptionStateStore,
+    PostgresEventSubscriptionStateStore,
+)
 from .base import EventBroker
-from .broker_builder import (
+from .builder import (
     EventBrokerBuilder,
     EventBrokerDependencies,
     EventBrokerSettings,
 )
+
+
+class InMemoryEventBrokerBuilder(
+    EventBrokerBuilder[(InMemoryEventStorageAdapter,)]
+):
+    def dependencies(
+        self, adapter: InMemoryEventStorageAdapter
+    ) -> EventBrokerDependencies:
+        return EventBrokerDependencies(
+            node_state_store=InMemoryNodeStateStore(),
+            event_subscriber_state_store=InMemoryEventSubscriberStateStore(
+                node_id=self.node_id,
+            ),
+            event_subscription_state_store=InMemoryEventSubscriptionStateStore(
+                node_id=self.node_id
+            ),
+            lock_manager=InMemoryLockManager(),
+            event_source_factory=InMemoryEventStoreEventSourceFactory(
+                adapter=adapter
+            ),
+        )
 
 
 class PostgresEventBrokerBuilder(
@@ -47,6 +77,14 @@ class PostgresEventBrokerBuilder(
                 )
             ),
         )
+
+
+def make_in_memory_event_broker(
+    node_id: str,
+    settings: EventBrokerSettings,
+    adapter: InMemoryEventStorageAdapter,
+) -> EventBroker:
+    return InMemoryEventBrokerBuilder(node_id).prepare(adapter).build(settings)
 
 
 def make_postgres_event_broker(

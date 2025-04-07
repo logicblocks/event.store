@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 
 from logicblocks.event.types import EventSourceIdentifier
@@ -24,6 +25,7 @@ class InMemoryEventSubscriptionSourceMappingStore(
         self.event_subscription_sources[subscriber_group] = tuple(
             event_sources
         )
+        await asyncio.sleep(0)
 
     async def remove(self, subscriber_group: str) -> None:
         if subscriber_group not in self.event_subscription_sources:

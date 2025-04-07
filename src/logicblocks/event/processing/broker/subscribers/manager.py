@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
-from typing import Self
+from typing import Any, Self
 
 from structlog.types import FilteringBoundLogger
 
@@ -39,39 +40,42 @@ class EventSubscriberManager:
         self._purge_interval = purge_interval
         self._subscriber_max_age = subscriber_max_age
 
-    async def add(self, subscriber: EventSubscriber) -> Self:
-        await self._subscriber_store.add(subscriber)
-        return self
-
-    async def execute(self):
-        subscriber_keys = [
+    async def _subscriber_keys(self) -> Sequence[Mapping[str, Any]]:
+        return [
             subscriber.key.dict()
             for subscriber in await self._subscriber_store.list()
         ]
 
+    async def add(self, subscriber: EventSubscriber) -> Self:
+        await self._subscriber_store.add(subscriber)
+        return self
+
+    async def start(self):
         await self._logger.ainfo(
             log_event_name("starting"),
-            subscribers=subscriber_keys,
+            subscribers=(await self._subscriber_keys()),
             heartbeat_interval_seconds=self._heartbeat_interval.total_seconds(),
             purge_interval_seconds=self._purge_interval.total_seconds(),
             subscriber_max_age_seconds=self._subscriber_max_age.total_seconds(),
         )
 
-        try:
-            await self.register()
+        await self.register()
 
-            heartbeat_task = asyncio.create_task(self.heartbeat())
-            purge_task = asyncio.create_task(self.purge())
+    async def maintain(self):
+        heartbeat_task = asyncio.create_task(self.heartbeat())
+        purge_task = asyncio.create_task(self.purge())
 
-            await asyncio.gather(
-                heartbeat_task, purge_task, return_exceptions=True
-            )
-        finally:
-            await self.unregister()
-            await self._logger.ainfo(
-                log_event_name("stopped"),
-                subscribers=subscriber_keys,
-            )
+        await asyncio.gather(
+            heartbeat_task, purge_task, return_exceptions=True
+        )
+
+    async def stop(self):
+        await self.unregister()
+
+        await self._logger.ainfo(
+            log_event_name("stopped"),
+            subscribers=(await self._subscriber_keys()),
+        )
 
     async def register(self):
         for subscriber in await self._subscriber_store.list():

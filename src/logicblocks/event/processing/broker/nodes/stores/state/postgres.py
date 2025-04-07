@@ -212,10 +212,7 @@ async def remove(
     node_id: str,
     table_settings: TableSettings,
 ) -> None:
-    results = await cursor.execute(*delete_query(node_id, table_settings))
-    deleted_nodes = await results.fetchall()
-    if len(deleted_nodes) == 0:
-        raise ValueError("Can't remove missing node.")
+    await cursor.execute(*delete_query(node_id, table_settings))
 
 
 async def heartbeat(
@@ -224,10 +221,7 @@ async def heartbeat(
     node: NodeState,
     table_settings: TableSettings,
 ) -> None:
-    results = await cursor.execute(*heartbeat_query(node, table_settings))
-    updated_subscribers = await results.fetchall()
-    if len(updated_subscribers) == 0:
-        raise ValueError("Can't heartbeat missing node.")
+    await cursor.execute(*heartbeat_query(node, table_settings))
 
 
 async def purge(

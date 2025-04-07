@@ -26,7 +26,7 @@ class InMemoryNodeStateStore(NodeStateStore):
     async def remove(self, node_id: str) -> None:
         existing = self.nodes.get(node_id, None)
         if existing is None:
-            raise ValueError("Can't remove missing node.")
+            return
 
         self.nodes.pop(node_id)
 
@@ -48,7 +48,7 @@ class InMemoryNodeStateStore(NodeStateStore):
     async def heartbeat(self, node_id: str) -> None:
         existing = self.nodes.get(node_id, None)
         if existing is None:
-            raise ValueError("Can't heartbeat missing node.")
+            return
 
         self.nodes[node_id] = NodeState(node_id, self.clock.now(UTC))
 

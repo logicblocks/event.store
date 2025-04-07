@@ -39,13 +39,13 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
             None if state is None else state.last_sequence_number
         )
 
-        await self._logger.adebug(
-            log_event_name("starting-consume"),
-            source=self._source.identifier.serialise(
-                fallback=str_serialisation_fallback
-            ),
-            last_sequence_number=last_sequence_number,
-        )
+        # await self._logger.adebug(
+        #     log_event_name("starting-consume"),
+        #     source=self._source.identifier.serialise(
+        #         fallback=str_serialisation_fallback
+        #     ),
+        #     last_sequence_number=last_sequence_number,
+        # )
 
         source = self._source
         if last_sequence_number is not None:
@@ -57,13 +57,13 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
 
         consumed_count = 0
         async for event in source:
-            await self._logger.adebug(
-                log_event_name("consuming-event"),
-                source=self._source.identifier.serialise(
-                    fallback=str_serialisation_fallback
-                ),
-                envelope=event.summarise(),
-            )
+            # await self._logger.adebug(
+            #     log_event_name("consuming-event"),
+            #     source=self._source.identifier.serialise(
+            #         fallback=str_serialisation_fallback
+            #     ),
+            #     envelope=event.summarise(),
+            # )
             try:
                 await self._processor.process_event(event)
                 await self._state_store.record_processed(event)
@@ -81,10 +81,10 @@ class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
                 raise
 
         await self._state_store.save()
-        await self._logger.adebug(
-            log_event_name("completed-consume"),
-            source=self._source.identifier.serialise(
-                fallback=str_serialisation_fallback
-            ),
-            consumed_count=consumed_count,
-        )
+        # await self._logger.adebug(
+        #     log_event_name("completed-consume"),
+        #     source=self._source.identifier.serialise(
+        #         fallback=str_serialisation_fallback
+        #     ),
+        #     consumed_count=consumed_count,
+        # )

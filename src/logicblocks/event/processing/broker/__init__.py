@@ -1,10 +1,3 @@
-from .broker import (
-    CoordinatorObserverEventBroker,
-    EventBroker,
-    EventBrokerSettings,
-    make_in_memory_event_broker,
-    make_postgres_event_broker,
-)
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
     EventSubscriptionCoordinator,
@@ -36,6 +29,14 @@ from .sources import (
     InMemoryEventSubscriptionSourceMappingStore,
     PostgresEventStoreEventSourceFactory,
 )
+from .strategies import (
+    CoordinatorObserverEventBroker,
+    EventBroker,
+    EventBrokerSettings,
+    EventBrokerStatus,
+    make_in_memory_event_broker,
+    make_postgres_event_broker,
+)
 from .subscribers import (
     EventSubscriberManager,
     EventSubscriberState,
@@ -60,6 +61,8 @@ __all__ = (
     "COORDINATOR_LOCK_NAME",
     "CoordinatorObserverEventBroker",
     "EventBroker",
+    "EventBrokerSettings",
+    "EventBrokerStatus",
     "EventSourceFactory",
     "EventStoreEventSourceFactory",
     "EventSubscriber",
@@ -100,7 +103,6 @@ __all__ = (
     "PostgresEventSubscriptionStateStore",
     "PostgresLockManager",
     "PostgresNodeStateStore",
-    "EventBrokerSettings",
-    "make_postgres_event_broker",
     "make_in_memory_event_broker",
+    "make_postgres_event_broker",
 )

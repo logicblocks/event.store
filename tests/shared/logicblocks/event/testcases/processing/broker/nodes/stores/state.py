@@ -2,8 +2,6 @@ from abc import abstractmethod
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
 from logicblocks.event.processing.broker import NodeState, NodeStateStore
 from logicblocks.event.testing import data
 from logicblocks.event.utils.clock import Clock, TimezoneRequiredStaticClock
@@ -74,14 +72,17 @@ class NodeStateStoreCases:
         assert len(nodes) == 1
         assert nodes[0] == NodeState(node_id, last_seen_2)
 
-    async def test_raises_if_heartbeat_called_for_unknown_node(self):
+    async def test_heartbeat_does_nothing_if_called_for_unknown_node(self):
         now = datetime.now(UTC)
         clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
         store = self.construct_store(clock=clock)
 
-        with pytest.raises(ValueError):
-            await store.heartbeat(node_id)
+        await store.heartbeat(node_id)
+
+        nodes = await self.read_nodes(store)
+
+        assert len(nodes) == 0
 
     async def test_list_lists_nodes(self):
         now = datetime.now(UTC)
@@ -181,7 +182,7 @@ class NodeStateStoreCases:
 
         assert len(nodes) == 0
 
-    async def test_remove_raises_if_removing_unknown_subscriber(self):
+    async def test_remove_does_nothing_if_removing_unknown_node(self):
         now = datetime.now()
         clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         store = self.construct_store(clock=clock)
@@ -191,8 +192,12 @@ class NodeStateStoreCases:
 
         await store.add(node_id_1)
 
-        with pytest.raises(ValueError):
-            await store.remove(node_id_2)
+        await store.remove(node_id_2)
+
+        nodes = await self.read_nodes(store)
+
+        assert len(nodes) == 1
+        assert nodes[0].node_id == node_id_1
 
     async def test_purges_node_that_have_not_been_seen_for_5_minutes_by_default(
         self,

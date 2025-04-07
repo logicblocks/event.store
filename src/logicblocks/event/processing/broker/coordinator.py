@@ -108,9 +108,10 @@ def subscription_change_summary(
 
 
 class EventSubscriptionCoordinatorStatus(StrEnum):
-    STOPPED = "stopped"
+    INITIALISED = "initialised"
     STARTING = "starting"
     RUNNING = "running"
+    STOPPED = "stopped"
     ERRORED = "errored"
 
 
@@ -140,7 +141,7 @@ class EventSubscriptionCoordinator:
             subscriber_max_time_since_last_seen
         )
         self._distribution_interval = distribution_interval
-        self._status = EventSubscriptionCoordinatorStatus.STOPPED
+        self._status = EventSubscriptionCoordinatorStatus.INITIALISED
 
     @property
     def status(self) -> EventSubscriptionCoordinatorStatus:
@@ -247,9 +248,19 @@ class EventSubscriptionCoordinator:
                 if subscriber.subscription_key in subscription_map
             ]
 
-            subscription_source_mapping = subscription_source_mappings_map[
-                subscriber_group
-            ]
+            subscription_source_mapping = subscription_source_mappings_map.get(
+                subscriber_group, None
+            )
+            if subscription_source_mapping is None:
+                self._logger.error(
+                    log_event_name("no-event-source-mapping"),
+                    subscriber_group=subscriber_group,
+                    subscription_source_mappings=subscription_source_mappings_map,
+                )
+                raise ValueError(
+                    f"No event source mapping "
+                    f"for subscriber group {subscriber_group}"
+                )
             known_event_sources = subscription_source_mapping.event_sources
             allocated_event_sources = [
                 event_source

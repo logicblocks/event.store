@@ -2,8 +2,6 @@ from abc import abstractmethod
 from datetime import UTC, datetime, timedelta
 from random import shuffle
 
-import pytest
-
 from logicblocks.event.processing.broker import (
     EventSubscriberState,
     EventSubscriberStateStore,
@@ -147,7 +145,7 @@ class EventSubscriberStateStoreCases:
             )
         ]
 
-    async def test_raises_if_removing_unknown_subscriber(self):
+    async def test_does_nothing_if_removing_unknown_subscriber(self):
         now = datetime.now(UTC)
         clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
@@ -169,8 +167,18 @@ class EventSubscriberStateStoreCases:
 
         await store.add(subscriber_1_key)
 
-        with pytest.raises(ValueError):
-            await store.remove(subscriber_2_key)
+        await store.remove(subscriber_2_key)
+
+        states = await store.list()
+
+        assert states == [
+            EventSubscriberState(
+                group=subscriber_group,
+                id=subscriber_1_id,
+                node_id=node_id,
+                last_seen=now,
+            )
+        ]
 
     async def test_lists_subscribers_by_group(self):
         now = datetime.now(UTC)
@@ -429,7 +437,9 @@ class EventSubscriberStateStoreCases:
         assert subscriber_1_state.last_seen == updated_last_seen_time
         assert subscriber_2_state.last_seen == previous_last_seen_time
 
-    async def test_raises_if_heartbeat_called_for_unknown_subscriber(self):
+    async def test_does_nothing_if_heartbeat_called_for_unknown_subscriber(
+        self,
+    ):
         now = datetime.now(UTC)
         clock = TimezoneRequiredStaticClock(now=now, tz=UTC)
         node_id = data.random_node_id()
@@ -440,8 +450,9 @@ class EventSubscriberStateStoreCases:
             id=data.random_subscriber_id(),
         )
 
-        with pytest.raises(ValueError):
-            await store.heartbeat(subscriber_key)
+        await store.heartbeat(subscriber_key)
+
+        assert store.list() == []
 
     async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
         self,

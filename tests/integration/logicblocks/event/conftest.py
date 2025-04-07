@@ -3,8 +3,16 @@ import logging
 import pytest
 import structlog
 
+cr = structlog.dev.ConsoleRenderer(
+    exception_formatter=structlog.dev.RichTracebackFormatter(
+        width=180,
+        word_wrap=True,
+    )
+)
+
 structlog.configure(
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO)
+    processors=structlog.get_config()["processors"][:-1] + [cr],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
 )
 
 for package in [

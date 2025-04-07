@@ -28,26 +28,26 @@ class NodeManager:
         self._purge_interval = purge_interval
         self._node_max_age = node_max_age
 
-    async def execute(self):
+    async def start(self):
         await self._logger.ainfo(
             log_event_name("starting"),
             heartbeat_interval_seconds=self._heartbeat_interval.total_seconds(),
             purge_interval_seconds=self._purge_interval.total_seconds(),
             node_max_age_seconds=self._node_max_age.total_seconds(),
         )
+        await self.register()
 
-        try:
-            await self.register()
+    async def maintain(self):
+        heartbeat_task = asyncio.create_task(self.heartbeat())
+        purge_task = asyncio.create_task(self.purge())
 
-            heartbeat_task = asyncio.create_task(self.heartbeat())
-            purge_task = asyncio.create_task(self.purge())
+        await asyncio.gather(
+            heartbeat_task, purge_task, return_exceptions=True
+        )
 
-            await asyncio.gather(
-                heartbeat_task, purge_task, return_exceptions=True
-            )
-        finally:
-            await self.unregister()
-            await self._logger.ainfo(log_event_name("stopped"))
+    async def stop(self):
+        await self.unregister()
+        await self._logger.ainfo(log_event_name("stopped"))
 
     async def register(self):
         await self._logger.ainfo(log_event_name("registering-node"))

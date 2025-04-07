@@ -1,7 +1,6 @@
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
     EventSubscriptionCoordinator,
-    EventSubscriptionCoordinatorStatus,
 )
 from .difference import (
     EventSubscriptionChange,
@@ -18,8 +17,8 @@ from .nodes import (
 )
 from .observer import (
     EventSubscriptionObserver,
-    EventSubscriptionObserverStatus,
 )
+from .process import Process, ProcessStatus
 from .sources import (
     EventSourceFactory,
     EventStoreEventSourceFactory,
@@ -33,7 +32,6 @@ from .strategies import (
     CoordinatorObserverEventBroker,
     EventBroker,
     EventBrokerSettings,
-    EventBrokerStatus,
     make_in_memory_event_broker,
     make_postgres_event_broker,
 )
@@ -62,7 +60,6 @@ __all__ = (
     "CoordinatorObserverEventBroker",
     "EventBroker",
     "EventBrokerSettings",
-    "EventBrokerStatus",
     "EventSourceFactory",
     "EventStoreEventSourceFactory",
     "EventSubscriber",
@@ -75,11 +72,9 @@ __all__ = (
     "EventSubscriptionChange",
     "EventSubscriptionChangeset",
     "EventSubscriptionCoordinator",
-    "EventSubscriptionCoordinatorStatus",
     "EventSubscriptionDifference",
     "EventSubscriptionKey",
     "EventSubscriptionObserver",
-    "EventSubscriptionObserverStatus",
     "EventSubscriptionSourceMapping",
     "EventSubscriptionSourceMappingStore",
     "EventSubscriptionState",
@@ -103,6 +98,8 @@ __all__ = (
     "PostgresEventSubscriptionStateStore",
     "PostgresLockManager",
     "PostgresNodeStateStore",
+    "Process",
+    "ProcessStatus",
     "make_in_memory_event_broker",
     "make_postgres_event_broker",
 )

@@ -1,93 +1,12 @@
 import asyncio
 
-from ..coordinator import (
-    EventSubscriptionCoordinator,
-    EventSubscriptionCoordinatorStatus,
-)
+from ..coordinator import EventSubscriptionCoordinator
 from ..nodes import NodeManager
-from ..observer import (
-    EventSubscriptionObserver,
-    EventSubscriptionObserverStatus,
-)
-from ..subscribers import (
-    EventSubscriberManager,
-)
+from ..observer import EventSubscriptionObserver
+from ..process import ProcessStatus, determine_multi_process_status
+from ..subscribers import EventSubscriberManager
 from ..types import EventSubscriber
-from .base import EventBroker, EventBrokerStatus
-
-
-def determine_event_broker_status(
-    coordinator_status: EventSubscriptionCoordinatorStatus,
-    observer_status: EventSubscriptionObserverStatus,
-) -> EventBrokerStatus:
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.ERRORED or
-    #         observer_status == EventSubscriptionObserverStatus.ERRORED):
-    #     return EventBrokerStatus.ERRORED
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.STARTING and
-    #         observer_status == EventSubscriptionObserverStatus.INITIALISED):
-    #     return EventBrokerStatus.STARTING
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.STARTING and
-    #         observer_status == EventSubscriptionObserverStatus.RUNNING):
-    #     return EventBrokerStatus.RUNNING
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.STARTING and
-    #         observer_status == EventSubscriptionObserverStatus.STOPPED):
-    #     return EventBrokerStatus.STOPPING
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.RUNNING and
-    #         observer_status == EventSubscriptionObserverStatus.RUNNING):
-    #     return EventBrokerStatus.RUNNING
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.STOPPED and
-    #         observer_status == EventSubscriptionObserverStatus.STOPPED):
-    #     return EventBrokerStatus.STOPPED
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.STOPPED or
-    #         observer_status == EventSubscriptionObserverStatus.STOPPED):
-    #     return EventBrokerStatus.STOPPING
-    #
-    # if (coordinator_status == EventSubscriptionCoordinatorStatus.RUNNING or
-    #         observer_status == EventSubscriptionObserverStatus.RUNNING):
-    #     return EventBrokerStatus.STARTING
-    #
-    # return EventBrokerStatus.INITIALISED
-    if EventSubscriptionCoordinatorStatus.ERRORED in (
-        coordinator_status,
-        observer_status,
-    ):
-        return EventBrokerStatus.ERRORED
-
-    if coordinator_status == EventSubscriptionCoordinatorStatus.INITIALISED:
-        if observer_status == EventSubscriptionObserverStatus.INITIALISED:
-            return EventBrokerStatus.INITIALISED
-        if observer_status == EventSubscriptionObserverStatus.RUNNING:
-            return EventBrokerStatus.STARTING
-        if observer_status == EventSubscriptionObserverStatus.STOPPED:
-            return EventBrokerStatus.STOPPING
-
-    if coordinator_status == EventSubscriptionCoordinatorStatus.STARTING:
-        if observer_status == EventSubscriptionObserverStatus.INITIALISED:
-            return EventBrokerStatus.STARTING
-        if observer_status == EventSubscriptionObserverStatus.RUNNING:
-            return EventBrokerStatus.RUNNING
-        if observer_status == EventSubscriptionObserverStatus.STOPPED:
-            return EventBrokerStatus.STOPPING
-
-    if coordinator_status == EventSubscriptionCoordinatorStatus.RUNNING:
-        if observer_status == EventSubscriptionObserverStatus.RUNNING:
-            return EventBrokerStatus.RUNNING
-        if observer_status == EventSubscriptionObserverStatus.STOPPED:
-            return EventBrokerStatus.STOPPING
-        return EventBrokerStatus.STARTING
-
-    if coordinator_status == EventSubscriptionCoordinatorStatus.STOPPED:
-        if observer_status == EventSubscriptionObserverStatus.STOPPED:
-            return EventBrokerStatus.STOPPED
-        return EventBrokerStatus.STOPPING
-
-    return EventBrokerStatus.INITIALISED
+from .base import EventBroker
 
 
 class CoordinatorObserverEventBroker(EventBroker):
@@ -104,8 +23,8 @@ class CoordinatorObserverEventBroker(EventBroker):
         self._event_subscription_observer = event_subscription_observer
 
     @property
-    def status(self) -> EventBrokerStatus:
-        return determine_event_broker_status(
+    def status(self) -> ProcessStatus:
+        return determine_multi_process_status(
             self._event_subscription_coordinator.status,
             self._event_subscription_observer.status,
         )

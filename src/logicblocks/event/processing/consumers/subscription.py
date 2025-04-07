@@ -109,27 +109,27 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self._delegates.pop(source.identifier)
 
     async def consume_all(self) -> None:
-        # await self._logger.adebug(
-        #     "event.consumer.subscription.starting-consume",
-        #     sources=[
-        #         identifier.serialise(fallback=str_serialisation_fallback)
-        #         for identifier in self._delegates.keys()
-        #     ],
-        # )
+        await self._logger.adebug(
+            "event.consumer.subscription.starting-consume",
+            sources=[
+                identifier.serialise(fallback=str_serialisation_fallback)
+                for identifier in self._delegates.keys()
+            ],
+        )
 
-        for _, delegate in dict(self._delegates).items():
-            # await self._logger.adebug(
-            #     "event.consumer.subscription.consuming-source",
-            #     source=identifier.serialise(
-            #         fallback=str_serialisation_fallback
-            #     ),
-            # )
+        for identifier, delegate in dict(self._delegates).items():
+            await self._logger.adebug(
+                "event.consumer.subscription.consuming-source",
+                source=identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
+            )
             await delegate.consume_all()
 
-        # await self._logger.adebug(
-        #     "event.consumer.subscription.completed-consume",
-        #     sources=[
-        #         identifier.serialise(fallback=str_serialisation_fallback)
-        #         for identifier in self._delegates.keys()
-        #     ],
-        # )
+        await self._logger.adebug(
+            "event.consumer.subscription.completed-consume",
+            sources=[
+                identifier.serialise(fallback=str_serialisation_fallback)
+                for identifier in self._delegates.keys()
+            ],
+        )

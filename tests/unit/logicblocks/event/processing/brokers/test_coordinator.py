@@ -14,7 +14,6 @@ from logicblocks.event.processing.broker import (
     EventSubscriberState,
     EventSubscriberStateStore,
     EventSubscriptionCoordinator,
-    EventSubscriptionCoordinatorStatus,
     EventSubscriptionKey,
     EventSubscriptionSourceMappingStore,
     EventSubscriptionState,
@@ -25,6 +24,7 @@ from logicblocks.event.processing.broker import (
     InMemoryEventSubscriptionStateStore,
     InMemoryLockManager,
     LockManager,
+    ProcessStatus,
 )
 from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.store import EventSource
@@ -1268,7 +1268,7 @@ class TestCoordinateLocking:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(coordinator.coordinate())
@@ -1288,7 +1288,7 @@ class TestCoordinateLocking:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(coordinator.coordinate())
@@ -1299,7 +1299,7 @@ class TestCoordinateLocking:
 
         await asyncio.gather(task, return_exceptions=True)
 
-        assert coordinator.status == EventSubscriptionCoordinatorStatus.STOPPED
+        assert coordinator.status == ProcessStatus.STOPPED
 
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
@@ -1313,7 +1313,7 @@ class TestCoordinateLocking:
 
         await asyncio.gather(coordinator.coordinate(), return_exceptions=True)
 
-        assert coordinator.status == EventSubscriptionCoordinatorStatus.ERRORED
+        assert coordinator.status == ProcessStatus.ERRORED
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
 
@@ -1384,7 +1384,7 @@ class TestCoordinateDistribution:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         await wait_until_running()
@@ -1415,7 +1415,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.STARTING:
+                    if status == ProcessStatus.STARTING:
                         return
 
             await asyncio.wait_for(
@@ -1456,7 +1456,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await asyncio.wait_for(
@@ -1495,7 +1495,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await asyncio.wait_for(

@@ -12,7 +12,7 @@ cr = structlog.dev.ConsoleRenderer(
 
 structlog.configure(
     processors=structlog.get_config()["processors"][:-1] + [cr],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
 )
 
 for package in [

@@ -262,14 +262,9 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
     async def remove(self, subscriber: EventSubscriberKey) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
-                results = await cursor.execute(
+                await cursor.execute(
                     *delete_query(subscriber, self.table_settings)
                 )
-                deleted_subscribers = await results.fetchall()
-                if len(deleted_subscribers) == 0:
-                    raise ValueError(
-                        f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-                    )
 
     async def list(
         self,
@@ -309,7 +304,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
     async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
-                results = await cursor.execute(
+                await cursor.execute(
                     *heartbeat_query(
                         EventSubscriberState(
                             id=subscriber.id,
@@ -320,11 +315,6 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                         self.table_settings,
                     )
                 )
-                updated_subscribers = await results.fetchall()
-                if len(updated_subscribers) == 0:
-                    raise ValueError(
-                        f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-                    )
 
     async def purge(
         self, max_time_since_last_seen: timedelta = timedelta(minutes=5)

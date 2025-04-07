@@ -47,9 +47,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             None,
         )
         if existing is None:
-            raise ValueError(
-                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-            )
+            return
 
         self.subscribers.remove(existing)
 
@@ -86,9 +84,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             (None, None),
         )
         if existing is None or index is None:
-            raise ValueError(
-                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-            )
+            return
 
         self.subscribers[index] = EventSubscriberState(
             group=subscriber.group,

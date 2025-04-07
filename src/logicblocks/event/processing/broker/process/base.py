@@ -1,10 +1,5 @@
 from abc import abstractmethod
 from enum import StrEnum
-from types import NoneType
-
-from ...services import Service
-from ..process import Process
-from ..types import EventSubscriber
 
 
 class ProcessStatus(StrEnum):
@@ -16,7 +11,8 @@ class ProcessStatus(StrEnum):
     ERRORED = "errored"
 
 
-class EventBroker(Service[NoneType], Process):
+class Process:
+    @property
     @abstractmethod
-    async def register(self, subscriber: EventSubscriber) -> None:
+    def status(self) -> ProcessStatus:
         raise NotImplementedError

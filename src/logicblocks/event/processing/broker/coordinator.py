@@ -3,7 +3,6 @@ import itertools
 import operator
 from collections.abc import Sequence
 from datetime import timedelta
-from enum import StrEnum
 from typing import Any
 
 from structlog.types import FilteringBoundLogger
@@ -12,6 +11,7 @@ from logicblocks.event.types import str_serialisation_fallback
 
 from .locks import LockManager
 from .logger import default_logger
+from .process import Process, ProcessStatus
 from .sources import (
     EventSubscriptionSourceMapping,
     EventSubscriptionSourceMappingStore,
@@ -107,15 +107,7 @@ def subscription_change_summary(
     }
 
 
-class EventSubscriptionCoordinatorStatus(StrEnum):
-    INITIALISED = "initialised"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPED = "stopped"
-    ERRORED = "errored"
-
-
-class EventSubscriptionCoordinator:
+class EventSubscriptionCoordinator(Process):
     def __init__(
         self,
         node_id: str,
@@ -141,10 +133,10 @@ class EventSubscriptionCoordinator:
             subscriber_max_time_since_last_seen
         )
         self._distribution_interval = distribution_interval
-        self._status = EventSubscriptionCoordinatorStatus.INITIALISED
+        self._status = ProcessStatus.INITIALISED
 
     @property
-    def status(self) -> EventSubscriptionCoordinatorStatus:
+    def status(self) -> ProcessStatus:
         return self._status
 
     async def coordinate(self) -> None:
@@ -160,21 +152,21 @@ class EventSubscriptionCoordinator:
             distribution_interval_seconds=distribution_interval_seconds,
             subscriber_max_time_since_last_seen_seconds=subscriber_max_last_seen_time,
         )
-        self._status = EventSubscriptionCoordinatorStatus.STARTING
+        self._status = ProcessStatus.STARTING
 
         try:
             async with self._lock_manager.wait_for_lock(LOCK_NAME):
                 await self._logger.ainfo(log_event_name("running"))
-                self._status = EventSubscriptionCoordinatorStatus.RUNNING
+                self._status = ProcessStatus.RUNNING
                 while True:
                     await self.distribute()
                     await asyncio.sleep(distribution_interval_seconds)
         except asyncio.CancelledError:
-            self._status = EventSubscriptionCoordinatorStatus.STOPPED
+            self._status = ProcessStatus.STOPPED
             await self._logger.ainfo(log_event_name("stopped"))
             raise
         except BaseException:
-            self._status = EventSubscriptionCoordinatorStatus.ERRORED
+            self._status = ProcessStatus.ERRORED
             await self._logger.aexception(log_event_name("failed"))
             raise
 

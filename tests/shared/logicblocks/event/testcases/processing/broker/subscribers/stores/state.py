@@ -452,7 +452,7 @@ class EventSubscriberStateStoreCases:
 
         await store.heartbeat(subscriber_key)
 
-        assert store.list() == []
+        assert await store.list() == []
 
     async def test_purges_subscribers_that_have_not_been_seen_for_5_minutes_by_default(
         self,

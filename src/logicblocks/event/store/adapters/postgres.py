@@ -397,7 +397,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(),
-        max_insert_batch_size: int = 10000,
+        max_insert_batch_size: int = 1000,
     ):
         if isinstance(connection_source, ConnectionSettings):
             self._connection_pool_owner = True

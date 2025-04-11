@@ -19,7 +19,7 @@ from .types import EventConsumer, EventProcessor
 def make_subscriber(
     *,
     subscriber_group: str,
-    subscriber_id: str | None,
+    subscriber_id: str | None = None,
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),

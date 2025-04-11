@@ -8,7 +8,6 @@ from logicblocks.event.store import (
 )
 
 from ..locks import InMemoryLockManager, PostgresLockManager
-from ..nodes import InMemoryNodeStateStore, PostgresNodeStateStore
 from ..sources import (
     InMemoryEventStoreEventSourceFactory,
     PostgresEventStoreEventSourceFactory,
@@ -36,16 +35,15 @@ class InMemoryEventBrokerBuilder(
         self, adapter: InMemoryEventStorageAdapter
     ) -> EventBrokerDependencies:
         return EventBrokerDependencies(
-            node_state_store=InMemoryNodeStateStore(),
+            lock_manager=InMemoryLockManager(),
+            event_source_factory=InMemoryEventStoreEventSourceFactory(
+                adapter=adapter
+            ),
             event_subscriber_state_store=InMemoryEventSubscriberStateStore(
                 node_id=self.node_id,
             ),
             event_subscription_state_store=InMemoryEventSubscriptionStateStore(
                 node_id=self.node_id
-            ),
-            lock_manager=InMemoryLockManager(),
-            event_source_factory=InMemoryEventStoreEventSourceFactory(
-                adapter=adapter
             ),
         )
 
@@ -61,13 +59,6 @@ class PostgresEventBrokerBuilder(
         connection_pool: AsyncConnectionPool[AsyncConnection],
     ) -> EventBrokerDependencies:
         return EventBrokerDependencies(
-            node_state_store=PostgresNodeStateStore(connection_pool),
-            event_subscriber_state_store=PostgresEventSubscriberStateStore(
-                node_id=self.node_id, connection_source=connection_pool
-            ),
-            event_subscription_state_store=PostgresEventSubscriptionStateStore(
-                node_id=self.node_id, connection_source=connection_pool
-            ),
             lock_manager=PostgresLockManager(
                 connection_settings=connection_settings
             ),
@@ -75,6 +66,12 @@ class PostgresEventBrokerBuilder(
                 adapter=PostgresEventStorageAdapter(
                     connection_source=connection_pool
                 )
+            ),
+            event_subscriber_state_store=PostgresEventSubscriberStateStore(
+                node_id=self.node_id, connection_source=connection_pool
+            ),
+            event_subscription_state_store=PostgresEventSubscriptionStateStore(
+                node_id=self.node_id, connection_source=connection_pool
             ),
         )
 

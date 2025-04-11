@@ -5,7 +5,6 @@ from typing import Self, TypedDict
 
 from ..coordinator import EventSubscriptionCoordinator
 from ..locks import LockManager
-from ..nodes import NodeManager, NodeStateStore
 from ..observer import EventSubscriptionObserver
 from ..sources import EventStoreEventSourceFactory
 from ..subscribers import (
@@ -20,9 +19,6 @@ from .coordinator_observer import CoordinatorObserverEventBroker
 
 @dataclass(frozen=True)
 class EventBrokerSettings:
-    node_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
-    node_manager_purge_interval: timedelta = timedelta(minutes=1)
-    node_manager_node_max_age: timedelta = timedelta(minutes=10)
     subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
     subscriber_manager_purge_interval: timedelta = timedelta(minutes=1)
     subscriber_manager_subscriber_max_age: timedelta = timedelta(minutes=10)
@@ -34,17 +30,15 @@ class EventBrokerSettings:
 
 
 class EventBrokerDependencies(TypedDict):
-    node_state_store: NodeStateStore
-    event_subscriber_state_store: EventSubscriberStateStore
-    event_subscription_state_store: EventSubscriptionStateStore
     lock_manager: LockManager
     event_source_factory: EventStoreEventSourceFactory
+    event_subscriber_state_store: EventSubscriberStateStore
+    event_subscription_state_store: EventSubscriptionStateStore
 
 
 class EventBrokerBuilder[**P = ...](ABC):
     node_id: str
 
-    node_state_store: NodeStateStore
     event_subscriber_state_store: EventSubscriberStateStore
     event_subscription_state_store: EventSubscriptionStateStore
     lock_manager: LockManager
@@ -61,15 +55,14 @@ class EventBrokerBuilder[**P = ...](ABC):
 
     def prepare(self, *args: P.args, **kwargs: P.kwargs) -> Self:
         prepare = self.dependencies(*args, **kwargs)
-        self.node_state_store = prepare["node_state_store"]
+        self.lock_manager = prepare["lock_manager"]
+        self.event_source_factory = prepare["event_source_factory"]
         self.event_subscriber_state_store = prepare[
             "event_subscriber_state_store"
         ]
         self.event_subscription_state_store = prepare[
             "event_subscription_state_store"
         ]
-        self.lock_manager = prepare["lock_manager"]
-        self.event_source_factory = prepare["event_source_factory"]
 
         return self
 
@@ -77,14 +70,6 @@ class EventBrokerBuilder[**P = ...](ABC):
         self,
         settings: EventBrokerSettings,
     ) -> EventBroker:
-        node_manager = NodeManager(
-            node_id=self.node_id,
-            node_state_store=self.node_state_store,
-            heartbeat_interval=settings.node_manager_heartbeat_interval,
-            purge_interval=settings.node_manager_purge_interval,
-            node_max_age=settings.node_manager_node_max_age,
-        )
-
         event_subscriber_store = InMemoryEventSubscriberStore()
 
         event_subscriber_manager = EventSubscriberManager(
@@ -114,7 +99,6 @@ class EventBrokerBuilder[**P = ...](ABC):
         )
 
         return CoordinatorObserverEventBroker(
-            node_manager=node_manager,
             event_subscriber_manager=event_subscriber_manager,
             event_subscription_coordinator=event_subscription_coordinator,
             event_subscription_observer=event_subscription_observer,

@@ -1,7 +1,6 @@
 import asyncio
 
 from ..coordinator import EventSubscriptionCoordinator
-from ..nodes import NodeManager
 from ..observer import EventSubscriptionObserver
 from ..process import ProcessStatus, determine_multi_process_status
 from ..subscribers import EventSubscriberManager
@@ -12,12 +11,10 @@ from .base import EventBroker
 class CoordinatorObserverEventBroker(EventBroker):
     def __init__(
         self,
-        node_manager: NodeManager,
         event_subscriber_manager: EventSubscriberManager,
         event_subscription_coordinator: EventSubscriptionCoordinator,
         event_subscription_observer: EventSubscriptionObserver,
     ):
-        self._node_manager = node_manager
         self._event_subscriber_manager = event_subscriber_manager
         self._event_subscription_coordinator = event_subscription_coordinator
         self._event_subscription_observer = event_subscription_observer
@@ -34,11 +31,9 @@ class CoordinatorObserverEventBroker(EventBroker):
 
     async def execute(self) -> None:
         try:
-            await self._node_manager.start()
             await self._event_subscriber_manager.start()
 
             await asyncio.gather(
-                self._node_manager.maintain(),
                 self._event_subscriber_manager.maintain(),
                 self._event_subscription_coordinator.coordinate(),
                 self._event_subscription_observer.observe(),
@@ -46,4 +41,3 @@ class CoordinatorObserverEventBroker(EventBroker):
             )
         finally:
             await self._event_subscriber_manager.stop()
-            await self._node_manager.stop()

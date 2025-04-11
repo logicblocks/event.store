@@ -12,7 +12,6 @@ from logicblocks.event.processing.broker import (
     EventSubscriberManager,
     EventSubscriptionCoordinator,
     EventSubscriptionObserver,
-    NodeManager,
     ProcessStatus,
 )
 
@@ -20,20 +19,17 @@ from logicblocks.event.processing.broker import (
 @dataclass(frozen=True)
 class Context:
     broker: EventBroker
-    node_manager: Mock
     event_subscriber_manager: Mock
     event_subscription_coordinator: Mock
     event_subscription_observer: Mock
 
 
 def make_event_broker():
-    node_manager = Mock(spec=NodeManager)
     event_subscriber_manager = Mock(spec=EventSubscriberManager)
     event_subscription_coordinator = Mock(spec=EventSubscriptionCoordinator)
     event_subscription_observer = Mock(spec=EventSubscriptionObserver)
 
     broker = CoordinatorObserverEventBroker(
-        node_manager=node_manager,
         event_subscriber_manager=event_subscriber_manager,
         event_subscription_coordinator=event_subscription_coordinator,
         event_subscription_observer=event_subscription_observer,
@@ -41,7 +37,6 @@ def make_event_broker():
 
     return Context(
         broker=broker,
-        node_manager=node_manager,
         event_subscriber_manager=event_subscriber_manager,
         event_subscription_coordinator=event_subscription_coordinator,
         event_subscription_observer=event_subscription_observer,

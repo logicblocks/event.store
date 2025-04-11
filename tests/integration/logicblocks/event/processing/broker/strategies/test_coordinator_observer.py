@@ -50,9 +50,6 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 event_broker_settings = EventBrokerSettings(
-    node_manager_heartbeat_interval=timedelta(milliseconds=200),
-    node_manager_purge_interval=timedelta(seconds=1.2),
-    node_manager_node_max_age=timedelta(seconds=12),
     subscriber_manager_heartbeat_interval=timedelta(milliseconds=200),
     subscriber_manager_purge_interval=timedelta(seconds=1.2),
     subscriber_manager_subscriber_max_age=timedelta(seconds=12),

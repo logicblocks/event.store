@@ -1,5 +1,4 @@
 from .processing.broker.locks.lock_manager import LockManagerCases
-from .processing.broker.nodes.stores.state import NodeStateStoreCases
 from .processing.broker.subscribers.stores.state import (
     EventSubscriberStateStoreCases,
 )
@@ -11,5 +10,4 @@ __all__ = [
     "EventSubscriptionStateStoreCases",
     "EventSubscriberStateStoreCases",
     "LockManagerCases",
-    "NodeStateStoreCases",
 ]

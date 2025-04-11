@@ -58,12 +58,14 @@ changelog-fragment-create = "scriv create"
 changelog-assemble = "scriv collect"
 
 [tool.poe.tasks.test-unit]
+args = [{ name = "filter", options = ["--filter"], default = "" }]
 shell = """
   mkdir -p reports/coverage/unit
   pytest -vv tests/unit \
     --junitxml=./reports/unit.junit.xml \
     --cov-report=xml:./reports/coverage/unit/coverage.xml \
-    --cov-report=html:./reports/coverage/unit
+    --cov-report=html:./reports/coverage/unit \
+    ${filter:+-k ${filter}}
 """
 
 [tool.poe.tasks.test-unit.env]
@@ -71,13 +73,15 @@ COVERAGE_FILE = "./reports/coverage/unit/.coverage"
 PYTHONDEVMODE = "1"
 
 [tool.poe.tasks.test-integration]
+args = [{ name = "filter", options = ["--filter"], default = "" }]
 envfile = "config/test.env"
 shell = """
   mkdir -p reports/coverage/integration
   pytest -vv tests/integration \
     --junitxml=./reports/integration.junit.xml \
     --cov-report=xml:./reports/coverage/integration/coverage.xml \
-    --cov-report=html:./reports/coverage/integration
+    --cov-report=html:./reports/coverage/integration \
+    ${filter:+-k ${filter}}
 """
 
 [tool.poe.tasks.test-integration.env]
@@ -85,13 +89,15 @@ COVERAGE_FILE = "./reports/coverage/integration/.coverage"
 PYTHONDEVMODE = "1"
 
 [tool.poe.tasks.test-component]
+args = [{ name = "filter", options = ["--filter"], default = "" }]
 envfile = "config/test.env"
 shell = """
   mkdir -p reports/coverage/component
   pytest -vv tests/component \
     --junitxml=./reports/component.junit.xml \
     --cov-report=xml:./reports/coverage/component/coverage.xml \
-    --cov-report=html:./reports/coverage/component
+    --cov-report=html:./reports/coverage/component \
+    ${filter:+-k ${filter}}
 """
 
 [tool.poe.tasks.test-component.env]

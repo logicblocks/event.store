@@ -1,8 +1,6 @@
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from structlog.typing import FilteringBoundLogger
-
 from .types import Service
 
 

@@ -5,6 +5,7 @@ from typing import Any, Callable, Self
 
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db.postgres import (
@@ -34,9 +35,10 @@ from logicblocks.event.projection.store.adapters.postgres import (
     operator_for_query_operator,
     sort_direction_for_query_sort_order,
 )
+from logicblocks.event.types.identifier import event_sequence_identifier
 from logicblocks.event.utils.clock import Clock, SystemClock
 
-from ....types import EventSubscriberKey
+from ....types import EventSubscriber
 from .base import EventSubscriberState, EventSubscriberStateStore
 
 
@@ -136,6 +138,12 @@ def insert_query(
     subscriber: EventSubscriberState,
     table_settings: PostgresTableSettings,
 ) -> ParameterisedQuery:
+    subscription_requests_jsonb = Jsonb(
+        [
+            subscription_request.serialise()
+            for subscription_request in subscriber.subscription_requests
+        ]
+    )
     return (
         sql.SQL(
             """
@@ -143,26 +151,29 @@ def insert_query(
               "group", 
               id,
               node_id,
+              subscription_requests,
               last_seen
             )
-            VALUES (%s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
               ON CONFLICT ("group", id) 
               DO UPDATE
-            SET (last_seen) = ROW(%s);
+            SET (subscription_requests, last_seen) = ROW(%s, %s);
             """
         ).format(sql.Identifier(table_settings.subscribers_table_name)),
         [
             subscriber.group,
             subscriber.id,
             subscriber.node_id,
+            subscription_requests_jsonb,
             subscriber.last_seen,
+            subscription_requests_jsonb,
             subscriber.last_seen,
         ],
     )
 
 
 def delete_query(
-    key: EventSubscriberKey,
+    key: EventSubscriber,
     table_settings: PostgresTableSettings,
 ) -> ParameterisedQuery:
     return (
@@ -244,7 +255,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
             else (PostgresQueryConverter().with_default_clause_applicators())
         )
 
-    async def add(self, subscriber: EventSubscriberKey) -> None:
+    async def add(self, subscriber: EventSubscriber) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -253,13 +264,14 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                             id=subscriber.id,
                             group=subscriber.group,
                             node_id=self.node_id,
+                            subscription_requests=subscriber.subscription_requests,
                             last_seen=self.clock.now(UTC),
                         ),
                         self.table_settings,
                     )
                 )
 
-    async def remove(self, subscriber: EventSubscriberKey) -> None:
+    async def remove(self, subscriber: EventSubscriber) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -296,12 +308,18 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                         id=subscriber_state_dict["id"],
                         group=subscriber_state_dict["group"],
                         node_id=subscriber_state_dict["node_id"],
+                        subscription_requests=[
+                            event_sequence_identifier(subscription_request)
+                            for subscription_request in subscriber_state_dict[
+                                "subscription_requests"
+                            ]
+                        ],
                         last_seen=subscriber_state_dict["last_seen"],
                     )
                     for subscriber_state_dict in subscriber_state_dicts
                 ]
 
-    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -310,6 +328,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                             id=subscriber.id,
                             group=subscriber.group,
                             node_id=self.node_id,
+                            subscription_requests=subscriber.subscription_requests,
                             last_seen=self.clock.now(UTC),
                         ),
                         self.table_settings,

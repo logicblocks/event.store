@@ -8,7 +8,6 @@ from structlog.types import FilteringBoundLogger
 from logicblocks.event.types import str_serialisation_fallback
 
 from ..logger import default_logger
-from ..sources import EventSubscriptionSourceMappingStore
 from ..types import EventSubscriber, EventSubscriberHealth
 from .stores import EventSubscriberStateStore, EventSubscriberStore
 
@@ -23,7 +22,6 @@ class EventSubscriberManager:
         node_id: str,
         subscriber_store: EventSubscriberStore,
         subscriber_state_store: EventSubscriberStateStore,
-        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
         logger: FilteringBoundLogger = default_logger,
         heartbeat_interval: timedelta = timedelta(seconds=10),
         purge_interval: timedelta = timedelta(minutes=1),
@@ -32,9 +30,6 @@ class EventSubscriberManager:
         self._node_id = node_id
         self._subscriber_store = subscriber_store
         self._subscriber_state_store = subscriber_state_store
-        self._subscription_source_mapping_store = (
-            subscription_source_mapping_store
-        )
         self._logger = logger.bind(node=node_id)
         self._heartbeat_interval = heartbeat_interval
         self._purge_interval = purge_interval
@@ -90,10 +85,7 @@ class EventSubscriberManager:
                     ],
                 },
             )
-            await self._subscription_source_mapping_store.add(
-                subscriber.group, subscriber.subscription_requests
-            )
-            await self._subscriber_state_store.add(subscriber.key)
+            await self._subscriber_state_store.add(subscriber)
 
     async def unregister(self):
         for subscriber in await self._subscriber_store.list():
@@ -101,10 +93,7 @@ class EventSubscriberManager:
                 log_event_name("unregistering-subscriber"),
                 subscriber={"group": subscriber.group, "id": subscriber.id},
             )
-            await self._subscriber_state_store.remove(subscriber.key)
-            await self._subscription_source_mapping_store.remove(
-                subscriber.group
-            )
+            await self._subscriber_state_store.remove(subscriber)
 
     async def heartbeat(self):
         while True:
@@ -122,9 +111,7 @@ class EventSubscriberManager:
                         log_event_name("subscriber-healthy"),
                         subscriber=subscriber.key.dict(),
                     )
-                    await self._subscriber_state_store.heartbeat(
-                        subscriber.key
-                    )
+                    await self._subscriber_state_store.heartbeat(subscriber)
                 else:
                     await self._logger.aerror(
                         log_event_name("subscriber-unhealthy"),

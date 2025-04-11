@@ -7,6 +7,7 @@ import pytest
 import structlog
 from structlog.stdlib import BoundLogger
 
+
 class CompatibleBoundLogger(BoundLogger):
     def is_enabled_for(self, level: int) -> bool:
         return self.isEnabledFor(level)
@@ -42,10 +43,10 @@ shared_processors = [
 
 structlog.configure(
     processors=shared_processors
-               + [
-                   structlog.processors.StackInfoRenderer(),
-                   structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-               ],
+    + [
+        structlog.processors.StackInfoRenderer(),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
     logger_factory=structlog.stdlib.LoggerFactory(),
     wrapper_class=CompatibleBoundLogger,
     cache_logger_on_first_use=True,
@@ -57,26 +58,23 @@ render_processors = [
             width=180,
             word_wrap=True,
         ),
-        colors=True
+        colors=True,
     )
 ]
 
 standard_output_processor = structlog.stdlib.ProcessorFormatter(
     foreign_pre_chain=shared_processors,
     processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta]
-               + render_processors,
+    + render_processors,
 )
 
 root_logger = logging.getLogger()
 for handler in root_logger.handlers:
     root_logger.removeHandler(handler)
 
+
 def noise_filter(event: logging.LogRecord) -> bool:
-    if event.name in [
-        "faker.factory",
-        "asyncio",
-        "logicblocks.event.store"
-    ]:
+    if event.name in ["faker.factory", "asyncio", "logicblocks.event.store"]:
         return False
     event_contents = cast(Mapping[str, Any], event.msg)
     if event_contents["event"] in [
@@ -88,26 +86,27 @@ def noise_filter(event: logging.LogRecord) -> bool:
         "event.processing.broker.observer.synchronisation.starting",
         "event.processing.broker.observer.synchronisation.complete",
         "event.processing.broker.coordinator.distribution.starting",
-        "event.processing.broker.coordinator.distribution.complete"
+        "event.processing.broker.coordinator.distribution.complete",
     ]:
         return False
     return True
+
 
 standard_output_handler = logging.StreamHandler(stream=sys.stdout)
 standard_output_handler.setFormatter(standard_output_processor)
 standard_output_handler.addFilter(noise_filter)
 
 root_logger.addHandler(standard_output_handler)
-root_logger.setLevel("DEBUG")
+root_logger.setLevel("CRITICAL")
 
 faker_logger = logging.getLogger("faker.factory")
-faker_logger.setLevel("INFO")
+faker_logger.setLevel("CRITICAL")
 
 faker_logger = logging.getLogger("asyncio")
-faker_logger.setLevel("INFO")
+faker_logger.setLevel("CRITICAL")
 
 consumers_logger = logging.getLogger("logicblocks.event.processing.consumers")
-consumers_logger.setLevel("INFO")
+consumers_logger.setLevel("CRITICAL")
 
 for logger_name in logging.root.manager.loggerDict:
     logger = logging.getLogger(logger_name)

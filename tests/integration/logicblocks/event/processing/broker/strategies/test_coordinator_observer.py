@@ -85,10 +85,10 @@ def random_category_names(count: int) -> Sequence[str]:
 
 
 def make_subscribers(
-        node_ids: Sequence[str],
-        categories: Sequence[str],
-        event_store: EventStore,
-        event_processor: EventProcessor,
+    node_ids: Sequence[str],
+    categories: Sequence[str],
+    event_store: EventStore,
+    event_processor: EventProcessor,
 ) -> Mapping[str, Sequence[EventSubscriptionConsumer]]:
     return {
         node_id: [
@@ -108,7 +108,7 @@ def make_subscribers(
 
 
 def make_event_broker(
-        node_id: str, connection_pool: AsyncConnectionPool[AsyncConnection]
+    node_id: str, connection_pool: AsyncConnectionPool[AsyncConnection]
 ) -> EventBroker:
     return make_postgres_event_broker(
         node_id=node_id,
@@ -119,8 +119,8 @@ def make_event_broker(
 
 
 def make_event_brokers(
-        node_ids: Sequence[str],
-        connection_pool: AsyncConnectionPool[AsyncConnection],
+    node_ids: Sequence[str],
+    connection_pool: AsyncConnectionPool[AsyncConnection],
 ) -> Mapping[str, EventBroker]:
     return {
         node_id: make_event_broker(node_id, connection_pool)
@@ -129,15 +129,15 @@ def make_event_brokers(
 
 
 async def register_subscribers_on_broker(
-        event_broker: EventBroker, subscribers: Sequence[EventSubscriber]
+    event_broker: EventBroker, subscribers: Sequence[EventSubscriber]
 ) -> None:
     for subscriber in subscribers:
         await event_broker.register(subscriber)
 
 
 async def register_subscribers_on_brokers(
-        event_brokers: Mapping[str, EventBroker],
-        subscribers: Mapping[str, Sequence[EventSubscriber]],
+    event_brokers: Mapping[str, EventBroker],
+    subscribers: Mapping[str, Sequence[EventSubscriber]],
 ) -> None:
     for node_id, event_broker in event_brokers.items():
         await register_subscribers_on_broker(
@@ -146,7 +146,7 @@ async def register_subscribers_on_brokers(
 
 
 async def start_brokers(
-        node_ids: Sequence[str], event_brokers: Mapping[str, EventBroker]
+    node_ids: Sequence[str], event_brokers: Mapping[str, EventBroker]
 ) -> Sequence[asyncio.Task]:
     return [
         asyncio.create_task(event_brokers[node_id].execute())
@@ -155,7 +155,7 @@ async def start_brokers(
 
 
 async def publish_event_per_category(
-        event_store: EventStore, categories: Sequence[str]
+    event_store: EventStore, categories: Sequence[str]
 ) -> None:
     for category in categories:
         (
@@ -166,9 +166,9 @@ async def publish_event_per_category(
 
 
 async def consume_until_event_count(
-        event_processor: CapturingEventProcessor,
-        subscribers: Mapping[str, Sequence[EventSubscriptionConsumer]],
-        event_count: int,
+    event_processor: CapturingEventProcessor,
+    subscribers: Mapping[str, Sequence[EventSubscriptionConsumer]],
+    event_count: int,
 ) -> None:
     while len(event_processor.events) < event_count:
         consume_tasks = [
@@ -182,11 +182,11 @@ async def consume_until_event_count(
 
 class NodeSet:
     def __init__(
-            self,
-            connection_pool: AsyncConnectionPool[AsyncConnection],
-            event_store: EventStore,
-            event_processor: EventProcessor,
-            node_count: int,
+        self,
+        connection_pool: AsyncConnectionPool[AsyncConnection],
+        event_store: EventStore,
+        event_processor: EventProcessor,
+        node_count: int,
     ):
         self._connection_pool = connection_pool
         self._event_store = event_store
@@ -284,7 +284,7 @@ class NodeSet:
         self._event_broker_tasks = {}
 
     async def register_subscribers_for_categories(
-            self, category_names: Sequence[str]
+        self, category_names: Sequence[str]
     ):
         self._category_names = category_names
 
@@ -322,7 +322,7 @@ class NodeSet:
             **{
                 node_id: self._event_brokers[node_id].status
                 for node_id in self._node_ids
-            }
+            },
         }
 
     def has_errored_nodes(self):
@@ -347,6 +347,8 @@ async def fail_on_event_processing_timeout():
     except asyncio.TimeoutError:
         pytest.fail("Timed out waiting for all events to be processed.")
 
+
+# @pytest.mark.skip(reason="working on the fix")
 class TestCoordinatorObserverEventBroker:
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
@@ -371,10 +373,10 @@ class TestCoordinatorObserverEventBroker:
         )
 
     def make_node_set(
-            self,
-            event_store: EventStore,
-            event_processor: EventProcessor,
-            node_count: int,
+        self,
+        event_store: EventStore,
+        event_processor: EventProcessor,
+        node_count: int,
     ) -> NodeSet:
         return NodeSet(
             connection_pool=self.connection_pool,
@@ -490,7 +492,7 @@ class TestCoordinatorObserverEventBroker:
         assert not node_set.has_errored_nodes()
 
     async def test_coordinates_subscribers_when_single_node_among_many_replaced(
-            self,
+        self,
     ):
         node_count = 3
         subscriber_group_count = 50
@@ -534,7 +536,7 @@ class TestCoordinatorObserverEventBroker:
         assert not node_set.has_errored_nodes()
 
     async def test_coordinates_subscribers_when_all_nodes_in_many_node_deployment_replaced(
-            self,
+        self,
     ):
         node_count = 3
         subscriber_group_count = 50

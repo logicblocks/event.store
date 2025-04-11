@@ -7,10 +7,7 @@ from ..coordinator import EventSubscriptionCoordinator
 from ..locks import LockManager
 from ..nodes import NodeManager, NodeStateStore
 from ..observer import EventSubscriptionObserver
-from ..sources import (
-    EventStoreEventSourceFactory,
-    InMemoryEventSubscriptionSourceMappingStore,
-)
+from ..sources import EventStoreEventSourceFactory
 from ..subscribers import (
     EventSubscriberManager,
     EventSubscriberStateStore,
@@ -89,15 +86,11 @@ class EventBrokerBuilder[**P = ...](ABC):
         )
 
         event_subscriber_store = InMemoryEventSubscriberStore()
-        event_subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         event_subscriber_manager = EventSubscriberManager(
             node_id=self.node_id,
             subscriber_store=event_subscriber_store,
             subscriber_state_store=self.event_subscriber_state_store,
-            subscription_source_mapping_store=event_subscription_source_mapping_store,
             heartbeat_interval=settings.subscriber_manager_heartbeat_interval,
             purge_interval=settings.subscriber_manager_purge_interval,
             subscriber_max_age=settings.subscriber_manager_subscriber_max_age,
@@ -108,7 +101,6 @@ class EventBrokerBuilder[**P = ...](ABC):
             lock_manager=self.lock_manager,
             subscriber_state_store=self.event_subscriber_state_store,
             subscription_state_store=self.event_subscription_state_store,
-            subscription_source_mapping_store=event_subscription_source_mapping_store,
             subscriber_max_time_since_last_seen=settings.coordinator_subscriber_max_time_since_last_seen,
             distribution_interval=settings.coordinator_distribution_interval,
         )

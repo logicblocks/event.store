@@ -12,10 +12,6 @@ from logicblocks.event.processing.broker import (
     EventSubscriberManager,
     InMemoryEventSubscriberStateStore,
     InMemoryEventSubscriberStore,
-    InMemoryEventSubscriptionSourceMappingStore,
-)
-from logicblocks.event.processing.broker.sources.stores.mappings.base import (
-    EventSubscriptionSourceMapping,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
@@ -31,14 +27,14 @@ class CapturingEventSubscriber(EventSubscriber):
         self,
         group: str,
         id: str,
-        sequences: Sequence[EventSourceIdentifier],
+        subscription_requests: Sequence[EventSourceIdentifier],
         health: EventSubscriberHealth = EventSubscriberHealth.HEALTHY,
     ):
         self.sources = []
         self.counts = defaultdict(lambda: 0)
         self._group = group
         self._id = id
-        self._sequences = sequences
+        self._subscription_requests = subscription_requests
         self._health = health
 
     @property
@@ -51,7 +47,7 @@ class CapturingEventSubscriber(EventSubscriber):
 
     @property
     def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return self._sequences
+        return self._subscription_requests
 
     def health(self) -> EventSubscriberHealth:
         self.counts["health"] += 1
@@ -71,7 +67,7 @@ class CountingEventSubscriberStateStore(InMemoryEventSubscriberStateStore):
         super().__init__(node_id)
         self.counts = defaultdict(lambda: 0)
 
-    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber) -> None:
         self.counts[f"heartbeat:{subscriber.group}/{subscriber.id}"] += 1
         return await super().heartbeat(subscriber)
 
@@ -88,27 +84,27 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
@@ -126,15 +122,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             heartbeat_interval=timedelta(seconds=5),
             purge_interval=timedelta(seconds=30),
@@ -144,7 +136,9 @@ class TestEventSubscriberManager:
         subscriber = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
         )
 
         await manager.add(subscriber)
@@ -170,27 +164,27 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
@@ -205,79 +199,17 @@ class TestEventSubscriberManager:
             EventSubscriberKey(subscriber_2.group, subscriber_2.id),
         }
 
-    async def test_start_registers_subscription_source_mappings(
-        self,
-    ):
-        node_id = data.random_node_id()
-        subscriber_store = InMemoryEventSubscriberStore()
-        subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
-
-        manager = EventSubscriberManager(
-            node_id=node_id,
-            subscriber_store=subscriber_store,
-            subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
-        )
-
-        subscriber_1_sequences = [
-            CategoryIdentifier(data.random_event_category_name()),
-            CategoryIdentifier(data.random_event_category_name()),
-        ]
-        subscriber_2_sequences = [
-            CategoryIdentifier(data.random_event_category_name())
-        ]
-
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_group_2 = data.random_subscriber_group()
-
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group_1,
-            id=data.random_subscriber_id(),
-            sequences=subscriber_1_sequences,
-            health=EventSubscriberHealth.HEALTHY,
-        )
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group_2,
-            id=data.random_subscriber_id(),
-            sequences=subscriber_2_sequences,
-            health=EventSubscriberHealth.HEALTHY,
-        )
-
-        await manager.add(subscriber_1)
-        await manager.add(subscriber_2)
-
-        await manager.start()
-
-        mappings = await subscription_source_mapping_store.list()
-        assert set(mappings) == {
-            EventSubscriptionSourceMapping(
-                subscriber_group=subscriber_group_1,
-                event_sources=tuple(subscriber_1_sequences),
-            ),
-            EventSubscriptionSourceMapping(
-                subscriber_group=subscriber_group_2,
-                event_sources=tuple(subscriber_2_sequences),
-            ),
-        }
-
     async def test_start_logs_registering_subscribers(self):
         logger = CapturingLogger.create()
 
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
         )
 
@@ -291,7 +223,7 @@ class TestEventSubscriberManager:
         subscriber_1 = CapturingEventSubscriber(
             group=subscriber_1_group,
             id=subscriber_1_id,
-            sequences=subscriber_1_sequences,
+            subscription_requests=subscriber_1_sequences,
             health=EventSubscriberHealth.HEALTHY,
         )
 
@@ -305,7 +237,7 @@ class TestEventSubscriberManager:
         subscriber_2 = CapturingEventSubscriber(
             group=subscriber_2_group,
             id=subscriber_2_id,
-            sequences=subscriber_2_sequences,
+            subscription_requests=subscriber_2_sequences,
             health=EventSubscriberHealth.HEALTHY,
         )
 
@@ -366,15 +298,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             heartbeat_interval=timedelta(seconds=5),
             purge_interval=timedelta(seconds=30),
@@ -384,15 +312,14 @@ class TestEventSubscriberManager:
         subscriber = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
         )
 
         await manager.add(subscriber)
 
-        await subscriber_state_store.add(subscriber.key)
-        await subscription_source_mapping_store.add(
-            subscriber.group, subscriber.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber)
 
         await manager.stop()
 
@@ -414,106 +341,41 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await manager.stop()
 
         states = await subscriber_state_store.list()
 
         assert len(states) == 0
-
-    async def test_stop_removes_subscription_source_mappings(
-        self,
-    ):
-        node_id = data.random_node_id()
-        subscriber_store = InMemoryEventSubscriberStore()
-        subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
-
-        manager = EventSubscriberManager(
-            node_id=node_id,
-            subscriber_store=subscriber_store,
-            subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
-        )
-
-        subscriber_1_sequences = [
-            CategoryIdentifier(data.random_event_category_name()),
-            CategoryIdentifier(data.random_event_category_name()),
-        ]
-        subscriber_2_sequences = [
-            CategoryIdentifier(data.random_event_category_name())
-        ]
-
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_group_2 = data.random_subscriber_group()
-
-        subscriber_1 = CapturingEventSubscriber(
-            group=subscriber_group_1,
-            id=data.random_subscriber_id(),
-            sequences=subscriber_1_sequences,
-            health=EventSubscriberHealth.HEALTHY,
-        )
-        subscriber_2 = CapturingEventSubscriber(
-            group=subscriber_group_2,
-            id=data.random_subscriber_id(),
-            sequences=subscriber_2_sequences,
-            health=EventSubscriberHealth.HEALTHY,
-        )
-
-        await manager.add(subscriber_1)
-        await manager.add(subscriber_2)
-
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
-
-        await manager.stop()
-
-        mappings = await subscription_source_mapping_store.list()
-
-        assert len(mappings) == 0
 
     async def test_stop_logs_unregistering_subscribers(
         self,
@@ -523,15 +385,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
         )
 
@@ -544,7 +402,7 @@ class TestEventSubscriberManager:
         subscriber_1 = CapturingEventSubscriber(
             group=subscriber_1_group,
             id=subscriber_1_id,
-            sequences=subscriber_1_sequences,
+            subscription_requests=subscriber_1_sequences,
             health=EventSubscriberHealth.HEALTHY,
         )
 
@@ -557,21 +415,15 @@ class TestEventSubscriberManager:
         subscriber_2 = CapturingEventSubscriber(
             group=subscriber_2_group,
             id=subscriber_2_id,
-            sequences=subscriber_2_sequences,
+            subscription_requests=subscriber_2_sequences,
             health=EventSubscriberHealth.HEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await manager.stop()
 
@@ -616,42 +468,36 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
             heartbeat_interval=timedelta(milliseconds=20),
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         task = asyncio.create_task(manager.maintain())
 
@@ -688,42 +534,36 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
             heartbeat_interval=timedelta(milliseconds=20),
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.UNHEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.UNHEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         task = asyncio.create_task(manager.maintain())
 
@@ -758,9 +598,6 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
@@ -768,7 +605,6 @@ class TestEventSubscriberManager:
             subscriber_state_store=subscriber_state_store,
             purge_interval=timedelta(milliseconds=20),
             subscriber_max_age=timedelta(minutes=3),
-            subscription_source_mapping_store=subscription_source_mapping_store,
         )
 
         task = asyncio.create_task(manager.maintain())
@@ -789,15 +625,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             purge_interval=timedelta(milliseconds=20),
             subscriber_max_age=timedelta(minutes=3),
@@ -829,15 +661,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             heartbeat_interval=timedelta(milliseconds=20),
         )
@@ -845,27 +673,25 @@ class TestEventSubscriberManager:
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         task = asyncio.create_task(manager.maintain())
 
@@ -898,15 +724,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             heartbeat_interval=timedelta(milliseconds=20),
         )
@@ -914,27 +736,25 @@ class TestEventSubscriberManager:
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.HEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         task = asyncio.create_task(manager.maintain())
 
@@ -979,15 +799,11 @@ class TestEventSubscriberManager:
         node_id = data.random_node_id()
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
-        subscription_source_mapping_store = (
-            InMemoryEventSubscriptionSourceMappingStore()
-        )
 
         manager = EventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
-            subscription_source_mapping_store=subscription_source_mapping_store,
             logger=logger,
             heartbeat_interval=timedelta(milliseconds=20),
         )
@@ -995,27 +811,25 @@ class TestEventSubscriberManager:
         subscriber_1 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.UNHEALTHY,
         )
         subscriber_2 = CapturingEventSubscriber(
             group=data.random_subscriber_group(),
             id=data.random_subscriber_id(),
-            sequences=[CategoryIdentifier(data.random_event_category_name())],
+            subscription_requests=[
+                CategoryIdentifier(data.random_event_category_name())
+            ],
             health=EventSubscriberHealth.UNHEALTHY,
         )
 
         await manager.add(subscriber_1)
         await manager.add(subscriber_2)
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscription_source_mapping_store.add(
-            subscriber_1.group, subscriber_1.subscription_requests
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_2.group, subscriber_2.subscription_requests
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         task = asyncio.create_task(manager.maintain())
 

@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Sequence, MutableMapping
+from collections.abc import MutableMapping, Sequence
 
 from logicblocks.event.types import EventSourceIdentifier
 
@@ -38,6 +38,7 @@ class InMemoryEventSubscriptionSourceMappingStore(
             EventSubscriptionSourceMapping(
                 subscriber_group=subscriber_group, event_sources=event_sources
             )
-            for subscriber_group, event_sources
-            in dict(self.event_subscription_sources).items()
+            for subscriber_group, event_sources in dict(
+                self.event_subscription_sources
+            ).items()
         ]

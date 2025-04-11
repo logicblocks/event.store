@@ -74,19 +74,25 @@ for handler in root_logger.handlers:
 
 
 def noise_filter(event: logging.LogRecord) -> bool:
-    if event.name in ["faker.factory", "asyncio", "logicblocks.event.store"]:
+    if event.name in ["asyncio", "faker.factory"]:
         return False
-    event_contents = cast(Mapping[str, Any], event.msg)
-    if event_contents["event"] in [
+    if cast(Mapping[str, Any], event.msg)["event"] in [
         "event.processing.broker.subscriber-manager.subscriber-healthy",
         "event.processing.broker.subscriber-manager.sending-heartbeats",
         "event.processing.broker.subscriber-manager.purging-subscribers",
-        "event.processing.broker.node-manager.sending-heartbeat",
-        "event.processing.broker.node-manager.purging-nodes",
         "event.processing.broker.observer.synchronisation.starting",
         "event.processing.broker.observer.synchronisation.complete",
         "event.processing.broker.coordinator.distribution.starting",
         "event.processing.broker.coordinator.distribution.complete",
+        "event.consumer.source.starting-consume",
+        "event.consumer.source.consuming-event",
+        "event.consumer.source.completed-consume",
+        "event.consumer.subscription.starting-consume",
+        "event.consumer.subscription.consuming-source",
+        "event.consumer.subscription.completed-consume",
+        "event.category.iterating",
+        "event.stream.publishing",
+        "event.stream.reading-latest",
     ]:
         return False
     return True
@@ -104,9 +110,6 @@ faker_logger.setLevel("CRITICAL")
 
 faker_logger = logging.getLogger("asyncio")
 faker_logger.setLevel("CRITICAL")
-
-consumers_logger = logging.getLogger("logicblocks.event.processing.consumers")
-consumers_logger.setLevel("CRITICAL")
 
 for logger_name in logging.root.manager.loggerDict:
     logger = logging.getLogger(logger_name)

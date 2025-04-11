@@ -51,11 +51,11 @@ connection_settings = PostgresConnectionSettings(
 )
 event_broker_settings = EventBrokerSettings(
     subscriber_manager_heartbeat_interval=timedelta(milliseconds=200),
-    subscriber_manager_purge_interval=timedelta(seconds=1.2),
-    subscriber_manager_subscriber_max_age=timedelta(seconds=12),
-    coordinator_distribution_interval=timedelta(milliseconds=400),
-    coordinator_subscriber_max_time_since_last_seen=timedelta(seconds=1.2),
+    subscriber_manager_purge_interval=timedelta(seconds=2),
+    subscriber_manager_subscriber_max_age=timedelta(seconds=15),
     observer_synchronisation_interval=timedelta(milliseconds=400),
+    coordinator_distribution_interval=timedelta(milliseconds=400),
+    coordinator_subscriber_max_time_since_last_seen=timedelta(seconds=10),
 )
 
 
@@ -345,7 +345,6 @@ async def fail_on_event_processing_timeout():
         pytest.fail("Timed out waiting for all events to be processed.")
 
 
-# @pytest.mark.skip(reason="working on the fix")
 class TestCoordinatorObserverEventBroker:
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):

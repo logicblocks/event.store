@@ -79,7 +79,7 @@ class EventSubscriberManager:
                 subscriber={
                     "group": subscriber.group,
                     "id": subscriber.id,
-                    "sequences": [
+                    "subscription_requests": [
                         sequence.serialise(fallback=str_serialisation_fallback)
                         for sequence in subscriber.subscription_requests
                     ],

@@ -268,7 +268,7 @@ class TestEventSubscriberManager:
                     "subscriber": {
                         "group": subscriber_1_group,
                         "id": subscriber_1_id,
-                        "sequences": [
+                        "subscription_requests": [
                             {
                                 "type": "category",
                                 "category": subscriber_1_category_name,
@@ -281,7 +281,7 @@ class TestEventSubscriberManager:
                     "subscriber": {
                         "group": subscriber_2_group,
                         "id": subscriber_2_id,
-                        "sequences": [
+                        "subscription_requests": [
                             {
                                 "type": "category",
                                 "category": subscriber_2_category_name,

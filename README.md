@@ -165,7 +165,12 @@ To run tests:
 ./go library:test:all          # all tests
 ./go library:test:unit         # unit tests
 ./go library:test:integration  # integration tests
+./go library:test:component  # integration tests
 ```
+
+unit|integration|component can be run with a filter option, example:
+`./go library:test:unit[TestAllTestsInFile]` or
+`./go library:test:component[test_a_specific_test]`.
 
 To perform linting:
 

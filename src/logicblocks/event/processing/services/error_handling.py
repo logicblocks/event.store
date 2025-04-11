@@ -9,7 +9,6 @@ from .types import Service
 class ErrorHandlingService[T = Any](Service[T]):
     _callable: Callable[[], Awaitable[T]]
     _error_handler: Callable[[BaseException], T]
-    _logger: FilteringBoundLogger
 
     def __init__(
         self,

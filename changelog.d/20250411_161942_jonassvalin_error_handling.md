@@ -1,6 +1,6 @@
 ### Added
 
-- Added "ErrorHandlingService" to allow for injection of error handling 
+- Added `ErrorHandlingService` to allow for injection of error handling 
   strategies in services.
 
 ### DevEx

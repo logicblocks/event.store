@@ -22,10 +22,7 @@ from .process import Process, ProcessStatus
 from .sources import (
     EventSourceFactory,
     EventStoreEventSourceFactory,
-    EventSubscriptionSourceMapping,
-    EventSubscriptionSourceMappingStore,
     InMemoryEventStoreEventSourceFactory,
-    InMemoryEventSubscriptionSourceMappingStore,
     PostgresEventStoreEventSourceFactory,
 )
 from .strategies import (
@@ -75,8 +72,6 @@ __all__ = (
     "EventSubscriptionDifference",
     "EventSubscriptionKey",
     "EventSubscriptionObserver",
-    "EventSubscriptionSourceMapping",
-    "EventSubscriptionSourceMappingStore",
     "EventSubscriptionState",
     "EventSubscriptionStateChange",
     "EventSubscriptionStateChangeType",
@@ -84,7 +79,6 @@ __all__ = (
     "InMemoryEventStoreEventSourceFactory",
     "InMemoryEventSubscriberStateStore",
     "InMemoryEventSubscriberStore",
-    "InMemoryEventSubscriptionSourceMappingStore",
     "InMemoryEventSubscriptionStateStore",
     "InMemoryLockManager",
     "InMemoryNodeStateStore",

@@ -72,12 +72,10 @@ class TestAsynchronousProjections:
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await drop_table(open_connection_pool, "projections")
-        await drop_table(open_connection_pool, "nodes")
         await drop_table(open_connection_pool, "subscribers")
         await drop_table(open_connection_pool, "subscriptions")
         await create_table(open_connection_pool, "events")
         await create_table(open_connection_pool, "projections")
-        await create_table(open_connection_pool, "nodes")
         await create_table(open_connection_pool, "subscribers")
         await create_table(open_connection_pool, "subscriptions")
 

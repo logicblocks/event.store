@@ -44,11 +44,8 @@ class EventStoreEventSourceFactory(
             EventSourceConstructor[Any],
         ] = {}
 
-        (
-            self.register_constructor(
-                CategoryIdentifier, construct_event_category
-            ).register_constructor(StreamIdentifier, construct_event_stream)
-        )
+        self.register_constructor(CategoryIdentifier, construct_event_category)
+        self.register_constructor(StreamIdentifier, construct_event_stream)
 
     @property
     @abstractmethod

@@ -13,24 +13,24 @@ class NodeState:
 class NodeStateStore:
     @abstractmethod
     async def add(self, node_id: str) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def remove(self, node_id: str) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def list(
         self, max_time_since_last_seen: timedelta | None = None
     ) -> Sequence[NodeState]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def heartbeat(self, node_id: str) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def purge(
         self, max_time_since_last_seen: timedelta = timedelta(minutes=5)
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError

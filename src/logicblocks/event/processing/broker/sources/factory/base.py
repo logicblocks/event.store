@@ -13,10 +13,10 @@ class EventSourceFactory[ConstructorArg = Any](ABC):
         identifier_type: type[I],
         constructor: Callable[[I, ConstructorArg], EventSource[I]],
     ) -> Self:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def construct[I: EventSourceIdentifier](
         self, identifier: I
     ) -> EventSource[I]:
-        raise NotImplementedError()
+        raise NotImplementedError

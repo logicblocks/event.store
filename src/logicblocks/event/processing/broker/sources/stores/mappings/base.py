@@ -18,12 +18,12 @@ class EventSubscriptionSourceMappingStore(ABC):
         subscriber_group: str,
         event_sources: Sequence[EventSourceIdentifier],
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def remove(self, subscriber_group: str) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def list(self) -> Sequence[EventSubscriptionSourceMapping]:
-        raise NotImplementedError()
+        raise NotImplementedError

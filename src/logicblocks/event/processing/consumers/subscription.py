@@ -19,12 +19,13 @@ from .types import EventConsumer, EventProcessor
 def make_subscriber(
     *,
     subscriber_group: str,
-    subscriber_id: str = uuid4().hex,
+    subscriber_id: str | None,
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
 ) -> "EventSubscriptionConsumer":
+    subscriber_id = subscriber_id or uuid4().hex
     state_store = EventConsumerStateStore(
         category=subscriber_state_category,
         persistence_interval=subscriber_state_persistence_interval,

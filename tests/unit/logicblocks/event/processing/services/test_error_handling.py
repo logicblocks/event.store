@@ -1,6 +1,3 @@
-import asyncio
-from datetime import timedelta
-
 from logicblocks.event.processing.services import ErrorHandlingService
 
 
@@ -28,13 +25,7 @@ class TestErrorHandlingService:
             callable=invocation_counter, error_handler=error_handler
         )
 
-        task = asyncio.create_task(service.execute())
-
-        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
-
-        task.cancel()
-
-        await asyncio.gather(task, return_exceptions=True)
+        await service.execute()
 
         assert invocations == 1
         assert handled_errors == 1
@@ -55,13 +46,7 @@ class TestErrorHandlingService:
             callable=invocation_counter, error_handler=error_handler
         )
 
-        task = asyncio.create_task(service.execute())
-
-        await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
-
-        task.cancel()
-
-        await asyncio.gather(task, return_exceptions=True)
+        await service.execute()
 
         assert invocations == 1
         assert handled_errors == 0

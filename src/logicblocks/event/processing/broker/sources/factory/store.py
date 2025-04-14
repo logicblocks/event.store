@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, MutableMapping, Self
 
-from logicblocks.event.store import EventSource
-from logicblocks.event.store.adapters import (
+from logicblocks.event.store import (
+    EventCategory,
+    EventSource,
+    EventStorageAdapter,
+    EventStream,
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
 )
-from logicblocks.event.store.adapters.base import EventStorageAdapter
-from logicblocks.event.store.store import EventCategory, EventStream
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,

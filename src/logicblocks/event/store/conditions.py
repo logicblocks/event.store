@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, final
 
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import StoredEvent
+
+from .exceptions import UnmetWriteConditionError
 
 
 class ConditionCombinators(StrEnum):

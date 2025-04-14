@@ -14,18 +14,6 @@ from logicblocks.event.db.postgres import (
     ConnectionSettings,
     ConnectionSource,
 )
-from logicblocks.event.store.adapters import EventStorageAdapter
-from logicblocks.event.store.adapters.base import (
-    EventSerialisationGuarantee,
-    Latestable,
-    Saveable,
-    Scannable,
-)
-from logicblocks.event.store.conditions import NoCondition, WriteCondition
-from logicblocks.event.store.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
-)
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -37,6 +25,19 @@ from logicblocks.event.types import (
     StringPersistable,
     serialise_to_json_value,
     serialise_to_string,
+)
+
+from ..conditions import NoCondition, WriteCondition
+from ..constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
+from .base import (
+    EventSerialisationGuarantee,
+    EventStorageAdapter,
+    Latestable,
+    Saveable,
+    Scannable,
 )
 
 

@@ -1,17 +1,14 @@
 import pytest
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     InMemoryEventStoreEventSourceFactory,
-)
-from logicblocks.event.processing.broker.sources.factory.store import (
     PostgresEventStoreEventSourceFactory,
 )
-from logicblocks.event.store import EventCategory, EventStream
-from logicblocks.event.store.adapters.in_memory import (
+from logicblocks.event.store import (
+    EventCategory,
+    EventStream,
     InMemoryEventStorageAdapter,
-)
-from logicblocks.event.store.adapters.postgres import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.testing import data

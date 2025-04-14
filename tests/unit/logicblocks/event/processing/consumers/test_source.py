@@ -1,13 +1,13 @@
-from logicblocks.event.processing.consumers import (
+from logicblocks.event.processing import (
     EventConsumerStateStore,
     EventCount,
     EventProcessor,
     EventSourceConsumer,
 )
-from logicblocks.event.store.adapters.in_memory import (
+from logicblocks.event.store import (
+    EventStore,
     InMemoryEventStorageAdapter,
 )
-from logicblocks.event.store.store import EventStore
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel

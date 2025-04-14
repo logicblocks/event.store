@@ -3,13 +3,11 @@ from datetime import UTC, datetime, timedelta
 from random import shuffle
 from typing import Sequence
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
+    EventSubscriber,
     EventSubscriberHealth,
     EventSubscriberState,
     EventSubscriberStateStore,
-)
-from logicblocks.event.processing.broker.types import (
-    EventSubscriber,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import (

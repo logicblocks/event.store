@@ -11,7 +11,7 @@ from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
 from .observer import (
     EventSubscriptionObserver,
 )
-from .process import Process, ProcessStatus
+from .process import Process, ProcessStatus, determine_multi_process_status
 from .sources import (
     EventSourceFactory,
     EventStoreEventSourceFactory,
@@ -48,6 +48,7 @@ from .types import EventSubscriber, EventSubscriberHealth, EventSubscriberKey
 __all__ = (
     "COORDINATOR_LOCK_NAME",
     "CoordinatorObserverEventBroker",
+    "determine_multi_process_status",
     "EventBroker",
     "EventBrokerSettings",
     "EventSourceFactory",

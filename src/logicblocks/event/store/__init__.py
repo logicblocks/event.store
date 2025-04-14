@@ -7,6 +7,7 @@ from .adapters import (
 from .adapters import (
     PostgresEventStorageAdapter as PostgresEventStorageAdapter,
 )
+from .exceptions import UnmetWriteConditionError as UnmetWriteConditionError
 from .store import EventCategory as EventCategory
 from .store import EventSource as EventSource
 from .store import EventStore as EventStore

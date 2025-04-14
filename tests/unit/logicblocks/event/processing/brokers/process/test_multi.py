@@ -1,7 +1,7 @@
 import pytest
 
-from logicblocks.event.processing.broker import ProcessStatus
-from logicblocks.event.processing.broker.process.multi import (
+from logicblocks.event.processing import (
+    ProcessStatus,
     determine_multi_process_status,
 )
 

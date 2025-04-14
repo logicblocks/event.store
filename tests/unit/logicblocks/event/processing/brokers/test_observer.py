@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol, Sequence
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriber,
     EventSubscriberHealth,
     EventSubscriberStore,

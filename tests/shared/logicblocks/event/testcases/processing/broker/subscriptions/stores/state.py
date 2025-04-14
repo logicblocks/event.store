@@ -2,7 +2,7 @@ from abc import abstractmethod
 
 import pytest
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStateChange,

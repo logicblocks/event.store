@@ -1,13 +1,11 @@
 from dataclasses import dataclass
 from typing import Sequence
 
-from logicblocks.event.processing.broker import (
-    EventSubscriberHealth,
-    InMemoryEventSubscriberStore,
-)
-from logicblocks.event.processing.broker.types import (
+from logicblocks.event.processing import (
     EventSubscriber,
+    EventSubscriberHealth,
     EventSubscriberKey,
+    InMemoryEventSubscriberStore,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data

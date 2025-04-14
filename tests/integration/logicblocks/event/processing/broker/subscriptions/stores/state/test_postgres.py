@@ -6,7 +6,7 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriptionState,
     EventSubscriptionStateChange,
     EventSubscriptionStateChangeType,

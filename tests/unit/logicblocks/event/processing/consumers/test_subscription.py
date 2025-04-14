@@ -1,10 +1,16 @@
 from pytest_unordered import unordered
 
-from logicblocks.event.processing.broker import EventBroker, EventSubscriber
-from logicblocks.event.processing.consumers import EventSubscriptionConsumer
-from logicblocks.event.processing.consumers.types import EventConsumer
-from logicblocks.event.store import EventSource, EventStore
-from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
+from logicblocks.event.processing import (
+    EventBroker,
+    EventConsumer,
+    EventSubscriber,
+    EventSubscriptionConsumer,
+)
+from logicblocks.event.store import (
+    EventSource,
+    EventStore,
+    InMemoryEventStorageAdapter,
+)
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel

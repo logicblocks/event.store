@@ -1,13 +1,13 @@
 from collections.abc import Sequence, Set
 from dataclasses import dataclass
 
-from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.types import EventSourceIdentifier
 
 from .subscriptions import (
     EventSubscriptionKey,
     EventSubscriptionState,
 )
+from .types import EventSubscriberKey
 
 
 @dataclass(frozen=True)

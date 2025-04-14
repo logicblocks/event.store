@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     CoordinatorObserverEventBroker,
     EventBroker,
     EventSubscriberManager,

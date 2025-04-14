@@ -1,4 +1,4 @@
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     InMemoryLockManager,
 )
 from logicblocks.event.testcases import (

@@ -2,7 +2,7 @@ import asyncio
 from abc import abstractmethod
 from datetime import timedelta
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     Lock,
     LockManager,
 )

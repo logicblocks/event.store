@@ -8,18 +8,14 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventBrokerSettings,
-    make_postgres_event_broker,
-)
-from logicblocks.event.processing.consumers import (
     EventCount,
-    ProjectionEventProcessor,
-    make_subscriber,
-)
-from logicblocks.event.processing.services import (
     PollingService,
+    ProjectionEventProcessor,
     ServiceManager,
+    make_postgres_event_broker,
+    make_subscriber,
 )
 from logicblocks.event.projection import (
     PostgresProjectionStorageAdapter,

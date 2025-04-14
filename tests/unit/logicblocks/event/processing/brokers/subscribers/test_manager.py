@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from pytest_unordered import unordered
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriber,
     EventSubscriberHealth,
     EventSubscriberKey,

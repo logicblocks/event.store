@@ -10,20 +10,18 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventBroker,
     EventBrokerSettings,
+    EventProcessor,
     EventSubscriber,
+    EventSubscriptionConsumer,
     ProcessStatus,
     make_postgres_event_broker,
+    make_subscriber,
 )
 from logicblocks.event.processing.broker.logger import (
     default_logger as broker_logger,
-)
-from logicblocks.event.processing.consumers import (
-    EventProcessor,
-    EventSubscriptionConsumer,
-    make_subscriber,
 )
 from logicblocks.event.processing.consumers.logger import (
     default_logger as consumer_logger,

@@ -7,7 +7,7 @@ from typing import Protocol, cast
 
 from pytest_unordered import unordered
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     COORDINATOR_LOCK_NAME,
     EventSubscriber,
     EventSubscriberHealth,

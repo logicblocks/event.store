@@ -1391,7 +1391,7 @@ class AsyncioConcurrencyCases(Base, ABC):
             serialisation_guarantee=EventSerialisationGuarantee.STREAM
         )
 
-        simultaneous_writer_count = 2
+        simultaneous_writer_count = 5
         category_count = 2
         stream_count = 2
         publish_count = 10

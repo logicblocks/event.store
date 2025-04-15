@@ -1,6 +1,5 @@
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     InMemoryLockManager,
-    LockManager,
 )
 from logicblocks.event.testcases import (
     LockManagerCases,
@@ -8,7 +7,7 @@ from logicblocks.event.testcases import (
 
 
 class TestInMemoryLockManager(LockManagerCases):
-    def construct_lock_manager(self) -> LockManager:
+    def construct_lock_manager(self) -> InMemoryLockManager:
         return InMemoryLockManager()
 
     async def test_does_not_leak_when_try_lock_on_many_different_locks(self):

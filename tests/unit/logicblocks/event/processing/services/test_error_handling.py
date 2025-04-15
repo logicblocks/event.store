@@ -1,4 +1,4 @@
-from logicblocks.event.processing.services import ErrorHandlingService
+from logicblocks.event.processing import ErrorHandlingService
 
 
 class TestErrorHandlingService:

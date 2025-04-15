@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from datetime import UTC, timedelta
 
-from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.utils.clock import Clock, SystemClock
 
+from ....types import EventSubscriber
 from .base import EventSubscriberState, EventSubscriberStateStore
 
 
@@ -13,13 +13,12 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
         self.clock = clock
         self.subscribers: list[EventSubscriberState] = []
 
-    async def add(self, subscriber: EventSubscriberKey) -> None:
+    async def add(self, subscriber: EventSubscriber) -> None:
         existing = next(
             (
                 candidate
                 for candidate in self.subscribers
-                if subscriber.group == candidate.group
-                and subscriber.id == candidate.id
+                if subscriber.key == candidate.key
             ),
             None,
         )
@@ -32,24 +31,22 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
                 group=subscriber.group,
                 id=subscriber.id,
                 node_id=self.node_id,
+                subscription_requests=subscriber.subscription_requests,
                 last_seen=self.clock.now(UTC),
             )
         )
 
-    async def remove(self, subscriber: EventSubscriberKey) -> None:
+    async def remove(self, subscriber: EventSubscriber) -> None:
         existing = next(
             (
                 candidate
                 for candidate in self.subscribers
-                if subscriber.group == candidate.group
-                and subscriber.id == candidate.id
+                if subscriber.key == candidate.key
             ),
             None,
         )
         if existing is None:
-            raise ValueError(
-                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-            )
+            return
 
         self.subscribers.remove(existing)
 
@@ -75,25 +72,23 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             ]
         return subscribers
 
-    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber) -> None:
         index, existing = next(
             (
                 (index, candidate)
                 for index, candidate in enumerate(self.subscribers)
-                if subscriber.group == candidate.group
-                and subscriber.id == candidate.id
+                if subscriber.key == candidate.key
             ),
             (None, None),
         )
         if existing is None or index is None:
-            raise ValueError(
-                f"Unknown subscriber: {subscriber.group} {subscriber.id}"
-            )
+            return
 
         self.subscribers[index] = EventSubscriberState(
             group=subscriber.group,
             id=subscriber.id,
             node_id=self.node_id,
+            subscription_requests=subscriber.subscription_requests,
             last_seen=self.clock.now(UTC),
         )
 

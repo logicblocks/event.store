@@ -1,4 +1,4 @@
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriberStateStore,
     InMemoryEventSubscriberStateStore,
 )

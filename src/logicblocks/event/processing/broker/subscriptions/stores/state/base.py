@@ -3,8 +3,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.types import EventSourceIdentifier
+
+from ....types import EventSubscriberKey
 
 
 @dataclass(frozen=True)
@@ -44,28 +45,28 @@ class EventSubscriptionStateChange:
 class EventSubscriptionStateStore(ABC):
     @abstractmethod
     async def list(self) -> Sequence[EventSubscriptionState]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def get(
         self, key: EventSubscriptionKey
     ) -> EventSubscriptionState | None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def add(self, subscription: EventSubscriptionState) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def remove(self, subscription: EventSubscriptionState) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def replace(self, subscription: EventSubscriptionState) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     async def apply(
         self, changes: Sequence[EventSubscriptionStateChange]
     ) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError

@@ -13,7 +13,7 @@ class InMemoryEventSubscriberStore(EventSubscriberStore):
 
     async def remove(self, subscriber: EventSubscriber) -> None:
         if subscriber.key not in self.subscribers:
-            raise ValueError("Can't remove missing subscriber.")
+            return
         self.subscribers.pop(subscriber.key)
 
     async def get(self, key: EventSubscriberKey) -> EventSubscriber | None:

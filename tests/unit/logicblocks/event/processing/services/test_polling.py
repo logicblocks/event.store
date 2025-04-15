@@ -1,7 +1,7 @@
 import asyncio
 from datetime import timedelta
 
-from logicblocks.event.processing.services import PollingService
+from logicblocks.event.processing import PollingService
 
 
 class TestPollingService:

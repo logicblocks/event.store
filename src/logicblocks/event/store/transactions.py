@@ -8,7 +8,7 @@ from typing import (
     Never,
 )
 
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from .exceptions import UnmetWriteConditionError
 
 
 class event_store_transaction[AdditionalReturn = Never](ABC):

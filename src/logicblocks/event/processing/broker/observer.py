@@ -1,12 +1,12 @@
 import asyncio
 from collections.abc import Sequence
 from datetime import timedelta
-from enum import StrEnum
 
 from structlog.types import FilteringBoundLogger
 
 from .difference import EventSubscriptionDifference
 from .logger import default_logger
+from .process import Process, ProcessStatus
 from .sources import EventSourceFactory
 from .subscribers import EventSubscriberStore
 from .subscriptions import EventSubscriptionState, EventSubscriptionStateStore
@@ -16,13 +16,7 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.observer.{event}"
 
 
-class EventSubscriptionObserverStatus(StrEnum):
-    STOPPED = "stopped"
-    RUNNING = "running"
-    ERRORED = "errored"
-
-
-class EventSubscriptionObserver:
+class EventSubscriptionObserver(Process):
     _existing_subscriptions: Sequence[EventSubscriptionState]
 
     def __init__(
@@ -44,10 +38,10 @@ class EventSubscriptionObserver:
         self._existing_subscriptions = []
 
         self._synchronisation_interval = synchronisation_interval
-        self._status = EventSubscriptionObserverStatus.STOPPED
+        self._status = ProcessStatus.INITIALISED
 
     @property
-    def status(self) -> EventSubscriptionObserverStatus:
+    def status(self) -> ProcessStatus:
         return self._status
 
     async def observe(self):
@@ -55,7 +49,7 @@ class EventSubscriptionObserver:
             log_event_name("starting"),
             synchronisation_interval_seconds=self._synchronisation_interval.total_seconds(),
         )
-        self._status = EventSubscriptionObserverStatus.RUNNING
+        self._status = ProcessStatus.RUNNING
         try:
             while True:
                 await self.synchronise()
@@ -63,11 +57,11 @@ class EventSubscriptionObserver:
                     self._synchronisation_interval.total_seconds()
                 )
         except asyncio.CancelledError:
-            self._status = EventSubscriptionObserverStatus.STOPPED
+            self._status = ProcessStatus.STOPPED
             await self._logger.ainfo(log_event_name("stopped"))
             raise
         except BaseException:
-            self._status = EventSubscriptionObserverStatus.ERRORED
+            self._status = ProcessStatus.ERRORED
             await self._logger.aexception(log_event_name("failed"))
             raise
 

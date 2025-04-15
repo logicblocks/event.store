@@ -1,4 +1,3 @@
-import os
 from typing import Sequence
 
 import pytest_asyncio
@@ -14,6 +13,12 @@ from logicblocks.event.projection.store.adapters import (
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
 )
+from logicblocks.event.testsupport import (
+    clear_table,
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from logicblocks.event.types import JsonValue, Projection, identifier
 
 connection_settings = PostgresConnectionSettings(
@@ -24,65 +29,9 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 
-project_root = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", "..", "..", ".."
-    )
-)
-
-
-def relative_to_root(*path_parts: str) -> str:
-    return os.path.join(project_root, *path_parts)
-
-
-def create_table_query(table: str) -> abc.Query:
-    with open(relative_to_root("sql", "create_projections_table.sql")) as f:
-        create_table_sql = f.read().replace("projections", "{0}")
-
-        return create_table_sql.format(table).encode()
-
-
-def create_indices_query(table: str) -> abc.Query:
-    with open(relative_to_root("sql", "create_projections_indices.sql")) as f:
-        create_indices_sql = f.read().replace("projections", "{0}")
-
-        return create_indices_sql.format(table).encode()
-
-
-def drop_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("DROP TABLE IF EXISTS {0}").format(
-        sql.Identifier(table_name)
-    )
-
-
-def truncate_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("TRUNCATE {0}").format(sql.Identifier(table_name))
-
 
 def read_projections_query(table: str) -> abc.Query:
     return sql.SQL("SELECT * FROM {0}").format(sql.Identifier(table))
-
-
-async def create_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(create_table_query(table))
-        await connection.execute(create_indices_query(table))
-
-
-async def clear_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(truncate_table_query(table))
-
-
-async def drop_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(drop_table_query(table))
 
 
 async def read_projections(
@@ -108,15 +57,8 @@ async def read_projections(
 
 @pytest_asyncio.fixture
 async def open_connection_pool():
-    conninfo = connection_settings.to_connection_string()
-    pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
-
-    await pool.open()
-
-    try:
+    async with connection_pool(connection_settings) as pool:
         yield pool
-    finally:
-        await pool.close()
 
 
 class TestPostgresProjectionStorageAdapterCommonCases(

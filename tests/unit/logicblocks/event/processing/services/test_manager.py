@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from logicblocks.event.processing.services import (
+from logicblocks.event.processing import (
     ExecutionMode,
     IsolationMode,
     Service,

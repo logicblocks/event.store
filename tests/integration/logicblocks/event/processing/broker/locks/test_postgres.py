@@ -1,6 +1,6 @@
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import LockManager
-from logicblocks.event.processing.broker.locks.postgres import (
+from logicblocks.event.processing import (
+    LockManager,
     PostgresLockManager,
 )
 from logicblocks.event.testcases import (

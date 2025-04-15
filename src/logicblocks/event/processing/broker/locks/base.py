@@ -1,4 +1,3 @@
-import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,8 +14,6 @@ class Lock:
 
 
 class LockManager(ABC):
-    _locks: dict[str, asyncio.Lock]
-
     @abstractmethod
     @asynccontextmanager
     def try_lock(self, lock_name: str) -> AsyncGenerator[Lock, None]:

@@ -2,12 +2,12 @@ import dataclasses
 from collections.abc import Callable
 from typing import Any, Mapping, Self
 
-from logicblocks.event.processing.consumers import ProjectionEventProcessor
+from logicblocks.event.processing import ProjectionEventProcessor
 from logicblocks.event.projection import (
     InMemoryProjectionStorageAdapter,
+    ProjectionStore,
     Projector,
 )
-from logicblocks.event.projection.store.store import ProjectionStore
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import (
     BaseProjectionBuilder,

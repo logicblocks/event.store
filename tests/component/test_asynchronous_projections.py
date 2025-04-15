@@ -1,26 +1,21 @@
-import os
 import time
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Callable, Mapping, Self
 
 import pytest_asyncio
-from psycopg import AsyncConnection, abc, sql
+from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventBrokerSettings,
-    make_postgres_event_broker,
-)
-from logicblocks.event.processing.consumers import (
     EventCount,
-    ProjectionEventProcessor,
-    make_subscriber,
-)
-from logicblocks.event.processing.services import (
     PollingService,
+    ProjectionEventProcessor,
     ServiceManager,
+    make_postgres_event_broker,
+    make_subscriber,
 )
 from logicblocks.event.projection import (
     PostgresProjectionStorageAdapter,
@@ -32,6 +27,11 @@ from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
+from logicblocks.event.testsupport import (
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonValue,
@@ -50,71 +50,11 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 
-project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
-)
-
-
-def relative_to_root(*path_parts: str) -> str:
-    return os.path.join(project_root, *path_parts)
-
-
-def read_sql(sql_file_name: str) -> abc.Query:
-    with open(relative_to_root("sql", f"{sql_file_name}.sql")) as f:
-        return f.read().encode()
-
-
-def create_table_query(table: str) -> abc.Query:
-    return read_sql(f"create_{table}_table")
-
-
-def create_indices_query(table: str) -> abc.Query:
-    return read_sql(f"create_{table}_indices")
-
-
-def drop_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("DROP TABLE IF EXISTS {0}").format(
-        sql.Identifier(table_name)
-    )
-
-
-def truncate_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("TRUNCATE {0}").format(sql.Identifier(table_name))
-
-
-async def create_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(create_table_query(table))
-        await connection.execute(create_indices_query(table))
-
-
-async def clear_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(truncate_table_query(table))
-
-
-async def drop_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(drop_table_query(table))
-
 
 @pytest_asyncio.fixture
 async def open_connection_pool():
-    conninfo = connection_settings.to_connection_string()
-    pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
-
-    await pool.open()
-
-    try:
+    async with connection_pool(connection_settings) as pool:
         yield pool
-    finally:
-        await pool.close()
 
 
 class TestAsynchronousProjections:
@@ -128,12 +68,10 @@ class TestAsynchronousProjections:
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await drop_table(open_connection_pool, "projections")
-        await drop_table(open_connection_pool, "nodes")
         await drop_table(open_connection_pool, "subscribers")
         await drop_table(open_connection_pool, "subscriptions")
         await create_table(open_connection_pool, "events")
         await create_table(open_connection_pool, "projections")
-        await create_table(open_connection_pool, "nodes")
         await create_table(open_connection_pool, "subscribers")
         await create_table(open_connection_pool, "subscriptions")
 

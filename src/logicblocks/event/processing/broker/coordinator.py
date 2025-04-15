@@ -3,7 +3,6 @@ import itertools
 import operator
 from collections.abc import Sequence
 from datetime import timedelta
-from enum import StrEnum
 from typing import Any
 
 from structlog.types import FilteringBoundLogger
@@ -12,10 +11,7 @@ from logicblocks.event.types import str_serialisation_fallback
 
 from .locks import LockManager
 from .logger import default_logger
-from .sources import (
-    EventSubscriptionSourceMapping,
-    EventSubscriptionSourceMappingStore,
-)
+from .process import Process, ProcessStatus
 from .subscribers import EventSubscriberState, EventSubscriberStateStore
 from .subscriptions import (
     EventSubscriptionState,
@@ -59,23 +55,23 @@ def subscription_status(
 
 def subscriber_group_status(
     subscribers: Sequence[EventSubscriberState],
-    subscription_source_mappings: Sequence[EventSubscriptionSourceMapping],
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     for subscriber in subscribers:
         if latest.get(subscriber.group, None) is None:
             latest[subscriber.group] = {}
-        if latest[subscriber.group].get("subscribers", None) is None:
-            latest[subscriber.group]["subscribers"] = []
-        latest[subscriber.group]["subscribers"].append(subscriber.id)
 
-    for mapping in subscription_source_mappings:
-        if latest.get(mapping.subscriber_group, None) is None:
-            latest[mapping.subscriber_group] = {}
-        latest[mapping.subscriber_group]["sources"] = [
-            event_source.serialise(fallback=str_serialisation_fallback)
-            for event_source in mapping.event_sources
-        ]
+        if latest[subscriber.group].get(subscriber.id, None) is None:
+            latest[subscriber.group][subscriber.id] = {}
+        latest[subscriber.group][subscriber.id] = {
+            "subscription_requests": [
+                subscription_request.serialise(
+                    fallback=str_serialisation_fallback
+                )
+                for subscription_request in subscriber.subscription_requests
+            ]
+        }
+
     return latest
 
 
@@ -107,21 +103,13 @@ def subscription_change_summary(
     }
 
 
-class EventSubscriptionCoordinatorStatus(StrEnum):
-    STOPPED = "stopped"
-    STARTING = "starting"
-    RUNNING = "running"
-    ERRORED = "errored"
-
-
-class EventSubscriptionCoordinator:
+class EventSubscriptionCoordinator(Process):
     def __init__(
         self,
         node_id: str,
         lock_manager: LockManager,
         subscriber_state_store: EventSubscriberStateStore,
         subscription_state_store: EventSubscriptionStateStore,
-        subscription_source_mapping_store: EventSubscriptionSourceMappingStore,
         logger: FilteringBoundLogger = default_logger,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
         distribution_interval: timedelta = timedelta(seconds=20),
@@ -132,18 +120,15 @@ class EventSubscriptionCoordinator:
         self._logger = logger.bind(node=node_id)
         self._subscriber_state_store = subscriber_state_store
         self._subscription_state_store = subscription_state_store
-        self._subscription_source_mapping_store = (
-            subscription_source_mapping_store
-        )
 
         self._subscriber_max_time_since_last_seen = (
             subscriber_max_time_since_last_seen
         )
         self._distribution_interval = distribution_interval
-        self._status = EventSubscriptionCoordinatorStatus.STOPPED
+        self._status = ProcessStatus.INITIALISED
 
     @property
-    def status(self) -> EventSubscriptionCoordinatorStatus:
+    def status(self) -> ProcessStatus:
         return self._status
 
     async def coordinate(self) -> None:
@@ -159,21 +144,21 @@ class EventSubscriptionCoordinator:
             distribution_interval_seconds=distribution_interval_seconds,
             subscriber_max_time_since_last_seen_seconds=subscriber_max_last_seen_time,
         )
-        self._status = EventSubscriptionCoordinatorStatus.STARTING
+        self._status = ProcessStatus.STARTING
 
         try:
             async with self._lock_manager.wait_for_lock(LOCK_NAME):
                 await self._logger.ainfo(log_event_name("running"))
-                self._status = EventSubscriptionCoordinatorStatus.RUNNING
+                self._status = ProcessStatus.RUNNING
                 while True:
                     await self.distribute()
                     await asyncio.sleep(distribution_interval_seconds)
         except asyncio.CancelledError:
-            self._status = EventSubscriptionCoordinatorStatus.STOPPED
+            self._status = ProcessStatus.STOPPED
             await self._logger.ainfo(log_event_name("stopped"))
             raise
         except BaseException:
-            self._status = EventSubscriptionCoordinatorStatus.ERRORED
+            self._status = ProcessStatus.ERRORED
             await self._logger.aexception(log_event_name("failed"))
             raise
 
@@ -201,31 +186,9 @@ class EventSubscriptionCoordinator:
             subscribers, operator.attrgetter("group")
         )
 
-        subscription_source_mappings = (
-            await self._subscription_source_mapping_store.list()
-        )
-        subscription_source_mappings_map = {
-            subscription_source_mapping.subscriber_group: subscription_source_mapping
-            for subscription_source_mapping in subscription_source_mappings
-        }
-
         await self._logger.adebug(
             log_event_name("distribution.latest-status"),
-            subscriber_groups=subscriber_group_status(
-                subscribers, subscription_source_mappings
-            ),
-        )
-
-        subscriber_groups_with_instances = {
-            subscriber.group for subscriber in subscribers
-        }
-        subscriber_groups_with_subscriptions = {
-            subscription.group for subscription in subscriptions
-        }
-
-        removed_subscriber_groups = (
-            subscriber_groups_with_subscriptions
-            - subscriber_groups_with_instances
+            subscriber_groups=subscriber_group_status(subscribers),
         )
 
         changes: list[EventSubscriptionStateChange] = []
@@ -241,36 +204,80 @@ class EventSubscriptionCoordinator:
 
         for subscriber_group, subscribers in subscriber_group_subscribers:
             subscribers = list(subscribers)
+            subscription_requests_sorted_by_count = sorted(
+                list(
+                    {
+                        tuple(subscriber.subscription_requests)
+                        for subscriber in subscribers
+                    }
+                ),
+                key=len,
+                reverse=True,
+            )
             subscriber_group_subscriptions = [
                 subscription_map[subscriber.subscription_key]
                 for subscriber in subscribers
                 if subscriber.subscription_key in subscription_map
             ]
 
-            subscription_source_mapping = subscription_source_mappings_map[
-                subscriber_group
-            ]
-            known_event_sources = subscription_source_mapping.event_sources
-            allocated_event_sources = [
+            target_event_sources = next(
+                iter(subscription_requests_sorted_by_count)
+            )
+
+            ineligible_subscribers = {
+                subscriber
+                for subscriber in subscribers
+                if subscriber.subscription_requests != target_event_sources
+            }
+            eligible_subscribers = {
+                subscriber
+                for subscriber in subscribers
+                if subscriber.subscription_requests == target_event_sources
+            }
+            eligible_subscriber_map = {
+                subscriber.key: subscriber
+                for subscriber in eligible_subscribers
+            }
+            all_allocated_event_sources = tuple(
                 event_source
                 for subscription in subscriber_group_subscriptions
                 for event_source in subscription.event_sources
                 if subscription.subscriber_key in subscriber_map
-            ]
-            removed_event_sources = [
+            )
+            correctly_allocated_event_sources = tuple(
                 event_source
-                for event_source in allocated_event_sources
-                if event_source not in known_event_sources
-            ]
-            new_event_sources = list(
-                set(known_event_sources) - set(allocated_event_sources)
+                for subscription in subscriber_group_subscriptions
+                for event_source in subscription.event_sources
+                if subscription.subscriber_key in eligible_subscriber_map
+                and event_source in target_event_sources
+            )
+            removed_event_sources = tuple(
+                event_source
+                for event_source in all_allocated_event_sources
+                if event_source not in target_event_sources
+            )
+            new_event_sources = tuple(
+                set(target_event_sources)
+                - set(correctly_allocated_event_sources)
             )
 
             new_event_source_chunks = chunk(
-                new_event_sources, len(subscribers)
+                new_event_sources, len(eligible_subscribers)
             )
 
-            for index, subscriber in enumerate(subscribers):
+            for subscriber in ineligible_subscribers:
+                subscription = subscription_map.get(
+                    subscriber.subscription_key, None
+                )
+                if subscription is not None:
+                    changes.append(
+                        EventSubscriptionStateChange(
+                            type=EventSubscriptionStateChangeType.REMOVE,
+                            subscription=subscription,
+                        )
+                    )
+
+            for index, subscriber in enumerate(eligible_subscribers):
                 subscription = subscription_map.get(
                     subscriber.subscription_key, None
                 )
@@ -282,7 +289,9 @@ class EventSubscriptionCoordinator:
                                 group=subscriber_group,
                                 id=subscriber.id,
                                 node_id=subscriber.node_id,
-                                event_sources=new_event_source_chunks[index],
+                                event_sources=list(
+                                    new_event_source_chunks[index]
+                                ),
                             ),
                         )
                     )
@@ -305,11 +314,6 @@ class EventSubscriptionCoordinator:
                             ),
                         )
                     )
-
-        for subscriber_group in removed_subscriber_groups:
-            await self._subscription_source_mapping_store.remove(
-                subscriber_group
-            )
 
         await self._subscription_state_store.apply(changes=changes)
 

@@ -251,22 +251,34 @@ namespace :library do
 
   namespace :test do
     desc 'Run unit tests'
-    task unit: %i[dependencies:install] do
-      invoke_poetry_task('test-unit')
+    task :unit, [
+      :filter
+    ] => %i[dependencies:install] do |_, args|
+      arguments = args[:filter] ? ['--filter', args[:filter].to_s] : []
+
+      invoke_poetry_task('test-unit', *arguments)
     end
 
     desc 'Run integration tests'
-    task integration: %i[dependencies:install] do
+    task :integration, [
+      :filter
+    ] => %i[dependencies:install] do |_, args|
       Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
 
-      invoke_poetry_task('test-integration')
+      arguments = args[:filter] ? ['--filter', args[:filter].to_s] : []
+
+      invoke_poetry_task('test-integration', *arguments)
     end
 
     desc 'Run component tests'
-    task component: %i[dependencies:install] do
+    task :component, [
+      :filter
+    ] => %i[dependencies:install] do |_, args|
       Rake::Task['database:test:provision'].invoke unless ENV['CI'] == 'true'
 
-      invoke_poetry_task('test-component')
+      arguments = args[:filter] ? ['--filter', args[:filter].to_s] : []
+
+      invoke_poetry_task('test-component', *arguments)
     end
 
     desc 'Run report aggregation'
@@ -322,8 +334,8 @@ namespace :database do
   end
 end
 
-def invoke_poetry_task(task_name)
-  invoke_poetry_command('run', 'poe', task_name)
+def invoke_poetry_task(task_name, *args)
+  invoke_poetry_command('run', 'poe', task_name, *args)
 end
 
 def invoke_poetry_command(command, *args)

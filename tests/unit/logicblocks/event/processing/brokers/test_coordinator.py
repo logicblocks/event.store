@@ -7,26 +7,23 @@ from typing import Protocol, cast
 
 from pytest_unordered import unordered
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     COORDINATOR_LOCK_NAME,
     EventSubscriber,
     EventSubscriberHealth,
     EventSubscriberState,
     EventSubscriberStateStore,
     EventSubscriptionCoordinator,
-    EventSubscriptionCoordinatorStatus,
     EventSubscriptionKey,
-    EventSubscriptionSourceMappingStore,
     EventSubscriptionState,
     EventSubscriptionStateChange,
     EventSubscriptionStateStore,
     InMemoryEventSubscriberStateStore,
-    InMemoryEventSubscriptionSourceMappingStore,
     InMemoryEventSubscriptionStateStore,
     InMemoryLockManager,
     LockManager,
+    ProcessStatus,
 )
-from logicblocks.event.processing.broker.types import EventSubscriberKey
 from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
@@ -40,9 +37,15 @@ from logicblocks.event.types import (
 class CapturingEventSubscriber(EventSubscriber):
     sources: list[EventSource]
 
-    def __init__(self, group: str, id: str):
+    def __init__(
+        self,
+        group: str,
+        id: str,
+        subscription_requests: Sequence[EventSourceIdentifier],
+    ):
         self._group = group
         self._id = id
+        self._subscription_requests = subscription_requests
 
     @property
     def group(self) -> str:
@@ -54,7 +57,7 @@ class CapturingEventSubscriber(EventSubscriber):
 
     @property
     def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return []
+        return self._subscription_requests
 
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY
@@ -70,10 +73,10 @@ class ThrowingEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(self, node_id: str):
         self._node_id = node_id
 
-    async def add(self, subscriber: EventSubscriberKey) -> None:
+    async def add(self, subscriber: EventSubscriber) -> None:
         raise RuntimeError
 
-    async def remove(self, subscriber: EventSubscriberKey) -> None:
+    async def remove(self, subscriber: EventSubscriber) -> None:
         raise RuntimeError
 
     async def list(
@@ -83,7 +86,7 @@ class ThrowingEventSubscriberStateStore(EventSubscriberStateStore):
     ) -> Sequence[EventSubscriberState]:
         raise RuntimeError
 
-    async def heartbeat(self, subscriber: EventSubscriberKey) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber) -> None:
         raise RuntimeError
 
     async def purge(
@@ -128,12 +131,21 @@ class CountingEventSubscriptionStateStore(EventSubscriptionStateStore):
 
 def random_subscriber(
     subscriber_group: str | None = None,
+    subscription_requests: Sequence[EventSourceIdentifier] | None = None,
 ) -> CapturingEventSubscriber:
+    subscriber_id = data.random_subscriber_id()
     if subscriber_group is None:
         subscriber_group = data.random_subscriber_group()
-    subscriber_id = data.random_subscriber_id()
+    if subscription_requests is None:
+        subscription_requests = [
+            CategoryIdentifier(category=data.random_event_category_name()),
+        ]
 
-    return CapturingEventSubscriber(group=subscriber_group, id=subscriber_id)
+    return CapturingEventSubscriber(
+        group=subscriber_group,
+        id=subscriber_id,
+        subscription_requests=subscription_requests,
+    )
 
 
 def random_event_source_identifier(
@@ -154,7 +166,6 @@ class Context:
     logger: CapturingLogger
     subscriber_state_store: EventSubscriberStateStore
     subscription_state_store: EventSubscriptionStateStore
-    subscription_source_mapping_store: EventSubscriptionSourceMappingStore
 
 
 class NodeAwareEventSubscriberStateStoreClass(Protocol):
@@ -176,9 +187,6 @@ def make_coordinator(
     logger = CapturingLogger.create()
     subscriber_state_store = subscriber_state_store_class(node_id=node_id)
     subscription_state_store = subscription_state_store_class(node_id=node_id)
-    subscription_source_mapping_store = (
-        InMemoryEventSubscriptionSourceMappingStore()
-    )
     lock_manager = InMemoryLockManager()
 
     kwargs = {
@@ -187,7 +195,6 @@ def make_coordinator(
         "logger": logger,
         "subscriber_state_store": subscriber_state_store,
         "subscription_state_store": subscription_state_store,
-        "subscription_source_mapping_store": subscription_source_mapping_store,
     }
     if subscriber_max_time_since_last_seen is not None:
         kwargs["subscriber_max_time_since_last_seen"] = (
@@ -205,7 +212,6 @@ def make_coordinator(
         logger=logger,
         subscriber_state_store=subscriber_state_store,
         subscription_state_store=subscription_state_store,
-        subscription_source_mapping_store=subscription_source_mapping_store,
     )
 
 
@@ -259,23 +265,19 @@ class TestDistributeNoSubscriptions:
     async def test_distributes_single_source_for_single_subscriber_instance(
         self,
     ):
-        subscriber = random_subscriber()
-        event_sequence_identifier = random_event_source_identifier()
+        event_source_identifier = random_event_source_identifier()
+
+        subscriber = random_subscriber(
+            subscription_requests=[event_source_identifier]
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber.key)
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber.group,
-            event_sources=[event_sequence_identifier],
-        )
+        await subscriber_state_store.add(subscriber)
 
         await coordinator.distribute()
 
@@ -286,36 +288,31 @@ class TestDistributeNoSubscriptions:
                 group=subscriber.group,
                 id=subscriber.id,
                 node_id=node_id,
-                event_sources=[event_sequence_identifier],
+                event_sources=[event_source_identifier],
             )
         ]
 
     async def test_distributes_many_sources_for_single_subscriber_instance(
         self,
     ):
-        subscriber = random_subscriber()
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
+
+        subscriber = random_subscriber(
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ]
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber.key)
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber.group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-            ],
-        )
+        await subscriber_state_store.add(subscriber)
 
         await coordinator.distribute()
 
@@ -335,28 +332,26 @@ class TestDistributeNoSubscriptions:
     async def test_distributes_single_source_when_multiple_subscriber_instances(
         self,
     ):
+        event_sequence_identifier = random_event_source_identifier()
+
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
-        event_sequence_identifier = random_event_source_identifier()
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[event_sequence_identifier],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[event_sequence_identifier],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[event_sequence_identifier],
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await coordinator.distribute()
 
@@ -378,34 +373,36 @@ class TestDistributeNoSubscriptions:
     async def test_distributes_multiple_source_across_multiple_subscriber_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
 
-        context = make_coordinator()
-        coordinator = context.coordinator
-        subscriber_state_store = context.subscriber_state_store
-        subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
+        subscriber_group = data.random_subscriber_group()
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-
-        await subscription_source_mapping_store.add(
+        subscriber_1 = random_subscriber(
             subscriber_group=subscriber_group,
-            event_sources=[
+            subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
                 event_sequence_identifier_3,
             ],
         )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ],
+        )
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        subscriber_state_store = context.subscriber_state_store
+        subscription_state_store = context.subscription_state_store
+
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await coordinator.distribute()
 
@@ -430,44 +427,44 @@ class TestDistributeNoSubscriptions:
         }
 
     async def test_distributes_across_multiple_subscriber_groups(self):
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_group_2 = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group_1)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group_2)
-        subscriber_3 = random_subscriber(subscriber_group=subscriber_group_2)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
 
-        context = make_coordinator()
-        coordinator = context.coordinator
-        subscriber_state_store = context.subscriber_state_store
-        subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscriber_state_store.add(subscriber_3.key)
-
-        await subscription_source_mapping_store.add(
+        subscriber_1 = random_subscriber(
             subscriber_group=subscriber_group_1,
-            event_sources=[
+            subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        await subscription_source_mapping_store.add(
+        subscriber_2 = random_subscriber(
             subscriber_group=subscriber_group_2,
-            event_sources=[
+            subscription_requests=[
                 event_sequence_identifier_3,
                 event_sequence_identifier_4,
             ],
         )
+        subscriber_3 = random_subscriber(
+            subscriber_group=subscriber_group_2,
+            subscription_requests=[
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ],
+        )
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        subscriber_state_store = context.subscriber_state_store
+        subscription_state_store = context.subscription_state_store
+
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
+        await subscriber_state_store.add(subscriber_3)
 
         await coordinator.distribute()
 
@@ -501,26 +498,30 @@ class TestDistributeNoSubscriptions:
 
 
 class TestDistributeExistingSubscriptionsSourceChanges:
-    async def test_distributes_additional_source_to_single_subscriber_instance(
+    async def test_distributes_additional_sources_to_single_subscriber_instance(
         self,
     ):
-        subscriber = random_subscriber()
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
+
+        subscriber = random_subscriber(
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ]
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber.key)
+        await subscriber_state_store.add(subscriber)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -532,16 +533,6 @@ class TestDistributeExistingSubscriptionsSourceChanges:
                     event_sequence_identifier_2,
                 ],
             ),
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber.group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-                event_sequence_identifier_4,
-            ],
         )
 
         await coordinator.distribute()
@@ -564,27 +555,40 @@ class TestDistributeExistingSubscriptionsSourceChanges:
     async def test_distributes_additional_sources_to_multiple_subscriber_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -605,16 +609,6 @@ class TestDistributeExistingSubscriptionsSourceChanges:
                     event_sequence_identifier_2,
                 ],
             ),
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_4,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-                event_sequence_identifier_1,
-            ],
         )
 
         await coordinator.distribute()
@@ -655,25 +649,28 @@ class TestDistributeExistingSubscriptionsSourceChanges:
     async def test_removes_sources_no_longer_registered_for_subscriber_group_from_single_instance(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber.key)
+        await subscriber_state_store.add(subscriber)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -687,14 +684,6 @@ class TestDistributeExistingSubscriptionsSourceChanges:
                     event_sequence_identifier_4,
                 ],
             ),
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_4,
-                event_sequence_identifier_2,
-            ],
         )
 
         await coordinator.distribute()
@@ -715,27 +704,36 @@ class TestDistributeExistingSubscriptionsSourceChanges:
     async def test_removes_sources_no_longer_registered_for_subscriber_group_from_multiple_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_3,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_3,
+                event_sequence_identifier_2,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -758,14 +756,6 @@ class TestDistributeExistingSubscriptionsSourceChanges:
                     event_sequence_identifier_4,
                 ],
             ),
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_3,
-                event_sequence_identifier_2,
-            ],
         )
 
         await coordinator.distribute()
@@ -799,27 +789,115 @@ class TestDistributeExistingSubscriptionsSourceChanges:
             event_sequence_identifier_3,
         }
 
-
-class TestDistributeExistingSubscriptionSubscriberChanges:
-    async def test_distributes_to_single_additional_subscriber_instance(self):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
+    async def test_distributes_to_subscribers_with_most_sources_when_different_requests_per_subscriber(
+        self,
+    ):
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_3 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
+
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
+        await subscriber_state_store.add(subscriber_3)
+
+        await subscription_state_store.add(
+            EventSubscriptionState(
+                group=subscriber_group,
+                id=subscriber_1.id,
+                node_id=node_id,
+                event_sources=[
+                    event_sequence_identifier_1,
+                ],
+            ),
         )
 
-        await subscriber_state_store.add(subscriber_1.key)
+        await coordinator.distribute()
+
+        subscriptions = await subscription_state_store.list()
+
+        subscriber_1_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_1.id
+        )
+        subscriber_2_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_2.id
+        )
+        subscriber_3_subscription = subscription_for_subscriber_key(
+            subscriptions, subscriber_group, subscriber_3.id
+        )
+
+        assert len(subscriptions) == 2
+        assert subscriber_1_subscription is None
+        assert subscriber_2_subscription is not None
+        assert subscriber_3_subscription is not None
+
+        assert len(subscriber_2_subscription.event_sources) == 1
+        assert len(subscriber_3_subscription.event_sources) == 1
+
+        sources = subscription_event_sources(subscriptions)
+
+        assert set(sources) == {
+            event_sequence_identifier_1,
+            event_sequence_identifier_2,
+        }
+
+
+class TestDistributeExistingSubscriptionSubscriberChanges:
+    async def test_distributes_to_single_additional_subscriber_instance(self):
+        event_sequence_identifier_1 = random_event_source_identifier()
+        event_sequence_identifier_2 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        node_id = context.node_id
+        subscriber_state_store = context.subscriber_state_store
+        subscription_state_store = context.subscription_state_store
+
+        await subscriber_state_store.add(subscriber_1)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -833,15 +911,7 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             ),
         )
 
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-            ],
-        )
-
-        await subscriber_state_store.add(subscriber_2.key)
+        await subscriber_state_store.add(subscriber_2)
 
         await coordinator.distribute()
 
@@ -867,25 +937,40 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
     async def test_distributes_to_multiple_additional_subscriber_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_3 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_3 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
+        await subscriber_state_store.add(subscriber_1)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -899,16 +984,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             ),
         )
 
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-            ],
-        )
-
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscriber_state_store.add(subscriber_3.key)
+        await subscriber_state_store.add(subscriber_2)
+        await subscriber_state_store.add(subscriber_3)
 
         await coordinator.distribute()
 
@@ -939,28 +1016,46 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
     async def test_redistributes_subscriptions_from_removed_subscriber_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_3 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ],
+        )
+        subscriber_3 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-        await subscriber_state_store.add(subscriber_3.key)
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
+        await subscriber_state_store.add(subscriber_3)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -987,17 +1082,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             )
         )
 
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-            ],
-        )
-
-        await subscriber_state_store.remove(subscriber_2.key)
-        await subscriber_state_store.remove(subscriber_3.key)
+        await subscriber_state_store.remove(subscriber_2)
+        await subscriber_state_store.remove(subscriber_3)
 
         await coordinator.distribute()
 
@@ -1026,25 +1112,34 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
     async def test_removes_subscriptions_for_a_subscriber_group_without_any_subscriber_instances(
         self,
     ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -1063,16 +1158,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             )
         )
 
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-            ],
-        )
-
-        await subscriber_state_store.remove(subscriber_1.key)
-        await subscriber_state_store.remove(subscriber_2.key)
+        await subscriber_state_store.remove(subscriber_1)
+        await subscriber_state_store.remove(subscriber_2)
 
         await coordinator.distribute()
 
@@ -1080,96 +1167,52 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
 
         assert len(subscriptions) == 0
 
-    async def test_removes_subscription_sources_for_a_subscriber_group_without_any_subscriber_instances(
-        self,
-    ):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
-        event_sequence_identifier_1 = random_event_source_identifier()
-        event_sequence_identifier_2 = random_event_source_identifier()
-
-        context = make_coordinator()
-        coordinator = context.coordinator
-        node_id = context.node_id
-        subscriber_state_store = context.subscriber_state_store
-        subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
-
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-
-        await subscription_state_store.add(
-            EventSubscriptionState(
-                group=subscriber_group,
-                id=subscriber_1.id,
-                node_id=node_id,
-                event_sources=[event_sequence_identifier_1],
-            ),
-        )
-        await subscription_state_store.add(
-            EventSubscriptionState(
-                group=subscriber_group,
-                id=subscriber_2.id,
-                node_id=node_id,
-                event_sources=[event_sequence_identifier_2],
-            )
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-            ],
-        )
-
-        await subscriber_state_store.remove(subscriber_1.key)
-        await subscriber_state_store.remove(subscriber_2.key)
-
-        await coordinator.distribute()
-
-        subscription_sources = await subscription_source_mapping_store.list()
-
-        assert len(subscription_sources) == 0
-
     async def test_distributes_to_new_subscriber_group_instances(self):
-        subscriber_group_1 = data.random_subscriber_group()
-        subscriber_group_2 = data.random_subscriber_group()
-
-        subscriber_1_group_1 = random_subscriber(
-            subscriber_group=subscriber_group_1
-        )
-        subscriber_2_group_1 = random_subscriber(
-            subscriber_group=subscriber_group_1
-        )
-        subscriber_1_group_2 = random_subscriber(
-            subscriber_group=subscriber_group_2
-        )
-        subscriber_2_group_2 = random_subscriber(
-            subscriber_group=subscriber_group_2
-        )
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
 
+        subscriber_group_1 = data.random_subscriber_group()
+        subscriber_group_2 = data.random_subscriber_group()
+
+        subscriber_1_group_1 = random_subscriber(
+            subscriber_group=subscriber_group_1,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_2_group_1 = random_subscriber(
+            subscriber_group=subscriber_group_1,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ],
+        )
+        subscriber_1_group_2 = random_subscriber(
+            subscriber_group=subscriber_group_2,
+            subscription_requests=[
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ],
+        )
+        subscriber_2_group_2 = random_subscriber(
+            subscriber_group=subscriber_group_2,
+            subscription_requests=[
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+            ],
+        )
+
         context = make_coordinator()
         coordinator = context.coordinator
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1_group_1.key)
-        await subscriber_state_store.add(subscriber_2_group_1.key)
+        await subscriber_state_store.add(subscriber_1_group_1)
+        await subscriber_state_store.add(subscriber_2_group_1)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -1192,23 +1235,8 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
             ),
         )
 
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group_1,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-            ],
-        )
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group_2,
-            event_sources=[
-                event_sequence_identifier_3,
-                event_sequence_identifier_4,
-            ],
-        )
-
-        await subscriber_state_store.add(subscriber_1_group_2.key)
-        await subscriber_state_store.add(subscriber_2_group_2.key)
+        await subscriber_state_store.add(subscriber_1_group_2)
+        await subscriber_state_store.add(subscriber_2_group_2)
 
         await coordinator.distribute()
 
@@ -1268,7 +1296,7 @@ class TestCoordinateLocking:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(coordinator.coordinate())
@@ -1288,7 +1316,7 @@ class TestCoordinateLocking:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(coordinator.coordinate())
@@ -1299,7 +1327,7 @@ class TestCoordinateLocking:
 
         await asyncio.gather(task, return_exceptions=True)
 
-        assert coordinator.status == EventSubscriptionCoordinatorStatus.STOPPED
+        assert coordinator.status == ProcessStatus.STOPPED
 
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
@@ -1313,7 +1341,7 @@ class TestCoordinateLocking:
 
         await asyncio.gather(coordinator.coordinate(), return_exceptions=True)
 
-        assert coordinator.status == EventSubscriptionCoordinatorStatus.ERRORED
+        assert coordinator.status == ProcessStatus.ERRORED
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
 
@@ -1322,27 +1350,21 @@ class TestCoordinateDistribution:
     async def test_distributes_subscriptions(self):
         subscriber_group = data.random_subscriber_group()
         subscriber_id = data.random_subscriber_id()
-        subscriber_key = EventSubscriberKey(
-            group=subscriber_group, id=subscriber_id
-        )
-
-        event_source_identifier = CategoryIdentifier(
-            category=data.random_event_category_name()
+        subscriber_subscription_requests = [
+            CategoryIdentifier(category=data.random_event_category_name())
+        ]
+        subscriber = CapturingEventSubscriber(
+            group=subscriber_group,
+            id=subscriber_id,
+            subscription_requests=subscriber_subscription_requests,
         )
 
         context = make_coordinator()
         coordinator = context.coordinator
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_key)
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[event_source_identifier],
-        )
+        await subscriber_state_store.add(subscriber)
 
         task = asyncio.create_task(coordinator.coordinate())
 
@@ -1365,7 +1387,9 @@ class TestCoordinateDistribution:
         assert len(subscriptions) == 1
         assert subscriptions[0].group == subscriber_group
         assert subscriptions[0].id == subscriber_id
-        assert subscriptions[0].event_sources == [event_source_identifier]
+        assert (
+            subscriptions[0].event_sources == subscriber_subscription_requests
+        )
 
     async def test_distributes_every_distribution_interval(self):
         context = make_coordinator(
@@ -1384,7 +1408,7 @@ class TestCoordinateDistribution:
             while True:
                 await asyncio.sleep(0)
                 status = coordinator.status
-                if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         await wait_until_running()
@@ -1415,7 +1439,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.STARTING:
+                    if status == ProcessStatus.STARTING:
                         return
 
             await asyncio.wait_for(
@@ -1456,7 +1480,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await asyncio.wait_for(
@@ -1495,7 +1519,7 @@ class TestCoordinateLogging:
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == EventSubscriptionCoordinatorStatus.RUNNING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await asyncio.wait_for(
@@ -1562,10 +1586,15 @@ class TestDistributeLogging:
         assert startup_log_event.context == {"node": node_id}
 
     async def test_logs_existing_status_on_distribution(self):
-        subscriber = random_subscriber()
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
+
+        subscriber = random_subscriber(
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+            ]
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
@@ -1609,37 +1638,40 @@ class TestDistributeLogging:
         }
 
     async def test_logs_latest_status_on_distribution(self):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
 
-        context = make_coordinator()
-        coordinator = context.coordinator
-        logger = context.logger
-        node_id = context.node_id
-        subscriber_state_store = context.subscriber_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
+        subscriber_group = data.random_subscriber_group()
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-
-        await subscription_source_mapping_store.add(
+        subscriber_1 = random_subscriber(
             subscriber_group=subscriber_group,
-            event_sources=[
+            subscription_requests=[
                 event_sequence_identifier_4,
                 event_sequence_identifier_2,
                 event_sequence_identifier_3,
                 event_sequence_identifier_1,
             ],
         )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_1,
+            ],
+        )
+
+        context = make_coordinator()
+        coordinator = context.coordinator
+        logger = context.logger
+        node_id = context.node_id
+        subscriber_state_store = context.subscriber_state_store
+
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await coordinator.distribute()
 
@@ -1654,31 +1686,56 @@ class TestDistributeLogging:
             "node": node_id,
             "subscriber_groups": {
                 subscriber_group: {
-                    "subscribers": unordered(
-                        [subscriber_1.id, subscriber_2.id]
-                    ),
-                    "sources": unordered(
-                        [
-                            event_sequence_identifier_1.serialise(),
-                            event_sequence_identifier_2.serialise(),
-                            event_sequence_identifier_3.serialise(),
-                            event_sequence_identifier_4.serialise(),
-                        ]
-                    ),
-                }
+                    subscriber_1.id: {
+                        "subscription_requests": unordered(
+                            [
+                                event_sequence_identifier_1.serialise(),
+                                event_sequence_identifier_2.serialise(),
+                                event_sequence_identifier_3.serialise(),
+                                event_sequence_identifier_4.serialise(),
+                            ]
+                        )
+                    },
+                    subscriber_2.id: {
+                        "subscription_requests": unordered(
+                            [
+                                event_sequence_identifier_1.serialise(),
+                                event_sequence_identifier_2.serialise(),
+                                event_sequence_identifier_3.serialise(),
+                                event_sequence_identifier_4.serialise(),
+                            ]
+                        )
+                    },
+                },
             },
         }
 
     async def test_logs_updated_status_on_distribution(self):
-        subscriber_group = data.random_subscriber_group()
-
-        subscriber_1 = random_subscriber(subscriber_group=subscriber_group)
-        subscriber_2 = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        subscriber_1 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_1,
+            ],
+        )
+        subscriber_2 = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_4,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_1,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
@@ -1686,22 +1743,9 @@ class TestDistributeLogging:
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(subscriber_1.key)
-        await subscriber_state_store.add(subscriber_2.key)
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_4,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-                event_sequence_identifier_1,
-            ],
-        )
+        await subscriber_state_store.add(subscriber_1)
+        await subscriber_state_store.add(subscriber_2)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -1757,19 +1801,44 @@ class TestDistributeLogging:
         )
 
     async def test_logs_on_completing_distribution(self):
-        subscriber_group = data.random_subscriber_group()
-
-        old_subscriber = random_subscriber(subscriber_group=subscriber_group)
-        continuing_subscriber = random_subscriber(
-            subscriber_group=subscriber_group
-        )
-        new_subscriber = random_subscriber(subscriber_group=subscriber_group)
-
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
         event_sequence_identifier_5 = random_event_source_identifier()
+
+        subscriber_group = data.random_subscriber_group()
+
+        old_subscriber = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+                event_sequence_identifier_5,
+            ],
+        )
+        continuing_subscriber = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+                event_sequence_identifier_5,
+            ],
+        )
+        new_subscriber = random_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_requests=[
+                event_sequence_identifier_1,
+                event_sequence_identifier_2,
+                event_sequence_identifier_3,
+                event_sequence_identifier_4,
+                event_sequence_identifier_5,
+            ],
+        )
 
         context = make_coordinator()
         coordinator = context.coordinator
@@ -1777,12 +1846,9 @@ class TestDistributeLogging:
         node_id = context.node_id
         subscriber_state_store = context.subscriber_state_store
         subscription_state_store = context.subscription_state_store
-        subscription_source_mapping_store = (
-            context.subscription_source_mapping_store
-        )
 
-        await subscriber_state_store.add(continuing_subscriber.key)
-        await subscriber_state_store.add(new_subscriber.key)
+        await subscriber_state_store.add(continuing_subscriber)
+        await subscriber_state_store.add(new_subscriber)
 
         await subscription_state_store.add(
             EventSubscriptionState(
@@ -1805,17 +1871,6 @@ class TestDistributeLogging:
                     event_sequence_identifier_4,
                 ],
             ),
-        )
-
-        await subscription_source_mapping_store.add(
-            subscriber_group=subscriber_group,
-            event_sources=[
-                event_sequence_identifier_1,
-                event_sequence_identifier_2,
-                event_sequence_identifier_3,
-                event_sequence_identifier_4,
-                event_sequence_identifier_5,
-            ],
         )
 
         await coordinator.distribute()

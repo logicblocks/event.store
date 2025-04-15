@@ -19,12 +19,16 @@ from .types import EventConsumer, EventProcessor
 def make_subscriber(
     *,
     subscriber_group: str,
-    subscriber_id: str = uuid4().hex,
+    subscriber_id: str | None = None,
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor,
+    logger: FilteringBoundLogger = default_logger,
 ) -> "EventSubscriptionConsumer":
+    subscriber_id = (
+        subscriber_id if subscriber_id is not None else str(uuid4())
+    )
     state_store = EventConsumerStateStore(
         category=subscriber_state_category,
         persistence_interval=subscriber_state_persistence_interval,
@@ -34,7 +38,10 @@ def make_subscriber(
         source: S,
     ) -> EventSourceConsumer[S]:
         return EventSourceConsumer(
-            source=source, processor=event_processor, state_store=state_store
+            source=source,
+            processor=event_processor,
+            state_store=state_store,
+            logger=logger,
         )
 
     return EventSubscriptionConsumer(
@@ -42,6 +49,7 @@ def make_subscriber(
         id=subscriber_id,
         subscription_requests=[subscription_request],
         delegate_factory=delegate_factory,
+        logger=logger,
     )
 
 
@@ -109,7 +117,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
             ],
         )
 
-        for identifier, delegate in self._delegates.items():
+        for identifier, delegate in dict(self._delegates).items():
             await self._logger.adebug(
                 "event.consumer.subscription.consuming-source",
                 source=identifier.serialise(

@@ -1,14 +1,16 @@
 import asyncio
 from collections.abc import Sequence
 
-from logicblocks.event.processing.consumers import (
+from logicblocks.event.processing import (
     EventConsumerState,
     EventConsumerStateStore,
     EventCount,
 )
-from logicblocks.event.store import EventStore
-from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from logicblocks.event.store import (
+    EventStore,
+    InMemoryEventStorageAdapter,
+    UnmetWriteConditionError,
+)
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import (
     NewEventBuilder,

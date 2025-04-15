@@ -52,8 +52,6 @@ async def _try_wait_lock(
 
 
 class PostgresLockManager(LockManager):
-    connection_settings: ConnectionSettings
-
     def __init__(self, connection_settings: ConnectionSettings):
         self.connection_settings = connection_settings
 

@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Self
 
-from logicblocks.event.store.conditions import NoCondition, WriteCondition
-from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -14,6 +12,9 @@ from logicblocks.event.types import (
     StreamIdentifier,
     StringPersistable,
 )
+
+from ..conditions import NoCondition, WriteCondition
+from ..constraints import QueryConstraint
 
 # type Listable = identifier.Categories | identifier.Streams
 # type Readable = identifier.Log | identifier.Category | identifier.Stream

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriptionChange,
     EventSubscriptionChangeset,
     EventSubscriptionDifference,

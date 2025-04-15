@@ -1,5 +1,4 @@
 import asyncio
-import os
 import random
 import sys
 from collections.abc import AsyncIterator, Sequence
@@ -32,6 +31,12 @@ from logicblocks.event.testing.data import (
     random_event_category_name,
     random_event_stream_name,
 )
+from logicblocks.event.testsupport import (
+    clear_table,
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from logicblocks.event.types import StoredEvent, identifier
 
 connection_settings = PostgresConnectionSettings(
@@ -42,74 +47,11 @@ connection_settings = PostgresConnectionSettings(
     dbname="some-database",
 )
 
-project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
-)
-
-
-def relative_to_root(*path_parts: str) -> str:
-    return os.path.join(project_root, *path_parts)
-
-
-def create_table_query(table: str) -> abc.Query:
-    with open(relative_to_root("sql", "create_events_table.sql")) as f:
-        create_table_sql = f.read().replace("events", "{0}")
-
-        return create_table_sql.format(table).encode()
-
-
-def create_indices_query(table: str) -> abc.Query:
-    with open(relative_to_root("sql", "create_events_indices.sql")) as f:
-        create_indices_sql = f.read().replace("events", "{0}")
-
-        return create_indices_sql.format(table).encode()
-
-
-def drop_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("DROP TABLE IF EXISTS {0}").format(
-        sql.Identifier(table_name)
-    )
-
-
-def truncate_table_query(table_name: str) -> abc.Query:
-    return sql.SQL("TRUNCATE {0}").format(sql.Identifier(table_name))
-
-
-def reset_sequence_query(table_name: str, field_name: str) -> abc.Query:
-    return sql.SQL("ALTER SEQUENCE {0} RESTART WITH 1").format(
-        sql.Identifier("{0}_{1}_seq".format(table_name, field_name))
-    )
-
 
 def read_events_query(table: str) -> abc.Query:
     return sql.SQL("SELECT * FROM {0} ORDER BY sequence_number").format(
         sql.Identifier(table)
     )
-
-
-async def create_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(create_table_query(table))
-        await connection.execute(create_indices_query(table))
-
-
-async def clear_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(truncate_table_query(table))
-        await connection.execute(
-            reset_sequence_query(table, "sequence_number")
-        )
-
-
-async def drop_table(
-    pool: AsyncConnectionPool[AsyncConnection], table: str
-) -> None:
-    async with pool.connection() as connection:
-        await connection.execute(drop_table_query(table))
 
 
 async def read_events(
@@ -165,15 +107,8 @@ async def read_iterator_events(
 
 @pytest_asyncio.fixture
 async def open_connection_pool():
-    conninfo = connection_settings.to_connection_string()
-    pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
-
-    await pool.open()
-
-    try:
+    async with connection_pool(connection_settings) as pool:
         yield pool
-    finally:
-        await pool.close()
 
 
 class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
@@ -257,7 +192,9 @@ class TestPostgresStorageAdapterCustomTableName:
         table_settings = PostgresTableSettings(events_table_name=table_name)
 
         await drop_table(pool=self.pool, table="event_log")
-        await create_table(pool=self.pool, table="event_log")
+        await create_table(
+            pool=self.pool, table="events", renames={"events": "event_log"}
+        )
 
         adapter = PostgresEventStorageAdapter(
             connection_source=self.pool,

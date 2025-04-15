@@ -3,19 +3,19 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol, Sequence
 
-from logicblocks.event.processing.broker import (
+from logicblocks.event.processing import (
     EventSubscriber,
     EventSubscriberHealth,
     EventSubscriberStore,
     EventSubscriptionDifference,
     EventSubscriptionKey,
     EventSubscriptionObserver,
-    EventSubscriptionObserverStatus,
     EventSubscriptionState,
     EventSubscriptionStateStore,
     InMemoryEventStoreEventSourceFactory,
     InMemoryEventSubscriberStore,
     InMemoryEventSubscriptionStateStore,
+    ProcessStatus,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
@@ -418,11 +418,11 @@ class TestSynchroniseLogging:
 
 
 class TestObserveStatus:
-    async def test_has_a_status_of_stopped_before_running_observe(self):
+    async def test_has_a_status_of_initialised_before_running_observe(self):
         context = make_observer()
         observer = context.observer
 
-        assert observer.status == EventSubscriptionObserverStatus.STOPPED
+        assert observer.status == ProcessStatus.INITIALISED
 
     async def test_sets_status_to_running_while_observe_running(self):
         context = make_observer()
@@ -432,7 +432,7 @@ class TestObserveStatus:
             while True:
                 await asyncio.sleep(0)
                 status = observer.status
-                if status == EventSubscriptionObserverStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(observer.observe())
@@ -442,7 +442,7 @@ class TestObserveStatus:
                 timeout=timedelta(milliseconds=100).total_seconds(),
             )
 
-            assert observer.status == EventSubscriptionObserverStatus.RUNNING
+            assert observer.status == ProcessStatus.RUNNING
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
@@ -455,7 +455,7 @@ class TestObserveStatus:
             while True:
                 await asyncio.sleep(0)
                 status = observer.status
-                if status == EventSubscriptionObserverStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(observer.observe())
@@ -468,7 +468,7 @@ class TestObserveStatus:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
 
-        assert observer.status == EventSubscriptionObserverStatus.STOPPED
+        assert observer.status == ProcessStatus.STOPPED
 
     async def test_sets_status_to_errored_when_observe_encounters_error(self):
         node_id = data.random_node_id()
@@ -481,7 +481,7 @@ class TestObserveStatus:
 
         await asyncio.gather(observer.observe(), return_exceptions=True)
 
-        assert observer.status == EventSubscriptionObserverStatus.ERRORED
+        assert observer.status == ProcessStatus.ERRORED
 
 
 class TestObserveLogging:
@@ -495,7 +495,7 @@ class TestObserveLogging:
             while True:
                 await asyncio.sleep(0)
                 status = observer.status
-                if status == EventSubscriptionObserverStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(observer.observe())
@@ -531,7 +531,7 @@ class TestObserveLogging:
             while True:
                 await asyncio.sleep(0)
                 status = observer.status
-                if status == EventSubscriptionObserverStatus.RUNNING:
+                if status == ProcessStatus.RUNNING:
                     return
 
         task = asyncio.create_task(observer.observe())
@@ -668,7 +668,7 @@ class TestObserveSynchronisation:
                 while True:
                     await asyncio.sleep(0)
                     status = observer.status
-                    if status == EventSubscriptionObserverStatus.RUNNING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await wait_until_running()

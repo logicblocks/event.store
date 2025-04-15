@@ -6,10 +6,6 @@ from typing import Any
 import structlog
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.store.adapters import EventStorageAdapter
-from logicblocks.event.store.conditions import NoCondition, WriteCondition
-from logicblocks.event.store.constraints import QueryConstraint
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -21,6 +17,11 @@ from logicblocks.event.types import (
     StringPersistable,
     str_serialisation_fallback,
 )
+
+from .adapters import EventStorageAdapter
+from .conditions import NoCondition, WriteCondition
+from .constraints import QueryConstraint
+from .exceptions import UnmetWriteConditionError
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
 

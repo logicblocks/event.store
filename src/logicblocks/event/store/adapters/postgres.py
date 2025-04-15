@@ -284,39 +284,49 @@ def read_last_query(
     return query, params
 
 
-def insert_query(
+def insert_batch_query(
     target: Saveable,
-    event: NewEvent[StringPersistable, JsonPersistable],
-    position: int,
+    events: Sequence[NewEvent[StringPersistable, JsonPersistable]],
+    start_position: int,
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    return (
-        sql.SQL(
-            """
-            INSERT INTO {0} (
-              id, 
-              name, 
-              stream, 
-              category, 
-              position, 
-              payload, 
-              observed_at, 
-              occurred_at
-            )
-              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-              RETURNING *;
-            """
-        ).format(sql.Identifier(table_settings.events_table_name)),
-        [
+    value_lists = [sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s)") for _ in events]
+    values_clause = sql.SQL(", ").join(value_lists)
+
+    values = [
+        param
+        for i, event in enumerate(events)
+        for param in [
             uuid4().hex,
             serialise_to_string(event.name),
             target.stream,
             target.category,
-            position,
+            start_position + i,
             Jsonb(serialise_to_json_value(event.payload)),
             event.observed_at,
             event.occurred_at,
-        ],
+        ]
+    ]
+
+    return (
+        sql.SQL("""
+        INSERT INTO {0} (
+          id, 
+          name, 
+          stream, 
+          category, 
+          position, 
+          payload, 
+          observed_at, 
+          occurred_at
+        )
+        VALUES
+         {1}
+          RETURNING *;
+          """).format(
+            sql.Identifier(table_settings.events_table_name), values_clause
+        ),
+        values,
     )
 
 
@@ -343,33 +353,41 @@ async def read_last(
     return await cursor.fetchone()
 
 
-async def insert[Name: StringPersistable, Payload: JsonPersistable](
+async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
     cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
     *,
     target: Saveable,
-    event: NewEvent[Name, Payload],
-    position: int,
+    events: Sequence[NewEvent[Name, Payload]],
+    start_position: int,
     table_settings: TableSettings,
-) -> StoredEvent[Name, Payload]:
+) -> list[StoredEvent[Name, Payload]]:
+    if not events:
+        return []
+
     await cursor.execute(
-        *insert_query(target, event, position, table_settings)
+        *insert_batch_query(target, events, start_position, table_settings)
     )
-    stored_event = await cursor.fetchone()
+    stored_events = await cursor.fetchall()
 
-    if stored_event is None:  # pragma: no cover
-        raise RuntimeError("Insert failed")
+    if len(stored_events) != len(events):
+        raise RuntimeError(
+            f"Batch insert failed: expected {len(events)} rows, got {len(stored_events)}"
+        )
 
-    return StoredEvent[Name, Payload](
-        id=stored_event.id,
-        name=event.name,
-        stream=stored_event.stream,
-        category=stored_event.category,
-        position=stored_event.position,
-        sequence_number=stored_event.sequence_number,
-        payload=event.payload,
-        observed_at=stored_event.observed_at,
-        occurred_at=stored_event.occurred_at,
-    )
+    return [
+        StoredEvent[Name, Payload](
+            id=stored_event.id,
+            name=events[i].name,
+            stream=stored_event.stream,
+            category=stored_event.category,
+            position=stored_event.position,
+            sequence_number=stored_event.sequence_number,
+            payload=events[i].payload,
+            observed_at=stored_event.observed_at,
+            occurred_at=stored_event.occurred_at,
+        )
+        for i, stored_event in enumerate(stored_events)
+    ]
 
 
 class PostgresEventStorageAdapter(EventStorageAdapter):
@@ -380,6 +398,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(),
+        max_insert_batch_size: int = 1000,
     ):
         if isinstance(connection_source, ConnectionSettings):
             self._connection_pool_owner = True
@@ -393,6 +412,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self.serialisation_guarantee = serialisation_guarantee
         self.query_settings: QuerySettings = query_settings
         self.table_settings: TableSettings = table_settings
+        self.max_insert_batch_size: int = max_insert_batch_size
 
     async def open(self) -> None:
         if self._connection_pool_owner:
@@ -430,18 +450,22 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
                 current_position = last_event.position + 1 if last_event else 0
 
-                stored_events = [
-                    await insert(
+                all_stored_events: list[StoredEvent[Name, Payload]] = []
+                for i in range(0, len(events), self.max_insert_batch_size):
+                    batch_events = events[i : i + self.max_insert_batch_size]
+                    batch_position = current_position + i
+
+                    batch_results = await insert_batch(
                         cursor,
                         target=target,
-                        event=event,
-                        position=position,
+                        events=batch_events,
+                        start_position=batch_position,
                         table_settings=self.table_settings,
                     )
-                    for position, event in enumerate(events, current_position)
-                ]
 
-                return stored_events
+                    all_stored_events.extend(batch_results)
+
+                return all_stored_events
 
     async def latest(
         self, *, target: Latestable

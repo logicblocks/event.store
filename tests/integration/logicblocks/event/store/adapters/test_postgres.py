@@ -139,6 +139,7 @@ class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
         return PostgresEventStorageAdapter(
             connection_source=self.pool,
             serialisation_guarantee=serialisation_guarantee,
+            max_insert_batch_size=2,
         )
 
     async def clear_storage(self) -> None:

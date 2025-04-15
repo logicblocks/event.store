@@ -8,17 +8,16 @@ from psycopg import AsyncConnection, sql
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.db import PostgresConnectionSettings
-from logicblocks.event.store.adapters import (
+from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.store.adapters.postgres import (
-    StoredEvent,
     TableSettings,
     insert_batch,
     insert_batch_query,
 )
+from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder
 from logicblocks.event.types import (
-    NewEvent,
     StreamIdentifier,
 )
 
@@ -134,29 +133,6 @@ def normalize_whitespace(text: str) -> str:
     return " ".join(text.split())
 
 
-def event(fixed_timestamp, name="event", value="value"):
-    return NewEvent(
-        name=name,
-        payload={"data": value},
-        observed_at=fixed_timestamp,
-        occurred_at=fixed_timestamp,
-    )
-
-
-def stored_event(fixed_timestamp, i):
-    return StoredEvent(
-        id=f"id{i}",
-        name=f"event{i}",
-        stream="test-stream",
-        category="test-category",
-        position=10,
-        sequence_number=100,
-        payload={"data": f"value{i}"},
-        observed_at=fixed_timestamp,
-        occurred_at=fixed_timestamp,
-    )
-
-
 class TestBatchInsert:
     async def test_batch_insert_with_multiple_events(self):
         target = StreamIdentifier(
@@ -164,16 +140,61 @@ class TestBatchInsert:
         )
         now = datetime.now(timezone.utc)
         events = [
-            event(now, name="event1", value="value1"),
-            event(now, name="event2", value="value2"),
-            event(now, name="event3", value="value3"),
+            NewEventBuilder(
+                name="event1",
+                payload={"data": "value1"},
+                occurred_at=now,
+                observed_at=now,
+            ).build(),
+            NewEventBuilder(
+                name="event2",
+                payload={"data": "value2"},
+                occurred_at=now,
+                observed_at=now,
+            ).build(),
+            NewEventBuilder(
+                name="event3",
+                payload={"data": "value3"},
+                occurred_at=now,
+                observed_at=now,
+            ).build(),
         ]
 
         cursor = AsyncMock()
         stub_stored_events = [
-            stored_event(now, 0),
-            stored_event(now, 1),
-            stored_event(now, 2),
+            StoredEventBuilder(
+                id=f"id{0}",
+                name=f"event{0}",
+                stream="test-stream",
+                category="test-category",
+                position=10,
+                sequence_number=100,
+                payload={"data": f"value{0}"},
+                observed_at=now,
+                occurred_at=now,
+            ).build(),
+            StoredEventBuilder(
+                id=f"id{1}",
+                name=f"event{1}",
+                stream="test-stream",
+                category="test-category",
+                position=10,
+                sequence_number=100,
+                payload={"data": f"value{1}"},
+                observed_at=now,
+                occurred_at=now,
+            ).build(),
+            StoredEventBuilder(
+                id=f"id{2}",
+                name=f"event{2}",
+                stream="test-stream",
+                category="test-category",
+                position=10,
+                sequence_number=100,
+                payload={"data": f"value{2}"},
+                observed_at=now,
+                occurred_at=now,
+            ).build(),
         ]
         cursor.fetchall.return_value = stub_stored_events
 
@@ -220,8 +241,18 @@ class TestBatchInsert:
         fixed_timestamp = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         events = [
-            event(fixed_timestamp, name="event1", value="value1"),
-            event(fixed_timestamp, name="event2", value="value2"),
+            NewEventBuilder(
+                name="event1",
+                payload={"data": "value1"},
+                occurred_at=fixed_timestamp,
+                observed_at=fixed_timestamp,
+            ).build(),
+            NewEventBuilder(
+                name="event2",
+                payload={"data": "value2"},
+                occurred_at=fixed_timestamp,
+                observed_at=fixed_timestamp,
+            ).build(),
         ]
         query, params = insert_batch_query(
             target=target,

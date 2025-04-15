@@ -12,36 +12,17 @@
 
 - The `NodeManager`, `NodeStateStore`, `InMemoryNodeStateStore` and 
   `PostgresNodeStateStore` classes have been removed as they weren't required
-  by the subscription coordination algorithm.
+  by the subscription coordination algorithm. If you are creating `EventBroker`
+  instances using the `make_*_event_broker` factory functions, this will be
+  invisible to you.
 - The `SubscriptionSourceMappingStore` and 
   `InMemorySubscriptionSourceMappingStore` classes have been removed as they are 
   no longer required by the subscription coordination algorithm.
 
--->
-<!--
-### Added
-
-- A bullet item for the Added category.
-
--->
-<!--
 ### Changed
 
-- A bullet item for the Changed category.
-
--->
-<!--
-### Deprecated
-
-- A bullet item for the Deprecated category.
-
--->
-<!--
-
--->
-<!--
-### Security
-
-- A bullet item for the Security category.
-
--->
+- The changes to how the `CoordinatorObserverEventBroker` operates have resulted
+  in breaking changes to the supporting table structure. Upgrading to this
+  version requires migrations to drop the `nodes` table and to modify the 
+  `subscribers` table to have a JSONB `subscription_requests` column. See 
+  `sql/create_subscribers_table.sql` for the latest table structure.

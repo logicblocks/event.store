@@ -37,7 +37,7 @@ def log_event_name(event: str) -> str:
 
 
 def subscription_status(
-        subscriptions: Sequence[EventSubscriptionState],
+    subscriptions: Sequence[EventSubscriptionState],
 ) -> dict[str, Any]:
     existing: dict[str, Any] = {}
     for subscription in subscriptions:
@@ -54,7 +54,7 @@ def subscription_status(
 
 
 def subscriber_group_status(
-        subscribers: Sequence[EventSubscriberState],
+    subscribers: Sequence[EventSubscriberState],
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     for subscriber in subscribers:
@@ -76,7 +76,7 @@ def subscriber_group_status(
 
 
 def subscription_change_summary(
-        changes: Sequence[EventSubscriptionStateChange],
+    changes: Sequence[EventSubscriptionStateChange],
 ) -> dict[str, Any]:
     return {
         "additions": len(
@@ -105,14 +105,14 @@ def subscription_change_summary(
 
 class EventSubscriptionCoordinator(Process):
     def __init__(
-            self,
-            node_id: str,
-            lock_manager: LockManager,
-            subscriber_state_store: EventSubscriberStateStore,
-            subscription_state_store: EventSubscriptionStateStore,
-            logger: FilteringBoundLogger = default_logger,
-            subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
-            distribution_interval: timedelta = timedelta(seconds=20),
+        self,
+        node_id: str,
+        lock_manager: LockManager,
+        subscriber_state_store: EventSubscriberStateStore,
+        subscription_state_store: EventSubscriptionStateStore,
+        logger: FilteringBoundLogger = default_logger,
+        subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
+        distribution_interval: timedelta = timedelta(seconds=20),
     ):
         self._node_id = node_id
 
@@ -205,10 +205,12 @@ class EventSubscriptionCoordinator(Process):
         for subscriber_group, subscribers in subscriber_group_subscribers:
             subscribers = list(subscribers)
             subscription_requests_sorted_by_count = sorted(
-                list({
-                    tuple(subscriber.subscription_requests)
-                    for subscriber in subscribers
-                }),
+                list(
+                    {
+                        tuple(subscriber.subscription_requests)
+                        for subscriber in subscribers
+                    }
+                ),
                 key=len,
                 reverse=True,
             )
@@ -233,7 +235,8 @@ class EventSubscriptionCoordinator(Process):
                 if subscriber.subscription_requests == target_event_sources
             }
             eligible_subscriber_map = {
-                subscriber.key: subscriber for subscriber in eligible_subscribers
+                subscriber.key: subscriber
+                for subscriber in eligible_subscribers
             }
             all_allocated_event_sources = tuple(
                 event_source
@@ -254,12 +257,12 @@ class EventSubscriptionCoordinator(Process):
                 if event_source not in target_event_sources
             )
             new_event_sources = tuple(
-                set(target_event_sources) - set(correctly_allocated_event_sources)
+                set(target_event_sources)
+                - set(correctly_allocated_event_sources)
             )
 
             new_event_source_chunks = chunk(
-                new_event_sources,
-                len(eligible_subscribers)
+                new_event_sources, len(eligible_subscribers)
             )
 
             for subscriber in ineligible_subscribers:
@@ -286,7 +289,9 @@ class EventSubscriptionCoordinator(Process):
                                 group=subscriber_group,
                                 id=subscriber.id,
                                 node_id=subscriber.node_id,
-                                event_sources=list(new_event_source_chunks[index]),
+                                event_sources=list(
+                                    new_event_source_chunks[index]
+                                ),
                             ),
                         )
                     )

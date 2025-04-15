@@ -789,7 +789,9 @@ class TestDistributeExistingSubscriptionsSourceChanges:
             event_sequence_identifier_3,
         }
 
-    async def test_distributes_to_subscribers_with_most_sources_when_different_requests_per_subscriber(self):
+    async def test_distributes_to_subscribers_with_most_sources_when_different_requests_per_subscriber(
+        self,
+    ):
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
 
@@ -865,6 +867,7 @@ class TestDistributeExistingSubscriptionsSourceChanges:
             event_sequence_identifier_1,
             event_sequence_identifier_2,
         }
+
 
 class TestDistributeExistingSubscriptionSubscriberChanges:
     async def test_distributes_to_single_additional_subscriber_instance(self):

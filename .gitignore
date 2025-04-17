@@ -357,7 +357,6 @@ cython_debug/
 
 ### direnv template
 .direnv
-.envrc
 .envrc.local
 
 ### project specific

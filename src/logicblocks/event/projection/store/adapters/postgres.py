@@ -36,6 +36,7 @@ from logicblocks.event.types import (
 from ..query import (
     Clause,
     FilterClause,
+    Function,
     KeySetPagingClause,
     Lookup,
     OffsetPagingClause,
@@ -77,8 +78,10 @@ def sort_direction_for_query_sort_order(
 
 
 def column_for_query_path(
-    path: Path,
+    path: Path | Function,
 ) -> Column:
+    if isinstance(path, Function):
+        raise ValueError("Function sorting is not supported.")
     if path.is_nested():
         return Column(field=path.top_level, path=path.sub_levels)
     else:
@@ -152,6 +155,9 @@ def sort_clause_applicator(
 ) -> DBQuery:
     order_by_fields: list[tuple[Column, SortDirection]] = []
     for field in sort.fields:
+        if isinstance(field.path, Function):
+            raise ValueError("Function sorting is not supported.")
+
         order_by_fields.append(
             (
                 column_for_query_path(field.path),
@@ -687,17 +693,16 @@ def insert_query(
     return (
         sql.SQL(
             """
-            INSERT INTO {0} (
-              id, 
-              name, 
-              source,
-              state,
-              metadata
-            )
-              VALUES (%s, %s, %s, %s, %s)
-              ON CONFLICT (name, id) 
-              DO UPDATE
-            SET (state, metadata) = (%s, %s);
+            INSERT INTO {0} (id,
+                             name,
+                             source,
+                             state,
+                             metadata)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (name, id)
+                DO
+            UPDATE
+                SET (state, metadata) = (%s, %s);
             """
         ).format(sql.Identifier(table_settings.projections_table_name)),
         [

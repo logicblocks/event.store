@@ -33,6 +33,9 @@ from .query import (
     Search as Search,
 )
 from .query import (
+    Similarity as Similarity,
+)
+from .query import (
     SortClause as SortClause,
 )
 from .query import (

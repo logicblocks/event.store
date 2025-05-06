@@ -3,22 +3,6 @@ from enum import StrEnum
 from typing import Any, Sequence
 
 
-class Operator(StrEnum):
-    EQUAL = "equal"
-    NOT_EQUAL = "not_equal"
-    GREATER_THAN = "greater_than"
-    GREATER_THAN_OR_EQUAL = "greater_than_or_equal"
-    LESS_THAN = "less_than"
-    LESS_THAN_OR_EQUAL = "less_than_or_equal"
-    IN = "in"
-    CONTAINS = "contains"
-
-
-class SortOrder(StrEnum):
-    ASC = "asc"
-    DESC = "desc"
-
-
 @dataclass(frozen=True)
 class Path:
     top_level: str
@@ -35,6 +19,32 @@ class Path:
         return len(self.sub_levels) > 0
 
 
+class Function:
+    pass
+
+
+@dataclass(frozen=True)
+class Similarity(Function):
+    path: Path
+    value: str
+
+
+class Operator(StrEnum):
+    EQUAL = "equal"
+    NOT_EQUAL = "not_equal"
+    GREATER_THAN = "greater_than"
+    GREATER_THAN_OR_EQUAL = "greater_than_or_equal"
+    LESS_THAN = "less_than"
+    LESS_THAN_OR_EQUAL = "less_than_or_equal"
+    IN = "in"
+    CONTAINS = "contains"
+
+
+class SortOrder(StrEnum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class Clause:
     pass
 
@@ -48,7 +58,7 @@ class FilterClause(Clause):
 
 @dataclass(frozen=True)
 class SortField(Clause):
-    path: Path
+    path: Path | Function
     order: SortOrder
 
 

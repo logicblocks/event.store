@@ -10,6 +10,11 @@ from logicblocks.event.db.postgres import (
     ConnectionSource,
     ParameterisedQuery,
 )
+from logicblocks.event.query import (
+    Lookup,
+    Query,
+    Search,
+)
 from logicblocks.event.types import (
     JsonPersistable,
     JsonValue,
@@ -20,11 +25,6 @@ from logicblocks.event.types import (
     serialise_projection,
 )
 
-from ...query import (
-    Lookup,
-    Query,
-    Search,
-)
 from ..base import ProjectionStorageAdapter
 from .converter import PostgresQueryConverter
 from .settings import TableSettings

@@ -4,24 +4,24 @@ from typing import Any, cast
 import pytest
 from psycopg import abc, sql
 
-from logicblocks.event.projection.store import (
+from logicblocks.event.projection.store.adapters import (
+    PostgresParameterisedQuery,
+    PostgresQueryConverter,
+    PostgresTableSettings,
+)
+from logicblocks.event.query import (
     FilterClause,
     KeySetPagingClause,
     Lookup,
     OffsetPagingClause,
     Operator,
+    PagingDirection,
     Path,
     Search,
     SortClause,
     SortField,
     SortOrder,
 )
-from logicblocks.event.projection.store.adapters import (
-    PostgresParameterisedQuery,
-    PostgresQueryConverter,
-    PostgresTableSettings,
-)
-from logicblocks.event.projection.store.query import PagingDirection
 from logicblocks.event.testing import data
 from logicblocks.event.testing.data import random_projection_id
 

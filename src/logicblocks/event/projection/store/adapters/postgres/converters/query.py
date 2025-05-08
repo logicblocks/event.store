@@ -3,13 +3,13 @@ from collections.abc import Mapping
 from typing import Any, Self
 
 from logicblocks.event.db import postgres
-
-from ....query import (
+from logicblocks.event.query import (
     Clause,
     Lookup,
     Query,
     Search,
 )
+
 from ..settings import TableSettings
 from .clause import ClauseConverter
 

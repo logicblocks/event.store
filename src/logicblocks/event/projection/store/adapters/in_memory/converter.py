@@ -1,6 +1,6 @@
 from typing import Self
 
-from ...query import (
+from logicblocks.event.query import (
     Clause,
     FilterClause,
     KeySetPagingClause,
@@ -10,6 +10,7 @@ from ...query import (
     Search,
     SortClause,
 )
+
 from .converters import (
     ClauseConverter,
     FilterClauseConverter,

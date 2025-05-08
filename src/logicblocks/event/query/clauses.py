@@ -3,31 +3,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-
-@dataclass(frozen=True)
-class Path:
-    top_level: str
-    sub_levels: Sequence[str | int]
-
-    def __init__(self, top_level: str, *sub_levels: str | int):
-        object.__setattr__(self, "top_level", top_level)
-        object.__setattr__(self, "sub_levels", sub_levels)
-
-    def __repr__(self):
-        return repr([self.top_level, *self.sub_levels])
-
-    def is_nested(self):
-        return len(self.sub_levels) > 0
-
-
-class Function:
-    pass
-
-
-@dataclass(frozen=True)
-class Similarity(Function):
-    path: Path
-    value: str
+from .functions import Function
+from .utilities import Path
 
 
 class Operator(StrEnum):
@@ -111,41 +88,3 @@ class OffsetPagingClause(PagingClause):
     @property
     def offset(self):
         return (self.page_number - 1) * self.item_count
-
-
-class Query:
-    pass
-
-
-@dataclass(frozen=True)
-class Search(Query):
-    filters: Sequence[Clause]
-    sort: Clause | None
-    paging: Clause | None
-
-    def __init__(
-        self,
-        *,
-        filters: Sequence[Clause] | None = None,
-        sort: Clause | None = None,
-        paging: Clause | None = None,
-    ):
-        object.__setattr__(
-            self, "filters", filters if filters is not None else []
-        )
-        object.__setattr__(self, "sort", sort)
-        object.__setattr__(self, "paging", paging)
-
-
-@dataclass(frozen=True)
-class Lookup(Query):
-    filters: Sequence[Clause]
-
-    def __init__(
-        self,
-        *,
-        filters: Sequence[Clause] | None = None,
-    ):
-        object.__setattr__(
-            self, "filters", filters if filters is not None else []
-        )

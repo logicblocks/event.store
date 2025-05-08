@@ -12,13 +12,13 @@ from logicblocks.event.db.postgres import (
     ConnectionSource,
     ParameterisedQuery,
 )
-from logicblocks.event.projection.store import (
-    FilterClause,
-    Search,
-)
 from logicblocks.event.projection.store.adapters import (
     PostgresQueryConverter,
     PostgresTableSettings,
+)
+from logicblocks.event.query import (
+    FilterClause,
+    Search,
 )
 from logicblocks.event.types.identifier import event_sequence_identifier
 

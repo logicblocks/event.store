@@ -4,20 +4,6 @@ from typing import Any, Callable, Self
 
 import pytest
 
-from logicblocks.event.projection.store import (
-    Clause,
-    FilterClause,
-    KeySetPagingClause,
-    Lookup,
-    OffsetPagingClause,
-    Operator,
-    Path,
-    Query,
-    Search,
-    SortClause,
-    SortField,
-    SortOrder,
-)
 from logicblocks.event.projection.store.adapters import (
     InMemoryQueryConverter,
     ProjectionResultSetTransformer,
@@ -28,7 +14,21 @@ from logicblocks.event.projection.store.adapters.in_memory.converters import (
     QueryConverter,
     SortClauseConverter,
 )
-from logicblocks.event.projection.store.query import PagingDirection
+from logicblocks.event.query import (
+    Clause,
+    FilterClause,
+    KeySetPagingClause,
+    Lookup,
+    OffsetPagingClause,
+    Operator,
+    PagingDirection,
+    Path,
+    Query,
+    Search,
+    SortClause,
+    SortField,
+    SortOrder,
+)
 from logicblocks.event.testing import (
     BaseProjectionBuilder,
     MappingProjectionBuilder,

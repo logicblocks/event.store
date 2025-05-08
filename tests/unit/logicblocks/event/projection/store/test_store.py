@@ -5,12 +5,14 @@ from typing import Any, Self
 import pytest
 
 from logicblocks.event.projection.store import (
-    FilterClause,
     InMemoryProjectionStorageAdapter,
+    ProjectionStore,
+)
+from logicblocks.event.query import (
+    FilterClause,
     KeySetPagingClause,
     Operator,
     Path,
-    ProjectionStore,
     Similarity,
     SortClause,
     SortField,

@@ -1,8 +1,8 @@
 from typing import Self
 
-from logicblocks.event.db import postgres as postgres
+import logicblocks.event.db.postgres as postgres
+import logicblocks.event.query as query
 
-from ... import query as query
 from .converters import (
     ClauseConverter,
     FilterClauseConverter,

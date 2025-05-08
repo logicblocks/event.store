@@ -3,12 +3,13 @@ from collections.abc import Mapping, Sequence
 from functools import reduce
 from typing import Any, Self
 
-from ....query import (
+from logicblocks.event.query import (
     Clause,
     Lookup,
     Query,
     Search,
 )
+
 from ..types import (
     Converter,
     ProjectionResultSet,

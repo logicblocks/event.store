@@ -11,15 +11,15 @@ from logicblocks.event.db.postgres import (
     ConnectionSource,
     ParameterisedQuery,
 )
-from logicblocks.event.projection.store import (
+from logicblocks.event.projection.store.adapters import (
+    PostgresQueryConverter,
+    PostgresTableSettings,
+)
+from logicblocks.event.query import (
     FilterClause,
     Operator,
     Path,
     Search,
-)
-from logicblocks.event.projection.store.adapters import (
-    PostgresQueryConverter,
-    PostgresTableSettings,
 )
 from logicblocks.event.types.identifier import event_sequence_identifier
 from logicblocks.event.utils.clock import Clock, SystemClock

@@ -1,5 +1,10 @@
 from collections.abc import Sequence
 
+from logicblocks.event.query import (
+    Lookup,
+    Query,
+    Search,
+)
 from logicblocks.event.types import (
     JsonPersistable,
     JsonValue,
@@ -10,11 +15,6 @@ from logicblocks.event.types import (
     serialise_to_json_value,
 )
 
-from ...query import (
-    Lookup,
-    Query,
-    Search,
-)
 from ..base import ProjectionStorageAdapter
 from .converter import InMemoryQueryConverter
 

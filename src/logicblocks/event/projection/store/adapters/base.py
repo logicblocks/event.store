@@ -1,14 +1,13 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
+from logicblocks.event.query import Lookup, Query, Search
 from logicblocks.event.types import (
     JsonPersistable,
     JsonValue,
     JsonValueType,
     Projection,
 )
-
-from ..query import Lookup, Query, Search
 
 
 class ProjectionStorageAdapter[

@@ -1,10 +1,8 @@
 from collections.abc import Sequence
 
 from logicblocks.event.projection import InMemoryProjectionStorageAdapter
-from logicblocks.event.projection.store import (
-    ProjectionStorageAdapter,
-    Search,
-)
+from logicblocks.event.projection.store import ProjectionStorageAdapter
+from logicblocks.event.query import Search
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
 )

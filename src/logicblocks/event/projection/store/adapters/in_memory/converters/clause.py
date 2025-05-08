@@ -4,12 +4,7 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Self
 
-from logicblocks.event.types import (
-    JsonValue,
-    Projection,
-)
-
-from ....query import (
+from logicblocks.event.query import (
     Clause,
     FilterClause,
     Function,
@@ -22,6 +17,11 @@ from ....query import (
     SortField,
     SortOrder,
 )
+from logicblocks.event.types import (
+    JsonValue,
+    Projection,
+)
+
 from ..types import (
     Converter,
     ProjectionResultSet,

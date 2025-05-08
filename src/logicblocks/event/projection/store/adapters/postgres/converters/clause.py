@@ -4,10 +4,9 @@ from typing import Any, Self, Sequence, TypeGuard
 
 from psycopg.types.json import Jsonb
 
-from logicblocks.event.db import postgres as postgres
-from logicblocks.event.db.postgres import Query
+import logicblocks.event.db.postgres as postgres
+import logicblocks.event.query as query
 
-from .... import query as query
 from ..settings import TableSettings
 from ..types import QueryApplicator
 
@@ -676,7 +675,7 @@ class OffsetPagingClauseQueryApplicator(QueryApplicator):
     def __init__(self, clause: query.OffsetPagingClause):
         self._clause = clause
 
-    def apply(self, target: Query) -> Query:
+    def apply(self, target: postgres.Query) -> postgres.Query:
         if self._clause.page_number == 1:
             return target.limit(self._clause.item_count)
         else:

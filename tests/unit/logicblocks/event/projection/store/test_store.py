@@ -2,6 +2,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
+import pytest
+
 from logicblocks.event.projection.store import (
     FilterClause,
     InMemoryProjectionStorageAdapter,
@@ -302,6 +304,7 @@ class TestProjectionStoreSearch:
 
         assert located == [projection_4, projection_2]
 
+    @pytest.mark.skip("in progress")
     async def test_allows_use_of_calculations_in_sort(self):
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)

@@ -26,12 +26,16 @@ from logicblocks.event.testing import data
 from logicblocks.event.testing.data import random_projection_id
 
 
-def query_converter_with_default_clause_converters(
-    table_settings: PostgresTableSettings = PostgresTableSettings(),
+def query_converter_with_default_converters(
+    table_settings: PostgresTableSettings = PostgresTableSettings(
+        table_name="projections"
+    ),
 ):
-    return PostgresQueryConverter(
-        table_settings=table_settings
-    ).with_default_clause_applicators()
+    return (
+        PostgresQueryConverter(table_settings=table_settings)
+        .with_default_clause_converters()
+        .with_default_query_converters()
+    )
 
 
 def sql_query_to_string(query: abc.Query) -> str:
@@ -54,7 +58,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_single_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         query = query_type(
             filters=[
@@ -75,7 +79,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_multiple_filter_query_on_top_level_attributes(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -98,7 +102,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_single_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -121,7 +125,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_single_string_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -146,7 +150,7 @@ class TestPostgresQueryConverterQueryConversion:
     ):
         value_1 = data.random_ascii_alphanumerics_string(10)
         value_2 = data.random_ascii_alphanumerics_string(10)
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -169,7 +173,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_multiple_filter_query_on_nested_attributes(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -198,7 +202,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_not_equal_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -220,7 +224,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_not_equal_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -243,7 +247,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_greater_than_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -265,7 +269,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_greater_than_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -288,7 +292,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_greater_than_or_equal_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -310,7 +314,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_greater_than_or_equal_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -333,7 +337,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_less_than_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -355,7 +359,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_less_than_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -378,7 +382,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_less_than_or_equal_filter_query_on_top_level_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -400,7 +404,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_less_than_or_equal_filter_query_on_nested_attribute(
         self, query_type
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = query_type(
             filters=[
                 FilterClause(
@@ -420,7 +424,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_single_sort_query_on_top_level_attribute(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(
             sort=SortClause(
                 fields=[SortField(path=Path("id"), order=SortOrder.ASC)]
@@ -437,7 +441,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_multiple_field_sort_query_on_top_level_attributes(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(
             sort=SortClause(
                 fields=[
@@ -457,7 +461,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_single_field_sort_query_on_nested_attribute(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(
             sort=SortClause(
                 fields=[
@@ -478,7 +482,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_multiple_field_sort_query_on_nested_attributes(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(
             sort=SortClause(
                 fields=[
@@ -502,7 +506,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_offset_paging_query_for_first_page(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(paging=OffsetPagingClause(item_count=10))
 
         converted = converter.convert_query(query)
@@ -515,7 +519,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_offset_paging_query_for_next_page(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(paging=OffsetPagingClause(page_number=3, item_count=10))
 
         converted = converter.convert_query(query)
@@ -526,7 +530,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_key_set_paging_query_no_sorts_first_page(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         query = Search(paging=KeySetPagingClause(item_count=10))
 
         converted = converter.convert_query(query)
@@ -539,7 +543,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_no_sorts_next_page_forwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -563,7 +567,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_no_sorts_next_page_backwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -588,7 +592,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_key_set_paging_query_other_asc_sorts_first_page(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         query = Search(
             sort=SortClause(
@@ -607,7 +611,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_key_set_paging_query_other_desc_sorts_first_page(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         query = Search(
             sort=SortClause(
@@ -628,7 +632,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_asc_sorts_next_page_forwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -658,7 +662,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_desc_sorts_next_page_forwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -688,7 +692,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_asc_sorts_next_page_backwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -721,7 +725,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_desc_sorts_next_page_backwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -754,7 +758,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_mixed_sorts_first_page(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         query = Search(
             sort=SortClause(
@@ -778,7 +782,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_mixed_sorts_next_page_forwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -828,7 +832,7 @@ class TestPostgresQueryConverterQueryConversion:
     def test_converts_key_set_paging_query_other_mixed_sorts_next_page_backwards(
         self,
     ):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
 
         last_id = random_projection_id()
 
@@ -879,7 +883,7 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     def test_converts_string_array_contains_query_on_nested_attribute(self):
-        converter = query_converter_with_default_clause_converters()
+        converter = query_converter_with_default_converters()
         value = data.random_ascii_alphanumerics_string(10)
         query = Search(
             filters=[

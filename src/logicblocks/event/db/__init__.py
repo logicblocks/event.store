@@ -7,6 +7,7 @@ from .postgres import (
 from .postgres import (
     ConnectionSource as PostgresConnectionSource,
 )
+from .postgres import Operator as PostgresOperator
 from .postgres import (
     ParameterisedQuery as PostgresParameterisedQuery,
 )
@@ -23,6 +24,7 @@ from .postgres import (
 __all__ = [
     "PostgresConnectionSettings",
     "PostgresConnectionSource",
+    "PostgresOperator",
     "PostgresParameterisedQuery",
     "PostgresParameterisedQueryFragment",
     "PostgresQuery",

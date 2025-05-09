@@ -25,6 +25,8 @@ from .conversion import (
 )
 from .event import NewEvent as NewEvent
 from .event import StoredEvent as StoredEvent
+from .functions import Applier as Applier
+from .functions import Converter as Converter
 from .identifier import CategoryIdentifier as CategoryIdentifier
 from .identifier import EventSourceIdentifier as EventSourceIdentifier
 from .identifier import LogIdentifier as LogIdentifier

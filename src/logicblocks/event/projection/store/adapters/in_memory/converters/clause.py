@@ -18,18 +18,20 @@ from logicblocks.event.query import (
     SortOrder,
 )
 from logicblocks.event.types import (
+    Converter,
     JsonValue,
     Projection,
 )
 
 from ..types import (
-    Converter,
     ProjectionResultSet,
     ProjectionResultSetTransformer,
 )
 
 
-class ClauseConverter[C: Clause = Clause](Converter[C], ABC):
+class ClauseConverter[C: Clause = Clause](
+    Converter[C, ProjectionResultSetTransformer], ABC
+):
     @abstractmethod
     def convert(self, item: C) -> ProjectionResultSetTransformer:
         raise NotImplementedError
@@ -76,8 +78,8 @@ def make_path_key_function(
 
 
 class FilterClauseConverter(ClauseConverter[FilterClause]):
-    def matches(
-        self,
+    @staticmethod
+    def _matches(
         clause: FilterClause,
         projection: Projection[JsonValue, JsonValue],
     ) -> bool:
@@ -111,15 +113,15 @@ class FilterClauseConverter(ClauseConverter[FilterClause]):
             return list(
                 projection
                 for projection in projections
-                if self.matches(item, projection)
+                if self._matches(item, projection)
             )
 
         return handler
 
 
 class SortClauseConverter(ClauseConverter[SortClause]):
-    def accumulator(
-        self,
+    @staticmethod
+    def _accumulator(
         projections: Sequence[Projection[JsonValue, JsonValue]],
         field: SortField,
     ) -> Sequence[Projection[JsonValue, JsonValue]]:
@@ -136,7 +138,9 @@ class SortClauseConverter(ClauseConverter[SortClause]):
         def handler(
             projections: Sequence[Projection[JsonValue, JsonValue]],
         ) -> Sequence[Projection[JsonValue, JsonValue]]:
-            return reduce(self.accumulator, reversed(item.fields), projections)
+            return reduce(
+                self._accumulator, reversed(item.fields), projections
+            )
 
         return handler
 
@@ -157,8 +161,8 @@ class LastIndexFound:
 
 
 class KeySetPagingClauseConverter(ClauseConverter[KeySetPagingClause]):
+    @staticmethod
     def _determine_last_index(
-        self,
         projections: Sequence[Projection[JsonValue, JsonValue]],
         last_id: str | None,
     ) -> LastIndexFound | LastIndexNotFound | LastIndexNotProvided:

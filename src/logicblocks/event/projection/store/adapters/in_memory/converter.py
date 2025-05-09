@@ -10,6 +10,7 @@ from logicblocks.event.query import (
     Search,
     SortClause,
 )
+from logicblocks.event.types import Converter
 
 from .converters import (
     ClauseConverter,
@@ -23,16 +24,25 @@ from .converters import (
     TypeRegistryClauseConverter,
     TypeRegistryQueryConverter,
 )
-from .types import (
-    Converter,
-    ProjectionResultSetTransformer,
-)
+from .types import ProjectionResultSetTransformer
 
 
-class InMemoryQueryConverter(Converter[Query]):
-    def __init__(self):
-        self._clause_converter = TypeRegistryClauseConverter()
-        self._query_converter = TypeRegistryQueryConverter()
+class InMemoryQueryConverter(Converter[Query, ProjectionResultSetTransformer]):
+    def __init__(
+        self,
+        clause_converter: TypeRegistryClauseConverter | None = None,
+        query_converter: TypeRegistryQueryConverter | None = None,
+    ):
+        self._clause_converter = (
+            clause_converter
+            if clause_converter is not None
+            else TypeRegistryClauseConverter()
+        )
+        self._query_converter = (
+            query_converter
+            if query_converter is not None
+            else TypeRegistryQueryConverter()
+        )
 
     def with_default_clause_converters(self) -> Self:
         return (

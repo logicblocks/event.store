@@ -9,16 +9,18 @@ from logicblocks.event.query import (
     Query,
     Search,
 )
+from logicblocks.event.types import Converter
 
 from ..types import (
-    Converter,
     ProjectionResultSet,
     ProjectionResultSetTransformer,
 )
 from .clause import ClauseConverter
 
 
-class QueryConverter[Q: Query = Query](Converter[Q], ABC):
+class QueryConverter[Q: Query = Query](
+    Converter[Q, ProjectionResultSetTransformer], ABC
+):
     @abstractmethod
     def convert(self, item: Q) -> ProjectionResultSetTransformer:
         raise NotImplementedError

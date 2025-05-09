@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, Self
 
@@ -11,13 +10,7 @@ from logicblocks.event.query import (
 )
 
 from ..settings import TableSettings
-from .clause import ClauseConverter
-
-
-class QueryConverter[Q: Query = Query](ABC):
-    @abstractmethod
-    def convert(self, query: Q) -> postgres.ParameterisedQuery:
-        raise NotImplementedError
+from ..types import ClauseConverter, QueryConverter
 
 
 class SearchQueryConverter(QueryConverter[Search]):
@@ -29,10 +22,10 @@ class SearchQueryConverter(QueryConverter[Search]):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(self, query: Search) -> postgres.ParameterisedQuery:
-        filters = query.filters
-        sort = query.sort
-        paging = query.paging
+    def convert(self, item: Search) -> postgres.ParameterisedQuery:
+        filters = item.filters
+        sort = item.sort
+        paging = item.paging
 
         builder = (
             postgres.Query()
@@ -59,8 +52,8 @@ class LookupQueryConverter(QueryConverter[Lookup]):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(self, query: Lookup) -> postgres.ParameterisedQuery:
-        filters = query.filters
+    def convert(self, item: Lookup) -> postgres.ParameterisedQuery:
+        filters = item.filters
 
         builder = (
             postgres.Query()
@@ -86,7 +79,7 @@ class TypeRegistryQueryConverter(QueryConverter):
         self._registry[query_type] = converter
         return self
 
-    def convert(self, query: Query) -> postgres.ParameterisedQuery:
-        if query.__class__ not in self._registry:
-            raise ValueError(f"Unsupported query type: {query}.")
-        return self._registry[query.__class__].convert(query)
+    def convert(self, item: Query) -> postgres.ParameterisedQuery:
+        if item.__class__ not in self._registry:
+            raise ValueError(f"Unsupported query type: {item}.")
+        return self._registry[item.__class__].convert(item)

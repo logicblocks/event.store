@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from typing import Any, Self, Sequence, TypeGuard
 
@@ -8,13 +7,7 @@ import logicblocks.event.db.postgres as postgres
 import logicblocks.event.query as query
 
 from ..settings import TableSettings
-from ..types import QueryApplicator
-
-
-class ClauseConverter[C: query.Clause = query.Clause](ABC):
-    @abstractmethod
-    def convert(self, clause: C) -> QueryApplicator:
-        raise NotImplementedError
+from ..types import ClauseConverter, QueryApplier
 
 
 def column_for_query_path(
@@ -56,7 +49,7 @@ def is_multi_valued(value: Any) -> TypeGuard[Sequence[Any]]:
     )
 
 
-class FilterClauseQueryApplicator(QueryApplicator):
+class FilterClauseQueryApplier(QueryApplier):
     def __init__(
         self,
         clause: query.FilterClause,
@@ -114,13 +107,11 @@ class FilterClauseConverter(ClauseConverter[query.FilterClause]):
             }
         )
 
-    def convert(self, clause: query.FilterClause) -> QueryApplicator:
-        return FilterClauseQueryApplicator(
-            clause=clause, operators=self._operators
-        )
+    def convert(self, item: query.FilterClause) -> QueryApplier:
+        return FilterClauseQueryApplier(clause=item, operators=self._operators)
 
 
-class SortClauseQueryApplicator(QueryApplicator):
+class SortClauseQueryApplier(QueryApplier):
     def __init__(self, clause: query.SortClause):
         self._clause = clause
 
@@ -153,8 +144,8 @@ class SortClauseQueryApplicator(QueryApplicator):
 
 
 class SortClauseConverter(ClauseConverter[query.SortClause]):
-    def convert(self, clause: query.SortClause) -> QueryApplicator:
-        return SortClauseQueryApplicator(clause=clause)
+    def convert(self, item: query.SortClause) -> QueryApplier:
+        return SortClauseQueryApplier(clause=item)
 
 
 def row_comparison_condition(
@@ -579,7 +570,7 @@ def subsequent_page_existing_sort_mixed_backwards_query(
     )
 
 
-class KeySetPagingClauseQueryApplicator(QueryApplicator):
+class KeySetPagingClauseQueryApplier(QueryApplier):
     def __init__(
         self,
         clause: query.KeySetPagingClause,
@@ -664,14 +655,14 @@ class KeySetPagingClauseConverter(ClauseConverter[query.KeySetPagingClause]):
     def __init__(self, table_settings: TableSettings):
         self._table_settings = table_settings
 
-    def convert(self, clause: query.KeySetPagingClause) -> QueryApplicator:
-        return KeySetPagingClauseQueryApplicator(
-            clause=clause,
+    def convert(self, item: query.KeySetPagingClause) -> QueryApplier:
+        return KeySetPagingClauseQueryApplier(
+            clause=item,
             table_settings=self._table_settings,
         )
 
 
-class OffsetPagingClauseQueryApplicator(QueryApplicator):
+class OffsetPagingClauseQueryApplier(QueryApplier):
     def __init__(self, clause: query.OffsetPagingClause):
         self._clause = clause
 
@@ -685,8 +676,8 @@ class OffsetPagingClauseQueryApplicator(QueryApplicator):
 
 
 class OffsetPagingClauseConverter(ClauseConverter[query.OffsetPagingClause]):
-    def convert(self, clause: query.OffsetPagingClause) -> QueryApplicator:
-        return OffsetPagingClauseQueryApplicator(clause=clause)
+    def convert(self, item: query.OffsetPagingClause) -> QueryApplier:
+        return OffsetPagingClauseQueryApplier(clause=item)
 
 
 class TypeRegistryClauseConverter(ClauseConverter):
@@ -702,7 +693,7 @@ class TypeRegistryClauseConverter(ClauseConverter):
         self._registry[clause_type] = converter
         return self
 
-    def convert(self, clause: query.Clause) -> QueryApplicator:
-        if clause.__class__ not in self._registry:
-            raise ValueError(f"No converter registered for clause: {clause}")
-        return self._registry[clause.__class__].convert(clause)
+    def convert(self, item: query.Clause) -> QueryApplier:
+        if item.__class__ not in self._registry:
+            raise ValueError(f"No converter registered for clause: {item}")
+        return self._registry[item.__class__].convert(item)

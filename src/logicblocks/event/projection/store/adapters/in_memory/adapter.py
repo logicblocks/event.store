@@ -6,6 +6,7 @@ from logicblocks.event.query import (
     Search,
 )
 from logicblocks.event.types import (
+    Converter,
     JsonPersistable,
     JsonValue,
     JsonValueType,
@@ -17,13 +18,18 @@ from logicblocks.event.types import (
 
 from ..base import ProjectionStorageAdapter
 from .converter import InMemoryQueryConverter
+from .types import ProjectionResultSetTransformer
 
 
 class InMemoryProjectionStorageAdapter[
     ItemQuery: Query = Lookup,
     CollectionQuery: Query = Search,
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
-    def __init__(self, query_converter: InMemoryQueryConverter | None = None):
+    def __init__(
+        self,
+        query_converter: Converter[Query, ProjectionResultSetTransformer]
+        | None = None,
+    ):
         self._projections: dict[
             tuple[str, str], Projection[JsonValue, JsonValue]
         ] = {}
@@ -62,7 +68,7 @@ class InMemoryProjectionStorageAdapter[
     async def _find_raw(
         self, query: Query
     ) -> Sequence[Projection[JsonValue, JsonValue]]:
-        return self._query_converter.convert_query(query)(
+        return self._query_converter.convert(query)(
             list(self._projections.values())
         )
 

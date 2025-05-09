@@ -2,23 +2,25 @@ from typing import Self
 
 import logicblocks.event.db.postgres as postgres
 import logicblocks.event.query as query
+from logicblocks.event.types import Converter
 
 from .converters import (
-    ClauseConverter,
     FilterClauseConverter,
     KeySetPagingClauseConverter,
     LookupQueryConverter,
     OffsetPagingClauseConverter,
-    QueryConverter,
     SearchQueryConverter,
     SortClauseConverter,
     TypeRegistryClauseConverter,
     TypeRegistryQueryConverter,
 )
 from .settings import TableSettings
+from .types import ClauseConverter, QueryConverter
 
 
-class PostgresQueryConverter(QueryConverter):
+class PostgresQueryConverter(
+    Converter[query.Query, postgres.ParameterisedQuery]
+):
     def __init__(
         self,
         clause_converter: TypeRegistryClauseConverter | None = None,
@@ -82,10 +84,8 @@ class PostgresQueryConverter(QueryConverter):
     ) -> postgres.Query:
         return self._clause_converter.convert(clause).apply(query_builder)
 
-    def convert_query(
-        self, instance: query.Query
-    ) -> postgres.ParameterisedQuery:
-        return self._query_converter.convert(instance)
+    def convert_query(self, item: query.Query) -> postgres.ParameterisedQuery:
+        return self._query_converter.convert(item)
 
-    def convert(self, query: query.Query) -> postgres.ParameterisedQuery:
-        return self.convert_query(query)
+    def convert(self, item: query.Query) -> postgres.ParameterisedQuery:
+        return self.convert_query(item)

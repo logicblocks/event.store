@@ -5,19 +5,19 @@ from typing import Any, Callable, Self, cast
 
 import pytest
 
-from logicblocks.event.projection.store import (
+from logicblocks.event.projection.store import ProjectionStorageAdapter
+from logicblocks.event.query import (
     FilterClause,
     KeySetPagingClause,
     Lookup,
     Operator,
+    PagingDirection,
     Path,
-    ProjectionStorageAdapter,
     Search,
     SortClause,
     SortField,
     SortOrder,
 )
-from logicblocks.event.projection.store.query import PagingDirection
 from logicblocks.event.testing import (
     BaseProjectionBuilder,
     data,

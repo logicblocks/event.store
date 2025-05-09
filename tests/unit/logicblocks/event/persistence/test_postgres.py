@@ -2,7 +2,7 @@ from typing import Any, Sequence, cast
 
 from psycopg import abc, sql
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     Column,
     Condition,
     ConnectionSettings,
@@ -50,7 +50,7 @@ class TestPostgresConnectionSettings:
         )
 
         assert repr(settings) == (
-            "PostgresConnectionSettings("
+            "ConnectionSettings("
             "host=localhost, "
             "port=5432, "
             "dbname=event_store, "

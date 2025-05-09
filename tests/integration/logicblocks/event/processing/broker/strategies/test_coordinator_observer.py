@@ -9,7 +9,7 @@ import pytest_asyncio
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     EventBroker,
     EventBrokerSettings,
@@ -40,7 +40,7 @@ from logicblocks.event.testsupport import (
 from logicblocks.event.types import JsonValue, StoredEvent
 from logicblocks.event.types.identifier import CategoryIdentifier
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",

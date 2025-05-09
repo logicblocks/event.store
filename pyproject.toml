@@ -21,16 +21,16 @@ psycopg = { extras = ["binary", "pool"], version = "^3.2.3" }
 uvloop = "^0.21.0"
 pyheck = "^0.1.5"
 structlog = "^25.1.0"
-rich = "^13.9.4"
+rich = "^14.0.0"
 aiologic = "^0.14.0"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.6.10"
 junitparser = "^3.2.0"
-poethepoet = "^0.33.1"
+poethepoet = "^0.34.0"
 pyright = { extras = ["nodejs"], version = "^1.1.391" }
 pytest = "^8.3.4"
-pytest-asyncio = "^0.25.1"
+pytest-asyncio = "^0.26.0"
 pytest-cov = "^6.0.0"
 pytest-diff = "^0.1.14"
 pytest-pretty = "^1.2.0"

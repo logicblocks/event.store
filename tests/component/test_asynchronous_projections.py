@@ -7,7 +7,7 @@ import pytest_asyncio
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     EventBrokerSettings,
     EventCount,
@@ -42,7 +42,7 @@ from logicblocks.event.types import (
     deserialise_from_json_value,
 )
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",

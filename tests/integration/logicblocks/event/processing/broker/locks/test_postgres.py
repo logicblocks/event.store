@@ -1,4 +1,4 @@
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     LockManager,
     PostgresLockManager,
@@ -7,7 +7,7 @@ from logicblocks.event.testcases import (
     LockManagerCases,
 )
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",

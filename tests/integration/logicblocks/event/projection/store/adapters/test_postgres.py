@@ -5,7 +5,7 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.projection.store import ProjectionStorageAdapter
 from logicblocks.event.projection.store.adapters import (
     PostgresProjectionStorageAdapter,
@@ -21,7 +21,7 @@ from logicblocks.event.testsupport import (
 )
 from logicblocks.event.types import JsonValue, Projection, identifier
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",

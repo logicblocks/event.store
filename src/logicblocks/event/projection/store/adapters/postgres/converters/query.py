@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any, Self
 
-from logicblocks.event.db import postgres
+import logicblocks.event.persistence.postgres as postgres
 from logicblocks.event.query import (
     Clause,
     Lookup,
@@ -9,7 +9,6 @@ from logicblocks.event.query import (
     Search,
 )
 
-from ..settings import TableSettings
 from ..types import ClauseConverter, QueryConverter
 
 
@@ -17,7 +16,7 @@ class SearchQueryConverter(QueryConverter[Search]):
     def __init__(
         self,
         clause_converter: ClauseConverter,
-        table_settings: TableSettings,
+        table_settings: postgres.TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
@@ -47,7 +46,7 @@ class LookupQueryConverter(QueryConverter[Lookup]):
     def __init__(
         self,
         clause_converter: ClauseConverter[Clause],
-        table_settings: TableSettings,
+        table_settings: postgres.TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings

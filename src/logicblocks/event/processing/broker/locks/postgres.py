@@ -10,7 +10,7 @@ from psycopg.errors import LockNotAvailable
 from psycopg.rows import scalar_row
 from psycopg.sql import SQL
 
-from logicblocks.event.db.postgres import ConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 
 from .base import Lock, LockManager
 

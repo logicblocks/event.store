@@ -7,14 +7,14 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from psycopg_pool.abc import ACT
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     ConnectionSettings,
     ConnectionSource,
     ParameterisedQuery,
+    TableSettings,
 )
 from logicblocks.event.projection.store.adapters import (
     PostgresQueryConverter,
-    PostgresTableSettings,
 )
 from logicblocks.event.query import (
     FilterClause,
@@ -33,7 +33,7 @@ from .base import (
 
 def insert_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -60,7 +60,7 @@ def insert_query(
 
 def upsert_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -83,7 +83,7 @@ def upsert_query(
 
 def remove_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -103,7 +103,7 @@ def remove_query(
 async def add(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ):
     try:
         async with connection.cursor() as cursor:
@@ -120,7 +120,7 @@ async def add(
 async def remove(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -137,7 +137,7 @@ async def remove(
 async def replace(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -157,7 +157,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
         *,
         node_id: str,
         connection_source: ConnectionSource,
-        table_settings: PostgresTableSettings = PostgresTableSettings(
+        table_settings: TableSettings = TableSettings(
             table_name="subscriptions"
         ),
         query_converter: PostgresQueryConverter | None = None,

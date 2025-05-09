@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-import logicblocks.event.db.postgres as postgres
+import logicblocks.event.persistence.postgres as postgres
 import logicblocks.event.query as query
 from logicblocks.event.types import Applier, Converter
 

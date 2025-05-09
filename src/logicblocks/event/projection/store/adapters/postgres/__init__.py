@@ -4,10 +4,8 @@ from .adapter import (
 from .converter import (
     PostgresQueryConverter as PostgresQueryConverter,
 )
-from .settings import TableSettings as PostgresTableSettings
 
 __all__ = [
-    "PostgresTableSettings",
     "PostgresProjectionStorageAdapter",
     "PostgresQueryConverter",
 ]

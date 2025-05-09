@@ -6,14 +6,14 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     ConnectionSettings,
     ConnectionSource,
     ParameterisedQuery,
+    TableSettings,
 )
 from logicblocks.event.projection.store.adapters import (
     PostgresQueryConverter,
-    PostgresTableSettings,
 )
 from logicblocks.event.query import (
     FilterClause,
@@ -30,7 +30,7 @@ from .base import EventSubscriberState, EventSubscriberStateStore
 
 def insert_query(
     subscriber: EventSubscriberState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     subscription_requests_jsonb = Jsonb(
         [
@@ -67,7 +67,7 @@ def insert_query(
 
 def delete_query(
     key: EventSubscriber,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -85,7 +85,7 @@ def delete_query(
 
 def heartbeat_query(
     subscriber: EventSubscriberState,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -107,7 +107,7 @@ def heartbeat_query(
 
 def purge_query(
     cutoff_time: datetime,
-    table_settings: PostgresTableSettings,
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
     return (
         sql.SQL(
@@ -130,7 +130,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
         node_id: str,
         connection_source: ConnectionSource,
         clock: Clock = SystemClock(),
-        table_settings: PostgresTableSettings = PostgresTableSettings(
+        table_settings: TableSettings = TableSettings(
             table_name="subscribers"
         ),
         query_converter: PostgresQueryConverter | None = None,

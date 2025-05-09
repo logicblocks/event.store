@@ -4,10 +4,12 @@ from typing import Any, cast
 import pytest
 from psycopg import abc, sql
 
+from logicblocks.event.persistence.postgres import (
+    ParameterisedQuery,
+    TableSettings,
+)
 from logicblocks.event.projection.store.adapters import (
-    PostgresParameterisedQuery,
     PostgresQueryConverter,
-    PostgresTableSettings,
 )
 from logicblocks.event.query import (
     FilterClause,
@@ -27,9 +29,7 @@ from logicblocks.event.testing.data import random_projection_id
 
 
 def query_converter_with_default_converters(
-    table_settings: PostgresTableSettings = PostgresTableSettings(
-        table_name="projections"
-    ),
+    table_settings: TableSettings = TableSettings(table_name="projections"),
 ):
     return (
         PostgresQueryConverter(table_settings=table_settings)
@@ -47,7 +47,7 @@ def sql_query_to_string(query: abc.Query) -> str:
 
 
 def parameterised_query_to_string(
-    parameterised_query: PostgresParameterisedQuery,
+    parameterised_query: ParameterisedQuery,
 ) -> tuple[str, Sequence[Any]]:
     query, params = parameterised_query
     return sql_query_to_string(query), params

@@ -1,6 +1,6 @@
 from typing import Self
 
-import logicblocks.event.db.postgres as postgres
+import logicblocks.event.persistence.postgres as postgres
 import logicblocks.event.query as query
 from logicblocks.event.types import Converter
 
@@ -14,7 +14,6 @@ from .converters import (
     TypeRegistryClauseConverter,
     TypeRegistryQueryConverter,
 )
-from .settings import TableSettings
 from .types import ClauseConverter, QueryConverter
 
 
@@ -25,7 +24,7 @@ class PostgresQueryConverter(
         self,
         clause_converter: TypeRegistryClauseConverter | None = None,
         query_converter: TypeRegistryQueryConverter | None = None,
-        table_settings: TableSettings = TableSettings(
+        table_settings: postgres.TableSettings = postgres.TableSettings(
             table_name="projections"
         ),
     ):

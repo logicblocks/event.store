@@ -1,7 +1,7 @@
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
@@ -50,12 +50,12 @@ class InMemoryEventBrokerBuilder(
 
 class PostgresEventBrokerBuilder(
     EventBrokerBuilder[
-        (PostgresConnectionSettings, AsyncConnectionPool[AsyncConnection])
+        (ConnectionSettings, AsyncConnectionPool[AsyncConnection])
     ]
 ):
     def dependencies(
         self,
-        connection_settings: PostgresConnectionSettings,
+        connection_settings: ConnectionSettings,
         connection_pool: AsyncConnectionPool[AsyncConnection],
     ) -> EventBrokerDependencies:
         return EventBrokerDependencies(
@@ -86,7 +86,7 @@ def make_in_memory_event_broker(
 
 def make_postgres_event_broker(
     node_id: str,
-    connection_settings: PostgresConnectionSettings,
+    connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: EventBrokerSettings,
 ) -> EventBroker:

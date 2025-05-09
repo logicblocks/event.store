@@ -5,10 +5,11 @@ from psycopg.rows import TupleRow, dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     ConnectionSettings,
     ConnectionSource,
     ParameterisedQuery,
+    TableSettings,
 )
 from logicblocks.event.query import (
     Lookup,
@@ -27,7 +28,6 @@ from logicblocks.event.types import (
 
 from ..base import ProjectionStorageAdapter
 from .converter import PostgresQueryConverter
-from .settings import TableSettings
 
 
 def insert_query(

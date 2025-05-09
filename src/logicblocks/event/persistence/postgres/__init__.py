@@ -6,6 +6,8 @@ from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
 from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
+from .settings import TableSettings as TableSettings
+
 
 @dataclass(frozen=True)
 class ConnectionSettings:

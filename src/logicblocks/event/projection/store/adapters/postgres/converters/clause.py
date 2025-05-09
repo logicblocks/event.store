@@ -3,10 +3,9 @@ from typing import Any, Self, Sequence, TypeGuard
 
 from psycopg.types.json import Jsonb
 
-import logicblocks.event.db.postgres as postgres
+import logicblocks.event.persistence.postgres as postgres
 import logicblocks.event.query as query
 
-from ..settings import TableSettings
 from ..types import ClauseConverter, QueryApplier
 
 
@@ -164,7 +163,7 @@ def field_comparison_condition(
 def record_query(
     id: postgres.Value,
     columns: Iterable[postgres.Column],
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     id_column = postgres.Column(field="id")
 
@@ -273,7 +272,7 @@ def subsequent_page_no_sort_paging_backwards_query(
 def subsequent_page_existing_sort_all_asc_forwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     id_column = postgres.Column(field="id")
     last_id = postgres.Value(paging.last_id)
@@ -307,7 +306,7 @@ def subsequent_page_existing_sort_all_asc_forwards_query(
 def subsequent_page_existing_sort_all_asc_backwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     id_column = postgres.Column(field="id")
     last_id = postgres.Value(paging.last_id)
@@ -352,7 +351,7 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
 def subsequent_page_existing_sort_all_desc_forwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     id_column = postgres.Column(field="id")
     last_id = postgres.Value(paging.last_id)
@@ -386,7 +385,7 @@ def subsequent_page_existing_sort_all_desc_forwards_query(
 def subsequent_page_existing_sort_all_desc_backwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     id_column = postgres.Column(field="id")
     last_id = postgres.Value(paging.last_id)
@@ -431,7 +430,7 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
 def subsequent_page_existing_sort_mixed_forwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     last_id = postgres.Value(paging.last_id)
 
@@ -497,7 +496,7 @@ def subsequent_page_existing_sort_mixed_forwards_query(
 def subsequent_page_existing_sort_mixed_backwards_query(
     query: postgres.Query,
     paging: query.KeySetPagingClause,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ) -> postgres.Query:
     last_id = postgres.Value(paging.last_id)
 
@@ -574,7 +573,7 @@ class KeySetPagingClauseQueryApplier(QueryApplier):
     def __init__(
         self,
         clause: query.KeySetPagingClause,
-        table_settings: TableSettings,
+        table_settings: postgres.TableSettings,
     ):
         self._clause = clause
         self._table_settings = table_settings
@@ -652,7 +651,7 @@ class KeySetPagingClauseQueryApplier(QueryApplier):
 
 
 class KeySetPagingClauseConverter(ClauseConverter[query.KeySetPagingClause]):
-    def __init__(self, table_settings: TableSettings):
+    def __init__(self, table_settings: postgres.TableSettings):
         self._table_settings = table_settings
 
     def convert(self, item: query.KeySetPagingClause) -> QueryApplier:

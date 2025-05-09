@@ -10,7 +10,7 @@ from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     ConnectionSettings,
     ConnectionSource,
 )

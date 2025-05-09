@@ -7,7 +7,7 @@ import pytest
 from psycopg import AsyncConnection, sql
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
@@ -21,7 +21,7 @@ from logicblocks.event.types import (
     StreamIdentifier,
 )
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     host="fake",
     port=1234,
     dbname="db",

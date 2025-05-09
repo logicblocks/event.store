@@ -1,9 +1,3 @@
-from ....db import (
-    PostgresParameterisedQuery as PostgresParameterisedQuery,
-)
-from ....db import (
-    PostgresQuery as PostgresQuery,
-)
 from .base import ProjectionStorageAdapter as ProjectionStorageAdapter
 from .in_memory import (
     InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
@@ -19,7 +13,4 @@ from .postgres import (
 )
 from .postgres import (
     PostgresQueryConverter as PostgresQueryConverter,
-)
-from .postgres import (
-    PostgresTableSettings as PostgresTableSettings,
 )

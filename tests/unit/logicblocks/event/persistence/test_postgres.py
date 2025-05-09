@@ -2,7 +2,7 @@ from typing import Any, Sequence, cast
 
 from psycopg import abc, sql
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
     Column,
     Condition,
     ConnectionSettings,

@@ -7,15 +7,7 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from psycopg_pool.abc import ACT
 
-from logicblocks.event.persistence.postgres import (
-    ConnectionSettings,
-    ConnectionSource,
-    ParameterisedQuery,
-    TableSettings,
-)
-from logicblocks.event.projection.store.adapters import (
-    PostgresQueryConverter,
-)
+import logicblocks.event.persistence.postgres as postgres
 from logicblocks.event.query import (
     FilterClause,
     Search,
@@ -33,8 +25,8 @@ from .base import (
 
 def insert_query(
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -60,8 +52,8 @@ def insert_query(
 
 def upsert_query(
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -83,8 +75,8 @@ def upsert_query(
 
 def remove_query(
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -103,7 +95,7 @@ def remove_query(
 async def add(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ):
     try:
         async with connection.cursor() as cursor:
@@ -120,7 +112,7 @@ async def add(
 async def remove(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -137,7 +129,7 @@ async def remove(
 async def replace(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -156,13 +148,13 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
         self,
         *,
         node_id: str,
-        connection_source: ConnectionSource,
-        table_settings: TableSettings = TableSettings(
+        connection_source: postgres.ConnectionSource,
+        table_settings: postgres.TableSettings = postgres.TableSettings(
             table_name="subscriptions"
         ),
-        query_converter: PostgresQueryConverter | None = None,
+        query_converter: postgres.QueryConverter | None = None,
     ):
-        if isinstance(connection_source, ConnectionSettings):
+        if isinstance(connection_source, postgres.ConnectionSettings):
             self._connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False
@@ -177,7 +169,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
             query_converter
             if query_converter is not None
             else (
-                PostgresQueryConverter(table_settings=table_settings)
+                postgres.QueryConverter(table_settings=table_settings)
                 .with_default_clause_converters()
                 .with_default_query_converters()
             )

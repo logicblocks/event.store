@@ -8,8 +8,8 @@ from logicblocks.event.persistence.postgres import (
     ParameterisedQuery,
     TableSettings,
 )
-from logicblocks.event.projection.store.adapters import (
-    PostgresQueryConverter,
+from logicblocks.event.persistence.postgres.converter import (
+    DelegatingQueryConverter,
 )
 from logicblocks.event.query import (
     FilterClause,
@@ -32,7 +32,7 @@ def query_converter_with_default_converters(
     table_settings: TableSettings = TableSettings(table_name="projections"),
 ):
     return (
-        PostgresQueryConverter(table_settings=table_settings)
+        DelegatingQueryConverter(table_settings=table_settings)
         .with_default_clause_converters()
         .with_default_query_converters()
     )

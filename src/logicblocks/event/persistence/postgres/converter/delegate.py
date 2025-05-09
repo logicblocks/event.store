@@ -1,32 +1,32 @@
 from typing import Self
 
-import logicblocks.event.persistence.postgres as postgres
-import logicblocks.event.query as query
+from logicblocks.event import query as query
 from logicblocks.event.types import Converter
 
-from .converters import (
+from .. import query as postgresquery
+from ..settings import TableSettings
+from ..types import ParameterisedQuery
+from .clause import (
     FilterClauseConverter,
     KeySetPagingClauseConverter,
-    LookupQueryConverter,
     OffsetPagingClauseConverter,
-    SearchQueryConverter,
     SortClauseConverter,
     TypeRegistryClauseConverter,
+)
+from .query import (
+    LookupQueryConverter,
+    SearchQueryConverter,
     TypeRegistryQueryConverter,
 )
 from .types import ClauseConverter, QueryConverter
 
 
-class PostgresQueryConverter(
-    Converter[query.Query, postgres.ParameterisedQuery]
-):
+class DelegatingQueryConverter(Converter[query.Query, ParameterisedQuery]):
     def __init__(
         self,
+        table_settings: TableSettings,
         clause_converter: TypeRegistryClauseConverter | None = None,
         query_converter: TypeRegistryQueryConverter | None = None,
-        table_settings: postgres.TableSettings = postgres.TableSettings(
-            table_name="projections"
-        ),
     ):
         self._clause_converter = (
             clause_converter
@@ -79,12 +79,14 @@ class PostgresQueryConverter(
         return self
 
     def apply_clause(
-        self, clause: query.Clause, query_builder: postgres.Query
-    ) -> postgres.Query:
+        self, clause: query.Clause, query_builder: postgresquery.Query
+    ) -> postgresquery.Query:
         return self._clause_converter.convert(clause).apply(query_builder)
 
-    def convert_query(self, item: query.Query) -> postgres.ParameterisedQuery:
+    def convert_query(
+        self, item: query.Query
+    ) -> postgresquery.ParameterisedQuery:
         return self._query_converter.convert(item)
 
-    def convert(self, item: query.Query) -> postgres.ParameterisedQuery:
+    def convert(self, item: query.Query) -> postgresquery.ParameterisedQuery:
         return self.convert_query(item)

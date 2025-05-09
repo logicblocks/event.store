@@ -1,33 +1,31 @@
 from collections.abc import Mapping
 from typing import Any, Self
 
-import logicblocks.event.persistence.postgres as postgres
-from logicblocks.event.query import (
-    Clause,
-    Lookup,
-    Query,
-    Search,
-)
+import logicblocks.event.query as genericquery
 
-from ..types import ClauseConverter, QueryConverter
+from .. import query as postgresquery
+from ..settings import TableSettings
+from .types import ClauseConverter, QueryConverter
 
 
-class SearchQueryConverter(QueryConverter[Search]):
+class SearchQueryConverter(QueryConverter[genericquery.Search]):
     def __init__(
         self,
         clause_converter: ClauseConverter,
-        table_settings: postgres.TableSettings,
+        table_settings: TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(self, item: Search) -> postgres.ParameterisedQuery:
+    def convert(
+        self, item: genericquery.Search
+    ) -> postgresquery.ParameterisedQuery:
         filters = item.filters
         sort = item.sort
         paging = item.paging
 
         builder = (
-            postgres.Query()
+            postgresquery.Query()
             .select_all()
             .from_table(self._table_settings.table_name)
         )
@@ -42,20 +40,22 @@ class SearchQueryConverter(QueryConverter[Search]):
         return builder.build()
 
 
-class LookupQueryConverter(QueryConverter[Lookup]):
+class LookupQueryConverter(QueryConverter[genericquery.Lookup]):
     def __init__(
         self,
-        clause_converter: ClauseConverter[Clause],
-        table_settings: postgres.TableSettings,
+        clause_converter: ClauseConverter[genericquery.Clause],
+        table_settings: TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(self, item: Lookup) -> postgres.ParameterisedQuery:
+    def convert(
+        self, item: genericquery.Lookup
+    ) -> postgresquery.ParameterisedQuery:
         filters = item.filters
 
         builder = (
-            postgres.Query()
+            postgresquery.Query()
             .select_all()
             .from_table(self._table_settings.table_name)
         )
@@ -68,17 +68,21 @@ class LookupQueryConverter(QueryConverter[Lookup]):
 
 class TypeRegistryQueryConverter(QueryConverter):
     def __init__(
-        self, registry: Mapping[type[Query], QueryConverter[Any]] | None = None
+        self,
+        registry: Mapping[type[genericquery.Query], QueryConverter[Any]]
+        | None = None,
     ):
         self._registry = dict(registry) if registry is not None else {}
 
-    def register[Q: Query](
+    def register[Q: genericquery.Query](
         self, query_type: type[Q], converter: QueryConverter[Q]
     ) -> Self:
         self._registry[query_type] = converter
         return self
 
-    def convert(self, item: Query) -> postgres.ParameterisedQuery:
+    def convert(
+        self, item: genericquery.Query
+    ) -> postgresquery.ParameterisedQuery:
         if item.__class__ not in self._registry:
             raise ValueError(f"Unsupported query type: {item}.")
         return self._registry[item.__class__].convert(item)

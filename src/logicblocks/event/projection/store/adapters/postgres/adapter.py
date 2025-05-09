@@ -5,12 +5,7 @@ from psycopg.rows import TupleRow, dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.persistence.postgres import (
-    ConnectionSettings,
-    ConnectionSource,
-    ParameterisedQuery,
-    TableSettings,
-)
+import logicblocks.event.persistence.postgres as postgres
 from logicblocks.event.query import (
     Lookup,
     Query,
@@ -27,13 +22,12 @@ from logicblocks.event.types import (
 )
 
 from ..base import ProjectionStorageAdapter
-from .converter import PostgresQueryConverter
 
 
 def insert_query(
     projection: Projection[JsonValue, JsonValue],
-    table_settings: TableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -65,7 +59,7 @@ async def upsert(
     cursor: AsyncCursor[TupleRow],
     *,
     projection: Projection[JsonValue, JsonValue],
-    table_settings: TableSettings,
+    table_settings: postgres.TableSettings,
 ):
     await cursor.execute(*insert_query(projection, table_settings))
 
@@ -77,13 +71,13 @@ class PostgresProjectionStorageAdapter[
     def __init__(
         self,
         *,
-        connection_source: ConnectionSource,
-        table_settings: TableSettings = TableSettings(
+        connection_source: postgres.ConnectionSource,
+        table_settings: postgres.TableSettings = postgres.TableSettings(
             table_name="projections"
         ),
-        query_converter: PostgresQueryConverter | None = None,
+        query_converter: postgres.QueryConverter | None = None,
     ):
-        if isinstance(connection_source, ConnectionSettings):
+        if isinstance(connection_source, postgres.ConnectionSettings):
             self._connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False
@@ -97,7 +91,7 @@ class PostgresProjectionStorageAdapter[
             query_converter
             if query_converter is not None
             else (
-                PostgresQueryConverter(table_settings=table_settings)
+                postgres.QueryConverter(table_settings=table_settings)
                 .with_default_clause_converters()
                 .with_default_query_converters()
             )

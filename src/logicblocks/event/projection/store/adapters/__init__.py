@@ -11,6 +11,3 @@ from .in_memory import (
 from .postgres import (
     PostgresProjectionStorageAdapter as PostgresProjectionStorageAdapter,
 )
-from .postgres import (
-    PostgresQueryConverter as PostgresQueryConverter,
-)

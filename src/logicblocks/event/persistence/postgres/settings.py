@@ -25,7 +25,7 @@ class ConnectionSettings:
 
     def __repr__(self):
         return (
-            f"PostgresConnectionSettings("
+            f"ConnectionSettings("
             f"host={self.host}, "
             f"port={self.port}, "
             f"dbname={self.dbname}, "

@@ -50,7 +50,7 @@ class TestPostgresConnectionSettings:
         )
 
         assert repr(settings) == (
-            "PostgresConnectionSettings("
+            "ConnectionSettings("
             "host=localhost, "
             "port=5432, "
             "dbname=event_store, "

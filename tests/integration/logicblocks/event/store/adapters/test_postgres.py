@@ -9,13 +9,15 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.persistence.postgres import (
+    ConnectionSettings,
+    TableSettings,
+)
 from logicblocks.event.store.adapters import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
-    PostgresTableSettings,
 )
 from logicblocks.event.store.adapters.postgres import (
     ParameterisedQueryFragment,
@@ -189,7 +191,7 @@ class TestPostgresStorageAdapterCustomTableName:
 
     async def test_allows_events_table_name_to_be_overridden(self):
         table_name = "event_log"
-        table_settings = PostgresTableSettings(events_table_name=table_name)
+        table_settings = TableSettings(table_name=table_name)
 
         await drop_table(pool=self.pool, table="event_log")
         await create_table(

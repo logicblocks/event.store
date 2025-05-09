@@ -7,12 +7,14 @@ import pytest
 from psycopg import AsyncConnection, sql
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.persistence.postgres import (
+    ConnectionSettings,
+    TableSettings,
+)
 from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.store.adapters.postgres import (
-    TableSettings,
     insert_batch,
     insert_batch_query,
 )
@@ -203,7 +205,7 @@ class TestBatchInsert:
             target=target,
             events=events,
             start_position=10,
-            table_settings=TableSettings(events_table_name="test_events"),
+            table_settings=TableSettings(table_name="test_events"),
         )
 
         assert len(returned_events) == 3
@@ -229,7 +231,7 @@ class TestBatchInsert:
             target=target,
             events=empty_events,
             start_position=10,
-            table_settings=TableSettings(events_table_name="test_events"),
+            table_settings=TableSettings(table_name="test_events"),
         )
 
         assert result == []
@@ -258,7 +260,7 @@ class TestBatchInsert:
             target=target,
             events=events,
             start_position=10,
-            table_settings=TableSettings(events_table_name="test_events"),
+            table_settings=TableSettings(table_name="test_events"),
         )
         # Convert the query to a real SQL string
         query = cast(sql.SQL, query)

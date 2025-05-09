@@ -13,6 +13,7 @@ from .types import (
     ConnectionSource,
     ParameterisedQuery,
     ParameterisedQueryFragment,
+    SqlFragment,
 )
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "Query",
     "SetOperationMode",
     "SortDirection",
+    "SqlFragment",
     "TableSettings",
     "Value",
 ]

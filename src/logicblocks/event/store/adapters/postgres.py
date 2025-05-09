@@ -2,10 +2,10 @@ import hashlib
 from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import Any, Sequence, Tuple
+from typing import Any, Sequence
 from uuid import uuid4
 
-from psycopg import AsyncConnection, AsyncCursor, abc, sql
+from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
@@ -13,6 +13,10 @@ from psycopg_pool import AsyncConnectionPool
 from logicblocks.event.persistence.postgres import (
     ConnectionSettings,
     ConnectionSource,
+    ParameterisedQuery,
+    ParameterisedQueryFragment,
+    SqlFragment,
+    TableSettings,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -39,14 +43,6 @@ from .base import (
     Saveable,
     Scannable,
 )
-
-
-@dataclass(frozen=True)
-class TableSettings:
-    events_table_name: str
-
-    def __init__(self, *, events_table_name: str = "events"):
-        object.__setattr__(self, "events_table_name", events_table_name)
 
 
 @dataclass(frozen=True)
@@ -123,10 +119,6 @@ class LatestQueryParameters:
                 return None
 
 
-type ParameterisedQuery = Tuple[abc.Query, Sequence[Any]]
-type ParameterisedQueryFragment = Tuple[sql.SQL, Sequence[Any]]
-
-
 @singledispatch
 def query_constraint_to_sql(
     constraint: QueryConstraint,
@@ -150,7 +142,7 @@ def get_digest(lock_id: str) -> int:
 def scan_query(
     parameters: ScanQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
-    table = table_settings.events_table_name
+    table = table_settings.table_name
 
     category_where_clause = (
         sql.SQL("category = %s") if parameters.category is not None else None
@@ -159,7 +151,7 @@ def scan_query(
         sql.SQL("stream = %s") if parameters.stream is not None else None
     )
 
-    extra_where_clauses: list[sql.SQL] = []
+    extra_where_clauses: list[SqlFragment] = []
     extra_parameters: list[Any] = []
     for constraint in parameters.constraints:
         clause, params = query_constraint_to_sql(constraint)
@@ -219,7 +211,7 @@ def obtain_write_lock_query(
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
     lock_name = serialisation_guarantee.lock_name(
-        namespace=table_settings.events_table_name, target=target
+        namespace=table_settings.table_name, target=target
     )
     return (
         sql.SQL(
@@ -234,7 +226,7 @@ def obtain_write_lock_query(
 def read_last_query(
     parameters: LatestQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
-    table = table_settings.events_table_name
+    table = table_settings.table_name
 
     select_clause = sql.SQL("SELECT *")
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
@@ -324,7 +316,7 @@ def insert_batch_query(
          {1}
           RETURNING *;
           """).format(
-            sql.Identifier(table_settings.events_table_name), values_clause
+            sql.Identifier(table_settings.table_name), values_clause
         ),
         values,
     )
@@ -397,7 +389,9 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         connection_source: ConnectionSource,
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
-        table_settings: TableSettings = TableSettings(),
+        table_settings: TableSettings = TableSettings(
+            table_name="events",
+        ),
         max_insert_batch_size: int = 1000,
     ):
         if isinstance(connection_source, ConnectionSettings):

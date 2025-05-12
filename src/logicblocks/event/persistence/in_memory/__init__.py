@@ -1,20 +1,22 @@
-from .converter import ClauseConverter as ClauseConverter
-from .converter import DelegatingQueryConverter as DelegatingQueryConverter
-from .converter import FilterClauseConverter as FilterClauseConverter
-from .converter import Identifiable as Identifiable
-from .converter import (
+from .converters import ClauseConverter as ClauseConverter
+from .converters import DelegatingQueryConverter as DelegatingQueryConverter
+from .converters import FilterClauseConverter as FilterClauseConverter
+from .converters import Identifiable as Identifiable
+from .converters import (
     KeySetPagingClauseConverter as KeySetPagingClauseConverter,
 )
-from .converter import LookupQueryConverter as LookupQueryConverter
-from .converter import (
+from .converters import LookupQueryConverter as LookupQueryConverter
+from .converters import (
     OffsetPagingClauseConverter as OffsetPagingClauseConverter,
 )
-from .converter import QueryConverter as QueryConverter
-from .converter import ResultSet as ResultSet
-from .converter import ResultSetTransformer as ResultSetTransformer
-from .converter import SearchQueryConverter as SearchQueryConverter
-from .converter import SortClauseConverter as SortClauseConverter
-from .converter import (
+from .converters import QueryConverter as QueryConverter
+from .converters import ResultSet as ResultSet
+from .converters import ResultSetTransformer as ResultSetTransformer
+from .converters import SearchQueryConverter as SearchQueryConverter
+from .converters import SortClauseConverter as SortClauseConverter
+from .converters import (
     TypeRegistryClauseConverter as TypeRegistryClauseConverter,
 )
-from .converter import TypeRegistryQueryConverter as TypeRegistryQueryConverter
+from .converters import (
+    TypeRegistryQueryConverter as TypeRegistryQueryConverter,
+)

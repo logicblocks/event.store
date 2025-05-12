@@ -1,4 +1,4 @@
-from .converter import DelegatingQueryConverter as QueryConverter
+from .converters import DelegatingQueryConverter as QueryConverter
 from .query import (
     Column,
     Condition,
@@ -21,11 +21,11 @@ __all__ = [
     "Condition",
     "ConnectionSettings",
     "ConnectionSource",
-    "QueryConverter",
     "Operator",
     "ParameterisedQuery",
     "ParameterisedQueryFragment",
     "Query",
+    "QueryConverter",
     "SetOperationMode",
     "SortDirection",
     "SqlFragment",

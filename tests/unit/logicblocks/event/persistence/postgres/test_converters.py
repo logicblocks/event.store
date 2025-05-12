@@ -8,7 +8,7 @@ from logicblocks.event.persistence.postgres import (
     ParameterisedQuery,
     TableSettings,
 )
-from logicblocks.event.persistence.postgres.converter import (
+from logicblocks.event.persistence.postgres.converters import (
     DelegatingQueryConverter,
 )
 from logicblocks.event.query import (

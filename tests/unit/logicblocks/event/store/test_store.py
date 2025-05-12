@@ -17,6 +17,7 @@ from logicblocks.event.types import (
     CategoryIdentifier,
     JsonValue,
     JsonValueConvertible,
+    LogIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
@@ -1272,6 +1273,498 @@ class TestCategoryLogging:
         assert log_event.is_async is False
         assert log_event.context == {
             "category": category_name,
+            "constraints": [],
+        }
+
+
+class TestLogIdentifier:
+    def test_exposes_identifier(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        log = store.log()
+
+        assert log.identifier == LogIdentifier()
+
+
+class TestLogBasics:
+    async def test_has_no_events_in_log_initially(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        log = store.log()
+
+        events = await log.read()
+
+        assert events == []
+
+    async def test_reads_single_published_event(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_event = NewEventBuilder().build()
+        adapter = InMemoryEventStorageAdapter()
+
+        store = EventStore(adapter=adapter)
+        category = store.category(category=category_name)
+        stream = category.stream(stream=stream_name)
+
+        stored_events = await stream.publish(events=[new_event])
+
+        log = store.log()
+
+        read_log = await log.read()
+        expected_events = [
+            StoredEvent(
+                id=stored_events[0].id,
+                name=new_event.name,
+                category=category_name,
+                stream=stream_name,
+                payload=new_event.payload,
+                position=0,
+                sequence_number=stored_events[0].sequence_number,
+                occurred_at=new_event.occurred_at,
+                observed_at=new_event.observed_at,
+            )
+        ]
+
+        assert read_log == expected_events
+
+    async def test_reads_multiple_published_events_in_same_category(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(10)]
+        adapter = InMemoryEventStorageAdapter()
+
+        store = EventStore(adapter=adapter)
+        category = store.category(category=category_name)
+        stream = category.stream(stream=stream_name)
+
+        stored_events = await stream.publish(events=new_events)
+
+        log = store.log()
+        read_log = await log.read()
+
+        expected_events = [
+            StoredEvent(
+                id=stored_events[position].id,
+                name=event.name,
+                category=category_name,
+                stream=stream_name,
+                payload=event.payload,
+                position=position,
+                sequence_number=stored_events[position].sequence_number,
+                occurred_at=event.occurred_at,
+                observed_at=event.observed_at,
+            )
+            for event, position in zip(new_events, range(len(new_events)))
+        ]
+
+        assert read_log == expected_events
+
+    async def test_reads_events_across_all_streams_in_a_category(self):
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_event_1 = NewEventBuilder().build()
+        stream_1_new_event_2 = NewEventBuilder().build()
+        stream_2_new_event_1 = NewEventBuilder().build()
+        stream_2_new_event_2 = NewEventBuilder().build()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+        stream_1 = category.stream(stream=stream_1_name)
+        stream_2 = category.stream(stream=stream_2_name)
+
+        stream_1_stored_events_1 = await stream_1.publish(
+            events=[stream_1_new_event_1]
+        )
+        stream_2_stored_events_1 = await stream_2.publish(
+            events=[stream_2_new_event_1]
+        )
+        stream_2_stored_events_2 = await stream_2.publish(
+            events=[stream_2_new_event_2]
+        )
+        stream_1_stored_events_2 = await stream_1.publish(
+            events=[stream_1_new_event_2]
+        )
+
+        log = store.log()
+        read_log = await log.read()
+
+        stream_1_expected_stored_event_builder = (
+            StoredEventBuilder()
+            .with_category(category_name)
+            .with_stream(stream_1_name)
+        )
+        stream_2_expected_stored_event_builder = (
+            StoredEventBuilder()
+            .with_category(category_name)
+            .with_stream(stream_2_name)
+        )
+
+        stream_1_expected_stored_events_1 = (
+            stream_1_expected_stored_event_builder.from_new_event(
+                stream_1_new_event_1
+            )
+            .with_id(stream_1_stored_events_1[0].id)
+            .with_sequence_number(stream_1_stored_events_1[0].sequence_number)
+            .with_position(0)
+            .build()
+        )
+        stream_2_expected_stored_events_1 = (
+            stream_2_expected_stored_event_builder.from_new_event(
+                stream_2_new_event_1
+            )
+            .with_id(stream_2_stored_events_1[0].id)
+            .with_sequence_number(stream_2_stored_events_1[0].sequence_number)
+            .with_position(0)
+            .build()
+        )
+        stream_2_expected_stored_events_2 = (
+            stream_2_expected_stored_event_builder.from_new_event(
+                stream_2_new_event_2
+            )
+            .with_id(stream_2_stored_events_2[0].id)
+            .with_sequence_number(stream_2_stored_events_2[0].sequence_number)
+            .with_position(1)
+            .build()
+        )
+        stream_1_expected_stored_events_2 = (
+            stream_1_expected_stored_event_builder.from_new_event(
+                stream_1_new_event_2
+            )
+            .with_id(stream_1_stored_events_2[0].id)
+            .with_sequence_number(stream_1_stored_events_2[0].sequence_number)
+            .with_position(1)
+            .build()
+        )
+
+        expected_events = [
+            stream_1_expected_stored_events_1,
+            stream_2_expected_stored_events_1,
+            stream_2_expected_stored_events_2,
+            stream_1_expected_stored_events_2,
+        ]
+
+        assert read_log == expected_events
+
+    async def test_reads_events_across_different_categories(self):
+        category_1_name = data.random_event_category_name()
+        category_2_name = data.random_event_category_name()
+        category_1_stream_name = data.random_event_stream_name()
+        category_2_stream_name = data.random_event_stream_name()
+
+        category_1_stream_new_event_1 = NewEventBuilder().build()
+        category_1_stream_new_event_2 = NewEventBuilder().build()
+        category_2_stream_new_event_1 = NewEventBuilder().build()
+        category_2_stream_new_event_2 = NewEventBuilder().build()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category_1 = store.category(category=category_1_name)
+        category_2 = store.category(category=category_2_name)
+        stream_1 = category_1.stream(stream=category_1_stream_name)
+        stream_2 = category_2.stream(stream=category_2_stream_name)
+
+        category_1_stream_stored_events_1 = await stream_1.publish(
+            events=[category_1_stream_new_event_1]
+        )
+        category_2_stream_stored_events_1 = await stream_2.publish(
+            events=[category_2_stream_new_event_1]
+        )
+        category_2_stream_stored_events_2 = await stream_2.publish(
+            events=[category_2_stream_new_event_2]
+        )
+        category_1_stream_stored_events_2 = await stream_1.publish(
+            events=[category_1_stream_new_event_2]
+        )
+
+        log = store.log()
+        read_log = await log.read()
+
+        category_1_stream_expected_stored_event_builder = (
+            StoredEventBuilder()
+            .with_category(category_1_name)
+            .with_stream(category_1_stream_name)
+        )
+        category_2_stream_expected_stored_event_builder = (
+            StoredEventBuilder()
+            .with_category(category_2_name)
+            .with_stream(category_2_stream_name)
+        )
+
+        category_1_stream_expected_stored_events_1 = (
+            category_1_stream_expected_stored_event_builder.from_new_event(
+                category_1_stream_new_event_1
+            )
+            .with_id(category_1_stream_stored_events_1[0].id)
+            .with_sequence_number(
+                category_1_stream_stored_events_1[0].sequence_number
+            )
+            .with_position(0)
+            .build()
+        )
+        category_2_stream_expected_stored_events_1 = (
+            category_2_stream_expected_stored_event_builder.from_new_event(
+                category_2_stream_new_event_1
+            )
+            .with_id(category_2_stream_stored_events_1[0].id)
+            .with_sequence_number(
+                category_2_stream_stored_events_1[0].sequence_number
+            )
+            .with_position(0)
+            .build()
+        )
+        category_2_stream_expected_stored_events_2 = (
+            category_2_stream_expected_stored_event_builder.from_new_event(
+                category_2_stream_new_event_2
+            )
+            .with_id(category_2_stream_stored_events_2[0].id)
+            .with_sequence_number(
+                category_2_stream_stored_events_2[0].sequence_number
+            )
+            .with_position(1)
+            .build()
+        )
+        category_1_stream_expected_stored_events_2 = (
+            category_1_stream_expected_stored_event_builder.from_new_event(
+                category_1_stream_new_event_2
+            )
+            .with_id(category_1_stream_stored_events_2[0].id)
+            .with_sequence_number(
+                category_1_stream_stored_events_2[0].sequence_number
+            )
+            .with_position(1)
+            .build()
+        )
+
+        expected_events = [
+            category_1_stream_expected_stored_events_1,
+            category_2_stream_expected_stored_events_1,
+            category_2_stream_expected_stored_events_2,
+            category_1_stream_expected_stored_events_2,
+        ]
+
+        assert read_log == expected_events
+
+
+class TestLogRead:
+    async def test_reads_events_in_log_after_sequence_number(self):
+        category_1_name = data.random_event_category_name()
+        category_2_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_1 = store.category(category=category_1_name)
+        category_2 = store.category(category=category_2_name)
+
+        stored_events_1 = await category_1.stream(
+            stream=stream_1_name
+        ).publish(events=stream_1_new_events)
+        stored_events_2 = await category_2.stream(
+            stream=stream_2_name
+        ).publish(events=stream_2_new_events)
+
+        sequence_number = stored_events_1[4].sequence_number
+
+        expected_events = list(stored_events_1[5:]) + list(stored_events_2)
+        log = store.log()
+        log_events = await log.read(
+            constraints={constraints.sequence_number_after(sequence_number)}
+        )
+
+        assert log_events == expected_events
+
+
+class TestLogLatest:
+    async def test_reads_latest_event_in_log_if_present(self):
+        category_1_name = data.random_event_category_name()
+        category_2_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_1 = store.category(category=category_1_name)
+        category_2 = store.category(category=category_2_name)
+
+        await category_1.stream(stream=stream_1_name).publish(
+            events=stream_1_new_events
+        )
+        stored_events_2 = await category_2.stream(
+            stream=stream_2_name
+        ).publish(events=stream_2_new_events)
+
+        log = store.log()
+        latest_event = await log.latest()
+
+        assert latest_event == stored_events_2[-1]
+
+    async def test_returns_none_if_log_is_empty(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        log = store.log()
+        latest_event = await log.latest()
+
+        assert latest_event is None
+
+
+class TestLogIteration:
+    async def test_can_treat_log_as_iterable_over_all_events(self):
+        category_1_name = data.random_event_category_name()
+        category_2_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category_1 = store.category(category=category_1_name)
+        category_2 = store.category(category=category_2_name)
+
+        await category_1.stream(stream=stream_1_name).publish(
+            events=stream_1_new_events
+        )
+        await category_2.stream(stream=stream_2_name).publish(
+            events=stream_2_new_events
+        )
+
+        new_event_keys = [
+            (event.name, stream_1_name, category_1_name)
+            for event in stream_1_new_events
+        ] + [
+            (event.name, stream_2_name, category_2_name)
+            for event in stream_2_new_events
+        ]
+
+        log = store.log()
+
+        stream_event_keys = [
+            (event.name, event.stream, event.category) async for event in log
+        ]
+
+        assert stream_event_keys == new_event_keys
+
+    async def test_iterates_over_events_after_sequence_number(self):
+        category_1_name = data.random_event_category_name()
+        category_2_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_new_events = [NewEventBuilder().build() for _ in range(10)]
+        stream_2_new_events = [NewEventBuilder().build() for _ in range(10)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category_1 = store.category(category=category_1_name)
+        category_2 = store.category(category=category_2_name)
+
+        stream_1_stored_events = await category_1.stream(
+            stream=stream_1_name
+        ).publish(events=stream_1_new_events)
+        (
+            await category_2.stream(stream=stream_2_name).publish(
+                events=stream_2_new_events
+            )
+        )
+
+        sequence_number = stream_1_stored_events[4].sequence_number
+
+        new_event_keys = [
+            (event.name, stream_1_name, category_1_name)
+            for event in stream_1_new_events[5:]
+        ] + [
+            (event.name, stream_2_name, category_2_name)
+            for event in stream_2_new_events
+        ]
+
+        log = store.log()
+
+        stream_event_keys = [
+            (event.name, event.stream, event.category)
+            async for event in log.iterate(
+                constraints={
+                    constraints.sequence_number_after(sequence_number)
+                }
+            )
+        ]
+
+        assert stream_event_keys == new_event_keys
+
+
+class TestLogLogging:
+    async def test_logs_on_latest(self):
+        logger = CapturingLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        category = store.category(category=category_name)
+
+        await category.stream(stream=stream_name).publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+
+        log = store.log()
+        await log.latest()
+
+        log_event = logger.find_event("event.log.reading-latest")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is True
+        assert log_event.context == {
+            "log": "event-log",
+        }
+
+    async def test_logs_on_iterating(self):
+        logger = CapturingLogger.create()
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        store = EventStore(
+            adapter=InMemoryEventStorageAdapter(), logger=logger
+        )
+        category = store.category(category=category_name)
+        stream_1 = category.stream(stream=stream_1_name)
+        stream_2 = category.stream(stream=stream_2_name)
+
+        await stream_1.publish(
+            events=[
+                NewEventBuilder().with_name("first-thing-happened").build(),
+                NewEventBuilder().with_name("second-thing-happened").build(),
+            ]
+        )
+        await stream_2.publish(
+            events=[
+                NewEventBuilder().with_name("third-thing-happened").build(),
+                NewEventBuilder().with_name("fourth-thing-happened").build(),
+            ]
+        )
+
+        log = store.log()
+        log.iterate()
+
+        log_event = logger.find_event("event.log.iterating")
+
+        assert log_event is not None
+        assert log_event.level == LogLevel.DEBUG
+        assert log_event.is_async is False
+        assert log_event.context == {
+            "log": "event-log",
             "constraints": [],
         }
 

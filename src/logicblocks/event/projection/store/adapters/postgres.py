@@ -21,7 +21,7 @@ from logicblocks.event.types import (
     serialise_projection,
 )
 
-from ..base import ProjectionStorageAdapter
+from .base import ProjectionStorageAdapter
 
 
 def insert_query(

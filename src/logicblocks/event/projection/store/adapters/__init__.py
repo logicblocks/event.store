@@ -2,12 +2,6 @@ from .base import ProjectionStorageAdapter as ProjectionStorageAdapter
 from .in_memory import (
     InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
 )
-from .in_memory import (
-    InMemoryQueryConverter as InMemoryQueryConverter,
-)
-from .in_memory import (
-    ProjectionResultSetTransformer as ProjectionResultSetTransformer,
-)
 from .postgres import (
     PostgresProjectionStorageAdapter as PostgresProjectionStorageAdapter,
 )

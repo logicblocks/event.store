@@ -1,25 +1,32 @@
-from collections.abc import Mapping
-from typing import Any, Self
+from typing import Self
 
 import logicblocks.event.query as genericquery
+from logicblocks.event.types import Converter
 
+from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
 from ..settings import TableSettings
-from .types import ClauseConverter, QueryConverter
+from ..types import ParameterisedQuery
+from .clause import (
+    FilterClauseConverter,
+    KeySetPagingClauseConverter,
+    OffsetPagingClauseConverter,
+    SortClauseConverter,
+    TypeRegistryClauseConverter,
+)
+from .types import ClauseConverter, QueryApplier, QueryConverter
 
 
 class SearchQueryConverter(QueryConverter[genericquery.Search]):
     def __init__(
         self,
-        clause_converter: ClauseConverter,
+        clause_converter: Converter[genericquery.Clause, QueryApplier],
         table_settings: TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(
-        self, item: genericquery.Search
-    ) -> postgresquery.ParameterisedQuery:
+    def convert(self, item: genericquery.Search) -> ParameterisedQuery:
         filters = item.filters
         sort = item.sort
         paging = item.paging
@@ -43,15 +50,13 @@ class SearchQueryConverter(QueryConverter[genericquery.Search]):
 class LookupQueryConverter(QueryConverter[genericquery.Lookup]):
     def __init__(
         self,
-        clause_converter: ClauseConverter[genericquery.Clause],
+        clause_converter: Converter[genericquery.Clause, QueryApplier],
         table_settings: TableSettings,
     ):
         self._clause_converter = clause_converter
         self._table_settings = table_settings
 
-    def convert(
-        self, item: genericquery.Lookup
-    ) -> postgresquery.ParameterisedQuery:
+    def convert(self, item: genericquery.Lookup) -> ParameterisedQuery:
         filters = item.filters
 
         builder = (
@@ -66,23 +71,87 @@ class LookupQueryConverter(QueryConverter[genericquery.Lookup]):
         return builder.build()
 
 
-class TypeRegistryQueryConverter(QueryConverter):
+class TypeRegistryQueryConverter(
+    TypeRegistryConverter[genericquery.Query, ParameterisedQuery]
+):
+    def register[Q: genericquery.Query](
+        self, item_type: type[Q], converter: Converter[Q, ParameterisedQuery]
+    ) -> Self:
+        return super()._register(item_type, converter)
+
+
+class DelegatingQueryConverter(
+    Converter[genericquery.Query, ParameterisedQuery]
+):
     def __init__(
         self,
-        registry: Mapping[type[genericquery.Query], QueryConverter[Any]]
-        | None = None,
+        table_settings: TableSettings,
+        clause_converter: TypeRegistryClauseConverter | None = None,
+        query_converter: TypeRegistryQueryConverter | None = None,
     ):
-        self._registry = dict(registry) if registry is not None else {}
+        self._clause_converter = (
+            clause_converter
+            if clause_converter is not None
+            else TypeRegistryClauseConverter()
+        )
+        self._query_converter = (
+            query_converter
+            if query_converter is not None
+            else TypeRegistryQueryConverter()
+        )
+        self._table_settings = table_settings
 
-    def register[Q: genericquery.Query](
+    def with_default_clause_converters(self) -> Self:
+        return (
+            self.register_clause_converter(
+                genericquery.FilterClause, FilterClauseConverter()
+            )
+            .register_clause_converter(
+                genericquery.SortClause, SortClauseConverter()
+            )
+            .register_clause_converter(
+                genericquery.KeySetPagingClause,
+                KeySetPagingClauseConverter(
+                    table_settings=self._table_settings
+                ),
+            )
+            .register_clause_converter(
+                genericquery.OffsetPagingClause, OffsetPagingClauseConverter()
+            )
+        )
+
+    def with_default_query_converters(self) -> Self:
+        return self.register_query_converter(
+            genericquery.Search,
+            SearchQueryConverter(self._clause_converter, self._table_settings),
+        ).register_query_converter(
+            genericquery.Lookup,
+            LookupQueryConverter(self._clause_converter, self._table_settings),
+        )
+
+    def register_clause_converter[C: genericquery.Clause](
+        self, clause_type: type[C], converter: ClauseConverter[C]
+    ) -> Self:
+        self._clause_converter.register(clause_type, converter)
+        return self
+
+    def register_query_converter[Q: genericquery.Query](
         self, query_type: type[Q], converter: QueryConverter[Q]
     ) -> Self:
-        self._registry[query_type] = converter
+        self._query_converter.register(query_type, converter)
         return self
+
+    def apply_clause(
+        self, clause: genericquery.Clause, query_builder: postgresquery.Query
+    ) -> postgresquery.Query:
+        return self._clause_converter.convert(clause).apply(query_builder)
+
+    def convert_query(
+        self, item: genericquery.Query
+    ) -> postgresquery.ParameterisedQuery:
+        return self._query_converter.convert(item)
 
     def convert(
         self, item: genericquery.Query
     ) -> postgresquery.ParameterisedQuery:
-        if item.__class__ not in self._registry:
-            raise ValueError(f"Unsupported query type: {item}.")
-        return self._registry[item.__class__].convert(item)
+        return self.convert_query(item)

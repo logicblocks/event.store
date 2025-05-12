@@ -4,14 +4,12 @@ from typing import Any, Callable, Self
 
 import pytest
 
-from logicblocks.event.projection.store.adapters import (
-    InMemoryQueryConverter,
-    ProjectionResultSetTransformer,
-)
-from logicblocks.event.projection.store.adapters.in_memory.converters import (
+from logicblocks.event.persistence.in_memory import (
     ClauseConverter,
+    DelegatingQueryConverter,
     KeySetPagingClauseConverter,
     QueryConverter,
+    ResultSetTransformer,
     SortClauseConverter,
 )
 from logicblocks.event.query import (
@@ -72,17 +70,19 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing, Mapping[str, Any]]):
         return {}
 
 
-class TestInMemoryQueryConverterClauseConverterRegistration:
+class TestDelegatingQueryConverterClauseConverterRegistration:
     def test_registers_clause_converter_and_converts_clause(self):
-        converter = InMemoryQueryConverter()
+        converter = DelegatingQueryConverter()
 
         class TakeClause(Clause):
             value: int = 2
 
-        class TakeClauseConverter(ClauseConverter[TakeClause]):
+        class TakeClauseConverter(
+            ClauseConverter[Projection[JsonValue], TakeClause]
+        ):
             def convert(
                 self, item: TakeClause
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -106,15 +106,17 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
         assert transformed_projections == [projection_1, projection_2]
 
     def test_replaces_existing_clause_converter(self):
-        converter = InMemoryQueryConverter()
+        converter = DelegatingQueryConverter()
 
         class TakeClause(Clause):
             value: int = 2
 
-        class TakeClauseConverter1(ClauseConverter[TakeClause]):
+        class TakeClauseConverter1(
+            ClauseConverter[Projection[JsonValue], TakeClause]
+        ):
             def convert(
                 self, item: TakeClause
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -122,10 +124,12 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
 
                 return apply_clause
 
-        class TakeClauseConverter2(ClauseConverter[TakeClause]):
+        class TakeClauseConverter2(
+            ClauseConverter[Projection[JsonValue], TakeClause]
+        ):
             def convert(
                 self, item: TakeClause
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -155,9 +159,9 @@ class TestInMemoryQueryConverterClauseConverterRegistration:
         ]
 
 
-class TestInMemoryQueryConverterClauseConversion:
+class TestDelegatingQueryConverterClauseConversion:
     def test_raises_for_unregistered_clause_type(self):
-        converter = InMemoryQueryConverter()
+        converter = DelegatingQueryConverter()
 
         class TakeClause(Clause):
             value: int = 2
@@ -168,9 +172,9 @@ class TestInMemoryQueryConverterClauseConversion:
             converter.convert_clause(clause)
 
 
-class TestInMemoryQueryConverterDefaultClauseConverters:
+class TestDelegatingQueryConverterDefaultClauseConverters:
     def test_filter_top_level_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.EQUAL, Path("id"), "123")
 
@@ -184,7 +188,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1]
 
     def test_filter_nested_state_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.EQUAL, Path("state", "value_1"), 5)
 
@@ -206,7 +210,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1]
 
     def test_filter_not_equal(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.NOT_EQUAL, Path("state", "value_1"), 5)
 
@@ -228,7 +232,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2]
 
     def test_filter_greater_than(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(
             Operator.GREATER_THAN, Path("state", "value_1"), 5
@@ -252,7 +256,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2]
 
     def test_filter_greater_than_or_equal(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(
             Operator.GREATER_THAN_OR_EQUAL, Path("state", "value_1"), 6
@@ -281,7 +285,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2, projection_3]
 
     def test_filter_less_than(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.LESS_THAN, Path("state", "value_1"), 10)
 
@@ -303,7 +307,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1]
 
     def test_filter_less_than_or_equal(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(
             Operator.LESS_THAN_OR_EQUAL, Path("state", "value_1"), 6
@@ -332,7 +336,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1, projection_2]
 
     def test_filter_on_non_existent_top_level_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.EQUAL, Path("non_existent"), 10)
 
@@ -347,7 +351,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert str(e.value) == f"Invalid projection path: {['non_existent']}."
 
     def test_filter_on_non_existent_nested_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = FilterClause(Operator.EQUAL, Path("state", "value_3"), 10)
 
@@ -372,7 +376,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         )
 
     def test_sort_clause_over_single_field_on_top_level_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[SortField(path=Path("id"), order=SortOrder.ASC)]
@@ -389,7 +393,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2, projection_1, projection_3]
 
     def test_sort_clause_over_multiple_fields_on_top_level_attributes(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
@@ -424,7 +428,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_3, projection_2, projection_1]
 
     def test_sort_clause_over_single_field_on_nested_state_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
@@ -455,7 +459,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1, projection_3, projection_2]
 
     def test_sort_clause_over_multiple_fields_on_nested_state_attribute(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
@@ -487,7 +491,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2, projection_3, projection_1]
 
     def test_offset_paging_clause_first_page(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = OffsetPagingClause(item_count=2)
 
@@ -502,7 +506,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1, projection_2]
 
     def test_offset_paging_clause_subsequent_page(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = OffsetPagingClause(page_number=2, item_count=2)
 
@@ -527,7 +531,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_3, projection_4]
 
     def test_offset_paging_clause_empty_page(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = OffsetPagingClause(page_number=5, item_count=2)
 
@@ -542,7 +546,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == []
 
     def test_key_set_paging_clause_first_page(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = KeySetPagingClause(item_count=2)
 
@@ -557,7 +561,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1, projection_2]
 
     def test_key_set_paging_clause_full_page_paging_forwards(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -584,7 +588,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_3, projection_4]
 
     def test_key_set_paging_clause_partial_page_paging_forwards(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -607,7 +611,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_3]
 
     def test_key_set_paging_clause_after_id_not_present_paging_forwards(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -632,7 +636,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
     def test_key_set_paging_clause_after_id_is_last_item_id_paging_forwards(
         self,
     ):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -655,7 +659,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == []
 
     def test_key_set_paging_clause_full_page_paging_backwards(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -682,7 +686,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_2, projection_3]
 
     def test_key_set_paging_clause_partial_page_paging_backwards(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -701,7 +705,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
     def test_key_set_paging_clause_before_id_not_present_paging_backwards(
         self,
     ):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -726,7 +730,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
     def test_key_set_paging_clause_before_id_is_first_item_id_paging_backwards(
         self,
     ):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         projection_1 = MappingProjectionBuilder().with_id("1").build()
         projection_2 = MappingProjectionBuilder().with_id("2").build()
@@ -749,7 +753,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == []
 
     def test_filter_on_value_in_list(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
         value_to_filter_2 = data.random_ascii_alphanumerics_string(10)
@@ -783,7 +787,7 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_1, projection_2]
 
     def test_filter_on_list_contains_value(self):
-        converter = InMemoryQueryConverter().with_default_clause_converters()
+        converter = DelegatingQueryConverter().with_default_clause_converters()
 
         value_to_filter = data.random_ascii_alphanumerics_string(10)
         other_value1 = data.random_ascii_alphanumerics_string(10)
@@ -821,17 +825,19 @@ class TestInMemoryQueryConverterDefaultClauseConverters:
         assert results == [projection_3]
 
 
-class TestInMemoryQueryConverterQueryConverterRegistration:
+class TestDelegatingQueryConverterQueryConverterRegistration:
     def test_registers_query_converter_and_converts_query(self):
-        converter = InMemoryQueryConverter()
+        converter = DelegatingQueryConverter()
 
         class CustomQuery(Query):
             pass
 
-        class CustomQueryConverter(QueryConverter[CustomQuery]):
+        class CustomQueryConverter(
+            QueryConverter[Projection[JsonValue], CustomQuery]
+        ):
             def convert(
                 self, item: CustomQuery
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -856,9 +862,9 @@ class TestInMemoryQueryConverterQueryConverterRegistration:
         assert transformed_projections == [projection_1, projection_3]
 
 
-class TestInMemoryQueryConverterQueryConversion:
+class TestDelegatingQueryConverterQueryConversion:
     def test_raises_for_unsupported_query_type(self):
-        converter = InMemoryQueryConverter()
+        converter = DelegatingQueryConverter()
 
         class UnsupportedQuery(Query):
             pass
@@ -869,9 +875,9 @@ class TestInMemoryQueryConverterQueryConversion:
             converter.convert_query(query)
 
 
-class TestInMemoryQueryConverterDefaultQueryConverters:
+class TestDelegatingQueryConverterDefaultQueryConverters:
     def test_converts_lookup_with_multiple_filter_clauses(self):
-        converter = InMemoryQueryConverter().with_default_query_converters()
+        converter = DelegatingQueryConverter().with_default_query_converters()
 
         class SkipClause(Clause):
             number: int = 2
@@ -879,10 +885,12 @@ class TestInMemoryQueryConverterDefaultQueryConverters:
         class TakeClause(Clause):
             number: int = 1
 
-        class SkipClauseConverter(ClauseConverter[SkipClause]):
+        class SkipClauseConverter(
+            ClauseConverter[Projection[JsonValue], SkipClause]
+        ):
             def convert(
                 self, item: SkipClause
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -890,10 +898,12 @@ class TestInMemoryQueryConverterDefaultQueryConverters:
 
                 return apply_clause
 
-        class TakeClauseConverter(ClauseConverter[TakeClause]):
+        class TakeClauseConverter(
+            ClauseConverter[Projection[JsonValue], TakeClause]
+        ):
             def convert(
                 self, item: TakeClause
-            ) -> ProjectionResultSetTransformer:
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
                     projections: Sequence[Projection[JsonValue]],
                 ) -> Sequence[Projection[JsonValue]]:
@@ -934,7 +944,7 @@ class TestInMemoryQueryConverterDefaultQueryConverters:
 
     def test_converts_search_with_sort_clause(self):
         converter = (
-            InMemoryQueryConverter()
+            DelegatingQueryConverter()
             .with_default_query_converters()
             .register_clause_converter(SortClause, SortClauseConverter())
         )
@@ -960,7 +970,7 @@ class TestInMemoryQueryConverterDefaultQueryConverters:
         assert results == [projection_2, projection_1, projection_3]
 
     def test_converts_search_with_paging_clause(self):
-        converter = InMemoryQueryConverter().with_default_query_converters()
+        converter = DelegatingQueryConverter().with_default_query_converters()
         converter.register_clause_converter(
             KeySetPagingClause, KeySetPagingClauseConverter()
         )

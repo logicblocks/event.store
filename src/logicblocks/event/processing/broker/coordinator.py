@@ -8,6 +8,7 @@ from typing import Any
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.types import str_serialisation_fallback
+from logicblocks.event.utils.klass import class_fullname
 
 from .locks import LockManager
 from .logger import default_logger
@@ -23,13 +24,6 @@ from .subscriptions import (
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
     return [values[i::chunks] for i in range(chunks)]
-
-
-def class_fullname(klass: type[Any]):
-    module = klass.__module__
-    if module == "builtins":
-        return klass.__qualname__
-    return module + "." + klass.__qualname__
 
 
 def log_event_name(event: str) -> str:

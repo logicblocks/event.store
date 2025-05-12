@@ -1,5 +1,9 @@
 from collections.abc import Sequence
 
+from logicblocks.event.persistence.in_memory import (
+    DelegatingQueryConverter,
+    ResultSetTransformer,
+)
 from logicblocks.event.query import (
     Lookup,
     Query,
@@ -16,9 +20,7 @@ from logicblocks.event.types import (
     serialise_to_json_value,
 )
 
-from ..base import ProjectionStorageAdapter
-from .converter import InMemoryQueryConverter
-from .types import ProjectionResultSetTransformer
+from .base import ProjectionStorageAdapter
 
 
 class InMemoryProjectionStorageAdapter[
@@ -27,7 +29,9 @@ class InMemoryProjectionStorageAdapter[
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
     def __init__(
         self,
-        query_converter: Converter[Query, ProjectionResultSetTransformer]
+        query_converter: Converter[
+            Query, ResultSetTransformer[Projection[JsonValue, JsonValue]]
+        ]
         | None = None,
     ):
         self._projections: dict[
@@ -37,7 +41,7 @@ class InMemoryProjectionStorageAdapter[
             query_converter
             if query_converter is not None
             else (
-                InMemoryQueryConverter()
+                DelegatingQueryConverter[Projection[JsonValue, JsonValue]]()
                 .with_default_clause_converters()
                 .with_default_query_converters()
             )

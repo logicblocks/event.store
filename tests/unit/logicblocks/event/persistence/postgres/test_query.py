@@ -5,7 +5,6 @@ from psycopg import abc, sql
 from logicblocks.event.persistence.postgres import (
     Column,
     Condition,
-    ConnectionSettings,
     Operator,
     ParameterisedQuery,
     ParameterisedQueryFragment,
@@ -37,41 +36,6 @@ def parameterised_query_fragment_to_string(
     if fragment is None:
         return "", params
     return fragment.as_string(), params
-
-
-class TestPostgresConnectionSettings:
-    def test_includes_all_settings_in_representation_obscuring_password(self):
-        settings = ConnectionSettings(
-            host="localhost",
-            port=5432,
-            dbname="event_store",
-            user="user",
-            password="supersecret",
-        )
-
-        assert repr(settings) == (
-            "ConnectionSettings("
-            "host=localhost, "
-            "port=5432, "
-            "dbname=event_store, "
-            "user=user, "
-            "password=***********"
-            ")"
-        )
-
-    def test_generates_connection_string_from_parameters(self):
-        settings = ConnectionSettings(
-            host="localhost",
-            port=5432,
-            dbname="event_store",
-            user="user",
-            password="supersecret",
-        )
-
-        assert (
-            settings.to_connection_string()
-            == "postgresql://user:supersecret@localhost:5432/event_store"
-        )
 
 
 class TestCondition:

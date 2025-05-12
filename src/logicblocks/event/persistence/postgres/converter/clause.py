@@ -4,7 +4,9 @@ from typing import Any, Self, Sequence, TypeGuard
 from psycopg.types.json import Jsonb
 
 import logicblocks.event.query as genericquery
+from logicblocks.event.types import Converter
 
+from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
 from ..settings import TableSettings
 from .types import ClauseConverter, QueryApplier
@@ -697,21 +699,10 @@ class OffsetPagingClauseConverter(
         return OffsetPagingClauseQueryApplier(clause=item)
 
 
-class TypeRegistryClauseConverter(ClauseConverter):
-    def __init__(
-        self,
-        registry: dict[type[genericquery.Clause], ClauseConverter[Any]]
-        | None = None,
-    ):
-        self._registry = dict(registry) if registry is not None else {}
-
+class TypeRegistryClauseConverter(
+    TypeRegistryConverter[genericquery.Clause, QueryApplier]
+):
     def register[C: genericquery.Clause](
-        self, clause_type: type[C], converter: ClauseConverter[C]
+        self, item_type: type[C], converter: Converter[C, QueryApplier]
     ) -> Self:
-        self._registry[clause_type] = converter
-        return self
-
-    def convert(self, item: genericquery.Clause) -> QueryApplier:
-        if item.__class__ not in self._registry:
-            raise ValueError(f"No converter registered for clause: {item}")
-        return self._registry[item.__class__].convert(item)
+        return super()._register(item_type, converter)

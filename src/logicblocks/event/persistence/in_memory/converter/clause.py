@@ -1,5 +1,4 @@
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Self
@@ -17,34 +16,23 @@ from logicblocks.event.query import (
     SortField,
     SortOrder,
 )
-from logicblocks.event.types import (
-    Converter,
-    JsonValue,
-    Projection,
+from logicblocks.event.types import Converter
+
+from ...converter import TypeRegistryConverter
+from .types import (
+    ClauseConverter,
+    Identifiable,
+    ResultSet,
+    ResultSetTransformer,
 )
 
-from ..types import (
-    ProjectionResultSet,
-    ProjectionResultSetTransformer,
-)
 
-
-class ClauseConverter[C: Clause = Clause](
-    Converter[C, ProjectionResultSetTransformer], ABC
-):
-    @abstractmethod
-    def convert(self, item: C) -> ProjectionResultSetTransformer:
-        raise NotImplementedError
-
-
-def lookup_projection_path(
-    projection: Projection[JsonValue, JsonValue], path: Path
-) -> Any:
+def lookup_path(object: Any, path: Path) -> Any:
     attribute_name = path.top_level
     remaining_path = path.sub_levels
 
     try:
-        attribute = getattr(projection, attribute_name)
+        attribute = getattr(object, attribute_name)
     except AttributeError:
         raise ValueError(f"Invalid projection path: {path}.")
 
@@ -60,11 +48,9 @@ def lookup_projection_path(
 
 def make_path_key_function(
     path: Path,
-) -> Callable[[Projection[JsonValue, JsonValue]], Any]:
-    def get_key_for_projection(
-        projection: Projection[JsonValue, JsonValue],
-    ) -> Any:
-        return lookup_projection_path(projection, path)
+) -> Callable[[Any], Any]:
+    def get_key_for_projection(object: Any) -> Any:
+        return lookup_path(object, path)
 
     return get_key_for_projection
 
@@ -77,14 +63,11 @@ def make_path_key_function(
 #     ) -> Any:
 
 
-class FilterClauseConverter(ClauseConverter[FilterClause]):
+class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
     @staticmethod
-    def _matches(
-        clause: FilterClause,
-        projection: Projection[JsonValue, JsonValue],
-    ) -> bool:
+    def _matches(clause: FilterClause, item: R) -> bool:
         comparison_value = clause.value
-        resolved_value = lookup_projection_path(projection, clause.path)
+        resolved_value = lookup_path(item, clause.path)
 
         match clause.operator:
             case Operator.EQUAL:
@@ -106,41 +89,35 @@ class FilterClauseConverter(ClauseConverter[FilterClause]):
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 
-    def convert(self, item: FilterClause) -> ProjectionResultSetTransformer:
-        def handler(
-            projections: Sequence[Projection[JsonValue, JsonValue]],
-        ) -> Sequence[Projection[JsonValue, JsonValue]]:
+    def convert(self, item: FilterClause) -> ResultSetTransformer[R]:
+        def handler(results: Sequence[R]) -> Sequence[R]:
             return list(
-                projection
-                for projection in projections
-                if self._matches(item, projection)
+                result for result in results if self._matches(item, result)
             )
 
         return handler
 
 
-class SortClauseConverter(ClauseConverter[SortClause]):
+class SortClauseConverter[R: Identifiable](ClauseConverter[R, SortClause]):
     @staticmethod
     def _accumulator(
-        projections: Sequence[Projection[JsonValue, JsonValue]],
+        results: Sequence[R],
         field: SortField,
-    ) -> Sequence[Projection[JsonValue, JsonValue]]:
+    ) -> Sequence[R]:
         if isinstance(field.path, Function):
             raise ValueError("Function sorting is not supported.")
         result = sorted(
-            projections,
+            results,
             key=make_path_key_function(field.path),
             reverse=(field.order == SortOrder.DESC),
         )
         return result
 
-    def convert(self, item: SortClause) -> ProjectionResultSetTransformer:
+    def convert(self, item: SortClause) -> ResultSetTransformer[R]:
         def handler(
-            projections: Sequence[Projection[JsonValue, JsonValue]],
-        ) -> Sequence[Projection[JsonValue, JsonValue]]:
-            return reduce(
-                self._accumulator, reversed(item.fields), projections
-            )
+            results: Sequence[R],
+        ) -> Sequence[R]:
+            return reduce(self._accumulator, reversed(item.fields), results)
 
         return handler
 
@@ -160,10 +137,12 @@ class LastIndexFound:
     index: int
 
 
-class KeySetPagingClauseConverter(ClauseConverter[KeySetPagingClause]):
+class KeySetPagingClauseConverter[R: Identifiable](
+    ClauseConverter[R, KeySetPagingClause]
+):
     @staticmethod
     def _determine_last_index(
-        projections: Sequence[Projection[JsonValue, JsonValue]],
+        results: Sequence[R],
         last_id: str | None,
     ) -> LastIndexFound | LastIndexNotFound | LastIndexNotProvided:
         if last_id is None:
@@ -171,22 +150,20 @@ class KeySetPagingClauseConverter(ClauseConverter[KeySetPagingClause]):
 
         last_indices = [
             index
-            for index, projection in enumerate(projections)
-            if projection.id == last_id
+            for index, result in enumerate(results)
+            if result.id == last_id
         ]
         if len(last_indices) != 1:
             return LastIndexNotFound()
 
         return LastIndexFound(last_indices[0])
 
-    def convert(
-        self, item: KeySetPagingClause
-    ) -> ProjectionResultSetTransformer:
+    def convert(self, item: KeySetPagingClause) -> ResultSetTransformer[R]:
         def handler(
-            projections: Sequence[Projection[JsonValue, JsonValue]],
-        ) -> Sequence[Projection[JsonValue, JsonValue]]:
+            results: Sequence[R],
+        ) -> Sequence[R]:
             last_index_result = self._determine_last_index(
-                projections, item.last_id
+                results, item.last_id
             )
             direction = item.direction
             item_count = item.item_count
@@ -199,49 +176,41 @@ class KeySetPagingClauseConverter(ClauseConverter[KeySetPagingClause]):
                 ):
                     return []
                 case (LastIndexNotProvided(), PagingDirection.FORWARDS):
-                    return projections[:item_count]
+                    return results[:item_count]
                 case (LastIndexFound(last_index), PagingDirection.FORWARDS):
-                    return projections[
+                    return results[
                         last_index + 1 : last_index + 1 + item_count
                     ]
                 case (LastIndexFound(last_index), PagingDirection.BACKWARDS):
                     resolved_start_index = max(last_index - item_count, 0)
-                    return projections[resolved_start_index:last_index]
+                    return results[resolved_start_index:last_index]
                 case _:  # pragma: no cover
                     raise ValueError("Unreachable state.")
 
         return handler
 
 
-class OffsetPagingClauseConverter(ClauseConverter[OffsetPagingClause]):
-    def convert(
-        self, item: OffsetPagingClause
-    ) -> ProjectionResultSetTransformer:
+class OffsetPagingClauseConverter[R: Identifiable](
+    ClauseConverter[R, OffsetPagingClause]
+):
+    def convert(self, item: OffsetPagingClause) -> ResultSetTransformer[R]:
         offset = item.offset
         item_count = item.item_count
 
         def handler(
-            projections: ProjectionResultSet,
-        ) -> ProjectionResultSet:
-            return projections[offset : offset + item_count]
+            results: ResultSet[R],
+        ) -> ResultSet[R]:
+            return results[offset : offset + item_count]
 
         return handler
 
 
-class TypeRegistryClauseConverter(ClauseConverter):
-    def __init__(
-        self,
-        registry: Mapping[type[Clause], ClauseConverter[Any]] | None = None,
-    ):
-        self._registry = dict(registry) if registry is not None else {}
-
+class TypeRegistryClauseConverter[R: Identifiable](
+    TypeRegistryConverter[Clause, ResultSetTransformer[R]]
+):
     def register[C: Clause](
-        self, clause_type: type[C], converter: ClauseConverter[C]
+        self,
+        item_type: type[C],
+        converter: Converter[C, ResultSetTransformer[R]],
     ) -> Self:
-        self._registry[clause_type] = converter
-        return self
-
-    def convert(self, item: Clause) -> ProjectionResultSetTransformer:
-        if item.__class__ not in self._registry:
-            raise ValueError(f"No converter registered for clause: {item}")
-        return self._registry[item.__class__].convert(item)
+        return super()._register(item_type, converter)

@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -5,6 +6,7 @@ from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
 
 from psycopg import sql
 
+from ...types import Applier
 from .types import ParameterisedQuery, ParameterisedQueryFragment, SqlFragment
 
 
@@ -639,3 +641,7 @@ class Query:
             raise ValueError("Empty query.")
 
         return fragment, params
+
+
+class QueryApplier(Applier[Query], ABC):
+    pass

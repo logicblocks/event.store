@@ -1,14 +1,10 @@
 from abc import ABC, abstractmethod
 
 from logicblocks.event import query as query
-from logicblocks.event.types import Applier, Converter
+from logicblocks.event.types import Converter
 
-from .. import query as postgresquery
+from ..query import QueryApplier
 from ..types import ParameterisedQuery
-
-
-class QueryApplier(Applier[postgresquery.Query], ABC):
-    pass
 
 
 class QueryConverter[Q: query.Query = query.Query](

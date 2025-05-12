@@ -8,8 +8,9 @@ from logicblocks.event.types import Converter
 
 from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
+from ..query import QueryApplier
 from ..settings import TableSettings
-from .types import ClauseConverter, QueryApplier
+from .types import ClauseConverter
 
 
 def column_for_query_path(

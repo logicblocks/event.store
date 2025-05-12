@@ -5,6 +5,7 @@ from logicblocks.event.types import Converter
 
 from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
+from ..query import QueryApplier
 from ..settings import TableSettings
 from ..types import ParameterisedQuery
 from .clause import (
@@ -14,7 +15,7 @@ from .clause import (
     SortClauseConverter,
     TypeRegistryClauseConverter,
 )
-from .types import ClauseConverter, QueryApplier, QueryConverter
+from .types import ClauseConverter, QueryConverter
 
 
 class SearchQueryConverter(QueryConverter[genericquery.Search]):

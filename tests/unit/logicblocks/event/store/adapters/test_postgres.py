@@ -14,7 +14,7 @@ from logicblocks.event.persistence.postgres import (
 from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
-from logicblocks.event.store.adapters.postgres import (
+from logicblocks.event.store.adapters.postgres.adapter import (
     insert_batch,
     insert_batch_query,
 )

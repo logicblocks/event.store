@@ -1,5 +1,5 @@
 from .base import ProjectionStorageAdapter as ProjectionStorageAdapter
-from .in_memory import (
+from .memory import (
     InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
 )
 from .postgres import (

@@ -4,7 +4,7 @@ from typing import Any, Callable, Self
 
 import pytest
 
-from logicblocks.event.persistence.in_memory import (
+from logicblocks.event.persistence.memory import (
     ClauseConverter,
     DelegatingQueryConverter,
     KeySetPagingClauseConverter,

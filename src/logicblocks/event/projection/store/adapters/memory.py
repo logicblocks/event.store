@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from logicblocks.event.persistence.in_memory import (
+from logicblocks.event.persistence.memory import (
     DelegatingQueryConverter,
     ResultSetTransformer,
 )

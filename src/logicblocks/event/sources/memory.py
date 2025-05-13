@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
 from logicblocks.event.store import EventSource
-from logicblocks.event.store.adapters.in_memory.converters import (
+from logicblocks.event.store.adapters.memory.converters import (
     QueryConstraintCheck,
     TypeRegistryConstraintConverter,
 )

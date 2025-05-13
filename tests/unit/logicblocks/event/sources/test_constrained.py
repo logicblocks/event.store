@@ -3,7 +3,7 @@ from logicblocks.event.sources import (
     InMemoryEventSource,
 )
 from logicblocks.event.store import constraints
-from logicblocks.event.store.adapters.in_memory import (
+from logicblocks.event.store.adapters.memory import (
     InMemoryQueryConstraintCheck,
     InMemoryTypeRegistryConstraintConverter,
 )

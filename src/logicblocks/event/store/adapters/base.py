@@ -60,7 +60,7 @@ class EventStorageAdapter(ABC):
         *,
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
+        condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
         raise NotImplementedError()
 

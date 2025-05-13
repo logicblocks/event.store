@@ -472,7 +472,7 @@ class StorageAdapterSaveTask:
         adapter: EventStorageAdapter,
         target: identifier.StreamIdentifier,
         events: Sequence[NewEvent],
-        condition: writeconditions.WriteCondition = NoCondition,
+        condition: writeconditions.WriteCondition = NoCondition(),
     ):
         self.adapter = adapter
         self.target = target

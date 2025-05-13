@@ -3,26 +3,17 @@ from dataclasses import dataclass
 import pytest
 
 from logicblocks.event.store.conditions import (
-    ConditionCombinators,
+    AndCondition,
     EmptyStreamCondition,
-    NoCondition,
+    OrCondition,
     PositionIsCondition,
     WriteCondition,
-    WriteConditions,
     position_is,
     stream_is_empty,
 )
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import StoredEventBuilder, data
 from logicblocks.event.types import StoredEvent
-
-
-class TestNoCondition:
-    def test_no_condition(self):
-        condition = NoCondition
-
-        condition.assert_met_by(last_event=None)
-        condition.assert_met_by(last_event=StoredEventBuilder().build())
 
 
 class TestPositionIsCondition:
@@ -95,14 +86,13 @@ class TestWriteConditions:
         condition3 = CategoryNameIsCondition(category=category_name)
         combined_condition = condition1 & condition2 & condition3
 
-        assert isinstance(combined_condition, WriteConditions)
+        assert isinstance(combined_condition, AndCondition)
         assert isinstance(combined_condition, WriteCondition)
         assert combined_condition.conditions == {
             condition1,
             condition2,
             condition3,
         }
-        assert combined_condition.combinator == ConditionCombinators.AND
 
     def test_combining_with_or_creates_write_conditions(self):
         event_name = data.random_event_name()
@@ -114,14 +104,13 @@ class TestWriteConditions:
         condition3 = CategoryNameIsCondition(category=category_name)
         combined_condition = condition1 | condition2 | condition3
 
-        assert isinstance(combined_condition, WriteConditions)
+        assert isinstance(combined_condition, OrCondition)
         assert isinstance(combined_condition, WriteCondition)
         assert combined_condition.conditions == {
             condition1,
             condition2,
             condition3,
         }
-        assert combined_condition.combinator == ConditionCombinators.OR
 
     class TestWriteConditionOperatorPrecedence:
         def test_and_takes_precedence_second(self):
@@ -134,17 +123,9 @@ class TestWriteConditions:
             condition3 = CategoryNameIsCondition(category=category_name)
             combined_condition = condition1 | condition2 & condition3
 
-            assert combined_condition == WriteConditions(
-                combinator=ConditionCombinators.OR,
-                conditions=frozenset(
-                    {
-                        condition1,
-                        WriteConditions(
-                            combinator=ConditionCombinators.AND,
-                            conditions=frozenset({condition2, condition3}),
-                        ),
-                    }
-                ),
+            assert combined_condition == OrCondition.construct(
+                condition1,
+                AndCondition.construct(condition2, condition3),
             )
 
         def test_and_takes_precedence_first(self):
@@ -157,17 +138,8 @@ class TestWriteConditions:
             condition3 = CategoryNameIsCondition(category=category_name)
             combined_condition = condition1 & condition2 | condition3
 
-            assert combined_condition == WriteConditions(
-                combinator=ConditionCombinators.OR,
-                conditions=frozenset(
-                    {
-                        condition3,
-                        WriteConditions(
-                            combinator=ConditionCombinators.AND,
-                            conditions=frozenset({condition1, condition2}),
-                        ),
-                    }
-                ),
+            assert combined_condition == OrCondition.construct(
+                condition3, AndCondition.construct(condition1, condition2)
             )
 
         def test_brackets_take_precedence_first(self):
@@ -180,17 +152,9 @@ class TestWriteConditions:
             condition3 = CategoryNameIsCondition(category=category_name)
             combined_condition = (condition1 | condition2) & condition3
 
-            assert combined_condition == WriteConditions(
-                combinator=ConditionCombinators.AND,
-                conditions=frozenset(
-                    {
-                        condition3,
-                        WriteConditions(
-                            combinator=ConditionCombinators.OR,
-                            conditions=frozenset({condition1, condition2}),
-                        ),
-                    }
-                ),
+            assert combined_condition == AndCondition.construct(
+                condition3,
+                OrCondition.construct(condition1, condition2),
             )
 
         def test_brackets_take_precedence_second(self):
@@ -203,17 +167,8 @@ class TestWriteConditions:
             condition3 = CategoryNameIsCondition(category=category_name)
             combined_condition = condition1 & (condition2 | condition3)
 
-            assert combined_condition == WriteConditions(
-                combinator=ConditionCombinators.AND,
-                conditions=frozenset(
-                    {
-                        condition1,
-                        WriteConditions(
-                            combinator=ConditionCombinators.OR,
-                            conditions=frozenset({condition2, condition3}),
-                        ),
-                    }
-                ),
+            assert combined_condition == AndCondition.construct(
+                condition1, OrCondition.construct(condition2, condition3)
             )
 
     class TestWriteConditionsAnd:

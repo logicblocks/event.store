@@ -222,7 +222,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
+        condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would

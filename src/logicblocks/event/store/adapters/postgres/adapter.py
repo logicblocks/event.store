@@ -47,7 +47,12 @@ from ..base import (
     Saveable,
     Scannable,
 )
-from .converters import TypeRegistryConstraintConverter
+from .converters import (
+    TypeRegistryConditionConverter,
+    TypeRegistryConstraintConverter,
+    WriteConditionEnforcer,
+    WriteConditionEnforcerContext,
+)
 
 
 @dataclass(frozen=True)
@@ -351,6 +356,8 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         table_settings: TableSettings = TableSettings(table_name="events"),
         constraint_converter: Converter[QueryConstraint, QueryApplier]
         | None = None,
+        condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
+        | None = None,
         max_insert_batch_size: int = 1000,
     ):
         if isinstance(connection_source, ConnectionSettings):
@@ -372,6 +379,13 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                 TypeRegistryConstraintConverter().with_default_constraint_converters()
             )
         )
+        self.condition_converter = (
+            condition_converter
+            if condition_converter is not None
+            else (
+                TypeRegistryConditionConverter().with_default_condition_converters()
+            )
+        )
         self.max_insert_batch_size = max_insert_batch_size
 
     async def open(self) -> None:
@@ -387,7 +401,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
+        condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
@@ -400,15 +414,26 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     table_settings=self.table_settings,
                 )
 
-                last_event = await read_last(
+                latest_event = await read_last(
                     cursor,
                     parameters=LatestQueryParameters(target=target),
                     table_settings=self.table_settings,
                 )
 
-                condition.assert_met_by(last_event=last_event)
+                condition_enforcer = self.condition_converter.convert(
+                    condition
+                )
+                await condition_enforcer.assert_satisfied(
+                    context=WriteConditionEnforcerContext(
+                        identifier=target,
+                        latest_event=latest_event,
+                    ),
+                    connection=connection,
+                )
 
-                current_position = last_event.position + 1 if last_event else 0
+                current_position = (
+                    latest_event.position + 1 if latest_event else 0
+                )
 
                 all_stored_events: list[StoredEvent[Name, Payload]] = []
                 for i in range(0, len(events), self.max_insert_batch_size):

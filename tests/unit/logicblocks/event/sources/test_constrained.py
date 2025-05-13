@@ -3,13 +3,22 @@ from logicblocks.event.sources import (
     InMemoryEventSource,
 )
 from logicblocks.event.store import constraints
+from logicblocks.event.store.adapters.in_memory import (
+    InMemoryQueryConstraintCheck,
+    InMemoryTypeRegistryConstraintConverter,
+)
 from logicblocks.event.store.constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import StoredEventBuilder
-from logicblocks.event.types import StoredEvent, StreamIdentifier
+from logicblocks.event.types import (
+    Converter,
+    JsonValue,
+    StoredEvent,
+    StreamIdentifier,
+)
 
 
 class TestConstrainedEventSource:
@@ -99,13 +108,36 @@ class TestConstrainedEventSource:
 
         class NotNameConstraint(QueryConstraint):
             def __init__(self, name: str):
-                self._name = name
+                self.name = name
 
             def met_by(self, *, event: StoredEvent) -> bool:
-                return event.name != self._name
+                return event.name != self.name
+
+        class NotNameConstraintQueryConstraintCheck:
+            def __init__(self, constraint: NotNameConstraint):
+                self.constraint = constraint
+
+            def __call__(self, event: StoredEvent[str, JsonValue]) -> bool:
+                return event.name != self.constraint.name
+
+        class NotNameConstraintConverter(
+            Converter[NotNameConstraint, InMemoryQueryConstraintCheck]
+        ):
+            def convert(
+                self, item: NotNameConstraint
+            ) -> InMemoryQueryConstraintCheck:
+                return NotNameConstraintQueryConstraintCheck(item)
+
+        constraint_converter = (
+            InMemoryTypeRegistryConstraintConverter()
+            .with_default_constraint_converters()
+            .register(NotNameConstraint, NotNameConstraintConverter())
+        )
 
         delegate = InMemoryEventSource(
-            events=[event_1, event_2, event_3], identifier=identifier
+            events=[event_1, event_2, event_3],
+            identifier=identifier,
+            constraint_converter=constraint_converter,
         )
         constrained = ConstrainedEventSource(
             delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}

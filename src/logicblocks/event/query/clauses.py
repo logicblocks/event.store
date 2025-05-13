@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -23,7 +24,7 @@ class SortOrder(StrEnum):
     DESC = "desc"
 
 
-class Clause:
+class Clause(ABC):
     pass
 
 

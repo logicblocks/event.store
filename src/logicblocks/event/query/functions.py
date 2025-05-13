@@ -1,9 +1,10 @@
+from abc import ABC
 from dataclasses import dataclass
 
 from .utilities import Path
 
 
-class Function:
+class Function(ABC):
     pass
 
 

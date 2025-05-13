@@ -9,6 +9,7 @@ from aiologic import Lock
 
 from logicblocks.event.types import (
     CategoryIdentifier,
+    Converter,
     JsonPersistable,
     JsonValue,
     LogIdentifier,
@@ -32,6 +33,7 @@ from ..base import (
     Saveable,
     Scannable,
 )
+from .converters import QueryConstraintCheck, TypeRegistryConstraintConverter
 
 type StreamKey = tuple[str, str]
 type CategoryKey = str
@@ -57,6 +59,7 @@ class InMemoryEventsDB:
         log_index: EventPositionList | None,
         category_index: EventIndexDict[CategoryKey] | None,
         stream_index: EventIndexDict[StreamKey] | None,
+        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck],
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
             events if events is not None else []
@@ -74,6 +77,7 @@ class InMemoryEventsDB:
             if stream_index is not None
             else defaultdict(lambda: [])
         )
+        self._constraint_converter = constraint_converter
 
     def snapshot(self) -> Self:
         return self.__class__(
@@ -81,6 +85,7 @@ class InMemoryEventsDB:
             log_index=list(self._log_index),
             category_index=copy.deepcopy(self._category_index),
             stream_index=copy.deepcopy(self._stream_index),
+            constraint_converter=self._constraint_converter,
         )
 
     def transaction(self) -> "InMemoryEventsDBTransaction":
@@ -143,7 +148,8 @@ class InMemoryEventsDB:
                     f"is None"
                 )
             if not all(
-                constraint.met_by(event=event) for constraint in constraints
+                self._constraint_converter.convert(constraint)(event)
+                for constraint in constraints
             ):
                 continue
             yield event
@@ -186,6 +192,8 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
+        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck]
+        | None = None,
     ):
         self._locks: dict[str, Lock] = defaultdict(lambda: Lock())
         self._sequence = InMemorySequence()
@@ -194,6 +202,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             log_index=None,
             category_index=None,
             stream_index=None,
+            constraint_converter=(
+                constraint_converter
+                if constraint_converter is not None
+                else (
+                    TypeRegistryConstraintConverter().with_default_constraint_converters()
+                )
+            ),
         )
         self._serialisation_guarantee = serialisation_guarantee
 

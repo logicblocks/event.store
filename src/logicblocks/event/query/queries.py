@@ -1,10 +1,11 @@
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .clauses import Clause
 
 
-class Query:
+class Query(ABC):
     pass
 
 

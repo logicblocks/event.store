@@ -11,6 +11,7 @@ from logicblocks.event.types import (
     EventSourceIdentifier,
     JsonPersistable,
     JsonValue,
+    LogIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
@@ -235,6 +236,56 @@ class EventCategory(EventSource[CategoryIdentifier]):
         )
 
 
+class EventLog(EventSource[LogIdentifier]):
+    """A class for interacting with the entire event log.
+
+    This class allows reading and iterating over all events in the log,
+    without scoping to a specific category or stream.
+    """
+
+    def __init__(
+        self,
+        adapter: EventStorageAdapter,
+        logger: FilteringBoundLogger = _default_logger,
+    ):
+        self._adapter = adapter
+        self._logger = logger.bind()
+        self._identifier = LogIdentifier()
+
+    @property
+    def identifier(self) -> LogIdentifier:
+        return self._identifier
+
+    async def latest(self) -> StoredEvent[str, JsonValue] | None:
+        await self._logger.adebug("event.log.reading-latest")
+        return await self._adapter.latest(target=self._identifier)
+
+    def iterate(
+        self, *, constraints: Set[QueryConstraint] = frozenset()
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+        """Iterate over all events in the log.
+
+        Args:
+            constraints: A set of query constraints defining which events to
+                   include in the iteration
+
+        Returns:
+            an async iterator over the events in the log.
+        """
+        self._logger.debug(
+            "event.log.iterating", constraints=list(constraints)
+        )
+        return self._adapter.scan(
+            target=self._identifier,
+            constraints=constraints,
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, EventLog):
+            return NotImplemented
+        return self._adapter == other._adapter
+
+
 class EventStore:
     """The primary interface into the store of events.
 
@@ -307,4 +358,15 @@ class EventStore:
             adapter=self._adapter,
             logger=self._logger,
             category=CategoryIdentifier(category=category),
+        )
+
+    def log(self) -> EventLog:
+        """Get an event log from the store.
+
+        This method alone doesn't result in any IO, it instead returns an event
+        log, as part of a fluent interface.
+        """
+        return EventLog(
+            adapter=self._adapter,
+            logger=self._logger,
         )

@@ -249,7 +249,7 @@ class EventLog(EventSource[LogIdentifier]):
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
-        self._logger = logger.bind(log="event-log")
+        self._logger = logger.bind()
         self._identifier = LogIdentifier()
 
     @property

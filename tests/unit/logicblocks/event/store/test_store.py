@@ -1724,9 +1724,7 @@ class TestLogLogging:
         assert log_event is not None
         assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is True
-        assert log_event.context == {
-            "log": "event-log",
-        }
+        assert log_event.context == {}
 
     async def test_logs_on_iterating(self):
         logger = CapturingLogger.create()
@@ -1764,7 +1762,6 @@ class TestLogLogging:
         assert log_event.level == LogLevel.DEBUG
         assert log_event.is_async is False
         assert log_event.context == {
-            "log": "event-log",
             "constraints": [],
         }
 

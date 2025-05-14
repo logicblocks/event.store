@@ -1,37 +1,24 @@
-import asyncio
 import copy
 from collections import defaultdict
-from collections.abc import AsyncIterator, Sequence, Set
+from collections.abc import AsyncIterator, Set
 from typing import Self, cast
-from uuid import uuid4
-
-from aiologic import Lock
 
 from logicblocks.event.types import (
     CategoryIdentifier,
-    JsonPersistable,
+    Converter,
     JsonValue,
     LogIdentifier,
-    NewEvent,
     StoredEvent,
     StreamIdentifier,
-    StringPersistable,
-    serialise_to_json_value,
-    serialise_to_string,
 )
 
-from ..conditions import (
-    NoCondition,
-    WriteCondition,
-)
-from ..constraints import QueryConstraint
-from .base import (
-    EventSerialisationGuarantee,
-    EventStorageAdapter,
+from ...constraints import QueryConstraint
+from ..base import (
     Latestable,
     Saveable,
     Scannable,
 )
+from .types import QueryConstraintCheck
 
 type StreamKey = tuple[str, str]
 type CategoryKey = str
@@ -53,10 +40,11 @@ class InMemoryEventsDB:
     def __init__(
         self,
         *,
-        events: list[StoredEvent[str, JsonValue] | None] | None,
-        log_index: EventPositionList | None,
-        category_index: EventIndexDict[CategoryKey] | None,
-        stream_index: EventIndexDict[StreamKey] | None,
+        events: list[StoredEvent[str, JsonValue] | None] | None = None,
+        log_index: EventPositionList | None = None,
+        category_index: EventIndexDict[CategoryKey] | None = None,
+        stream_index: EventIndexDict[StreamKey] | None = None,
+        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck],
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
             events if events is not None else []
@@ -74,6 +62,7 @@ class InMemoryEventsDB:
             if stream_index is not None
             else defaultdict(lambda: [])
         )
+        self._constraint_converter = constraint_converter
 
     def snapshot(self) -> Self:
         return self.__class__(
@@ -81,6 +70,7 @@ class InMemoryEventsDB:
             log_index=list(self._log_index),
             category_index=copy.deepcopy(self._category_index),
             stream_index=copy.deepcopy(self._stream_index),
+            constraint_converter=self._constraint_converter,
         )
 
     def transaction(self) -> "InMemoryEventsDBTransaction":
@@ -143,7 +133,8 @@ class InMemoryEventsDB:
                     f"is None"
                 )
             if not all(
-                constraint.met_by(event=event) for constraint in constraints
+                self._constraint_converter.convert(constraint)(event)
+                for constraint in constraints
             ):
                 continue
             yield event
@@ -179,98 +170,3 @@ class InMemoryEventsDBTransaction:
 
     def last_stream_position(self, target: Saveable) -> int:
         return self._db.last_stream_position(target)
-
-
-class InMemoryEventStorageAdapter(EventStorageAdapter):
-    def __init__(
-        self,
-        *,
-        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
-    ):
-        self._locks: dict[str, Lock] = defaultdict(lambda: Lock())
-        self._sequence = InMemorySequence()
-        self._db = InMemoryEventsDB(
-            events=None,
-            log_index=None,
-            category_index=None,
-            stream_index=None,
-        )
-        self._serialisation_guarantee = serialisation_guarantee
-
-    def _lock_name(self, target: Saveable) -> str:
-        return self._serialisation_guarantee.lock_name(
-            namespace="memory", target=target
-        )
-
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
-        self,
-        *,
-        target: Saveable,
-        events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
-    ) -> Sequence[StoredEvent[Name, Payload]]:
-        # note: we call `asyncio.sleep(0)` to yield the event loop at similar
-        #       points in the save operation as a DB backed implementation would
-        #       in order to keep the implementations as equivalent as possible.
-        async with self._locks[self._lock_name(target=target)]:
-            transaction = self._db.transaction()
-            await asyncio.sleep(0)
-
-            last_stream_event = transaction.last_stream_event(target)
-            await asyncio.sleep(0)
-
-            condition.assert_met_by(last_event=last_stream_event)
-
-            last_stream_position = transaction.last_stream_position(target)
-
-            new_stored_events: list[StoredEvent[Name, Payload]] = []
-            for new_event, count in zip(events, range(len(events))):
-                new_stored_event = StoredEvent[Name, Payload](
-                    id=uuid4().hex,
-                    name=new_event.name,
-                    stream=target.stream,
-                    category=target.category,
-                    position=last_stream_position + count + 1,
-                    sequence_number=next(self._sequence),
-                    payload=new_event.payload,
-                    observed_at=new_event.observed_at,
-                    occurred_at=new_event.occurred_at,
-                )
-                serialised_stored_event = StoredEvent[str, JsonValue](
-                    id=new_stored_event.id,
-                    name=serialise_to_string(new_stored_event.name),
-                    stream=new_stored_event.stream,
-                    category=new_stored_event.category,
-                    position=new_stored_event.position,
-                    sequence_number=new_stored_event.sequence_number,
-                    payload=serialise_to_json_value(new_stored_event.payload),
-                    observed_at=new_stored_event.observed_at,
-                    occurred_at=new_stored_event.occurred_at,
-                )
-                transaction.add(serialised_stored_event)
-                new_stored_events.append(new_stored_event)
-                await asyncio.sleep(0)
-
-            transaction.commit()
-
-            return new_stored_events
-
-    async def latest(
-        self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
-        snapshot = self._db.snapshot()
-        await asyncio.sleep(0)
-
-        return snapshot.last_event(target)
-
-    async def scan(
-        self,
-        *,
-        target: Scannable = LogIdentifier(),
-        constraints: Set[QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
-        snapshot = self._db.snapshot()
-
-        async for event in snapshot.scan_events(target, constraints):
-            await asyncio.sleep(0)
-            yield event

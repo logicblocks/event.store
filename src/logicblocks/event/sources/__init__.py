@@ -1,2 +1,2 @@
 from .constrained import ConstrainedEventSource as ConstrainedEventSource
-from .in_memory import InMemoryEventSource as InMemoryEventSource
+from .memory import InMemoryEventSource as InMemoryEventSource

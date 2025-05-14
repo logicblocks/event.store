@@ -6,7 +6,7 @@ from typing import cast
 from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 
 project_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
@@ -74,7 +74,7 @@ async def drop_table(
 
 
 @asynccontextmanager
-async def connection_pool(connection_settings: PostgresConnectionSettings):
+async def connection_pool(connection_settings: ConnectionSettings):
     conninfo = connection_settings.to_connection_string()
     pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
 

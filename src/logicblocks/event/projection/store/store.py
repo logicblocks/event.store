@@ -4,6 +4,15 @@ from typing import Any
 
 from structlog.typing import FilteringBoundLogger
 
+from logicblocks.event.query import (
+    FilterClause,
+    Lookup,
+    Operator,
+    PagingClause,
+    Path,
+    Search,
+    SortClause,
+)
 from logicblocks.event.types import (
     EventSourceIdentifier,
     JsonPersistable,
@@ -15,15 +24,6 @@ from logicblocks.event.types import (
 
 from ..logger import default_logger
 from .adapters import ProjectionStorageAdapter
-from .query import (
-    FilterClause,
-    Lookup,
-    Operator,
-    PagingClause,
-    Path,
-    Search,
-    SortClause,
-)
 
 
 def log_event_name(event: str) -> str:

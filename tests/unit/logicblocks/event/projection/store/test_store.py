@@ -2,13 +2,18 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
+import pytest
+
 from logicblocks.event.projection.store import (
-    FilterClause,
     InMemoryProjectionStorageAdapter,
+    ProjectionStore,
+)
+from logicblocks.event.query import (
+    FilterClause,
     KeySetPagingClause,
     Operator,
     Path,
-    ProjectionStore,
+    Similarity,
     SortClause,
     SortField,
     SortOrder,
@@ -25,7 +30,8 @@ from logicblocks.event.types import (
 
 @dataclass
 class Thing:
-    value: int
+    amount: int
+    description: str
 
     @classmethod
     def deserialise(
@@ -37,21 +43,26 @@ class Thing:
     ) -> Self:
         if (
             not isinstance(value, Mapping)
-            or "value" not in value
-            or not isinstance(value["value"], int)
+            or "amount" not in value
+            or not isinstance(value["amount"], int)
+            or "description" not in value
+            or not isinstance(value["description"], str)
         ):
             return fallback(cls, value)
 
-        return cls(value=value["value"])
+        return cls(amount=value["amount"], description=value["description"])
 
     def serialise(self, fallback: Callable[[object], JsonValue]) -> JsonValue:
-        return {"value": self.value}
+        return {"amount": self.amount, "description": self.description}
 
 
 class ThingProjectionBuilder(BaseProjectionBuilder[Thing, Mapping[str, str]]):
     def default_state_factory(self) -> Thing:
         return Thing(
-            value=data.random_int(1, 10),
+            amount=data.random_int(1, 10),
+            description=data.random_lowercase_ascii_alphabetics_string(
+                length=10
+            ),
         )
 
     def default_metadata_factory(self) -> Mapping[str, str]:
@@ -97,7 +108,7 @@ class TestProjectionStoreSave:
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name(projection_name)
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .with_source(source)
             .with_metadata({"updated_at": "2024-01-01T00:00:00Z"})
             .build()
@@ -109,7 +120,7 @@ class TestProjectionStoreSave:
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name(projection_name)
-            .with_state(Thing(value=10))
+            .with_state(Thing(amount=10, description="a"))
             .with_source(source)
             .with_metadata({"updated_at": "2024-02-02T00:00:00Z"})
             .build()
@@ -252,32 +263,32 @@ class TestProjectionStoreLocate:
 
 
 class TestProjectionStoreSearch:
-    async def test_searches_projections(self):
+    async def test_filters_projections_applying_sort_and_paging(self):
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
 
         projection_1 = (
             ThingProjectionBuilder()
             .with_id("a")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
         projection_2 = (
             ThingProjectionBuilder()
             .with_id("b")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
         projection_3 = (
             ThingProjectionBuilder()
             .with_id("c")
-            .with_state(Thing(value=10))
+            .with_state(Thing(amount=10, description="a"))
             .build()
         )
         projection_4 = (
             ThingProjectionBuilder()
             .with_id("d")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
 
@@ -287,13 +298,69 @@ class TestProjectionStoreSearch:
         await store.save(projection=projection_4)
 
         located = await store.search(
-            filters=[FilterClause(Operator.EQUAL, Path("state", "value"), 5)],
+            filters=[FilterClause(Operator.EQUAL, Path("state", "amount"), 5)],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
             paging=KeySetPagingClause(item_count=2),
             state_type=Thing,
         )
 
         assert located == [projection_4, projection_2]
+
+    @pytest.mark.skip("in progress")
+    async def test_allows_use_of_calculations_in_sort(self):
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter)
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("a")
+            .with_state(Thing(amount=5, description="abcd"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("b")
+            .with_state(Thing(amount=5, description="defg"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("c")
+            .with_state(Thing(amount=5, description="hij"))
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_id("d")
+            .with_state(Thing(amount=5, description="bcd"))
+            .build()
+        )
+
+        await store.save(projection=projection_1)
+        await store.save(projection=projection_2)
+        await store.save(projection=projection_3)
+        await store.save(projection=projection_4)
+
+        located = await store.search(
+            filters=[],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        Similarity(Path("state", "description"), "abc"),
+                        SortOrder.DESC,
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(item_count=10),
+            state_type=Thing,
+        )
+
+        assert located == [
+            projection_1,
+            projection_4,
+            projection_2,
+            projection_3,
+        ]
 
     async def test_returns_no_projections_when_no_matches(self):
         adapter = InMemoryProjectionStorageAdapter()
@@ -303,28 +370,28 @@ class TestProjectionStoreSearch:
             ThingProjectionBuilder()
             .with_name("aggregate")
             .with_id("a")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
         projection_2 = (
             ThingProjectionBuilder()
             .with_name("aggregate")
             .with_id("b")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
         projection_3 = (
             ThingProjectionBuilder()
             .with_name("aggregate")
             .with_id("c")
-            .with_state(Thing(value=10))
+            .with_state(Thing(amount=10, description="a"))
             .build()
         )
         projection_4 = (
             ThingProjectionBuilder()
             .with_name("aggregate")
             .with_id("d")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .build()
         )
 
@@ -335,7 +402,7 @@ class TestProjectionStoreSearch:
 
         located = await store.search(
             filters=[
-                FilterClause(Operator.EQUAL, Path("state", "value"), 5),
+                FilterClause(Operator.EQUAL, Path("state", "amount"), 5),
                 FilterClause(Operator.EQUAL, Path("name"), "metrics"),
             ],
             sort=SortClause(fields=[SortField(Path("id"), SortOrder.DESC)]),
@@ -364,7 +431,7 @@ class TestProjectionStoreLogging:
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name("thing")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .with_source(source)
             .build()
         )
@@ -399,7 +466,7 @@ class TestProjectionStoreLogging:
             ThingProjectionBuilder()
             .with_id(projection_id)
             .with_name("thing")
-            .with_state(Thing(value=5))
+            .with_state(Thing(amount=5, description="a"))
             .with_source(source)
             .build()
         )
@@ -488,7 +555,7 @@ class TestProjectionStoreLogging:
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter, logger=logger)
 
-        filter = FilterClause(Operator.EQUAL, Path("state", "value"), 5)
+        filter = FilterClause(Operator.EQUAL, Path("state", "amount"), 5)
         sort = SortClause(fields=[SortField(Path("id"), SortOrder.DESC)])
         paging = KeySetPagingClause(item_count=2)
 

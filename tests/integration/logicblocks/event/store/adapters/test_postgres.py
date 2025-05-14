@@ -9,17 +9,21 @@ from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import (
+    Column,
+    Condition,
+    ConnectionSettings,
+    Operator,
+    Query,
+    QueryApplier,
+    TableSettings,
+    Value,
+)
 from logicblocks.event.store.adapters import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
-    PostgresTableSettings,
-)
-from logicblocks.event.store.adapters.postgres import (
-    ParameterisedQueryFragment,
-    query_constraint_to_sql,
 )
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.testcases.store.adapters import (
@@ -37,9 +41,9 @@ from logicblocks.event.testsupport import (
     create_table,
     drop_table,
 )
-from logicblocks.event.types import StoredEvent, identifier
+from logicblocks.event.types import Converter, StoredEvent, identifier
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host="localhost",
@@ -189,7 +193,7 @@ class TestPostgresStorageAdapterCustomTableName:
 
     async def test_allows_events_table_name_to_be_overridden(self):
         table_name = "event_log"
-        table_settings = PostgresTableSettings(events_table_name=table_name)
+        table_settings = TableSettings(table_name=table_name)
 
         await drop_table(pool=self.pool, table="event_log")
         await create_table(
@@ -631,7 +635,7 @@ class TestPostgresStorageAdapterQueryConstraints:
             def met_by(self, *, event: StoredEvent) -> bool:
                 return False
 
-        with pytest.raises(TypeError):
+        with pytest.raises(ValueError):
             _ = [
                 _
                 async for _ in adapter.scan(
@@ -640,18 +644,30 @@ class TestPostgresStorageAdapterQueryConstraints:
                 )
             ]
 
-    async def test_allows_custom_query_constraints_to_be_registered(self):
-        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
-
+    async def test_allows_custom_query_constraints_to_be_applied(self):
         class CustomQueryConstraint(QueryConstraint):
             def met_by(self, *, event: StoredEvent) -> bool:
                 return True
 
-        @query_constraint_to_sql.register(CustomQueryConstraint)
-        def custom_query_constraint_to_sql(
-            _constraint: CustomQueryConstraint,
-        ) -> ParameterisedQueryFragment:
-            return sql.SQL("sequence_number = 5"), []
+        class CustomQueryConstraintQueryApplier(QueryApplier):
+            def apply(self, target: Query) -> Query:
+                return target.where(
+                    Condition()
+                    .left(Column(field="sequence_number"))
+                    .operator(Operator.EQUALS)
+                    .right(Value(5))
+                )
+
+        class CustomQueryConstraintConverter(
+            Converter[QueryConstraint, QueryApplier]
+        ):
+            def convert(self, item: QueryConstraint) -> QueryApplier:
+                return CustomQueryConstraintQueryApplier()
+
+        adapter = PostgresEventStorageAdapter(
+            connection_source=self.pool,
+            constraint_converter=CustomQueryConstraintConverter(),
+        )
 
         result = [
             event

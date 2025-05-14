@@ -5,7 +5,7 @@ from .base import (
     EventSubscriptionStateChangeType as EventSubscriptionStateChangeType,
 )
 from .base import EventSubscriptionStateStore as EventSubscriptionStateStore
-from .in_memory import (
+from .memory import (
     InMemoryEventSubscriptionStateStore as InMemoryEventSubscriptionStateStore,
 )
 from .postgres import (

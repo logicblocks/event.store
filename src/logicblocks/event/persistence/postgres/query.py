@@ -1,51 +1,13 @@
+from abc import ABC
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
 
-from psycopg import AsyncConnection, abc, sql
-from psycopg_pool import AsyncConnectionPool
+from psycopg import sql
 
-
-@dataclass(frozen=True)
-class ConnectionSettings:
-    host: str
-    port: int
-    dbname: str
-    user: str
-    password: str
-
-    def __init__(
-        self, *, host: str, port: int, dbname: str, user: str, password: str
-    ):
-        object.__setattr__(self, "host", host)
-        object.__setattr__(self, "port", port)
-        object.__setattr__(self, "dbname", dbname)
-        object.__setattr__(self, "user", user)
-        object.__setattr__(self, "password", password)
-
-    def __repr__(self):
-        return (
-            f"PostgresConnectionSettings("
-            f"host={self.host}, "
-            f"port={self.port}, "
-            f"dbname={self.dbname}, "
-            f"user={self.user}, "
-            f"password={'*' * len(self.password)})"
-        )
-
-    def to_connection_string(self) -> str:
-        userspec = f"{self.user}:{self.password}"
-        hostspec = f"{self.host}:{self.port}"
-        return f"postgresql://{userspec}@{hostspec}/{self.dbname}"
-
-
-ConnectionSource = ConnectionSettings | AsyncConnectionPool[AsyncConnection]
-
-type SqlFragment = sql.SQL | sql.Composed | None
-
-type ParameterisedQuery = tuple[abc.Query, Sequence[Any]]
-type ParameterisedQueryFragment = tuple[SqlFragment, Sequence[Any]]
+from ...types import Applier
+from .types import ParameterisedQuery, ParameterisedQueryFragment, SqlFragment
 
 
 @dataclass(frozen=True)
@@ -679,3 +641,7 @@ class Query:
             raise ValueError("Empty query.")
 
         return fragment, params
+
+
+class QueryApplier(Applier[Query], ABC):
+    pass

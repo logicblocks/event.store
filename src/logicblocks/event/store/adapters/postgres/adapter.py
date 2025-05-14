@@ -1,21 +1,29 @@
 import hashlib
 from collections.abc import AsyncIterator, Set
 from dataclasses import dataclass
-from functools import singledispatch
-from typing import Any, Sequence, Tuple
+from typing import Sequence
 from uuid import uuid4
 
-from psycopg import AsyncConnection, AsyncCursor, abc, sql
+from psycopg import AsyncConnection, AsyncCursor, sql
 from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from logicblocks.event.db.postgres import (
+from logicblocks.event.persistence.postgres import (
+    Column,
+    Condition,
     ConnectionSettings,
     ConnectionSource,
+    Operator,
+    ParameterisedQuery,
+    Query,
+    QueryApplier,
+    TableSettings,
+    Value,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
+    Converter,
     JsonPersistable,
     JsonValue,
     LogIdentifier,
@@ -27,26 +35,24 @@ from logicblocks.event.types import (
     serialise_to_string,
 )
 
-from ..conditions import NoCondition, WriteCondition
-from ..constraints import (
+from ...conditions import NoCondition, WriteCondition
+from ...constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
 )
-from .base import (
+from ..base import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
     Latestable,
     Saveable,
     Scannable,
 )
-
-
-@dataclass(frozen=True)
-class TableSettings:
-    events_table_name: str
-
-    def __init__(self, *, events_table_name: str = "events"):
-        object.__setattr__(self, "events_table_name", events_table_name)
+from .converters import (
+    TypeRegistryConditionConverter,
+    TypeRegistryConstraintConverter,
+    WriteConditionEnforcer,
+    WriteConditionEnforcerContext,
+)
 
 
 @dataclass(frozen=True)
@@ -123,24 +129,6 @@ class LatestQueryParameters:
                 return None
 
 
-type ParameterisedQuery = Tuple[abc.Query, Sequence[Any]]
-type ParameterisedQueryFragment = Tuple[sql.SQL, Sequence[Any]]
-
-
-@singledispatch
-def query_constraint_to_sql(
-    constraint: QueryConstraint,
-) -> ParameterisedQueryFragment:
-    raise TypeError(f"No SQL converter for query constraint: {constraint}")
-
-
-@query_constraint_to_sql.register(SequenceNumberAfterConstraint)
-def sequence_number_after_query_constraint_to_sql(
-    constraint: SequenceNumberAfterConstraint,
-) -> ParameterisedQueryFragment:
-    return sql.SQL("sequence_number > %s"), [constraint.sequence_number]
-
-
 def get_digest(lock_id: str) -> int:
     return (
         int(hashlib.sha256(lock_id.encode("utf-8")).hexdigest(), 16) % 10**16
@@ -148,69 +136,37 @@ def get_digest(lock_id: str) -> int:
 
 
 def scan_query(
-    parameters: ScanQueryParameters, table_settings: TableSettings
+    parameters: ScanQueryParameters,
+    constraint_converter: Converter[QueryConstraint, QueryApplier],
+    table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    table = table_settings.events_table_name
+    builder = Query().select_all().from_table(table_settings.table_name)
 
-    category_where_clause = (
-        sql.SQL("category = %s") if parameters.category is not None else None
-    )
-    stream_where_clause = (
-        sql.SQL("stream = %s") if parameters.stream is not None else None
-    )
+    if parameters.category:
+        builder = builder.where(
+            Condition()
+            .left(Column(field="category"))
+            .operator(Operator.EQUALS)
+            .right(Value(parameters.category))
+        )
 
-    extra_where_clauses: list[sql.SQL] = []
-    extra_parameters: list[Any] = []
+    if parameters.stream:
+        builder = builder.where(
+            Condition()
+            .left(Column(field="stream"))
+            .operator(Operator.EQUALS)
+            .right(Value(parameters.stream))
+        )
+
     for constraint in parameters.constraints:
-        clause, params = query_constraint_to_sql(constraint)
-        extra_where_clauses.append(clause)
-        extra_parameters.extend(params)
+        applier = constraint_converter.convert(constraint)
+        builder = applier.apply(builder)
 
-    where_clauses = [
-        clause
-        for clause in [
-            category_where_clause,
-            stream_where_clause,
-            *extra_where_clauses,
-        ]
-        if clause is not None
-    ]
-
-    select_clause = sql.SQL("SELECT *")
-    from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
-    where_clause = (
-        sql.SQL("WHERE ") + sql.SQL(" AND ").join(where_clauses)
-        if len(where_clauses) > 0
-        else None
+    builder = builder.order_by(Column(field="sequence_number")).limit(
+        parameters.page_size
     )
-    order_by_clause = sql.SQL("ORDER BY sequence_number ASC")
-    limit_clause = sql.SQL("LIMIT %s")
 
-    clauses = [
-        clause
-        for clause in [
-            select_clause,
-            from_clause,
-            where_clause,
-            order_by_clause,
-            limit_clause,
-        ]
-        if clause is not None
-    ]
-
-    query = sql.SQL(" ").join(clauses)
-    params = [
-        param
-        for param in [
-            parameters.category,
-            parameters.stream,
-            *extra_parameters,
-            parameters.page_size,
-        ]
-        if param is not None
-    ]
-
-    return query, params
+    return builder.build()
 
 
 def obtain_write_lock_query(
@@ -219,7 +175,7 @@ def obtain_write_lock_query(
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
     lock_name = serialisation_guarantee.lock_name(
-        namespace=table_settings.events_table_name, target=target
+        namespace=table_settings.table_name, target=target
     )
     return (
         sql.SQL(
@@ -234,7 +190,7 @@ def obtain_write_lock_query(
 def read_last_query(
     parameters: LatestQueryParameters, table_settings: TableSettings
 ) -> ParameterisedQuery:
-    table = table_settings.events_table_name
+    table = table_settings.table_name
 
     select_clause = sql.SQL("SELECT *")
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
@@ -310,28 +266,28 @@ def insert_batch_query(
 
     return (
         sql.SQL("""
-        INSERT INTO {0} (
-          id, 
-          name, 
-          stream, 
-          category, 
-          position, 
-          payload, 
-          observed_at, 
-          occurred_at
-        )
-        VALUES
-         {1}
-          RETURNING *;
-          """).format(
-            sql.Identifier(table_settings.events_table_name), values_clause
+                INSERT INTO {0} (
+                    id,
+                    name,
+                    stream,
+                    category,
+                    position,
+                    payload,
+                    observed_at,
+                    occurred_at
+                )
+                VALUES
+                    {1}
+                    RETURNING *;
+                """).format(
+            sql.Identifier(table_settings.table_name), values_clause
         ),
         values,
     )
 
 
 async def obtain_write_lock(
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     target: Saveable,
     *,
     serialisation_guarantee: EventSerialisationGuarantee,
@@ -344,7 +300,7 @@ async def obtain_write_lock(
 
 
 async def read_last(
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
     parameters: LatestQueryParameters,
     table_settings: TableSettings,
@@ -354,7 +310,7 @@ async def read_last(
 
 
 async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
     target: Saveable,
     events: Sequence[NewEvent[Name, Payload]],
@@ -397,7 +353,11 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         connection_source: ConnectionSource,
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
-        table_settings: TableSettings = TableSettings(),
+        table_settings: TableSettings = TableSettings(table_name="events"),
+        constraint_converter: Converter[QueryConstraint, QueryApplier]
+        | None = None,
+        condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
+        | None = None,
         max_insert_batch_size: int = 1000,
     ):
         if isinstance(connection_source, ConnectionSettings):
@@ -410,9 +370,23 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             self.connection_pool = connection_source
 
         self.serialisation_guarantee = serialisation_guarantee
-        self.query_settings: QuerySettings = query_settings
-        self.table_settings: TableSettings = table_settings
-        self.max_insert_batch_size: int = max_insert_batch_size
+        self.query_settings = query_settings
+        self.table_settings = table_settings
+        self.constraint_converter = (
+            constraint_converter
+            if constraint_converter is not None
+            else (
+                TypeRegistryConstraintConverter().with_default_constraint_converters()
+            )
+        )
+        self.condition_converter = (
+            condition_converter
+            if condition_converter is not None
+            else (
+                TypeRegistryConditionConverter().with_default_condition_converters()
+            )
+        )
+        self.max_insert_batch_size = max_insert_batch_size
 
     async def open(self) -> None:
         if self._connection_pool_owner:
@@ -427,11 +401,11 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
+        condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[JsonValue, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
                 await obtain_write_lock(
                     cursor,
@@ -440,15 +414,26 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     table_settings=self.table_settings,
                 )
 
-                last_event = await read_last(
+                latest_event = await read_last(
                     cursor,
                     parameters=LatestQueryParameters(target=target),
                     table_settings=self.table_settings,
                 )
 
-                condition.assert_met_by(last_event=last_event)
+                condition_enforcer = self.condition_converter.convert(
+                    condition
+                )
+                await condition_enforcer.assert_satisfied(
+                    context=WriteConditionEnforcerContext(
+                        identifier=target,
+                        latest_event=latest_event,
+                    ),
+                    connection=connection,
+                )
 
-                current_position = last_event.position + 1 if last_event else 0
+                current_position = (
+                    latest_event.position + 1 if latest_event else 0
+                )
 
                 all_stored_events: list[StoredEvent[Name, Payload]] = []
                 for i in range(0, len(events), self.max_insert_batch_size):
@@ -518,6 +503,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     results = await cursor.execute(
                         *scan_query(
                             parameters=parameters,
+                            constraint_converter=self.constraint_converter,
                             table_settings=self.table_settings,
                         )
                     )

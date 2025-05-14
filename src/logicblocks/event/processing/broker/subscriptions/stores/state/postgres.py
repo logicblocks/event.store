@@ -1,6 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any, Callable, Self
 
 from psycopg import AsyncConnection, sql
 from psycopg.errors import UniqueViolation
@@ -9,30 +7,10 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from psycopg_pool.abc import ACT
 
-from logicblocks.event.db.postgres import (
-    Column,
-    Condition,
-    ConnectionSettings,
-    ConnectionSource,
-    ParameterisedQuery,
-    SortDirection,
-    Value,
-)
-from logicblocks.event.db.postgres import (
-    Query as DBQuery,
-)
-from logicblocks.event.projection.store import (
-    Clause,
+import logicblocks.event.persistence.postgres as postgres
+from logicblocks.event.query import (
     FilterClause,
-    Lookup,
-    Query,
     Search,
-    SortClause,
-)
-from logicblocks.event.projection.store.adapters.postgres import (
-    column_for_query_path,
-    operator_for_query_operator,
-    sort_direction_for_query_sort_order,
 )
 from logicblocks.event.types.identifier import event_sequence_identifier
 
@@ -45,102 +23,10 @@ from .base import (
 )
 
 
-@dataclass(frozen=True)
-class PostgresTableSettings:
-    subscriptions_table_name: str
-
-    def __init__(self, *, subscriptions_table_name: str = "subscriptions"):
-        object.__setattr__(
-            self, "subscriptions_table_name", subscriptions_table_name
-        )
-
-
-type PostgresClauseApplicator[C: Clause] = Callable[
-    [C, DBQuery, PostgresTableSettings], DBQuery
-]
-
-
-def filter_clause_applicator(
-    filter: FilterClause, query: DBQuery, table_settings: PostgresTableSettings
-) -> DBQuery:
-    return query.where(
-        Condition()
-        .left(Column(field=filter.path.top_level, path=filter.path.sub_levels))
-        .operator(operator_for_query_operator(filter.operator))
-        .right(
-            Value(
-                filter.value,
-                wrapper="to_jsonb" if filter.path.is_nested() else None,
-            )
-        )
-    )
-
-
-def sort_clause_applicator(
-    sort: SortClause, query: DBQuery, table_settings: PostgresTableSettings
-) -> DBQuery:
-    order_by_fields: list[tuple[Column, SortDirection]] = []
-    for field in sort.fields:
-        order_by_fields.append(
-            (
-                column_for_query_path(field.path),
-                sort_direction_for_query_sort_order(field.order),
-            )
-        )
-
-    return query.order_by(*order_by_fields)
-
-
-class PostgresQueryConverter:
-    def __init__(
-        self, table_settings: PostgresTableSettings = PostgresTableSettings()
-    ):
-        self._registry: dict[type[Clause], PostgresClauseApplicator[Any]] = {}
-        self._table_settings = table_settings
-
-    def with_default_clause_applicators(self) -> Self:
-        return self.register_clause_applicator(
-            FilterClause, filter_clause_applicator
-        ).register_clause_applicator(SortClause, sort_clause_applicator)
-
-    def register_clause_applicator[C: Clause](
-        self, clause_type: type[C], applicator: PostgresClauseApplicator[C]
-    ) -> Self:
-        self._registry[clause_type] = applicator
-        return self
-
-    def apply_clause(self, clause: Clause, query_builder: DBQuery) -> DBQuery:
-        applicator = self._registry.get(type(clause))
-        if applicator is None:
-            raise ValueError(f"No converter registered for {type(clause)}")
-        return applicator(clause, query_builder, self._table_settings)
-
-    def convert_query(self, query: Query) -> ParameterisedQuery:
-        builder = (
-            DBQuery()
-            .select_all()
-            .from_table(self._table_settings.subscriptions_table_name)
-        )
-
-        match query:
-            case Lookup(filters):
-                for filter in filters:
-                    builder = self.apply_clause(filter, builder)
-                return builder.build()
-            case Search(filters, sort):
-                for filter in filters:
-                    builder = self.apply_clause(filter, builder)
-                if sort is not None:
-                    builder = self.apply_clause(sort, builder)
-                return builder.build()
-            case _:
-                raise ValueError(f"Unsupported query: {query}")
-
-
 def insert_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -152,7 +38,7 @@ def insert_query(
             )
             VALUES (%s, %s, %s, %s);
             """
-        ).format(sql.Identifier(table_settings.subscriptions_table_name)),
+        ).format(sql.Identifier(table_settings.table_name)),
         [
             subscription.id,
             subscription.group,
@@ -166,8 +52,8 @@ def insert_query(
 
 def upsert_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -176,7 +62,7 @@ def upsert_query(
             WHERE "group" = %s AND id = %s
             RETURNING *;
             """
-        ).format(sql.Identifier(table_settings.subscriptions_table_name)),
+        ).format(sql.Identifier(table_settings.table_name)),
         [
             Jsonb(
                 [source.serialise() for source in subscription.event_sources]
@@ -189,8 +75,8 @@ def upsert_query(
 
 def remove_query(
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
-) -> ParameterisedQuery:
+    table_settings: postgres.TableSettings,
+) -> postgres.ParameterisedQuery:
     return (
         sql.SQL(
             """
@@ -198,7 +84,7 @@ def remove_query(
             WHERE "group" = %s AND id = %s
             RETURNING *;
             """
-        ).format(sql.Identifier(table_settings.subscriptions_table_name)),
+        ).format(sql.Identifier(table_settings.table_name)),
         [
             subscription.group,
             subscription.id,
@@ -209,7 +95,7 @@ def remove_query(
 async def add(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: postgres.TableSettings,
 ):
     try:
         async with connection.cursor() as cursor:
@@ -226,7 +112,7 @@ async def add(
 async def remove(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -243,7 +129,7 @@ async def remove(
 async def replace(
     connection: ACT,
     subscription: EventSubscriptionState,
-    table_settings: PostgresTableSettings,
+    table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
         results = await cursor.execute(
@@ -262,11 +148,13 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
         self,
         *,
         node_id: str,
-        connection_source: ConnectionSource,
-        table_settings: PostgresTableSettings = PostgresTableSettings(),
-        query_converter: PostgresQueryConverter | None = None,
+        connection_source: postgres.ConnectionSource,
+        table_settings: postgres.TableSettings = postgres.TableSettings(
+            table_name="subscriptions"
+        ),
+        query_converter: postgres.QueryConverter | None = None,
     ):
-        if isinstance(connection_source, ConnectionSettings):
+        if isinstance(connection_source, postgres.ConnectionSettings):
             self._connection_pool_owner = True
             self.connection_pool = AsyncConnectionPool[AsyncConnection](
                 connection_source.to_connection_string(), open=False
@@ -280,7 +168,11 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
         self.query_converter = (
             query_converter
             if query_converter is not None
-            else (PostgresQueryConverter().with_default_clause_applicators())
+            else (
+                postgres.QueryConverter(table_settings=table_settings)
+                .with_default_clause_converters()
+                .with_default_query_converters()
+            )
         )
 
     async def list(self) -> Sequence[EventSubscriptionState]:

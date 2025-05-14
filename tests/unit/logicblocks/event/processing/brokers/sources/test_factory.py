@@ -1,6 +1,6 @@
 import pytest
 
-from logicblocks.event.db import PostgresConnectionSettings
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     InMemoryEventStoreEventSourceFactory,
     PostgresEventStoreEventSourceFactory,
@@ -17,7 +17,7 @@ from logicblocks.event.types import (
     StreamIdentifier,
 )
 
-connection_settings = PostgresConnectionSettings(
+connection_settings = ConnectionSettings(
     host="fake",
     port=1234,
     dbname="db",

@@ -86,7 +86,7 @@ class EventStream(EventSource[StreamIdentifier]):
         self,
         *,
         events: Sequence[NewEvent[Name, Payload]],
-        condition: WriteCondition = NoCondition,
+        condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
         """Publish a sequence of events into the stream."""
         await self._logger.adebug(

@@ -1,21 +1,17 @@
 import asyncio
-import copy
 from collections import defaultdict
 from collections.abc import AsyncIterator, Sequence, Set
-from typing import Self, cast
 from uuid import uuid4
 
 from aiologic import Lock
 
 from logicblocks.event.types import (
-    CategoryIdentifier,
     Converter,
     JsonPersistable,
     JsonValue,
     LogIdentifier,
     NewEvent,
     StoredEvent,
-    StreamIdentifier,
     StringPersistable,
     serialise_to_json_value,
     serialise_to_string,
@@ -33,158 +29,14 @@ from ..base import (
     Saveable,
     Scannable,
 )
-from .converters import QueryConstraintCheck, TypeRegistryConstraintConverter
-
-type StreamKey = tuple[str, str]
-type CategoryKey = str
-type EventPositionList = list[int]
-type EventIndexDict[T] = defaultdict[T, EventPositionList]
-
-
-class InMemorySequence:
-    def __init__(self, initial: int = 0):
-        self._value = initial
-
-    def __next__(self) -> int:
-        value = self._value
-        self._value += 1
-        return value
-
-
-class InMemoryEventsDB:
-    def __init__(
-        self,
-        *,
-        events: list[StoredEvent[str, JsonValue] | None] | None,
-        log_index: EventPositionList | None,
-        category_index: EventIndexDict[CategoryKey] | None,
-        stream_index: EventIndexDict[StreamKey] | None,
-        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck],
-    ):
-        self._events: list[StoredEvent[str, JsonValue] | None] = (
-            events if events is not None else []
-        )
-        self._log_index: EventPositionList = (
-            log_index if log_index is not None else []
-        )
-        self._category_index: EventIndexDict[CategoryKey] = (
-            category_index
-            if category_index is not None
-            else defaultdict(lambda: [])
-        )
-        self._stream_index: EventIndexDict[StreamKey] = (
-            stream_index
-            if stream_index is not None
-            else defaultdict(lambda: [])
-        )
-        self._constraint_converter = constraint_converter
-
-    def snapshot(self) -> Self:
-        return self.__class__(
-            events=list(self._events),
-            log_index=list(self._log_index),
-            category_index=copy.deepcopy(self._category_index),
-            stream_index=copy.deepcopy(self._stream_index),
-            constraint_converter=self._constraint_converter,
-        )
-
-    def transaction(self) -> "InMemoryEventsDBTransaction":
-        return InMemoryEventsDBTransaction(db=self)
-
-    def stream_events(
-        self, target: Saveable
-    ) -> list[StoredEvent[str, JsonValue]]:
-        stream_key = (target.category, target.stream)
-        events = [self._events[i] for i in self._stream_index[stream_key]]
-        if any(event is None for event in events):
-            raise ValueError(
-                f"Invalid state: stream {target.category}/{target.stream} "
-                f"contains None values."
-            )
-
-        return cast(list[StoredEvent[str, JsonValue]], events)
-
-    def last_stream_event(
-        self, target: Saveable
-    ) -> StoredEvent[str, JsonValue] | None:
-        stream_events = self.stream_events(target)
-        return stream_events[-1] if stream_events else None
-
-    def last_stream_position(self, target: Saveable) -> int:
-        last_stream_event = self.last_stream_event(target)
-        return -1 if last_stream_event is None else last_stream_event.position
-
-    def add(self, event: StoredEvent[str, JsonValue]) -> None:
-        category_key = event.category
-        stream_key = (event.category, event.stream)
-        if len(self._events) <= event.sequence_number:
-            self._events += [None] * (
-                event.sequence_number - len(self._events) + 1
-            )
-        self._events[event.sequence_number] = event
-        self._log_index += [event.sequence_number]
-        self._stream_index[stream_key] += [event.sequence_number]
-        self._category_index[category_key] += [event.sequence_number]
-
-    def last_event(
-        self, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
-        index = self._select_index(target)
-
-        return self._events[index[-1]] if index else None
-
-    async def scan_events(
-        self,
-        target: Scannable,
-        constraints: Set[QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
-        index = self._select_index(target)
-
-        for sequence_number in index:
-            event = self._events[sequence_number]
-            if event is None:
-                raise ValueError(
-                    f"Invalid state: event at sequence number {sequence_number} "
-                    f"is None"
-                )
-            if not all(
-                self._constraint_converter.convert(constraint)(event)
-                for constraint in constraints
-            ):
-                continue
-            yield event
-
-    def _select_index(self, target: Scannable) -> EventPositionList:
-        match target:
-            case LogIdentifier():
-                return self._log_index
-            case CategoryIdentifier(category):
-                return self._category_index[category]
-            case StreamIdentifier(category, stream):
-                return self._stream_index[(category, stream)]
-            case _:  # pragma: no cover
-                raise ValueError(f"Unknown target: {target}")
-
-
-class InMemoryEventsDBTransaction:
-    def __init__(self, db: InMemoryEventsDB):
-        self._db = db
-        self._added_events: list[StoredEvent[str, JsonValue]] = []
-
-    def add(self, event: StoredEvent[str, JsonValue]) -> None:
-        self._added_events.append(event)
-
-    def commit(self) -> None:
-        for event in self._added_events:
-            self._db.add(event)
-
-    def last_stream_event(
-        self, target: Saveable
-    ) -> StoredEvent[str, JsonValue] | None:
-        return self._db.last_stream_event(target)
-
-    def last_stream_position(self, target: Saveable) -> int:
-        return self._db.last_stream_position(target)
+from .converters import (
+    TypeRegistryConditionConverter,
+    TypeRegistryConstraintConverter,
+    WriteConditionEnforcer,
+    WriteConditionEnforcerContext,
+)
+from .db import InMemoryEventsDB, InMemorySequence
+from .types import QueryConstraintCheck
 
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
@@ -194,7 +46,23 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         constraint_converter: Converter[QueryConstraint, QueryConstraintCheck]
         | None = None,
+        condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
+        | None = None,
     ):
+        self._constraint_converter = (
+            constraint_converter
+            if constraint_converter is not None
+            else (
+                TypeRegistryConstraintConverter().with_default_constraint_converters()
+            )
+        )
+        self._condition_converter = (
+            condition_converter
+            if condition_converter is not None
+            else (
+                TypeRegistryConditionConverter().with_default_condition_converters()
+            )
+        )
         self._locks: dict[str, Lock] = defaultdict(lambda: Lock())
         self._sequence = InMemorySequence()
         self._db = InMemoryEventsDB(
@@ -202,13 +70,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             log_index=None,
             category_index=None,
             stream_index=None,
-            constraint_converter=(
-                constraint_converter
-                if constraint_converter is not None
-                else (
-                    TypeRegistryConstraintConverter().with_default_constraint_converters()
-                )
-            ),
+            constraint_converter=self._constraint_converter,
         )
         self._serialisation_guarantee = serialisation_guarantee
 
@@ -234,7 +96,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             last_stream_event = transaction.last_stream_event(target)
             await asyncio.sleep(0)
 
-            condition.assert_met_by(last_event=last_stream_event)
+            enforcer = self._condition_converter.convert(condition)
+            enforcer.assert_satisfied(
+                context=WriteConditionEnforcerContext(
+                    identifier=target, latest_event=last_stream_event
+                ),
+                transaction=transaction,
+            )
 
             last_stream_position = transaction.last_stream_position(target)
 

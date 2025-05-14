@@ -76,7 +76,7 @@ class WriteConditionEnforcerContext:
     def __init__(
         self,
         identifier: StreamIdentifier,
-        latest_event: StoredEvent[JsonValue, JsonValue] | None,
+        latest_event: StoredEvent[str, JsonValue] | None,
     ):
         self.identifier = identifier
         self.latest_event = latest_event

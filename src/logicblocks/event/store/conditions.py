@@ -1,19 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, final
-
-from logicblocks.event.types import StoredEvent
-
-from .exceptions import UnmetWriteConditionError
+from typing import final
 
 
 class WriteCondition(ABC):
-    @abstractmethod
-    def assert_met_by(
-        self, *, last_event: StoredEvent[Any, Any] | None
-    ) -> None:
-        raise NotImplementedError
-
     @abstractmethod
     def __eq__(self, other: object) -> bool:
         raise NotImplementedError
@@ -70,12 +60,6 @@ class AndCondition(WriteCondition):
     def __hash__(self) -> int:
         return hash(self.conditions)
 
-    def assert_met_by(
-        self, *, last_event: StoredEvent[Any, Any] | None
-    ) -> None:
-        for condition in self.conditions:
-            condition.assert_met_by(last_event=last_event)
-
 
 @final
 @dataclass(frozen=True)
@@ -94,41 +78,18 @@ class OrCondition(WriteCondition):
     def __hash__(self) -> int:
         return hash(self.conditions)
 
-    def assert_met_by(
-        self, *, last_event: StoredEvent[Any, Any] | None
-    ) -> None:
-        first_exception = None
-        for condition in self.conditions:
-            try:
-                condition.assert_met_by(last_event=last_event)
-                return
-            except UnmetWriteConditionError as e:
-                first_exception = e
-        if first_exception is not None:
-            raise first_exception
-
 
 @dataclass(frozen=True)
-class NoCondition(WriteCondition):
-    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
-        pass
+class NoCondition(WriteCondition): ...
 
 
 @dataclass(frozen=True)
 class PositionIsCondition(WriteCondition):
     position: int | None
 
-    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
-        latest_position = last_event.position if last_event else None
-        if latest_position != self.position:
-            raise UnmetWriteConditionError("unexpected stream position")
-
 
 @dataclass(frozen=True)
-class EmptyStreamCondition(WriteCondition):
-    def assert_met_by(self, *, last_event: StoredEvent[Any, Any] | None):
-        if last_event is not None:
-            raise UnmetWriteConditionError("stream is not empty")
+class EmptyStreamCondition(WriteCondition): ...
 
 
 def position_is(position: int | None) -> WriteCondition:

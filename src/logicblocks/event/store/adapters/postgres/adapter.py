@@ -287,7 +287,7 @@ def insert_batch_query(
 
 
 async def obtain_write_lock(
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     target: Saveable,
     *,
     serialisation_guarantee: EventSerialisationGuarantee,
@@ -300,7 +300,7 @@ async def obtain_write_lock(
 
 
 async def read_last(
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
     parameters: LatestQueryParameters,
     table_settings: TableSettings,
@@ -310,7 +310,7 @@ async def read_last(
 
 
 async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
-    cursor: AsyncCursor[StoredEvent[JsonValue, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
     target: Saveable,
     events: Sequence[NewEvent[Name, Payload]],
@@ -405,7 +405,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     ) -> Sequence[StoredEvent[Name, Payload]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[JsonValue, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
                 await obtain_write_lock(
                     cursor,

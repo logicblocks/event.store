@@ -15,7 +15,11 @@ from .clause import (
     SortClauseConverter,
     TypeRegistryClauseConverter,
 )
-from .types import ClauseConverter, QueryConverter
+from .function import (
+    SimilarityFunctionConverter,
+    TypeRegistryFunctionConverter,
+)
+from .types import ClauseConverter, FunctionConverter, QueryConverter
 
 
 class SearchQueryConverter(QueryConverter[genericquery.Search]):
@@ -87,9 +91,15 @@ class DelegatingQueryConverter(
     def __init__(
         self,
         table_settings: TableSettings,
+        function_converter: TypeRegistryFunctionConverter | None = None,
         clause_converter: TypeRegistryClauseConverter | None = None,
         query_converter: TypeRegistryQueryConverter | None = None,
     ):
+        self._function_converter = (
+            function_converter
+            if function_converter is not None
+            else TypeRegistryFunctionConverter()
+        )
         self._clause_converter = (
             clause_converter
             if clause_converter is not None
@@ -102,13 +112,19 @@ class DelegatingQueryConverter(
         )
         self._table_settings = table_settings
 
+    def with_default_function_converters(self) -> Self:
+        return self.register_function_converter(
+            genericquery.Similarity, SimilarityFunctionConverter()
+        )
+
     def with_default_clause_converters(self) -> Self:
         return (
             self.register_clause_converter(
                 genericquery.FilterClause, FilterClauseConverter()
             )
             .register_clause_converter(
-                genericquery.SortClause, SortClauseConverter()
+                genericquery.SortClause,
+                SortClauseConverter(self._function_converter),
             )
             .register_clause_converter(
                 genericquery.KeySetPagingClause,
@@ -129,6 +145,19 @@ class DelegatingQueryConverter(
             genericquery.Lookup,
             LookupQueryConverter(self._clause_converter, self._table_settings),
         )
+
+    def with_default_converters(self):
+        return (
+            self.with_default_function_converters()
+            .with_default_clause_converters()
+            .with_default_query_converters()
+        )
+
+    def register_function_converter[F: genericquery.Function](
+        self, function_type: type[F], converter: FunctionConverter[F]
+    ) -> Self:
+        self._function_converter.register(function_type, converter)
+        return self
 
     def register_clause_converter[C: genericquery.Clause](
         self, clause_type: type[C], converter: ClauseConverter[C]

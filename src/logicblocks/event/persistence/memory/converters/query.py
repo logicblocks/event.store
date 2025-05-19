@@ -1,15 +1,15 @@
-from collections.abc import Sequence
-from functools import reduce
 from typing import Self
 
 from logicblocks.event.query import (
     Clause,
     FilterClause,
+    Function,
     KeySetPagingClause,
     Lookup,
     OffsetPagingClause,
     Query,
     Search,
+    Similarity,
     SortClause,
 )
 from logicblocks.event.types import Converter
@@ -22,31 +22,18 @@ from .clause import (
     SortClauseConverter,
     TypeRegistryClauseConverter,
 )
+from .function import (
+    SimilarityFunctionConverter,
+    TypeRegistryFunctionConverter,
+)
+from .helpers import compose_transformers
 from .types import (
     ClauseConverter,
+    FunctionConverter,
     Identifiable,
     QueryConverter,
-    ResultSet,
     ResultSetTransformer,
 )
-
-
-def compose_transformers[R: Identifiable](
-    functions: Sequence[ResultSetTransformer[R]],
-) -> ResultSetTransformer[R]:
-    def accumulator(
-        f: ResultSetTransformer[R],
-        g: ResultSetTransformer[R],
-    ) -> ResultSetTransformer[R]:
-        def handler(results: ResultSet[R]) -> ResultSet[R]:
-            return g(f(results))
-
-        return handler
-
-    def initial(results: ResultSet[R]) -> ResultSet[R]:
-        return results
-
-    return reduce(accumulator, functions, initial)
 
 
 class SearchQueryConverter[R: Identifiable](QueryConverter[R, Search]):
@@ -99,9 +86,15 @@ class DelegatingQueryConverter[R: Identifiable](
 ):
     def __init__(
         self,
+        function_converter: TypeRegistryFunctionConverter[R] | None = None,
         clause_converter: TypeRegistryClauseConverter[R] | None = None,
         query_converter: TypeRegistryQueryConverter[R] | None = None,
     ):
+        self._function_converter = (
+            function_converter
+            if function_converter is not None
+            else TypeRegistryFunctionConverter[R]()
+        )
         self._clause_converter = (
             clause_converter
             if clause_converter is not None
@@ -113,12 +106,19 @@ class DelegatingQueryConverter[R: Identifiable](
             else TypeRegistryQueryConverter[R]()
         )
 
+    def with_default_function_converters(self) -> Self:
+        return self.register_function_converter(
+            Similarity, SimilarityFunctionConverter[R]()
+        )
+
     def with_default_clause_converters(self) -> Self:
         return (
             self.register_clause_converter(
                 FilterClause, FilterClauseConverter[R]()
             )
-            .register_clause_converter(SortClause, SortClauseConverter[R]())
+            .register_clause_converter(
+                SortClause, SortClauseConverter[R](self._function_converter)
+            )
             .register_clause_converter(
                 KeySetPagingClause, KeySetPagingClauseConverter[R]()
             )
@@ -134,6 +134,19 @@ class DelegatingQueryConverter[R: Identifiable](
             Lookup, LookupQueryConverter[R](self._clause_converter)
         )
 
+    def with_default_converters(self) -> Self:
+        return (
+            self.with_default_function_converters()
+            .with_default_clause_converters()
+            .with_default_query_converters()
+        )
+
+    def register_function_converter[F: Function](
+        self, function_type: type[F], converter: FunctionConverter[R, F]
+    ) -> Self:
+        self._function_converter.register(function_type, converter)
+        return self
+
     def register_clause_converter[C: Clause](
         self, clause_type: type[C], converter: ClauseConverter[R, C]
     ) -> Self:
@@ -145,6 +158,9 @@ class DelegatingQueryConverter[R: Identifiable](
     ) -> Self:
         self._query_converter.register(query_type, converter)
         return self
+
+    def convert_function(self, item: Function) -> ResultSetTransformer[R]:
+        return self._function_converter.convert(item)
 
     def convert_clause(self, item: Clause) -> ResultSetTransformer[R]:
         return self._clause_converter.convert(item)

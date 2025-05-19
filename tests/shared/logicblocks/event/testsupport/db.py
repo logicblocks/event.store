@@ -39,6 +39,12 @@ def create_indices_query(
     return create_indices_sql.encode()
 
 
+def enable_extension_query(extension: str) -> abc.Query:
+    return sql.SQL("CREATE EXTENSION IF NOT EXISTS {0}").format(
+        sql.Identifier(extension)
+    )
+
+
 def drop_table_query(table_name: str) -> abc.Query:
     return sql.SQL("DROP TABLE IF EXISTS {0}").format(
         sql.Identifier(table_name)
@@ -47,6 +53,13 @@ def drop_table_query(table_name: str) -> abc.Query:
 
 def truncate_table_query(table_name: str) -> abc.Query:
     return sql.SQL("TRUNCATE {0}").format(sql.Identifier(table_name))
+
+
+async def enable_extension(
+    pool: AsyncConnectionPool[AsyncConnection], extension: str
+) -> None:
+    async with pool.connection() as connection:
+        await connection.execute(enable_extension_query(extension))
 
 
 async def create_table(

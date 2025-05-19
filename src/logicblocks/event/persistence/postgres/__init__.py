@@ -1,13 +1,18 @@
 from .converters import DelegatingQueryConverter as QueryConverter
 from .query import (
-    Column,
+    Cast,
+    ColumnReference,
     Condition,
+    Constant,
+    FunctionApplication,
     Operator,
     Query,
     QueryApplier,
-    SetOperationMode,
+    ResultTarget,
+    SetQuantifier,
+    SortBy,
     SortDirection,
-    Value,
+    Star,
 )
 from .settings import ConnectionSettings, TableSettings
 from .types import (
@@ -18,19 +23,24 @@ from .types import (
 )
 
 __all__ = [
-    "Column",
+    "Cast",
+    "ColumnReference",
     "Condition",
     "ConnectionSettings",
     "ConnectionSource",
+    "FunctionApplication",
     "Operator",
     "ParameterisedQuery",
     "ParameterisedQueryFragment",
     "Query",
     "QueryApplier",
     "QueryConverter",
-    "SetOperationMode",
+    "ResultTarget",
+    "SetQuantifier",
+    "SortBy",
     "SortDirection",
     "SqlFragment",
+    "Star",
     "TableSettings",
-    "Value",
+    "Constant",
 ]

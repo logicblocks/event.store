@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from .utilities import Path
 
 
-class Function(ABC):
-    pass
-
-
 @dataclass(frozen=True)
+class Function(ABC):
+    alias: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class Similarity(Function):
-    path: Path
-    value: str
+    left: Path
+    right: str

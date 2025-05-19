@@ -6,13 +6,13 @@ from psycopg import AsyncConnection
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.persistence.postgres import (
-    Column,
     Condition,
+    Constant,
     Operator,
     Query,
     QueryApplier,
-    Value,
 )
+from logicblocks.event.persistence.postgres.query import ColumnReference
 from logicblocks.event.store.conditions import (
     AndCondition,
     EmptyStreamCondition,
@@ -42,9 +42,9 @@ class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
     def apply(self, target: Query) -> Query:
         return target.where(
             Condition()
-            .left(Column(field="sequence_number"))
+            .left(ColumnReference(field="sequence_number"))
             .operator(Operator.GREATER_THAN)
-            .right(Value(self.sequence_number))
+            .right(Constant(self.sequence_number))
         )
 
 

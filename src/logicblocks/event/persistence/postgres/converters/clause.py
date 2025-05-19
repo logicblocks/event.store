@@ -1,7 +1,5 @@
 from collections.abc import Iterable, Mapping
-from typing import Any, Self, Sequence, TypeGuard
-
-from psycopg.types.json import Jsonb
+from typing import Self, Sequence
 
 import logicblocks.event.query as genericquery
 from logicblocks.event.types import Converter
@@ -10,46 +8,14 @@ from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
 from ..query import QueryApplier
 from ..settings import TableSettings
+from .appliers import CombinedQueryApplier
+from .helpers import (
+    expression_for_field,
+    expression_for_path,
+    is_multi_valued,
+    value_for_path,
+)
 from .types import ClauseConverter
-
-
-def column_for_query_path(
-    path: genericquery.Path | genericquery.Function,
-) -> postgresquery.Column:
-    if isinstance(path, genericquery.Function):
-        raise ValueError("Function sorting is not supported.")
-    if path.is_nested():
-        return postgresquery.Column(field=path.top_level, path=path.sub_levels)
-    else:
-        return postgresquery.Column(field=path.top_level)
-
-
-def path_expression_for_query_path(path: genericquery.Path) -> str:
-    path_list = ",".join([str(sub_level) for sub_level in path.sub_levels])
-    return "{" + path_list + "}"
-
-
-def value_for_path(value: Any, path: genericquery.Path) -> postgresquery.Value:
-    if path == genericquery.Path("source"):
-        return postgresquery.Value(
-            Jsonb(value.serialise()),
-        )
-    elif path.is_nested():
-        return postgresquery.Value(
-            value,
-            wrapper="to_jsonb",
-            cast_to_type="TEXT" if type(value) is str else None,
-        )
-    else:
-        return postgresquery.Value(value)
-
-
-def is_multi_valued(value: Any) -> TypeGuard[Sequence[Any]]:
-    return (
-        not isinstance(value, str)
-        and not isinstance(value, bytes)
-        and isinstance(value, Sequence)
-    )
 
 
 class FilterClauseQueryApplier(QueryApplier):
@@ -59,7 +25,7 @@ class FilterClauseQueryApplier(QueryApplier):
         operators: Mapping[genericquery.Operator, postgresquery.Operator],
     ):
         self._operators = operators
-        self._path = clause.path
+        self._path = clause.field
         self._operator = clause.operator
         self._value = clause.value
 
@@ -71,11 +37,13 @@ class FilterClauseQueryApplier(QueryApplier):
         return self._operators[self._operator]
 
     @property
-    def column(self) -> postgresquery.Column:
-        return column_for_query_path(self._path)
+    def column(self) -> postgresquery.Expression:
+        return expression_for_path(self._path)
 
     @property
-    def value(self) -> postgresquery.Value | Sequence[postgresquery.Value]:
+    def value(
+        self,
+    ) -> postgresquery.Expression | Sequence[postgresquery.Expression]:
         if is_multi_valued(self._value):
             return [value_for_path(value, self._path) for value in self._value]
         else:
@@ -131,31 +99,46 @@ class SortClauseQueryApplier(QueryApplier):
             case _:  # pragma: no cover
                 raise ValueError(f"Unsupported sort order: {sort_order}")
 
-    def apply(self, target: postgresquery.Query) -> postgresquery.Query:
-        if any(
-            isinstance(field.path, genericquery.Function)
-            for field in self._clause.fields
-        ):
-            raise ValueError("Function sorting is not supported.")
+    def sortby(
+        self,
+        sort_field: genericquery.SortField,
+    ) -> postgresquery.SortBy:
+        expression = expression_for_field(sort_field.field)
+        direction = self.sort_direction(sort_field.order)
 
+        return postgresquery.SortBy(
+            expression=expression,
+            direction=direction,
+        )
+
+    def apply(self, target: postgresquery.Query) -> postgresquery.Query:
         return target.order_by(
-            *[
-                (
-                    column_for_query_path(field.path),
-                    self.sort_direction(field.order),
-                )
-                for field in self._clause.fields
-            ]
+            *[self.sortby(sort_field) for sort_field in self._clause.fields]
         )
 
 
 class SortClauseConverter(ClauseConverter[genericquery.SortClause]):
+    def __init__(
+        self,
+        function_converter: Converter[genericquery.Function, QueryApplier],
+    ):
+        self._function_converter = function_converter
+
     def convert(self, item: genericquery.SortClause) -> QueryApplier:
-        return SortClauseQueryApplier(clause=item)
+        function_query_appliers = [
+            self._function_converter.convert(sort_field.field)
+            for sort_field in item.fields
+            if isinstance(sort_field.field, genericquery.Function)
+        ]
+        sort_clause_query_applier = SortClauseQueryApplier(clause=item)
+
+        return CombinedQueryApplier(
+            *[*function_query_appliers, sort_clause_query_applier]
+        )
 
 
 def row_comparison_condition(
-    columns: Iterable[postgresquery.Column],
+    columns: Iterable[postgresquery.Expression],
     operator: postgresquery.Operator,
     table: str,
 ) -> postgresquery.Condition:
@@ -166,9 +149,9 @@ def row_comparison_condition(
 
 
 def field_comparison_condition(
-    column: postgresquery.Column,
+    column: postgresquery.Expression,
     operator: postgresquery.Operator,
-    value: postgresquery.Value,
+    value: postgresquery.Constant,
 ) -> postgresquery.Condition:
     return (
         postgresquery.Condition().left(column).operator(operator).right(value)
@@ -176,11 +159,11 @@ def field_comparison_condition(
 
 
 def record_query(
-    id: postgresquery.Value,
-    columns: Iterable[postgresquery.Column],
+    id: postgresquery.Constant,
+    columns: Iterable[postgresquery.Expression],
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
+    id_column = postgresquery.ColumnReference(field="id")
 
     return (
         postgresquery.Query()
@@ -206,12 +189,12 @@ def first_page_existing_sort_query(
     paging: genericquery.KeySetPagingClause,
     sort_direction: postgresquery.SortDirection,
 ) -> postgresquery.Query:
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in builder.sort_columns
-    ]
-    paged_sort = list(existing_sort) + [
-        (postgresquery.Column(field="id"), sort_direction)
+    existing_sortby = builder.sortby_list
+    paged_sort = list(existing_sortby) + [
+        postgresquery.SortBy(
+            expression=postgresquery.ColumnReference(field="id"),
+            direction=sort_direction,
+        )
     ]
 
     return builder.replace_order_by(*paged_sort).limit(paging.item_count)
@@ -244,9 +227,9 @@ def first_page_existing_sort_mixed_query(
 def subsequent_page_no_sort_row_selection_query(
     builder: postgresquery.Query, paging: genericquery.KeySetPagingClause
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
+    id_column = postgresquery.ColumnReference(field="id")
 
-    id = postgresquery.Value(paging.last_id)
+    id = postgresquery.Constant(paging.last_id)
     op = (
         postgresquery.Operator.GREATER_THAN
         if paging.is_forwards()
@@ -260,7 +243,11 @@ def subsequent_page_no_sort_row_selection_query(
 
     return (
         builder.where(field_comparison_condition(id_column, op, id))
-        .order_by((id_column, sort_direction))
+        .order_by(
+            postgresquery.SortBy(
+                expression=id_column, direction=sort_direction
+            )
+        )
         .limit(paging.item_count)
     )
 
@@ -291,26 +278,25 @@ def subsequent_page_existing_sort_all_asc_forwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
-    last_id = postgresquery.Value(paging.last_id)
+    id_column = postgresquery.ColumnReference(field="id")
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
     paged_sort = list(existing_sort) + [
-        (id_column, postgresquery.SortDirection.ASC)
+        postgresquery.SortBy(
+            expression=id_column, direction=postgresquery.SortDirection.ASC
+        )
     ]
-    paged_sort_columns = [column for column, _ in paged_sort]
+    paged_sort_expressions = [sortby.expression for sortby in paged_sort]
 
     return (
         query.with_query(
-            record_query(last_id, paged_sort_columns, table_settings),
+            record_query(last_id, paged_sort_expressions, table_settings),
             name="last",
         )
         .where(
             row_comparison_condition(
-                paged_sort_columns,
+                paged_sort_expressions,
                 postgresquery.Operator.GREATER_THAN,
                 table="last",
             )
@@ -325,33 +311,36 @@ def subsequent_page_existing_sort_all_asc_backwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
-    last_id = postgresquery.Value(paging.last_id)
+    id_column = postgresquery.ColumnReference(field="id")
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
 
     paged_sort = list(existing_sort) + [
-        (id_column, postgresquery.SortDirection.ASC)
+        postgresquery.SortBy(
+            expression=id_column, direction=postgresquery.SortDirection.ASC
+        )
     ]
     record_sort = [
-        (column, postgresquery.SortDirection.DESC) for column, _ in paged_sort
+        postgresquery.SortBy(
+            expression=sortby.expression,
+            direction=postgresquery.SortDirection.DESC,
+        )
+        for sortby in paged_sort
     ]
-    sort_columns = [column for column, _ in paged_sort]
+    sort_expressions = [sortby.expression for sortby in paged_sort]
 
     return (
         postgresquery.Query()
         .with_query(
-            record_query(last_id, sort_columns, table_settings),
+            record_query(last_id, sort_expressions, table_settings),
             name="last",
         )
         .select_all()
         .from_subquery(
             query.where(
                 row_comparison_condition(
-                    sort_columns,
+                    sort_expressions,
                     postgresquery.Operator.LESS_THAN,
                     table="last",
                 )
@@ -370,26 +359,25 @@ def subsequent_page_existing_sort_all_desc_forwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
-    last_id = postgresquery.Value(paging.last_id)
+    id_column = postgresquery.ColumnReference(field="id")
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
     paged_sort = list(existing_sort) + [
-        (id_column, postgresquery.SortDirection.DESC)
+        postgresquery.SortBy(
+            expression=id_column, direction=postgresquery.SortDirection.DESC
+        )
     ]
-    paged_sort_columns = [column for column, _ in paged_sort]
+    paged_sort_expressions = [sortby.expression for sortby in paged_sort]
 
     return (
         query.with_query(
-            record_query(last_id, paged_sort_columns, table_settings),
+            record_query(last_id, paged_sort_expressions, table_settings),
             name="last",
         )
         .where(
             row_comparison_condition(
-                paged_sort_columns,
+                paged_sort_expressions,
                 postgresquery.Operator.LESS_THAN,
                 table="last",
             )
@@ -404,33 +392,36 @@ def subsequent_page_existing_sort_all_desc_backwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    id_column = postgresquery.Column(field="id")
-    last_id = postgresquery.Value(paging.last_id)
+    id_column = postgresquery.ColumnReference(field="id")
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
 
     paged_sort = list(existing_sort) + [
-        (id_column, postgresquery.SortDirection.DESC)
+        postgresquery.SortBy(
+            expression=id_column, direction=postgresquery.SortDirection.DESC
+        )
     ]
     record_sort = [
-        (column, postgresquery.SortDirection.ASC) for column, _ in paged_sort
+        postgresquery.SortBy(
+            expression=sortby.expression,
+            direction=postgresquery.SortDirection.ASC,
+        )
+        for sortby in paged_sort
     ]
-    sort_columns = [column for column, _ in paged_sort]
+    sort_expressions = [sortby.expression for sortby in paged_sort]
 
     return (
         postgresquery.Query()
         .with_query(
-            record_query(last_id, sort_columns, table_settings),
+            record_query(last_id, sort_expressions, table_settings),
             name="last",
         )
         .select_all()
         .from_subquery(
             query.where(
                 row_comparison_condition(
-                    sort_columns,
+                    sort_expressions,
                     postgresquery.Operator.GREATER_THAN,
                     table="last",
                 )
@@ -449,37 +440,37 @@ def subsequent_page_existing_sort_mixed_forwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    last_id = postgresquery.Value(paging.last_id)
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
     paged_sort = list(existing_sort) + [
-        (postgresquery.Column(field="id"), postgresquery.SortDirection.ASC)
+        postgresquery.SortBy(
+            expression=postgresquery.ColumnReference(field="id"),
+            direction=postgresquery.SortDirection.ASC,
+        )
     ]
-    paged_sort_columns = [column for column, _ in paged_sort]
+    paged_sort_expressions = [sortby.expression for sortby in paged_sort]
 
-    last_query = record_query(last_id, paged_sort_columns, table_settings)
+    last_query = record_query(last_id, paged_sort_expressions, table_settings)
 
     paged_sort_operators = {
-        column: postgresquery.Operator.GREATER_THAN
-        if direction == postgresquery.SortDirection.ASC
+        sortby.expression: postgresquery.Operator.GREATER_THAN
+        if sortby.direction == postgresquery.SortDirection.ASC
         else postgresquery.Operator.LESS_THAN
-        for column, direction in paged_sort
+        for sortby in paged_sort
     }
 
     ordering_column_sets = [
         [
             (
-                paged_sort_columns[j],
+                paged_sort_expressions[j],
                 postgresquery.Operator.EQUALS
                 if j < i - 1
-                else paged_sort_operators[paged_sort_columns[j]],
+                else paged_sort_operators[paged_sort_expressions[j]],
             )
             for j in range(0, i)
         ]
-        for i in range(1, len(paged_sort_columns) + 1)
+        for i in range(1, len(paged_sort_expressions) + 1)
     ]
     record_select_conditions = [
         [
@@ -502,7 +493,7 @@ def subsequent_page_existing_sort_mixed_forwards_query(
 
     return (
         postgresquery.Query.union(
-            *record_select_queries, mode=postgresquery.SetOperationMode.ALL
+            *record_select_queries, mode=postgresquery.SetQuantifier.ALL
         )
         .with_query(last_query, name="last")
         .order_by(*paged_sort)
@@ -515,40 +506,38 @@ def subsequent_page_existing_sort_mixed_backwards_query(
     paging: genericquery.KeySetPagingClause,
     table_settings: TableSettings,
 ) -> postgresquery.Query:
-    last_id = postgresquery.Value(paging.last_id)
+    last_id = postgresquery.Constant(paging.last_id)
 
-    existing_sort = [
-        (sort_column.expression, sort_column.direction)
-        for sort_column in query.sort_columns
-    ]
+    existing_sort = query.sortby_list
     paged_sort = list(existing_sort) + [
-        (postgresquery.Column(field="id"), postgresquery.SortDirection.ASC)
+        postgresquery.SortBy(
+            expression=postgresquery.ColumnReference(field="id"),
+            direction=postgresquery.SortDirection.ASC,
+        )
     ]
-    record_sort = [
-        (column, direction.reverse()) for column, direction in paged_sort
-    ]
-    sort_columns = [column for column, _ in paged_sort]
+    record_sort = [sortby.reverse() for sortby in paged_sort]
+    sort_expressions = [sortby.expression for sortby in paged_sort]
 
-    last_query = record_query(last_id, sort_columns, table_settings)
+    last_query = record_query(last_id, sort_expressions, table_settings)
 
     record_sort_operators = {
-        column: postgresquery.Operator.GREATER_THAN
-        if direction == postgresquery.SortDirection.ASC
+        sortby.expression: postgresquery.Operator.GREATER_THAN
+        if sortby.direction == postgresquery.SortDirection.ASC
         else postgresquery.Operator.LESS_THAN
-        for column, direction in record_sort
+        for sortby in record_sort
     }
 
     ordering_column_sets = [
         [
             (
-                sort_columns[j],
+                sort_expressions[j],
                 postgresquery.Operator.EQUALS
                 if j < i - 1
-                else record_sort_operators[sort_columns[j]],
+                else record_sort_operators[sort_expressions[j]],
             )
             for j in range(0, i)
         ]
-        for i in range(1, len(sort_columns) + 1)
+        for i in range(1, len(sort_expressions) + 1)
     ]
     record_select_conditions = [
         [
@@ -575,7 +564,7 @@ def subsequent_page_existing_sort_mixed_backwards_query(
         .select_all()
         .from_subquery(
             postgresquery.Query.union(
-                *record_select_queries, mode=postgresquery.SetOperationMode.ALL
+                *record_select_queries, mode=postgresquery.SetQuantifier.ALL
             )
             .order_by(*record_sort)
             .limit(paging.item_count),
@@ -596,13 +585,13 @@ class KeySetPagingClauseQueryApplier(QueryApplier):
         self._table_settings = table_settings
 
     def apply(self, target: postgresquery.Query) -> postgresquery.Query:
-        has_existing_sort = len(target.sort_columns) > 0
+        has_existing_sort = len(target.sortby_list) > 0
 
         all_sort_asc = all(
-            sort_column.is_ascending() for sort_column in target.sort_columns
+            sortby.is_ascending() for sortby in target.sortby_list
         )
         all_sort_desc = all(
-            sort_column.is_descending() for sort_column in target.sort_columns
+            sortby.is_descending() for sortby in target.sortby_list
         )
 
         if self._clause.is_forwards():

@@ -19,6 +19,9 @@ from logicblocks.event.testsupport import (
     create_table,
     drop_table,
 )
+from logicblocks.event.testsupport.db import (
+    enable_extension,
+)
 from logicblocks.event.types import JsonValue, Projection, identifier
 
 connection_settings = ConnectionSettings(
@@ -72,6 +75,7 @@ class TestPostgresProjectionStorageAdapterCommonCases(
 
     @pytest_asyncio.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
+        await enable_extension(open_connection_pool, "pg_trgm")
         await drop_table(open_connection_pool, "projections")
         await create_table(open_connection_pool, "projections")
 

@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from logicblocks.event.persistence.memory import (
     DelegatingQueryConverter,
+    ResultSet,
     ResultSetTransformer,
 )
 from logicblocks.event.query import (
@@ -41,9 +42,9 @@ class InMemoryProjectionStorageAdapter[
             query_converter
             if query_converter is not None
             else (
-                DelegatingQueryConverter[Projection[JsonValue, JsonValue]]()
-                .with_default_clause_converters()
-                .with_default_query_converters()
+                DelegatingQueryConverter[
+                    Projection[JsonValue, JsonValue]
+                ]().with_default_converters()
             )
         )
 
@@ -72,9 +73,13 @@ class InMemoryProjectionStorageAdapter[
     async def _find_raw(
         self, query: Query
     ) -> Sequence[Projection[JsonValue, JsonValue]]:
-        return self._query_converter.convert(query)(
-            list(self._projections.values())
+        initial_result_set = ResultSet[Projection[JsonValue, JsonValue]].of(
+            *(self._projections.values())
         )
+        transformer = self._query_converter.convert(query)
+        transformed_result_set = transformer(initial_result_set)
+
+        return transformed_result_set.records
 
     async def find_one[
         State: JsonPersistable = JsonValue,

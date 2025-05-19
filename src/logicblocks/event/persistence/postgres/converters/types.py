@@ -21,3 +21,11 @@ class ClauseConverter[C: query.Clause = query.Clause](
     @abstractmethod
     def convert(self, item: C) -> QueryApplier:
         raise NotImplementedError
+
+
+class FunctionConverter[F: query.Function = query.Function](
+    Converter[F, QueryApplier], ABC
+):
+    @abstractmethod
+    def convert(self, item: F) -> QueryApplier:
+        raise NotImplementedError

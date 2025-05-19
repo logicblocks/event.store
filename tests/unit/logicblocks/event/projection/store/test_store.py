@@ -2,8 +2,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
-import pytest
-
 from logicblocks.event.projection.store import (
     InMemoryProjectionStorageAdapter,
     ProjectionStore,
@@ -306,33 +304,32 @@ class TestProjectionStoreSearch:
 
         assert located == [projection_4, projection_2]
 
-    @pytest.mark.skip("in progress")
-    async def test_allows_use_of_calculations_in_sort(self):
+    async def test_allows_use_of_derived_columns_in_sort(self):
         adapter = InMemoryProjectionStorageAdapter()
         store = ProjectionStore(adapter=adapter)
 
         projection_1 = (
             ThingProjectionBuilder()
             .with_id("a")
-            .with_state(Thing(amount=5, description="abcd"))
+            .with_state(Thing(amount=5, description="abcd efgh"))
             .build()
         )
         projection_2 = (
             ThingProjectionBuilder()
             .with_id("b")
-            .with_state(Thing(amount=5, description="defg"))
+            .with_state(Thing(amount=5, description="xyz"))
             .build()
         )
         projection_3 = (
             ThingProjectionBuilder()
             .with_id("c")
-            .with_state(Thing(amount=5, description="hij"))
+            .with_state(Thing(amount=5, description="xyzabxyz"))
             .build()
         )
         projection_4 = (
             ThingProjectionBuilder()
             .with_id("d")
-            .with_state(Thing(amount=5, description="bcd"))
+            .with_state(Thing(amount=5, description="axyz bcdefghijklm"))
             .build()
         )
 
@@ -346,7 +343,11 @@ class TestProjectionStoreSearch:
             sort=SortClause(
                 fields=[
                     SortField(
-                        Similarity(Path("state", "description"), "abc"),
+                        Similarity(
+                            left=Path("state", "description"),
+                            right="xyz",
+                            alias="description_similarity_score",
+                        ),
                         SortOrder.DESC,
                     )
                 ]
@@ -356,10 +357,10 @@ class TestProjectionStoreSearch:
         )
 
         assert located == [
-            projection_1,
-            projection_4,
             projection_2,
             projection_3,
+            projection_4,
+            projection_1,
         ]
 
     async def test_returns_no_projections_when_no_matches(self):

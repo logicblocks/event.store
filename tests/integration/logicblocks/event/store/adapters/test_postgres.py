@@ -10,15 +10,15 @@ from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import (
-    Column,
     Condition,
     ConnectionSettings,
+    Constant,
     Operator,
     Query,
     QueryApplier,
     TableSettings,
-    Value,
 )
+from logicblocks.event.persistence.postgres.query import ColumnReference
 from logicblocks.event.store.adapters import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
@@ -653,9 +653,9 @@ class TestPostgresStorageAdapterQueryConstraints:
             def apply(self, target: Query) -> Query:
                 return target.where(
                     Condition()
-                    .left(Column(field="sequence_number"))
+                    .left(ColumnReference(field="sequence_number"))
                     .operator(Operator.EQUALS)
-                    .right(Value(5))
+                    .right(Constant(5))
                 )
 
         class CustomQueryConstraintConverter(

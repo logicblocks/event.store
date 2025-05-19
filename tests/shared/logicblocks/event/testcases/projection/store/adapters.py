@@ -14,6 +14,7 @@ from logicblocks.event.query import (
     PagingDirection,
     Path,
     Search,
+    Similarity,
     SortClause,
     SortField,
     SortOrder,
@@ -210,7 +211,7 @@ class SaveCases(Base, ABC):
 
 
 class FindOneCases(Base, ABC):
-    async def test_finds_one_projection_by_single_filter(self):
+    async def test_applies_single_filter_on_top_level_field(self):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
@@ -239,7 +240,44 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_1
 
-    async def test_finds_one_projection_by_source_filter(self):
+    async def test_applies_multiple_filters(self):
+        projection_name = data.random_event_stream_name()
+
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=5, value_2="text"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name(projection_name)
+            .with_state(Thing(value_1=10, value_2="text"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+
+        located = await adapter.find_one(
+            lookup=Lookup(
+                filters=[
+                    FilterClause(
+                        Operator.EQUAL, Path("name"), projection_name
+                    ),
+                    FilterClause(
+                        Operator.GREATER_THAN, Path("state", "value_1"), 5
+                    ),
+                ]
+            ),
+            state_type=Thing,
+        )
+
+        assert located == projection_2
+
+    async def test_applies_single_filter_on_nested_source_field(self):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
@@ -285,44 +323,7 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_1
 
-    async def test_finds_one_projection_by_multiple_filters(self):
-        projection_name = data.random_event_stream_name()
-
-        adapter = self.construct_storage_adapter()
-
-        projection_1 = (
-            ThingProjectionBuilder()
-            .with_name(projection_name)
-            .with_state(Thing(value_1=5, value_2="text"))
-            .build()
-        )
-        projection_2 = (
-            ThingProjectionBuilder()
-            .with_name(projection_name)
-            .with_state(Thing(value_1=10, value_2="text"))
-            .build()
-        )
-
-        await adapter.save(projection=projection_1)
-        await adapter.save(projection=projection_2)
-
-        located = await adapter.find_one(
-            lookup=Lookup(
-                filters=[
-                    FilterClause(
-                        Operator.EQUAL, Path("name"), projection_name
-                    ),
-                    FilterClause(
-                        Operator.GREATER_THAN, Path("state", "value_1"), 5
-                    ),
-                ]
-            ),
-            state_type=Thing,
-        )
-
-        assert located == projection_2
-
-    async def test_finds_one_projection_by_nested_string_filter(self):
+    async def test_applies_single_filter_on_nested_state_field(self):
         projection_name = data.random_event_stream_name()
 
         adapter = self.construct_storage_adapter()
@@ -348,9 +349,6 @@ class FindOneCases(Base, ABC):
             lookup=Lookup(
                 filters=[
                     FilterClause(
-                        Operator.EQUAL, Path("name"), projection_name
-                    ),
-                    FilterClause(
                         Operator.EQUAL, Path("state", "value_2"), filter_value
                     ),
                 ]
@@ -360,7 +358,7 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_2
 
-    async def test_finds_none_when_no_projection_matches_lookup(self):
+    async def test_returns_none_when_no_matches(self):
         adapter = self.construct_storage_adapter()
 
         located = await adapter.find_one(
@@ -378,7 +376,7 @@ class FindOneCases(Base, ABC):
 
         assert located is None
 
-    async def test_raises_when_finding_one_and_multiple_found(self):
+    async def test_raises_when_multiple_matches(self):
         projection_name = data.random_event_stream_name()
 
         adapter = self.construct_storage_adapter()
@@ -413,7 +411,7 @@ class FindOneCases(Base, ABC):
 
 
 class FindManyCases(Base, ABC):
-    async def test_finds_many_projections_by_single_filter(self):
+    async def test_applies_single_filter(self):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
@@ -442,7 +440,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1]
 
-    async def test_finds_many_projections_by_many_filters(self):
+    async def test_applies_multiple_filters(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -489,7 +487,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_4]
 
-    async def test_finds_many_projections_with_sorting(self):
+    async def test_applies_simple_sorting(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -519,7 +517,7 @@ class FindManyCases(Base, ABC):
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.DESC
+                        field=Path("state", "value_1"), order=SortOrder.DESC
                     )
                 ]
             )
@@ -528,7 +526,66 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_2, projection_1]
 
-    async def test_finds_many_projections_with_paging(self):
+    async def test_applies_function_based_sorting(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("a")
+            .with_state(Thing(value_1=5, value_2="abcd efgh"))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("b")
+            .with_state(Thing(value_1=5, value_2="xyz"))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("c")
+            .with_state(Thing(value_1=5, value_2="xyzabxyz"))
+            .build()
+        )
+        projection_4 = (
+            ThingProjectionBuilder()
+            .with_id("d")
+            .with_state(Thing(value_1=5, value_2="axyz bcdefghijklm"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+        await adapter.save(projection=projection_4)
+
+        search = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Similarity(
+                            left=Path("state", "value_2"),
+                            right="xyz",
+                            alias="description_similarity_score",
+                        ),
+                        order=SortOrder.DESC,
+                    )
+                ]
+            )
+        )
+        located = await adapter.find_many(
+            search=search,
+            state_type=Thing,
+        )
+
+        assert located == [
+            projection_2,
+            projection_3,
+            projection_4,
+            projection_1,
+        ]
+
+    async def test_applies_paging(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -563,7 +620,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_2, projection_3]
 
-    async def test_finds_many_sorts_before_paging(self):
+    async def test_sorts_before_paging(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -593,7 +650,7 @@ class FindManyCases(Base, ABC):
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.DESC
+                        field=Path("state", "value_1"), order=SortOrder.DESC
                     )
                 ]
             ),
@@ -603,7 +660,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_2]
 
-    async def test_finds_many_filters_before_paging(self):
+    async def test_filters_before_paging(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -648,7 +705,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_2, projection_3]
 
-    async def test_finds_many_filters_sorts_and_pages(self):
+    async def test_filters_sorts_and_pages(self):
         adapter = self.construct_storage_adapter()
 
         projection_1 = (
@@ -688,7 +745,7 @@ class FindManyCases(Base, ABC):
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.DESC
+                        field=Path("state", "value_1"), order=SortOrder.DESC
                     )
                 ]
             ),
@@ -698,7 +755,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_4, projection_2]
 
-    async def test_filter_on_value_in_list(self):
+    async def test_filters_on_value_present_in_list(self):
         adapter = self.construct_storage_adapter()
 
         value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
@@ -739,7 +796,7 @@ class FindManyCases(Base, ABC):
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.ASC
+                        field=Path("state", "value_1"), order=SortOrder.ASC
                     )
                 ]
             ),
@@ -749,7 +806,7 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1, projection_2]
 
-    async def test_filter_on_list_contains_value(self):
+    async def test_filters_on_list_containing_value(self):
         adapter = self.construct_storage_adapter()
 
         value_to_filter = data.random_ascii_alphanumerics_string(10)
@@ -807,7 +864,7 @@ class FindManyCases(Base, ABC):
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.ASC
+                        field=Path("state", "value_1"), order=SortOrder.ASC
                     )
                 ]
             ),

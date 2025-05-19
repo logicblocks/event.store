@@ -10,16 +10,19 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import (
-    Column,
     Condition,
     ConnectionSettings,
     ConnectionSource,
+    Constant,
     Operator,
     ParameterisedQuery,
     Query,
     QueryApplier,
     TableSettings,
-    Value,
+)
+from logicblocks.event.persistence.postgres.query import (
+    ColumnReference,
+    SortBy,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -145,26 +148,26 @@ def scan_query(
     if parameters.category:
         builder = builder.where(
             Condition()
-            .left(Column(field="category"))
+            .left(ColumnReference(field="category"))
             .operator(Operator.EQUALS)
-            .right(Value(parameters.category))
+            .right(Constant(parameters.category))
         )
 
     if parameters.stream:
         builder = builder.where(
             Condition()
-            .left(Column(field="stream"))
+            .left(ColumnReference(field="stream"))
             .operator(Operator.EQUALS)
-            .right(Value(parameters.stream))
+            .right(Constant(parameters.stream))
         )
 
     for constraint in parameters.constraints:
         applier = constraint_converter.convert(constraint)
         builder = applier.apply(builder)
 
-    builder = builder.order_by(Column(field="sequence_number")).limit(
-        parameters.page_size
-    )
+    builder = builder.order_by(
+        SortBy(expression=ColumnReference(field="sequence_number"))
+    ).limit(parameters.page_size)
 
     return builder.build()
 

@@ -20,6 +20,7 @@ from logicblocks.event.query import (
     PagingDirection,
     Path,
     Search,
+    Similarity,
     SortClause,
     SortField,
     SortOrder,
@@ -31,11 +32,9 @@ from logicblocks.event.testing.data import random_projection_id
 def query_converter_with_default_converters(
     table_settings: TableSettings = TableSettings(table_name="projections"),
 ):
-    return (
-        DelegatingQueryConverter(table_settings=table_settings)
-        .with_default_clause_converters()
-        .with_default_query_converters()
-    )
+    return DelegatingQueryConverter(
+        table_settings=table_settings
+    ).with_default_converters()
 
 
 def sql_query_to_string(query: abc.Query) -> str:
@@ -63,7 +62,7 @@ class TestPostgresQueryConverterQueryConversion:
         query = query_type(
             filters=[
                 FilterClause(
-                    operator=Operator.EQUAL, path=Path("id"), value="test"
+                    operator=Operator.EQUAL, field=Path("id"), value="test"
                 )
             ]
         )
@@ -83,10 +82,10 @@ class TestPostgresQueryConverterQueryConversion:
         query = query_type(
             filters=[
                 FilterClause(
-                    operator=Operator.EQUAL, path=Path("id"), value="test"
+                    operator=Operator.EQUAL, field=Path("id"), value="test"
                 ),
                 FilterClause(
-                    operator=Operator.EQUAL, path=Path("name"), value="thing"
+                    operator=Operator.EQUAL, field=Path("name"), value="thing"
                 ),
             ]
         )
@@ -107,7 +106,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.EQUAL,
-                    path=Path("state", "value"),
+                    field=Path("state", "value"),
                     value=5,
                 )
             ]
@@ -117,8 +116,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value}' = to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) = "to_jsonb"(%s)',
+            ["value", 5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -130,7 +129,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.EQUAL,
-                    path=Path("state", "value"),
+                    field=Path("state", "value"),
                     value="test",
                 )
             ]
@@ -140,8 +139,9 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value}' = to_jsonb(CAST(%s AS TEXT))",
-            ["test"],
+            'WHERE "jsonb_extract_path"("state", %s) = '
+            '"to_jsonb"(CAST(%s AS "text"))',
+            ["value", "test"],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -155,7 +155,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.IN,
-                    path=Path("state", "value"),
+                    field=Path("state", "value"),
                     value=[value_1, value_2],
                 )
             ]
@@ -165,8 +165,11 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value}' IN (to_jsonb(CAST(%s AS TEXT)), to_jsonb(CAST(%s AS TEXT)))",
-            [value_1, value_2],
+            'WHERE "jsonb_extract_path"("state", %s) IN ('
+            '"to_jsonb"(CAST(%s AS "text")), '
+            '"to_jsonb"(CAST(%s AS "text"))'
+            ")",
+            ["value", value_1, value_2],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -178,12 +181,12 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.EQUAL,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
                 FilterClause(
                     operator=Operator.EQUAL,
-                    path=Path("state", "value_2", 0, "value_3"),
+                    field=Path("state", "value_2", 0, "value_3"),
                     value=6,
                 ),
             ]
@@ -193,9 +196,9 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' = to_jsonb(%s) "
-            "AND \"state\"#>'{value_2,0,value_3}' = to_jsonb(%s)",
-            [5, 6],
+            'WHERE "jsonb_extract_path"("state", %s) = "to_jsonb"(%s) '
+            'AND "jsonb_extract_path"("state", %s, %s, %s) = "to_jsonb"(%s)',
+            ["value_1", 5, "value_2", 0, "value_3", 6],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -207,7 +210,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.NOT_EQUAL,
-                    path=Path("id"),
+                    field=Path("id"),
                     value=5,
                 ),
             ]
@@ -229,7 +232,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.NOT_EQUAL,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
             ]
@@ -239,8 +242,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' != to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) != "to_jsonb"(%s)',
+            ["value_1", 5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -252,7 +255,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.GREATER_THAN,
-                    path=Path("id"),
+                    field=Path("id"),
                     value=5,
                 ),
             ]
@@ -274,7 +277,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.GREATER_THAN,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
             ]
@@ -284,8 +287,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' > to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) > "to_jsonb"(%s)',
+            ["value_1", 5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -297,7 +300,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.GREATER_THAN_OR_EQUAL,
-                    path=Path("id"),
+                    field=Path("id"),
                     value=5,
                 ),
             ]
@@ -319,7 +322,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.GREATER_THAN_OR_EQUAL,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
             ]
@@ -329,8 +332,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' >= to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) >= "to_jsonb"(%s)',
+            ["value_1", 5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -342,7 +345,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.LESS_THAN,
-                    path=Path("id"),
+                    field=Path("id"),
                     value=5,
                 ),
             ]
@@ -364,7 +367,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.LESS_THAN,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
             ]
@@ -374,8 +377,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' < to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) < "to_jsonb"(%s)',
+            ["value_1", 5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -387,7 +390,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.LESS_THAN_OR_EQUAL,
-                    path=Path("id"),
+                    field=Path("id"),
                     value=5,
                 ),
             ]
@@ -409,7 +412,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.LESS_THAN_OR_EQUAL,
-                    path=Path("state", "value_1"),
+                    field=Path("state", "value_1"),
                     value=5,
                 ),
             ]
@@ -419,15 +422,15 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            "WHERE \"state\"#>'{value_1}' <= to_jsonb(%s)",
-            [5],
+            'WHERE "jsonb_extract_path"("state", %s) <= "to_jsonb"(%s)',
+            ["value_1", 5],
         )
 
     def test_converts_single_sort_query_on_top_level_attribute(self):
         converter = query_converter_with_default_converters()
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("id"), order=SortOrder.ASC)]
+                fields=[SortField(field=Path("id"), order=SortOrder.ASC)]
             )
         )
 
@@ -445,8 +448,8 @@ class TestPostgresQueryConverterQueryConversion:
         query = Search(
             sort=SortClause(
                 fields=[
-                    SortField(path=Path("name"), order=SortOrder.ASC),
-                    SortField(path=Path("id"), order=SortOrder.DESC),
+                    SortField(field=Path("name"), order=SortOrder.ASC),
+                    SortField(field=Path("id"), order=SortOrder.DESC),
                 ]
             )
         )
@@ -466,7 +469,7 @@ class TestPostgresQueryConverterQueryConversion:
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.ASC
+                        field=Path("state", "value_1"), order=SortOrder.ASC
                     )
                 ]
             )
@@ -475,8 +478,9 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ORDER BY "state"#>\'{value_1}\' ASC',
-            [],
+            'SELECT * FROM "projections" '
+            'ORDER BY "jsonb_extract_path"("state", %s) ASC',
+            ["value_1"],
         )
 
     def test_converts_multiple_field_sort_query_on_nested_attributes(
@@ -487,10 +491,10 @@ class TestPostgresQueryConverterQueryConversion:
             sort=SortClause(
                 fields=[
                     SortField(
-                        path=Path("state", "value_1"), order=SortOrder.DESC
+                        field=Path("state", "value_1"), order=SortOrder.DESC
                     ),
                     SortField(
-                        path=Path("state", "value_2"), order=SortOrder.ASC
+                        field=Path("state", "value_2"), order=SortOrder.ASC
                     ),
                 ]
             )
@@ -500,9 +504,39 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" ORDER BY '
-            "\"state\"#>'{value_1}' DESC, "
-            "\"state\"#>'{value_2}' ASC",
-            [],
+            '"jsonb_extract_path"("state", %s) DESC, '
+            '"jsonb_extract_path"("state", %s) ASC',
+            ["value_1", "value_2"],
+        )
+
+    def test_converts_single_sort_query_where_field_is_function(self):
+        converter = query_converter_with_default_converters()
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Similarity(
+                            left=Path("state", "value"),
+                            right="xyz",
+                            alias="value_score",
+                        ),
+                        order=SortOrder.DESC,
+                    )
+                ]
+            )
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            "SELECT "
+            "*, "
+            '"similarity"('
+            'CAST("jsonb_extract_path"("state", %s) AS "text"), %s'
+            ') AS "value_score" '
+            'FROM "projections" '
+            'ORDER BY "value_score" DESC',
+            ["value", "xyz"],
         )
 
     def test_converts_offset_paging_query_for_first_page(self):
@@ -536,7 +570,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" ORDER BY "id" ASC LIMIT %s',
+            'SELECT * FROM "projections" ORDER BY "id" LIMIT %s',
             [10],
         )
 
@@ -587,7 +621,7 @@ class TestPostgresQueryConverterQueryConversion:
             'WHERE "id" < %s '
             'ORDER BY "id" DESC LIMIT %s'
             ') AS "page" '
-            'ORDER BY "id" ASC LIMIT %s',
+            'ORDER BY "id" LIMIT %s',
             [last_id, 10, 10],
         )
 
@@ -596,7 +630,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.ASC)]
             ),
             paging=KeySetPagingClause(item_count=10),
         )
@@ -615,7 +649,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.DESC)]
             ),
             paging=KeySetPagingClause(item_count=10),
         )
@@ -638,7 +672,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.ASC)]
             ),
             paging=KeySetPagingClause(
                 last_id=last_id,
@@ -668,7 +702,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.DESC)]
             ),
             paging=KeySetPagingClause(
                 last_id=last_id,
@@ -698,7 +732,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.ASC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.ASC)]
             ),
             paging=KeySetPagingClause(
                 last_id=last_id,
@@ -731,7 +765,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         query = Search(
             sort=SortClause(
-                fields=[SortField(path=Path("name"), order=SortOrder.DESC)]
+                fields=[SortField(field=Path("name"), order=SortOrder.DESC)]
             ),
             paging=KeySetPagingClause(
                 last_id=last_id,
@@ -763,8 +797,8 @@ class TestPostgresQueryConverterQueryConversion:
         query = Search(
             sort=SortClause(
                 fields=[
-                    SortField(path=Path("name"), order=SortOrder.DESC),
-                    SortField(path=Path("version"), order=SortOrder.ASC),
+                    SortField(field=Path("name"), order=SortOrder.DESC),
+                    SortField(field=Path("version"), order=SortOrder.ASC),
                 ]
             ),
             paging=KeySetPagingClause(item_count=10),
@@ -789,8 +823,8 @@ class TestPostgresQueryConverterQueryConversion:
         query = Search(
             sort=SortClause(
                 fields=[
-                    SortField(path=Path("name"), order=SortOrder.DESC),
-                    SortField(path=Path("version"), order=SortOrder.ASC),
+                    SortField(field=Path("name"), order=SortOrder.DESC),
+                    SortField(field=Path("version"), order=SortOrder.ASC),
                 ]
             ),
             paging=KeySetPagingClause(
@@ -839,8 +873,8 @@ class TestPostgresQueryConverterQueryConversion:
         query = Search(
             sort=SortClause(
                 fields=[
-                    SortField(path=Path("name"), order=SortOrder.DESC),
-                    SortField(path=Path("version"), order=SortOrder.ASC),
+                    SortField(field=Path("name"), order=SortOrder.DESC),
+                    SortField(field=Path("version"), order=SortOrder.ASC),
                 ]
             ),
             paging=KeySetPagingClause(
@@ -889,7 +923,7 @@ class TestPostgresQueryConverterQueryConversion:
             filters=[
                 FilterClause(
                     operator=Operator.CONTAINS,
-                    path=Path("state", "arr"),
+                    field=Path("state", "arr"),
                     value=value,
                 )
             ]
@@ -898,6 +932,9 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" WHERE "state"#>\'{arr}\' @> to_jsonb(CAST(%s AS TEXT))',
-            [value],
+            'SELECT * FROM "projections" '
+            "WHERE "
+            '"jsonb_extract_path"("state", %s) @> '
+            '"to_jsonb"(CAST(%s AS "text"))',
+            ["arr", value],
         )

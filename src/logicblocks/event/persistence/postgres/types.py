@@ -11,7 +11,7 @@ type ConnectionSource = (
     ConnectionSettings | AsyncConnectionPool[AsyncConnection]
 )
 
-type SqlFragment = sql.SQL | sql.Composed | None
+type SqlFragment = sql.Composable | None
 
 type ParameterisedQuery = tuple[abc.Query, Sequence[Any]]
 type ParameterisedQueryFragment = tuple[SqlFragment, Sequence[Any]]

@@ -1,60 +1,185 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
+from typing import Any, Self, TypedDict, Unpack, cast
 
 from psycopg import sql
 
 from ...types import Applier
-from .types import ParameterisedQuery, ParameterisedQueryFragment, SqlFragment
+from .types import ParameterisedQuery, ParameterisedQueryFragment
+
+
+class Node(ABC):
+    @abstractmethod
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        raise NotImplementedError
+
+
+class Expression(Node, ABC): ...
+
+
+@dataclass(frozen=True, kw_only=True)
+class FunctionApplication(Expression):
+    function_name: str
+    arguments: Sequence[Expression] = ()
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        argument_query_fragments = [
+            argument.to_fragment() for argument in self.arguments
+        ]
+        argument_sql_fragments = [
+            argument_fragment[0]
+            for argument_fragment in argument_query_fragments
+            if argument_fragment[0] is not None
+        ]
+        argument_params = [
+            argument_param
+            for argument_query_fragment in argument_query_fragments
+            for argument_param in argument_query_fragment[1]
+        ]
+        sql_fragment = (
+            sql.SQL("{function_name}(").format(
+                function_name=sql.Identifier(self.function_name)
+            )
+            + sql.SQL(", ").join(argument_sql_fragments)
+            + sql.SQL(")")
+        )
+        return sql_fragment, argument_params
+
+
+@dataclass(frozen=True, kw_only=True)
+class Cast(Expression):
+    expression: Expression
+    typename: str
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        expression_fragment = self.expression.to_fragment()
+        if expression_fragment[0] is None:
+            return expression_fragment
+
+        sql_fragment = (
+            sql.SQL("CAST(")
+            + expression_fragment[0]
+            + sql.SQL(" AS {typename})").format(
+                typename=sql.Identifier(self.typename)
+            )
+        )
+        params = expression_fragment[1]
+
+        return sql_fragment, params
+
+
+@dataclass(frozen=True, kw_only=True)
+class ColumnReference(Expression):
+    schema: str | None = None
+    table: str | None = None
+    field: str
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        match (self.schema, self.table):
+            case (str(), None):
+                raise ValueError(
+                    "Cannot resolve column reference with schema but no table."
+                )
+            case (str(schema), str(table)):
+                return (
+                    sql.SQL("{schema}.{table}.{name}").format(
+                        schema=sql.Identifier(schema),
+                        table=sql.Identifier(table),
+                        name=sql.Identifier(self.field),
+                    )
+                ), []
+            case (None, str(table)):
+                return (
+                    sql.SQL("{table}.{name}").format(
+                        table=sql.Identifier(table),
+                        name=sql.Identifier(self.field),
+                    )
+                ), []
+            case (None, None):
+                return (
+                    sql.SQL("{name}").format(name=sql.Identifier(self.field))
+                ), []
 
 
 @dataclass(frozen=True)
-class Column:
-    table: str | None
-    field: str
-    path: Sequence[str | int]
+class Star(Expression):
+    schema: str | None = None
+    table: str | None = None
 
-    def __init__(
-        self,
-        *,
-        table: str | None = None,
-        field: str,
-        path: Sequence[str | int] | None = None,
-    ):
-        object.__setattr__(self, "table", table)
-        object.__setattr__(self, "field", field)
-        object.__setattr__(self, "path", path if path is not None else [])
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        match (self.schema, self.table):
+            case (str(), None):
+                raise ValueError(
+                    "Cannot resolve column reference with schema but no table."
+                )
+            case (str(schema), str(table)):
+                return (
+                    sql.SQL("{schema}.{table}.{name}").format(
+                        schema=sql.Identifier(schema),
+                        table=sql.Identifier(table),
+                        name=sql.SQL("*"),
+                    )
+                ), []
+            case (None, str(table)):
+                return (
+                    sql.SQL("{table}.{name}").format(
+                        table=sql.Identifier(table),
+                        name=sql.SQL("*"),
+                    )
+                ), []
+            case (None, None):
+                return (sql.SQL("{name}").format(name=sql.SQL("*"))), []
 
-    def __repr__(self):
-        return f"Column(field={self.field},path={self.path})"
 
-    def __hash__(self):
-        return hash(self.__repr__())
+@dataclass(frozen=True)
+class ResultTarget(Node):
+    expression: Expression
+    label: str | None = None
 
-    @property
-    def name(self) -> SqlFragment:
-        if self.field == "*":
-            return sql.SQL("*")
-        if self.table is None:
-            return sql.SQL("{name}").format(name=sql.Identifier(self.field))
-        else:
-            return (
-                sql.Identifier(self.table)
-                + sql.SQL(".")
-                + sql.Identifier(self.field)
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        expression_fragment = self.expression.to_fragment()
+
+        sql_fragment = expression_fragment[0]
+        params = expression_fragment[1]
+
+        if self.label is not None and sql_fragment is not None:
+            sql_fragment = sql_fragment + sql.SQL(" AS {label}").format(
+                label=sql.Identifier(self.label)
             )
 
-    def is_path(self):
-        return len(self.path) > 0
-
-    def to_path_expression(self) -> str:
-        path_list = ",".join([str(path_part) for path_part in self.path])
-        return "{" + path_list + "}"
+        return sql_fragment, params
 
 
-type OrderByColumn = str | Column
+@dataclass(frozen=True)
+class Constant(Expression):
+    value: Any
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        operand_sql = sql.SQL("%s")
+        params = [self.value]
+
+        return operand_sql, params
+
+
+type OrderByColumn = str | ColumnReference
+
+
+class Operator(StrEnum):
+    EQUALS = "="
+    NOT_EQUALS = "!="
+    GREATER_THAN = ">"
+    GREATER_THAN_OR_EQUAL = ">="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL = "<="
+    IN = "IN"
+    CONTAINS = "@>"
+
+
+class SetQuantifier(StrEnum):
+    ALL = "ALL"
+    DISTINCT = "DISTINCT"
 
 
 class SortDirection(StrEnum):
@@ -69,64 +194,40 @@ class SortDirection(StrEnum):
         )
 
 
-class Operator(StrEnum):
-    EQUALS = "="
-    NOT_EQUALS = "!="
-    GREATER_THAN = ">"
-    GREATER_THAN_OR_EQUAL = ">="
-    LESS_THAN = "<"
-    LESS_THAN_OR_EQUAL = "<="
-    IN = "IN"
-    CONTAINS = "@>"
-
-
-class SetOperationMode(StrEnum):
-    ALL = "ALL"
-    DISTINCT = "DISTINCT"
-
-
 @dataclass(frozen=True)
-class SortColumn:
-    expression: Column
-    direction: SortDirection
+class SortBy(Node):
+    expression: Expression
+    direction: SortDirection | None = None
 
     def is_ascending(self):
-        return self.direction == SortDirection.ASC
+        return self.direction == SortDirection.ASC or self.direction is None
 
     def is_descending(self):
         return self.direction == SortDirection.DESC
 
+    def reverse(self):
+        return self.__class__(
+            expression=self.expression,
+            direction=self.direction.reverse() if self.direction else None,
+        )
 
-@dataclass(frozen=True)
-class Value:
-    value: Any
-    wrapper: LiteralString | None = None
-    cast_to_type: LiteralString | None = None
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        expression_fragment = self.expression.to_fragment()
 
-    def build_fragment(self) -> ParameterisedQueryFragment:
-        operand_sql = sql.SQL("%s")
-        if self.cast_to_type is not None:
-            operand_sql = (
-                sql.SQL("CAST(")
-                + operand_sql
-                + sql.SQL(" AS {type})").format(
-                    type=sql.SQL(self.cast_to_type)
-                )
-            )
-        if self.wrapper is not None:
-            operand_sql = (
-                sql.SQL("{wrapper}(").format(wrapper=sql.SQL(self.wrapper))
-                + operand_sql
-                + sql.SQL(")")
-            )
-        params = [self.value]
+        sql_fragment = expression_fragment[0]
+        params = expression_fragment[1]
 
-        return operand_sql, params
+        if sql_fragment is None or self.direction is None:
+            return expression_fragment
+
+        sql_fragment = sql_fragment + sql.SQL(" {direction}").format(
+            direction=sql.SQL(self.direction.value)
+        )
+
+        return sql_fragment, params
 
 
-type ConditionOperand = (
-    Column | Value | Iterable[Column] | Iterable[Value] | "Query"
-)
+type ConditionOperand = Expression | Iterable[Expression] | "Query"
 
 
 class ConditionParams(TypedDict, total=False):
@@ -136,7 +237,7 @@ class ConditionParams(TypedDict, total=False):
 
 
 @dataclass(frozen=True)
-class Condition:
+class Condition(Expression):
     _left: ConditionOperand | None
     _right: ConditionOperand | None
     _operator: Operator | None
@@ -190,7 +291,7 @@ class Condition:
         operand: ConditionOperand,
     ) -> ParameterisedQueryFragment:
         if isinstance(operand, Query):
-            subquery, params = operand.build_fragment()
+            subquery, params = operand.to_fragment()
             if subquery is None:
                 return None, []
 
@@ -198,21 +299,9 @@ class Condition:
 
             return operand_sql, params
 
-        elif isinstance(operand, Column):
-            params: Sequence[Any] = []
-            operand_sql = sql.SQL("{name}").format(name=operand.name)
-            if operand.is_path():
-                operand_sql += sql.SQL("#>{path_expression}").format(
-                    path_expression=operand.to_path_expression()
-                )
-
-            return operand_sql, params
-
-        elif isinstance(operand, Value):
-            return operand.build_fragment()
-
-        else:
+        if isinstance(operand, Iterable):
             operand = cast(Iterable[Any], operand)
+
             fragments = [
                 Condition._operand_fragment(operand_part)
                 for operand_part in operand
@@ -229,6 +318,8 @@ class Condition:
 
             return operand_sql, params
 
+        return operand.to_fragment()
+
     def _left_fragment(self) -> ParameterisedQueryFragment:
         if self._left is None:
             return None, []
@@ -241,7 +332,7 @@ class Condition:
 
         return self._operand_fragment(self._right)
 
-    def build_fragment(self) -> ParameterisedQueryFragment:
+    def to_fragment(self) -> ParameterisedQueryFragment:
         if self._left is None or self._operator is None or self._right is None:
             raise ValueError("Condition not fully specified.")
 
@@ -263,37 +354,31 @@ class Condition:
         return clause, params
 
 
-def to_postgres_column_definition(
-    column: OrderByColumn,
-) -> Column:
+def to_result_target_or_star(
+    column: str | Expression | ResultTarget,
+) -> ResultTarget | Star:
     if isinstance(column, str):
-        return Column(field=column)
-    return column
-
-
-def to_postgres_sort_column(
-    column: OrderByColumn | tuple[OrderByColumn, SortDirection],
-) -> SortColumn:
-    if isinstance(column, tuple):
-        return SortColumn(
-            expression=to_postgres_column_definition(column[0]),
-            direction=column[1],
-        )
+        return ResultTarget(expression=ColumnReference(field=column))
+    elif isinstance(column, Expression):
+        return ResultTarget(expression=column)
     else:
-        return SortColumn(
-            expression=to_postgres_column_definition(column),
-            direction=SortDirection.ASC,
-        )
+        return column
+
+
+def to_sortby(sortby: str | SortBy) -> SortBy:
+    if isinstance(sortby, str):
+        return SortBy(expression=ColumnReference(field=sortby))
+    return sortby
 
 
 class QueryParams(TypedDict, total=False):
     common_table_expressions: Sequence[tuple["Query", str]]
-    unions: tuple[Sequence["Query"], SetOperationMode] | None
-    select_list: Sequence[Column]
+    unions: tuple[Sequence["Query"], SetQuantifier] | None
+    select_target_list: Sequence[ResultTarget | Star]
     from_tables: Sequence[str]
     from_subqueries: Sequence[tuple["Query", str]]
     where_conditions: Sequence[Condition]
-    sort_columns: Sequence[SortColumn]
+    sortby_list: Sequence[SortBy]
     limit_value: int | None
     offset_value: int | None
 
@@ -301,12 +386,12 @@ class QueryParams(TypedDict, total=False):
 @dataclass(frozen=True)
 class Query:
     common_table_expressions: Sequence[tuple[Self, str]]
-    unions: tuple[Sequence[Self], SetOperationMode] | None
-    select_list: Sequence[Column]
+    unions: tuple[Sequence[Self], SetQuantifier] | None
+    select_target_list: Sequence[ResultTarget | Star]
     from_tables: Sequence[str]
     from_subqueries: Sequence[tuple[Self, str]]
     where_conditions: Sequence[Condition]
-    sort_columns: Sequence[SortColumn]
+    sortby_list: Sequence[SortBy]
     limit_value: int | None
     offset_value: int | None
 
@@ -315,7 +400,7 @@ class Query:
         query1: "Query",
         query2: "Query",
         *more_queries: "Query",
-        mode: SetOperationMode = SetOperationMode.DISTINCT,
+        mode: SetQuantifier = SetQuantifier.DISTINCT,
     ) -> "Query":
         return Query(unions=([query1, query2, *more_queries], mode))
 
@@ -323,12 +408,12 @@ class Query:
         self,
         *,
         common_table_expressions: Sequence[tuple[Self, str]] | None = None,
-        unions: tuple[Sequence[Self], SetOperationMode] | None = None,
-        select_list: Sequence[Column] | None = None,
+        unions: tuple[Sequence[Self], SetQuantifier] | None = None,
+        select_target_list: Sequence[ResultTarget | Star] | None = None,
         from_tables: Sequence[str] | None = None,
         from_subqueries: Sequence[tuple[Self, str]] | None = None,
         where_conditions: Sequence[Condition] | None = None,
-        sort_columns: Sequence[SortColumn] | None = None,
+        sortby_list: Sequence[SortBy] | None = None,
         limit_value: int | None = None,
         offset_value: int | None = None,
     ):
@@ -346,8 +431,8 @@ class Query:
         )
         object.__setattr__(
             self,
-            "select_list",
-            list(select_list) if select_list is not None else [],
+            "select_target_list",
+            list(select_target_list) if select_target_list is not None else [],
         )
         object.__setattr__(
             self,
@@ -366,8 +451,8 @@ class Query:
         )
         object.__setattr__(
             self,
-            "sort_columns",
-            list(sort_columns) if sort_columns is not None else [],
+            "sortby_list",
+            list(sortby_list) if sortby_list is not None else [],
         )
         object.__setattr__(self, "limit_value", limit_value)
         object.__setattr__(self, "offset_value", offset_value)
@@ -378,7 +463,9 @@ class Query:
                 "common_table_expressions", self.common_table_expressions
             ),
             unions=kwargs.get("unions", self.unions),
-            select_list=kwargs.get("select_list", self.select_list),
+            select_target_list=kwargs.get(
+                "select_target_list", self.select_target_list
+            ),
             from_tables=kwargs.get("from_tables", self.from_tables),
             from_subqueries=kwargs.get(
                 "from_subqueries", self.from_subqueries
@@ -386,7 +473,7 @@ class Query:
             where_conditions=kwargs.get(
                 "where_conditions", self.where_conditions
             ),
-            sort_columns=kwargs.get("sort_columns", self.sort_columns),
+            sortby_list=kwargs.get("sortby_list", self.sortby_list),
             limit_value=kwargs.get("limit_value", self.limit_value),
             offset_value=kwargs.get("offset_value", self.offset_value),
         )
@@ -399,15 +486,18 @@ class Query:
             ]
         )
 
-    def select(self, *columns: str | Column) -> Self:
+    def select(self, *target_list: str | Expression | ResultTarget) -> Self:
         converted = [
-            Column(field=column) if isinstance(column, str) else column
-            for column in columns
+            to_result_target_or_star(column) for column in target_list
         ]
-        return self.clone(select_list=[*self.select_list, *converted])
+        return self.clone(
+            select_target_list=[*self.select_target_list, *converted]
+        )
 
     def select_all(self) -> Self:
-        return self.clone(select_list=[*self.select_list, Column(field="*")])
+        return self.clone(
+            select_target_list=[*self.select_target_list, Star()]
+        )
 
     def from_table(self, table: str) -> Self:
         return self.clone(from_tables=[*self.from_tables, table])
@@ -422,23 +512,16 @@ class Query:
             where_conditions=[*self.where_conditions, *conditions]
         )
 
-    def replace_order_by(
-        self, *columns: OrderByColumn | tuple[OrderByColumn, SortDirection]
-    ) -> Self:
+    def replace_order_by(self, *sortby_list: str | SortBy) -> Self:
         return self.clone(
-            sort_columns=[
-                *[to_postgres_sort_column(column) for column in columns],
-            ]
+            sortby_list=[to_sortby(sortby) for sortby in sortby_list]
         )
 
-    def order_by(
-        self,
-        *columns: OrderByColumn | tuple[OrderByColumn, SortDirection],
-    ) -> Self:
+    def order_by(self, *sortby_list: str | SortBy) -> Self:
         return self.clone(
-            sort_columns=[
-                *self.sort_columns,
-                *[to_postgres_sort_column(column) for column in columns],
+            sortby_list=[
+                *self.sortby_list,
+                *[to_sortby(sortby) for sortby in sortby_list],
             ]
         )
 
@@ -455,7 +538,7 @@ class Query:
             return None, []
 
         fragments = [
-            (query.build_fragment(), name)
+            (query.to_fragment(), name)
             for query, name in self.common_table_expressions
         ]
         expressions = [
@@ -478,7 +561,7 @@ class Query:
             return None, []
 
         queries, mode = self.unions
-        fragments = [query.build_fragment() for query in queries]
+        fragments = [query.to_fragment() for query in queries]
         clauses = [
             sql.SQL("(") + fragment[0] + sql.SQL(")")
             for fragment in fragments
@@ -486,7 +569,7 @@ class Query:
         ]
         union_part = (
             sql.SQL(" UNION DISTINCT ")
-            if mode == SetOperationMode.DISTINCT
+            if mode == SetQuantifier.DISTINCT
             else sql.SQL(" UNION ALL ")
         )
         clause = union_part.join(clauses)
@@ -495,18 +578,26 @@ class Query:
         return clause, params
 
     def _select_fragment(self) -> ParameterisedQueryFragment:
-        if len(self.select_list) == 0:
+        if len(self.select_target_list) == 0:
             return None, []
-        elif self.select_list == ["*"]:
-            return sql.SQL("SELECT *"), []
         else:
+            target_element_fragments = [
+                target_element.to_fragment()
+                for target_element in self.select_target_list
+            ]
+            target_element_sql_composables = [
+                target_element_fragment[0]
+                for target_element_fragment in target_element_fragments
+                if target_element_fragment[0] is not None
+            ]
+            target_element_params = [
+                target_element_param
+                for target_element_fragment in target_element_fragments
+                for target_element_param in target_element_fragment[1]
+            ]
             return sql.SQL("SELECT ") + sql.SQL(", ").join(
-                [
-                    column.name
-                    for column in self.select_list
-                    if column.name is not None
-                ]
-            ), []
+                target_element_sql_composables
+            ), target_element_params
 
     def _from_fragment(self) -> ParameterisedQueryFragment:
         if len(self.from_tables) == 0 and len(self.from_subqueries) == 0:
@@ -516,7 +607,7 @@ class Query:
             sql.Identifier(table) for table in self.from_tables
         ]
         fragments = [
-            (query.build_fragment(), alias)
+            (query.to_fragment(), alias)
             for query, alias in self.from_subqueries
         ]
         subquery_from_parts = [
@@ -540,7 +631,7 @@ class Query:
             return None, []
 
         fragments = [
-            condition.build_fragment() for condition in self.where_conditions
+            condition.to_fragment() for condition in self.where_conditions
         ]
         clauses = [
             fragment[0] for fragment in fragments if fragment[0] is not None
@@ -552,33 +643,28 @@ class Query:
         return clause, params
 
     def _order_by_fragment(self) -> ParameterisedQueryFragment:
-        if len(self.sort_columns) == 0:
+        if len(self.sortby_list) == 0:
             return None, []
 
-        def sort_column_expression_to_sql(
-            sort_column: SortColumn,
-        ) -> sql.Composed:
-            if sort_column.expression.is_path():
-                return sql.SQL("{column}#>{path_expression}").format(
-                    column=sort_column.expression.name,
-                    path_expression=sort_column.expression.to_path_expression(),
-                )
-            else:
-                return sql.SQL("{column}").format(
-                    column=sort_column.expression.name
-                )
-
-        sort_columns = [
-            sort_column_expression_to_sql(sort_column)
-            + sql.SQL(" ")
-            + sql.SQL(sort_column.direction.value)
-            for sort_column in self.sort_columns
+        sortby_fragments = [
+            sortby.to_fragment() for sortby in self.sortby_list
+        ]
+        sortby_sql_fragments = [
+            sortby_fragment[0]
+            for sortby_fragment in sortby_fragments
+            if sortby_fragment[0] is not None
+        ]
+        sortby_params = [
+            sortby_param
+            for sortby_fragment in sortby_fragments
+            for sortby_param in sortby_fragment[1]
         ]
 
-        clause = sql.SQL("ORDER BY ") + sql.SQL(", ").join(sort_columns)
-        params: Sequence[Any] = []
+        clause = sql.SQL("ORDER BY ") + sql.SQL(", ").join(
+            sortby_sql_fragments
+        )
 
-        return clause, params
+        return clause, sortby_params
 
     def _limit_fragment(self) -> ParameterisedQueryFragment:
         if self.limit_value is None:
@@ -598,13 +684,13 @@ class Query:
 
         return clause, params
 
-    def build_fragment(self) -> ParameterisedQueryFragment:
+    def to_fragment(self) -> ParameterisedQueryFragment:
         cte_clause, cte_params = self._common_table_expressions_fragment()
         union_clause, union_params = self._union_fragment()
-        select_clause, _ = self._select_fragment()
+        select_clause, select_params = self._select_fragment()
         from_clause, from_params = self._from_fragment()
         where_clause, where_params = self._where_fragment()
-        order_by_clause, _ = self._order_by_fragment()
+        order_by_clause, order_by_params = self._order_by_fragment()
         limit_clause, limit_params = self._limit_fragment()
         offset_clause, offset_params = self._offset_fragment()
 
@@ -626,8 +712,10 @@ class Query:
         params = [
             *cte_params,
             *union_params,
+            *select_params,
             *from_params,
             *where_params,
+            *order_by_params,
             *limit_params,
             *offset_params,
         ]
@@ -635,12 +723,15 @@ class Query:
         return joined, params
 
     def build(self) -> ParameterisedQuery:
-        fragment, params = self.build_fragment()
+        fragment, params = self.to_fragment()
 
-        if fragment is None:
-            raise ValueError("Empty query.")
-
-        return fragment, params
+        match fragment:
+            case sql.SQL() | sql.Composed():
+                return fragment, params
+            case None:
+                raise ValueError("Empty query.")
+            case _:
+                raise ValueError("Invalid query.")
 
 
 class QueryApplier(Applier[Query], ABC):

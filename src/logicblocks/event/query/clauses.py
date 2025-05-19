@@ -31,13 +31,13 @@ class Clause(ABC):
 @dataclass(frozen=True)
 class FilterClause(Clause):
     operator: Operator
-    path: Path
+    field: Path
     value: Any
 
 
 @dataclass(frozen=True)
 class SortField(Clause):
-    path: Path | Function
+    field: Path | Function
     order: SortOrder
 
 

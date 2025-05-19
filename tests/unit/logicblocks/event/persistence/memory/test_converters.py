@@ -1,20 +1,27 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Self
+from typing import Any, Callable, Self, final
 
 import pytest
 
 from logicblocks.event.persistence.memory import (
     ClauseConverter,
     DelegatingQueryConverter,
+    FunctionConverter,
     KeySetPagingClauseConverter,
     QueryConverter,
     ResultSetTransformer,
     SortClauseConverter,
+    TypeRegistryFunctionConverter,
+)
+from logicblocks.event.persistence.memory.converters.types import (
+    Result,
+    ResultSet,
 )
 from logicblocks.event.query import (
     Clause,
     FilterClause,
+    Function,
     KeySetPagingClause,
     Lookup,
     OffsetPagingClause,
@@ -23,6 +30,7 @@ from logicblocks.event.query import (
     Path,
     Query,
     Search,
+    Similarity,
     SortClause,
     SortField,
     SortOrder,
@@ -84,9 +92,11 @@ class TestDelegatingQueryConverterClauseConverterRegistration:
                 self, item: TakeClause
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections[: item.value]
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        result_set.results[: item.value]
+                    )
 
                 return apply_clause
 
@@ -99,11 +109,11 @@ class TestDelegatingQueryConverterClauseConverterRegistration:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        transformed_projections = transformer(
-            [projection_1, projection_2, projection_3]
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
         )
 
-        assert transformed_projections == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
 
     def test_replaces_existing_clause_converter(self):
         converter = DelegatingQueryConverter()
@@ -118,9 +128,11 @@ class TestDelegatingQueryConverterClauseConverterRegistration:
                 self, item: TakeClause
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections[: item.value]
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        result_set.results[: item.value]
+                    )
 
                 return apply_clause
 
@@ -131,9 +143,9 @@ class TestDelegatingQueryConverterClauseConverterRegistration:
                 self, item: TakeClause
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set
 
                 return apply_clause
 
@@ -148,11 +160,11 @@ class TestDelegatingQueryConverterClauseConverterRegistration:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        transformed_projections = transformer(
-            [projection_1, projection_2, projection_3]
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
         )
 
-        assert transformed_projections == [
+        assert result_set.records == [
             projection_1,
             projection_2,
             projection_3,
@@ -183,9 +195,9 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_1 = MappingProjectionBuilder().with_id("123").build()
         projection_2 = MappingProjectionBuilder().with_id("456").build()
 
-        results = transformer([projection_1, projection_2])
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert results == [projection_1]
+        assert result_set.records == [projection_1]
 
     def test_filter_nested_state_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -205,9 +217,9 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2])
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert results == [projection_1]
+        assert result_set.records == [projection_1]
 
     def test_filter_not_equal(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -227,9 +239,9 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2])
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert results == [projection_2]
+        assert result_set.records == [projection_2]
 
     def test_filter_greater_than(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -251,9 +263,9 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2])
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert results == [projection_2]
+        assert result_set.records == [projection_2]
 
     def test_filter_greater_than_or_equal(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -280,9 +292,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_2, projection_3]
+        assert result_set.records == [projection_2, projection_3]
 
     def test_filter_less_than(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -302,9 +316,9 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2])
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert results == [projection_1]
+        assert result_set.records == [projection_1]
 
     def test_filter_less_than_or_equal(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -331,9 +345,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
 
     def test_filter_on_non_existent_top_level_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -346,7 +362,7 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().build()
 
         with pytest.raises(ValueError) as e:
-            transformer([projection_1, projection_2])
+            transformer(ResultSet.of(projection_1, projection_2))
 
         assert str(e.value) == f"Invalid projection path: {['non_existent']}."
 
@@ -369,7 +385,7 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         )
 
         with pytest.raises(ValueError) as e:
-            transformer([projection_1, projection_2])
+            transformer(ResultSet.of(projection_1, projection_2))
 
         assert (
             str(e.value) == f"Invalid projection path: {['state', 'value_3']}."
@@ -379,7 +395,7 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
-            fields=[SortField(path=Path("id"), order=SortOrder.ASC)]
+            fields=[SortField(field=Path("id"), order=SortOrder.ASC)]
         )
 
         transformer = converter.convert_clause(clause)
@@ -388,17 +404,19 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().with_id("123").build()
         projection_3 = MappingProjectionBuilder().with_id("789").build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_2, projection_1, projection_3]
+        assert result_set.records == [projection_2, projection_1, projection_3]
 
     def test_sort_clause_over_multiple_fields_on_top_level_attributes(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
-                SortField(path=Path("name"), order=SortOrder.ASC),
-                SortField(path=Path("id"), order=SortOrder.DESC),
+                SortField(field=Path("name"), order=SortOrder.ASC),
+                SortField(field=Path("id"), order=SortOrder.DESC),
             ]
         )
 
@@ -423,16 +441,18 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_3, projection_2, projection_1]
+        assert result_set.records == [projection_3, projection_2, projection_1]
 
     def test_sort_clause_over_single_field_on_nested_state_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
-                SortField(path=Path("state", "value_1"), order=SortOrder.ASC),
+                SortField(field=Path("state", "value_1"), order=SortOrder.ASC),
             ]
         )
 
@@ -454,17 +474,21 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_3, projection_2]
+        assert result_set.records == [projection_1, projection_3, projection_2]
 
     def test_sort_clause_over_multiple_fields_on_nested_state_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
 
         clause = SortClause(
             fields=[
-                SortField(path=Path("state", "value_1"), order=SortOrder.DESC),
-                SortField(path=Path("state", "value_2"), order=SortOrder.ASC),
+                SortField(
+                    field=Path("state", "value_1"), order=SortOrder.DESC
+                ),
+                SortField(field=Path("state", "value_2"), order=SortOrder.ASC),
             ]
         )
 
@@ -486,9 +510,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_2, projection_3, projection_1]
+        assert result_set.records == [projection_2, projection_3, projection_1]
 
     def test_offset_paging_clause_first_page(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -501,9 +527,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
 
     def test_offset_paging_clause_subsequent_page(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -518,17 +546,17 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_4 = MappingProjectionBuilder().build()
         projection_5 = MappingProjectionBuilder().build()
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
                 projection_4,
                 projection_5,
-            ]
+            )
         )
 
-        assert results == [projection_3, projection_4]
+        assert result_set.records == [projection_3, projection_4]
 
     def test_offset_paging_clause_empty_page(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -541,9 +569,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == []
+        assert result_set.records == []
 
     def test_key_set_paging_clause_first_page(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -556,9 +586,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
 
     def test_key_set_paging_clause_full_page_paging_forwards(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -575,17 +607,17 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
                 projection_4,
                 projection_5,
-            ]
+            )
         )
 
-        assert results == [projection_3, projection_4]
+        assert result_set.records == [projection_3, projection_4]
 
     def test_key_set_paging_clause_partial_page_paging_forwards(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -600,15 +632,15 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
-            ]
+            )
         )
 
-        assert results == [projection_3]
+        assert result_set.records == [projection_3]
 
     def test_key_set_paging_clause_after_id_not_present_paging_forwards(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -623,15 +655,15 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
-            ]
+            )
         )
 
-        assert results == []
+        assert result_set.records == []
 
     def test_key_set_paging_clause_after_id_is_last_item_id_paging_forwards(
         self,
@@ -648,15 +680,15 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
-            ]
+            )
         )
 
-        assert results == []
+        assert result_set.records == []
 
     def test_key_set_paging_clause_full_page_paging_backwards(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -673,17 +705,17 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
                 projection_4,
                 projection_5,
-            ]
+            )
         )
 
-        assert results == [projection_2, projection_3]
+        assert result_set.records == [projection_2, projection_3]
 
     def test_key_set_paging_clause_partial_page_paging_backwards(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -698,9 +730,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1]
+        assert result_set.records == [projection_1]
 
     def test_key_set_paging_clause_before_id_not_present_paging_backwards(
         self,
@@ -717,15 +751,15 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
-            ]
+            )
         )
 
-        assert results == []
+        assert result_set.records == []
 
     def test_key_set_paging_clause_before_id_is_first_item_id_paging_backwards(
         self,
@@ -742,15 +776,15 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         transformer = converter.convert_clause(clause)
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
-            ]
+            )
         )
 
-        assert results == []
+        assert result_set.records == []
 
     def test_filter_on_value_in_list(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -782,9 +816,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
 
     def test_filter_on_list_contains_value(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
@@ -820,9 +856,11 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_3]
+        assert result_set.records == [projection_3]
 
 
 class TestDelegatingQueryConverterQueryConverterRegistration:
@@ -839,9 +877,9 @@ class TestDelegatingQueryConverterQueryConverterRegistration:
                 self, item: CustomQuery
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections[0::2]
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(result_set.results[0::2])
 
                 return apply_clause
 
@@ -855,11 +893,13 @@ class TestDelegatingQueryConverterQueryConverterRegistration:
         projection_3 = MappingProjectionBuilder().build()
         projection_4 = MappingProjectionBuilder().build()
 
-        transformed_projections = transformer(
-            [projection_1, projection_2, projection_3, projection_4]
+        result_set = transformer(
+            ResultSet.of(
+                projection_1, projection_2, projection_3, projection_4
+            )
         )
 
-        assert transformed_projections == [projection_1, projection_3]
+        assert result_set.records == [projection_1, projection_3]
 
 
 class TestDelegatingQueryConverterQueryConversion:
@@ -892,9 +932,11 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
                 self, item: SkipClause
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections[item.number :]
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        result_set.results[item.number :]
+                    )
 
                 return apply_clause
 
@@ -905,9 +947,11 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
                 self, item: TakeClause
             ) -> ResultSetTransformer[Projection[JsonValue]]:
                 def apply_clause(
-                    projections: Sequence[Projection[JsonValue]],
-                ) -> Sequence[Projection[JsonValue]]:
-                    return projections[: item.number]
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        result_set.results[: item.number]
+                    )
 
                 return apply_clause
 
@@ -930,23 +974,26 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
         projection_4 = MappingProjectionBuilder().build()
         projection_5 = MappingProjectionBuilder().build()
 
-        results = transformer(
-            [
+        result_set = transformer(
+            ResultSet.of(
                 projection_1,
                 projection_2,
                 projection_3,
                 projection_4,
                 projection_5,
-            ]
+            )
         )
 
-        assert results == [projection_3]
+        assert result_set.records == [projection_3]
 
     def test_converts_search_with_sort_clause(self):
         converter = (
             DelegatingQueryConverter()
             .with_default_query_converters()
-            .register_clause_converter(SortClause, SortClauseConverter())
+            .register_clause_converter(
+                SortClause,
+                SortClauseConverter(TypeRegistryFunctionConverter()),
+            )
         )
 
         transformer = converter.convert_query(
@@ -954,7 +1001,7 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
                 sort=(
                     SortClause(
                         fields=[
-                            SortField(path=Path("id"), order=SortOrder.ASC)
+                            SortField(field=Path("id"), order=SortOrder.ASC)
                         ]
                     )
                 )
@@ -965,9 +1012,11 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
         projection_2 = MappingProjectionBuilder().with_id("123").build()
         projection_3 = MappingProjectionBuilder().with_id("789").build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_2, projection_1, projection_3]
+        assert result_set.records == [projection_2, projection_1, projection_3]
 
     def test_converts_search_with_paging_clause(self):
         converter = DelegatingQueryConverter().with_default_query_converters()
@@ -983,6 +1032,218 @@ class TestDelegatingQueryConverterDefaultQueryConverters:
         projection_2 = MappingProjectionBuilder().build()
         projection_3 = MappingProjectionBuilder().build()
 
-        results = transformer([projection_1, projection_2, projection_3])
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
 
-        assert results == [projection_1, projection_2]
+        assert result_set.records == [projection_1, projection_2]
+
+
+class TestDelegatingQueryConverterFunctionConverterRegistration:
+    def test_registers_function_converter_and_converts_function(self):
+        converter = DelegatingQueryConverter()
+
+        @final
+        @dataclass(frozen=True)
+        class Sum(Function):
+            left: Path
+            right: Path
+
+        class SumConverter(FunctionConverter[Projection[JsonValue], Sum]):
+            def convert(
+                self, item: Sum
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
+                def apply_function(
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        [
+                            result.add_extra(
+                                item.alias,
+                                result.lookup(item.left)
+                                + result.lookup(item.right),
+                            )
+                            for result in result_set.results
+                        ]
+                    )
+
+                return apply_function
+
+        converter.register_function_converter(Sum, SumConverter())
+
+        function = Sum(
+            left=Path("state", "a"), right=Path("state", "b"), alias="a_b_sum"
+        )
+
+        transformer = converter.convert_function(function)
+
+        projection_1 = (
+            MappingProjectionBuilder().with_state({"a": 1, "b": 2}).build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder().with_state({"a": 3, "b": 4}).build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder().with_state({"a": 5, "b": 6}).build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
+
+        assert result_set.results == [
+            Result.of(projection_1, {"a_b_sum": 3}),
+            Result.of(projection_2, {"a_b_sum": 7}),
+            Result.of(projection_3, {"a_b_sum": 11}),
+        ]
+
+    def test_replaces_existing_clause_converter(self):
+        converter = DelegatingQueryConverter()
+
+        @final
+        @dataclass(frozen=True)
+        class MysteriousAction(Function):
+            left: Path
+            right: Path
+
+        class MysteriousActionConverter1(
+            FunctionConverter[Projection[JsonValue], MysteriousAction]
+        ):
+            def convert(
+                self, item: MysteriousAction
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
+                def apply_function(
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        [
+                            result.add_extra(
+                                item.alias,
+                                result.lookup(item.left)
+                                + result.lookup(item.right),
+                            )
+                            for result in result_set.results
+                        ]
+                    )
+
+                return apply_function
+
+        class MysteriousActionConverter2(
+            FunctionConverter[Projection[JsonValue], MysteriousAction]
+        ):
+            def convert(
+                self, item: MysteriousAction
+            ) -> ResultSetTransformer[Projection[JsonValue]]:
+                def apply_function(
+                    result_set: ResultSet[Projection[JsonValue]],
+                ) -> ResultSet[Projection[JsonValue]]:
+                    return result_set.with_results(
+                        [
+                            result.add_extra(
+                                item.alias,
+                                result.lookup(item.left)
+                                * result.lookup(item.right),
+                            )
+                            for result in result_set.results
+                        ]
+                    )
+
+                return apply_function
+
+        converter = converter.register_function_converter(
+            MysteriousAction, MysteriousActionConverter1()
+        ).register_function_converter(
+            MysteriousAction, MysteriousActionConverter2()
+        )
+
+        function = MysteriousAction(
+            left=Path("state", "a"), right=Path("state", "b"), alias="a_b"
+        )
+        transformer = converter.convert_function(function)
+
+        projection_1 = (
+            MappingProjectionBuilder().with_state({"a": 1, "b": 2}).build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder().with_state({"a": 3, "b": 4}).build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder().with_state({"a": 5, "b": 6}).build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
+
+        assert result_set.results == [
+            Result.of(projection_1, {"a_b": 2}),
+            Result.of(projection_2, {"a_b": 12}),
+            Result.of(projection_3, {"a_b": 30}),
+        ]
+
+
+class TestDelegatingQueryConverterFunctionConversion:
+    def test_raises_for_unregistered_function_type(self):
+        converter = DelegatingQueryConverter()
+
+        @dataclass(frozen=True)
+        class Constantly(Function):
+            value: int
+
+        function = Constantly(value=5, alias="five")
+
+        with pytest.raises(ValueError):
+            converter.convert_function(function)
+
+
+class TestDelegatingQueryConverterDefaultFunctionConverters:
+    def test_similarity(self):
+        converter = (
+            DelegatingQueryConverter().with_default_function_converters()
+        )
+
+        function = Similarity(
+            left=Path("state", "value"), right="xyz", alias="similarity"
+        )
+
+        transformer = converter.convert_function(function)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value": "abcd efgh"})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value": "axyz bcdefghijklm"})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value": "xyzabxyz"})
+            .build()
+        )
+        projection_4 = (
+            MappingProjectionBuilder().with_state({"value": "abx"}).build()
+        )
+        projection_5 = (
+            MappingProjectionBuilder().with_state({"value": "xyz"}).build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+            )
+        )
+
+        assert result_set.results == [
+            Result.of(projection_1, {"similarity": 0}),
+            Result.of(projection_2, {"similarity": 0.1}),
+            Result.of(projection_3, {"similarity": 0.5}),
+            Result.of(projection_4, {"similarity": 0}),
+            Result.of(projection_5, {"similarity": 1}),
+        ]

@@ -91,9 +91,9 @@ class PostgresProjectionStorageAdapter[
             query_converter
             if query_converter is not None
             else (
-                postgres.QueryConverter(table_settings=table_settings)
-                .with_default_clause_converters()
-                .with_default_query_converters()
+                postgres.QueryConverter(
+                    table_settings=table_settings
+                ).with_default_converters()
             )
         )
 

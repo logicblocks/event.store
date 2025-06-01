@@ -6,7 +6,7 @@ logicblocks.event.store
 ![Documentation Status](https://readthedocs.org/projects/eventstore/badge/?version=latest)
 ![CircleCI](https://img.shields.io/circleci/build/github/logicblocks/event.store)
 
-Eventing infrastructure for event sourced architectures.
+Eventing infrastructure for event-sourced architectures.
 
 Table of Contents
 -----------------
@@ -23,7 +23,7 @@ Installation
 ------------
 
 ```shell
-pip install logicblocks.event.store
+pip install logicblocks-event-store
 ```
 
 Usage
@@ -32,8 +32,6 @@ Usage
 ### Basic Example
 
 ```python
-from collections.abc import Dict
-
 from logicblocks.event.store import EventStore, adapters
 from logicblocks.event.types import NewEvent, StreamIdentifier
 from logicblocks.event.projection import Projector
@@ -64,14 +62,12 @@ stream.publish(
 )
 
 class ProfileProjector(
-    Projector[Dict[str, str], 
-    StreamIdentifier, 
-    Dict[str, str]]
+    Projector[StreamIdentifier, dict[str, str], dict[str, str]]
 ):
-    def initial_state_factory(self) -> Dict[str, str]:
+    def initial_state_factory(self) -> dict[str, str]:
         return {}
 
-    def initial_metadata_factory(self) -> Dict[str, str]:
+    def initial_metadata_factory(self) -> dict[str, str]:
         return {}
 
     def id_factory(self, state, source: StreamIdentifier) -> str:
@@ -106,7 +102,7 @@ Features
   - _Arbitrary payloads and metadata_: events can have arbitrary payloads and
     metadata limited only by what the underlying storage backend can support.
   - _Bi-temporality support_: events included timestamps for both the time the
-    event was created and the time the event was recorded in the log.
+    event occurred and the time the event was recorded in the log.
 - **Event storage**:
   - _Immutable and append only_: the event store is modelled as an append-only
     log of immutable events.
@@ -114,10 +110,10 @@ Features
     handled with optimistic concurrency control.
   - _Write conditions_: an extensible write condition system allows 
     pre-conditions to be evaluated before publish.
-  - _Ordering guarantees_: event writes are serialised (currently at log level)
-    to guarantee consistent ordering at scan time.
-  - _Thread safety_: the event store is thread safe and can be used in 
-    multithreaded applications.
+  - _Ordering guarantees_: event writes are serialised (at log level by default,
+    but customisable) to guarantee consistent ordering at scan time.
+  - _`asyncio` support_: the event store is implemented using `asyncio` and can 
+    be used in cooperative multitasking applications.
 - **Storage adapters**: 
   - _Storage adapter abstraction_: adapters are provided for different storage
     backends, currently including:
@@ -129,9 +125,12 @@ Features
 - **Projections**:
   - _Reduction_: event sequences can be reduced to a single value, a projection,
     using a projector.
-  - _Versioning_: projections are versioned based on some attribute of the last
-    event processed (position, sequence number, etc).
-  - _Storage_: coming soon.
+  - _Metadata_: projections have metadata for keeping track of things like 
+    update timestamps, versions, etc.
+  - _Storage_: a general purpose projection store allows easy management of 
+    projections for the majority of use cases, utilising the same adapter 
+    architecture as the event store, with a rich and customisable query language
+    providing store search.
   - _Snapshotting_: coming soon.
 - **Types**:
   - _Type hints_: includes type hints for all public classes and functions. 
@@ -168,9 +167,12 @@ To run tests:
 ./go library:test:component  # integration tests
 ```
 
-unit|integration|component can be run with a filter option, example:
-`./go library:test:unit[TestAllTestsInFile]` or
-`./go library:test:component[test_a_specific_test]`.
+The unit, integration and component tests can be run with a filter option 
+allowing running a subset of tests in the suite, for example:
+```shell
+./go library:test:unit[TestAllTestsInFile]
+./go library:test:component[test_a_specific_test]
+```
 
 To perform linting:
 
@@ -216,7 +218,7 @@ conduct.
 License
 -------
 
-Copyright &copy; 2024 LogicBlocks Maintainers
+Copyright &copy; 2025 LogicBlocks Maintainers
 
 Distributed under the terms of the
 [MIT License](http://opensource.org/licenses/MIT).

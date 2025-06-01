@@ -1,9 +1,12 @@
-from .base import EventBroker as EventBroker
-from .builder import EventBrokerSettings as EventBrokerSettings
-from .coordinator_observer import (
-    CoordinatorObserverEventBroker as CoordinatorObserverEventBroker,
+from .distributed import (
+    DistributedEventBroker as DistributedEventBroker,
 )
-from .factories import (
-    make_in_memory_event_broker as make_in_memory_event_broker,
+from .distributed import (
+    DistributedEventBrokerSettings as DistributedEventBrokerSettings,
 )
-from .factories import make_postgres_event_broker as make_postgres_event_broker
+from .distributed import (
+    make_in_memory_subscription_event_broker as make_in_memory_subscription_event_broker,
+)
+from .distributed import (
+    make_postgres_subscription_event_broker as make_postgres_subscription_event_broker,
+)

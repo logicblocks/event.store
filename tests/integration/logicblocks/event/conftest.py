@@ -117,9 +117,9 @@ for logger_name in logging.root.manager.loggerDict:
         logger.removeHandler(handler)
 
 for package in [
-    "logicblocks.event.testcases.processing.broker.locks.lock_manager",
-    "logicblocks.event.testcases.processing.broker.subscriber.stores.state",
-    "logicblocks.event.testcases.processing.broker.subscription.stores.state"
+    "logicblocks.event.testcases.processing.locks.lock_manager",
+    "logicblocks.event.testcases.processing.broker.strategies.distributed.subscriber.stores.state",
+    "logicblocks.event.testcases.processing.broker.strategies.distributed.subscription.stores.state"
     "logicblocks.event.testcases.projection.store.adapters",
     "logicblocks.event.testcases.store.adapters",
 ]:

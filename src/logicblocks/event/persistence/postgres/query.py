@@ -175,6 +175,7 @@ class Operator(StrEnum):
     LESS_THAN_OR_EQUAL = "<="
     IN = "IN"
     CONTAINS = "@>"
+    REGEX_MATCHES = "~"
 
 
 class SetQuantifier(StrEnum):
@@ -285,6 +286,9 @@ class Condition(Expression):
 
     def less_than_or_equal_to(self) -> Self:
         return self.operator(Operator.LESS_THAN_OR_EQUAL)
+
+    def regex_matches(self):
+        return self.operator(Operator.REGEX_MATCHES)
 
     @staticmethod
     def _operand_fragment(

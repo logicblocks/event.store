@@ -343,7 +343,7 @@ async def fail_on_event_processing_timeout():
         pytest.fail("Timed out waiting for all events to be processed.")
 
 
-class TestCoordinatorObserverEventBroker:
+class TestDistributedEventBrokerManySubscribersAndNodes:
     @pytest_asyncio.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.connection_pool = open_connection_pool

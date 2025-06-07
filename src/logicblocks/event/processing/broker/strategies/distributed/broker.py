@@ -30,14 +30,16 @@ class DistributedEventBroker(EventBroker):
         await self._event_subscriber_manager.add(subscriber)
 
     async def execute(self) -> None:
-        try:
-            await self._event_subscriber_manager.start()
+        subscriber_manager = self._event_subscriber_manager
+        coordinator = self._event_subscription_coordinator
+        observer = self._event_subscription_observer
 
-            await asyncio.gather(
-                self._event_subscriber_manager.maintain(),
-                self._event_subscription_coordinator.coordinate(),
-                self._event_subscription_observer.observe(),
-                return_exceptions=True,
-            )
+        try:
+            await subscriber_manager.start()
+
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(subscriber_manager.maintain())
+                tg.create_task(coordinator.coordinate())
+                tg.create_task(observer.observe())
         finally:
-            await self._event_subscriber_manager.stop()
+            await subscriber_manager.stop()

@@ -1,7 +1,8 @@
-from .broker import DistributedEventBroker as DistributedEventBroker
+from .broker import DistributedEventBroker
 from .coordinator import LOCK_NAME as COORDINATOR_LOCK_NAME
 from .coordinator import (
-    EventSubscriptionCoordinator as EventSubscriptionCoordinator,
+    DefaultEventSubscriptionCoordinator,
+    EventSubscriptionCoordinator,
 )
 from .difference import (
     EventSubscriptionChange,
@@ -9,53 +10,38 @@ from .difference import (
     EventSubscriptionDifference,
 )
 from .factories import (
-    DistributedEventBrokerSettings as DistributedEventBrokerSettings,
+    DistributedEventBrokerSettings,
+    make_in_memory_subscription_event_broker,
+    make_postgres_subscription_event_broker,
 )
-from .factories import (
-    make_in_memory_subscription_event_broker as make_in_memory_subscription_event_broker,
-)
-from .factories import (
-    make_postgres_subscription_event_broker as make_postgres_subscription_event_broker,
-)
-from .observer import EventSubscriptionObserver as EventSubscriptionObserver
-from .subscribers import EventSubscriberManager as EventSubscriberManager
-from .subscribers import (
-    EventSubscriberState as EventSubscriberState,
-)
-from .subscribers import EventSubscriberStateStore as EventSubscriberStateStore
-from .subscribers import EventSubscriberStore as EventSubscriberStore
-from .subscribers import (
-    InMemoryEventSubscriberStateStore as InMemoryEventSubscriberStateStore,
+from .observer import (
+    DefaultEventSubscriptionObserver,
+    EventSubscriptionObserver,
 )
 from .subscribers import (
-    InMemoryEventSubscriberStore as InMemoryEventSubscriberStore,
-)
-from .subscribers import (
-    PostgresEventSubscriberStateStore as PostgresEventSubscriberStateStore,
-)
-from .subscriptions import EventSubscriptionKey as EventSubscriptionKey
-from .subscriptions import EventSubscriptionState as EventSubscriptionState
-from .subscriptions import (
-    EventSubscriptionStateChange as EventSubscriptionStateChange,
+    DefaultEventSubscriberManager,
+    EventSubscriberState,
+    EventSubscriberStateStore,
+    EventSubscriberStore,
+    InMemoryEventSubscriberStateStore,
+    InMemoryEventSubscriberStore,
+    PostgresEventSubscriberStateStore,
 )
 from .subscriptions import (
-    EventSubscriptionStateChangeType as EventSubscriptionStateChangeType,
-)
-from .subscriptions import (
-    EventSubscriptionStateStore as EventSubscriptionStateStore,
-)
-from .subscriptions import (
-    InMemoryEventSubscriptionStateStore as InMemoryEventSubscriptionStateStore,
-)
-from .subscriptions import (
-    PostgresEventSubscriptionStateStore as PostgresEventSubscriptionStateStore,
+    EventSubscriptionKey,
+    EventSubscriptionState,
+    EventSubscriptionStateChange,
+    EventSubscriptionStateChangeType,
+    EventSubscriptionStateStore,
+    InMemoryEventSubscriptionStateStore,
+    PostgresEventSubscriptionStateStore,
 )
 
 __all__ = [
     "COORDINATOR_LOCK_NAME",
     "DistributedEventBroker",
     "DistributedEventBrokerSettings",
-    "EventSubscriberManager",
+    "DefaultEventSubscriberManager",
     "EventSubscriberState",
     "EventSubscriberStore",
     "EventSubscriberStateStore",
@@ -63,8 +49,10 @@ __all__ = [
     "EventSubscriptionChangeset",
     "EventSubscriptionDifference",
     "EventSubscriptionCoordinator",
+    "DefaultEventSubscriptionCoordinator",
     "EventSubscriptionKey",
     "EventSubscriptionObserver",
+    "DefaultEventSubscriptionObserver",
     "EventSubscriptionState",
     "EventSubscriptionStateChange",
     "EventSubscriptionStateChangeType",

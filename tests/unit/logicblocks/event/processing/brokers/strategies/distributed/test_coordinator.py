@@ -10,9 +10,9 @@ from pytest_unordered import unordered
 from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
 from logicblocks.event.processing.broker.strategies.distributed import (
     COORDINATOR_LOCK_NAME,
+    DefaultEventSubscriptionCoordinator,
     EventSubscriberState,
     EventSubscriberStateStore,
-    EventSubscriptionCoordinator,
     EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStateChange,
@@ -161,7 +161,7 @@ def random_event_source_identifier(
 
 @dataclass(frozen=True)
 class Context:
-    coordinator: EventSubscriptionCoordinator
+    coordinator: DefaultEventSubscriptionCoordinator
     node_id: str
     lock_manager: LockManager
     logger: CapturingLogger
@@ -204,7 +204,7 @@ def make_coordinator(
     if distribution_interval is not None:
         kwargs["distribution_interval"] = distribution_interval
 
-    coordinator = EventSubscriptionCoordinator(**kwargs)
+    coordinator = DefaultEventSubscriptionCoordinator(**kwargs)
 
     return Context(
         coordinator=coordinator,

@@ -9,10 +9,10 @@ from logicblocks.event.processing import (
     ProcessStatus,
 )
 from logicblocks.event.processing.broker.strategies.distributed import (
+    DefaultEventSubscriptionObserver,
     EventSubscriberStore,
     EventSubscriptionDifference,
     EventSubscriptionKey,
-    EventSubscriptionObserver,
     EventSubscriptionState,
     EventSubscriptionStateStore,
     InMemoryEventSubscriberStore,
@@ -115,7 +115,7 @@ class GeneratingEventSubscriptionStateStore(
 
 @dataclass(frozen=True)
 class Context:
-    observer: EventSubscriptionObserver
+    observer: DefaultEventSubscriptionObserver
     node_id: str
     subscriber_store: EventSubscriberStore
     subscription_state_store: EventSubscriptionStateStore
@@ -157,7 +157,7 @@ def make_observer(
     if synchronisation_interval is not None:
         kwargs["synchronisation_interval"] = synchronisation_interval
 
-    observer = EventSubscriptionObserver(**kwargs)
+    observer = DefaultEventSubscriptionObserver(**kwargs)
 
     return Context(
         observer,

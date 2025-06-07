@@ -1,6 +1,7 @@
 import asyncio
 import itertools
 import operator
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any
@@ -97,7 +98,13 @@ def subscription_change_summary(
     }
 
 
-class EventSubscriptionCoordinator(Process):
+class EventSubscriptionCoordinator(Process, ABC):
+    @abstractmethod
+    async def coordinate(self) -> None:
+        raise NotImplementedError
+
+
+class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
     def __init__(
         self,
         node_id: str,
@@ -324,4 +331,4 @@ class EventSubscriptionCoordinator(Process):
         )
 
 
-LOCK_NAME = class_fullname(EventSubscriptionCoordinator)
+LOCK_NAME = class_fullname(DefaultEventSubscriptionCoordinator)

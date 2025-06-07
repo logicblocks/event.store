@@ -8,10 +8,10 @@ from logicblocks.event.sources import EventStoreEventSourceFactory
 from ....locks import LockManager
 from ...base import EventBroker
 from .broker import DistributedEventBroker
-from .coordinator import EventSubscriptionCoordinator
-from .observer import EventSubscriptionObserver
+from .coordinator import DefaultEventSubscriptionCoordinator
+from .observer import DefaultEventSubscriptionObserver
 from .subscribers import (
-    EventSubscriberManager,
+    DefaultEventSubscriberManager,
     EventSubscriberStateStore,
     InMemoryEventSubscriberStore,
 )
@@ -73,7 +73,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
     ) -> EventBroker:
         event_subscriber_store = InMemoryEventSubscriberStore()
 
-        event_subscriber_manager = EventSubscriberManager(
+        event_subscriber_manager = DefaultEventSubscriberManager(
             node_id=self.node_id,
             subscriber_store=event_subscriber_store,
             subscriber_state_store=self.event_subscriber_state_store,
@@ -82,7 +82,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             subscriber_max_age=settings.subscriber_manager_subscriber_max_age,
         )
 
-        event_subscription_coordinator = EventSubscriptionCoordinator(
+        event_subscription_coordinator = DefaultEventSubscriptionCoordinator(
             node_id=self.node_id,
             lock_manager=self.lock_manager,
             subscriber_state_store=self.event_subscriber_state_store,
@@ -91,7 +91,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             distribution_interval=settings.coordinator_distribution_interval,
         )
 
-        event_subscription_observer = EventSubscriptionObserver(
+        event_subscription_observer = DefaultEventSubscriptionObserver(
             node_id=self.node_id,
             subscriber_store=event_subscriber_store,
             subscription_state_store=self.event_subscription_state_store,

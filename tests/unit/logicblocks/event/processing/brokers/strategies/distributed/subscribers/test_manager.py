@@ -7,7 +7,7 @@ from pytest_unordered import unordered
 
 from logicblocks.event.processing import EventSubscriber
 from logicblocks.event.processing.broker.strategies.distributed import (
-    EventSubscriberManager,
+    DefaultEventSubscriberManager,
     InMemoryEventSubscriberStateStore,
     InMemoryEventSubscriberStore,
 )
@@ -87,7 +87,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -125,7 +125,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -167,7 +167,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -208,7 +208,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -301,7 +301,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -344,7 +344,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -388,7 +388,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = InMemoryEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -471,7 +471,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -537,7 +537,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -601,7 +601,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -628,7 +628,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -664,7 +664,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -727,7 +727,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,
@@ -802,7 +802,7 @@ class TestEventSubscriberManager:
         subscriber_store = InMemoryEventSubscriberStore()
         subscriber_state_store = CountingEventSubscriberStateStore(node_id)
 
-        manager = EventSubscriberManager(
+        manager = DefaultEventSubscriberManager(
             node_id=node_id,
             subscriber_store=subscriber_store,
             subscriber_state_store=subscriber_state_store,

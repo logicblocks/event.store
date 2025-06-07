@@ -1,4 +1,5 @@
 import asyncio
+from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Self
@@ -16,7 +17,25 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.subscriber-manager.{event}"
 
 
-class EventSubscriberManager:
+class EventSubscriberManager(ABC):
+    @abstractmethod
+    async def add(self, subscriber: EventSubscriber) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def start(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def maintain(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop(self) -> None:
+        raise NotImplementedError
+
+
+class DefaultEventSubscriberManager(EventSubscriberManager):
     def __init__(
         self,
         node_id: str,
@@ -57,12 +76,9 @@ class EventSubscriberManager:
         await self.register()
 
     async def maintain(self):
-        heartbeat_task = asyncio.create_task(self.heartbeat())
-        purge_task = asyncio.create_task(self.purge())
-
-        await asyncio.gather(
-            heartbeat_task, purge_task, return_exceptions=True
-        )
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(self.heartbeat())
+            tg.create_task(self.purge())
 
     async def stop(self):
         await self.unregister()

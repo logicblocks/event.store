@@ -1,4 +1,5 @@
 import asyncio
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import timedelta
 
@@ -17,7 +18,13 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.observer.{event}"
 
 
-class EventSubscriptionObserver(Process):
+class EventSubscriptionObserver(Process, ABC):
+    @abstractmethod
+    async def observe(self) -> None:
+        raise NotImplementedError
+
+
+class DefaultEventSubscriptionObserver(EventSubscriptionObserver):
     _existing_subscriptions: Sequence[EventSubscriptionState]
 
     def __init__(

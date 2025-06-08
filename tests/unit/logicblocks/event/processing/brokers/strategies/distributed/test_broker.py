@@ -246,7 +246,7 @@ class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
     def status(self) -> ProcessStatus:
         return self._status
 
-    def raise_on_next_tick(self, exception: Exception) -> None:
+    def raise_on_next_tick(self, exception: BaseException) -> None:
         self._exception = exception
 
     async def coordinate(self) -> None:
@@ -261,7 +261,7 @@ class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
             self._cancelled = True
             self._status = ProcessStatus.STOPPED
             raise
-        except Exception:
+        except BaseException:
             self._status = ProcessStatus.ERRORED
             raise
 
@@ -280,7 +280,7 @@ class MockEventSubscriptionObserver(EventSubscriptionObserver):
     def status(self) -> ProcessStatus:
         return self._status
 
-    def raise_on_next_tick(self, exception: Exception) -> None:
+    def raise_on_next_tick(self, exception: BaseException) -> None:
         self._exception = exception
 
     async def observe(self) -> None:
@@ -294,6 +294,9 @@ class MockEventSubscriptionObserver(EventSubscriptionObserver):
             self._cancelled = True
             self._status = ProcessStatus.STOPPED
             raise
+        except BaseException:
+            self._status = ProcessStatus.ERRORED
+            raise
 
 
 class MockEventSubscriberManager(EventSubscriberManager):
@@ -305,7 +308,7 @@ class MockEventSubscriberManager(EventSubscriberManager):
     def cancelled(self) -> bool:
         return self._cancelled
 
-    def raise_on_next_tick(self, exception: Exception) -> None:
+    def raise_on_next_tick(self, exception: BaseException) -> None:
         self._exception = exception
 
     async def add(self, subscriber: EventSubscriber) -> Self:
@@ -377,7 +380,7 @@ class TestDistributedEventBrokerErrorHandling:
                 status_eventually_equal_to(observer, ProcessStatus.RUNNING),
             )
 
-            coordinator.raise_on_next_tick(Exception("Oops!"))
+            coordinator.raise_on_next_tick(BaseException("Oops!"))
 
             await assert_cancelled_eventually(subscriber_manager)
             await assert_cancelled_eventually(observer)
@@ -403,7 +406,7 @@ class TestDistributedEventBrokerErrorHandling:
                 status_eventually_equal_to(observer, ProcessStatus.RUNNING),
             )
 
-            observer.raise_on_next_tick(Exception("Oops!"))
+            observer.raise_on_next_tick(BaseException("Oops!"))
 
             await assert_cancelled_eventually(subscriber_manager)
             await assert_cancelled_eventually(coordinator)
@@ -429,7 +432,7 @@ class TestDistributedEventBrokerErrorHandling:
                 status_eventually_equal_to(observer, ProcessStatus.RUNNING),
             )
 
-            subscriber_manager.raise_on_next_tick(Exception("Oops!"))
+            subscriber_manager.raise_on_next_tick(BaseException("Oops!"))
 
             await assert_cancelled_eventually(observer)
             await assert_cancelled_eventually(coordinator)

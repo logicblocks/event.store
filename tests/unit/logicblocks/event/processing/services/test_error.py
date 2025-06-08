@@ -4,10 +4,10 @@ import pytest
 
 from logicblocks.event.processing import (
     ContinueErrorHandler,
+    ErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
     ErrorHandlingServiceMixin,
-    ErrorHandler,
     ExitErrorHandler,
     RaiseErrorHandler,
     RaiseErrorHandlerDecision,
@@ -128,10 +128,9 @@ class TestRetryErrorHandler:
 
         error_handler = RetryErrorHandler()
 
-        assert (
-            error_handler.handle(exception) ==
-            ErrorHandlerDecision.raise_exception(exception)
-        )
+        assert error_handler.handle(
+            exception
+        ) == ErrorHandlerDecision.raise_exception(exception)
 
 
 class TestTypeMappingErrorHandler:
@@ -367,15 +366,17 @@ class TestTypeMappingErrorHandler:
 
 
 class TestService(ErrorHandlingServiceMixin[int], Service[int]):
+    __test__ = False
+
     def __init__(
-            self,
-            error_handler: ErrorHandler[int],
-            call_callback: Callable[[], None]
+        self,
+        error_handler: ErrorHandler[int],
+        call_callback: Callable[[], None],
     ):
         super().__init__(error_handler=error_handler)
         self._call_callback = call_callback
 
-    async def _do_execute(self) -> None:
+    async def _do_execute(self) -> int:
         self._call_callback()
         raise RuntimeError("Something went wrong.")
 
@@ -383,6 +384,7 @@ class TestService(ErrorHandlingServiceMixin[int], Service[int]):
 class TestErrorHandlingServiceMixin:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0
+
         def call_callback():
             nonlocal call_count
             call_count += 1
@@ -396,7 +398,7 @@ class TestErrorHandlingServiceMixin:
                 exception_factory=lambda ex: TestException(
                     "Unhandleable exception occurred."
                 )
-            )
+            ),
         )
 
         with pytest.raises(TestException):
@@ -406,15 +408,14 @@ class TestErrorHandlingServiceMixin:
 
     async def test_returns_value_when_continue_error_handler_decision(self):
         call_count = 0
+
         def call_callback():
             nonlocal call_count
             call_count += 1
 
         service = TestService(
             call_callback=call_callback,
-            error_handler=ContinueErrorHandler(
-                value_factory=lambda ex: 10
-            )
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
         result = await service.execute()
@@ -424,13 +425,14 @@ class TestErrorHandlingServiceMixin:
 
     async def test_raises_system_exit_when_exit_error_handler_decision(self):
         call_count = 0
+
         def call_callback():
             nonlocal call_count
             call_count += 1
 
         service = TestService(
             call_callback=call_callback,
-            error_handler=ExitErrorHandler(exit_code=42)
+            error_handler=ExitErrorHandler(exit_code=42),
         )
 
         with pytest.raises(SystemExit) as exc_info:
@@ -449,13 +451,10 @@ class TestErrorHandlingServiceMixin:
             pass
 
         class TestService(ErrorHandlingServiceMixin[int], Service[int]):
-            def __init__(
-                    self,
-                    error_handler: ErrorHandler[int]
-            ):
+            def __init__(self, error_handler: ErrorHandler[int]):
                 super().__init__(error_handler=error_handler)
 
-            async def _do_execute(self) -> None:
+            async def _do_execute(self) -> int:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:
@@ -465,7 +464,7 @@ class TestErrorHandlingServiceMixin:
 
         class RetryOrContinueErrorHandler(ErrorHandler):
             def handle(
-                    self, exception: BaseException
+                self, exception: BaseException
             ) -> ErrorHandlerDecision[int]:
                 if isinstance(exception, RetryTestException):
                     return ErrorHandlerDecision.retry_execution()
@@ -474,9 +473,7 @@ class TestErrorHandlingServiceMixin:
                 else:
                     return ErrorHandlerDecision.raise_exception(exception)
 
-        service = TestService(
-            error_handler=RetryOrContinueErrorHandler()
-        )
+        service = TestService(error_handler=RetryOrContinueErrorHandler())
 
         await service.execute()
 

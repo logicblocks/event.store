@@ -76,7 +76,7 @@ class PostgresDistributedEventBrokerBuilder(
         )
 
 
-def make_in_memory_subscription_event_broker(
+def make_in_memory_distributed_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
     adapter: InMemoryEventStorageAdapter,
@@ -88,7 +88,7 @@ def make_in_memory_subscription_event_broker(
     )
 
 
-def make_postgres_subscription_event_broker(
+def make_postgres_distributed_event_broker(
     node_id: str,
     connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],

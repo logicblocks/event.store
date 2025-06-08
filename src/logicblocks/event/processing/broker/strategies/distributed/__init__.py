@@ -11,8 +11,8 @@ from .difference import (
 )
 from .factories import (
     DistributedEventBrokerSettings,
-    make_in_memory_subscription_event_broker,
-    make_postgres_subscription_event_broker,
+    make_in_memory_distributed_event_broker,
+    make_postgres_distributed_event_broker,
 )
 from .observer import (
     DefaultEventSubscriptionObserver,
@@ -62,6 +62,6 @@ __all__ = [
     "InMemoryEventSubscriptionStateStore",
     "PostgresEventSubscriberStateStore",
     "PostgresEventSubscriptionStateStore",
-    "make_in_memory_subscription_event_broker",
-    "make_postgres_subscription_event_broker",
+    "make_in_memory_distributed_event_broker",
+    "make_postgres_distributed_event_broker",
 ]

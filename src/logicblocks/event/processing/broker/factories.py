@@ -8,8 +8,8 @@ from logicblocks.event.store import (
 
 from .base import EventBroker
 from .strategies import (
-    make_in_memory_subscription_event_broker,
-    make_postgres_subscription_event_broker,
+    make_in_memory_distributed_event_broker,
+    make_postgres_distributed_event_broker,
 )
 from .strategies.distributed import DistributedEventBrokerSettings
 
@@ -19,7 +19,7 @@ def make_in_memory_event_broker(
     settings: DistributedEventBrokerSettings,
     adapter: InMemoryEventStorageAdapter,
 ) -> EventBroker:
-    return make_in_memory_subscription_event_broker(node_id, settings, adapter)
+    return make_in_memory_distributed_event_broker(node_id, settings, adapter)
 
 
 def make_postgres_event_broker(
@@ -28,6 +28,6 @@ def make_postgres_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
 ) -> EventBroker:
-    return make_postgres_subscription_event_broker(
+    return make_postgres_distributed_event_broker(
         node_id, connection_settings, connection_pool, settings
     )

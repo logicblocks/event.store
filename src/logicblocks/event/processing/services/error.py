@@ -93,7 +93,10 @@ class ContinueErrorHandler[T = None](ErrorHandler[T]):
 
 class RetryErrorHandler(ErrorHandler[Any]):
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[Any]:
-        return ErrorHandlerDecision.retry_execution()
+        if isinstance(exception, Exception):
+            return ErrorHandlerDecision.retry_execution()
+        else:
+            return ErrorHandlerDecision.raise_exception(exception)
 
 
 class TypeMappingDict(TypedDict):
@@ -220,6 +223,38 @@ class TypeMappingErrorHandler[T = Any](ErrorHandler[T]):
                 return factory(exception)
 
         return self.default_decision_factory(exception)
+
+
+class ErrorHandlingServiceMixin[T = None](Service[T], ABC):
+    def __init__(
+        self,
+        error_handler: ErrorHandler[T],
+    ):
+        self._error_handler = error_handler
+
+    async def execute(self) -> T:
+        while True:
+            try:
+                return await self._do_execute()
+            except BaseException as exception:
+                decision = self._error_handler.handle(exception)
+                match decision:
+                    case RaiseErrorHandlerDecision(exception):
+                        raise exception
+                    case ContinueErrorHandlerDecision(value):
+                        return value
+                    case ExitErrorHandlerDecision(exit_code):
+                        raise SystemExit(exit_code)
+                    case RetryErrorHandlerDecision():
+                        continue
+                    case _:
+                        raise ValueError(
+                            f"Unknown error handler decision: {decision}"
+                        )
+
+    @abstractmethod
+    async def _do_execute(self) -> T:
+        raise NotImplementedError
 
 
 class ErrorHandlingService[T = Any](Service[T]):

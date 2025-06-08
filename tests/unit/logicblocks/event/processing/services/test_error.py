@@ -1,11 +1,18 @@
+from collections.abc import Callable
+
+import pytest
+
 from logicblocks.event.processing import (
     ContinueErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
+    ErrorHandlingServiceMixin,
+    ErrorHandler,
     ExitErrorHandler,
     RaiseErrorHandler,
     RaiseErrorHandlerDecision,
     RetryErrorHandler,
+    Service,
     TypeMappingErrorHandler,
     error_handler_type_mapping,
     error_handler_type_mappings,
@@ -102,15 +109,28 @@ class TestReturnErrorHandler:
 
 
 class TestRetryErrorHandler:
-    def test_requests_retry_on_handle(self):
-        class TestException(Exception):
+    def test_requests_retry_on_handle_of_exception_subclass(self):
+        class HandleableTestException(Exception):
             pass
 
         error_handler = RetryErrorHandler()
 
         assert (
-            error_handler.handle(TestException())
+            error_handler.handle(HandleableTestException())
             == ErrorHandlerDecision.retry_execution()
+        )
+
+    def test_requests_raise_on_handle_of_non_exception_subclass(self):
+        class FatalTestException(BaseException):
+            pass
+
+        exception = FatalTestException()
+
+        error_handler = RetryErrorHandler()
+
+        assert (
+            error_handler.handle(exception) ==
+            ErrorHandlerDecision.raise_exception(exception)
         )
 
 
@@ -346,7 +366,121 @@ class TestTypeMappingErrorHandler:
         assert callback_invoked == {"called": True, "exception": exception}
 
 
+class TestService(ErrorHandlingServiceMixin[int], Service[int]):
+    def __init__(
+            self,
+            error_handler: ErrorHandler[int],
+            call_callback: Callable[[], None]
+    ):
+        super().__init__(error_handler=error_handler)
+        self._call_callback = call_callback
 
+    async def _do_execute(self) -> None:
+        self._call_callback()
+        raise RuntimeError("Something went wrong.")
+
+
+class TestErrorHandlingServiceMixin:
+    async def test_raises_exception_when_raise_error_handler_decision(self):
+        call_count = 0
+        def call_callback():
+            nonlocal call_count
+            call_count += 1
+
+        class TestException(Exception):
+            pass
+
+        service = TestService(
+            call_callback=call_callback,
+            error_handler=RaiseErrorHandler(
+                exception_factory=lambda ex: TestException(
+                    "Unhandleable exception occurred."
+                )
+            )
+        )
+
+        with pytest.raises(TestException):
+            await service.execute()
+
+        assert call_count == 1
+
+    async def test_returns_value_when_continue_error_handler_decision(self):
+        call_count = 0
+        def call_callback():
+            nonlocal call_count
+            call_count += 1
+
+        service = TestService(
+            call_callback=call_callback,
+            error_handler=ContinueErrorHandler(
+                value_factory=lambda ex: 10
+            )
+        )
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10
+
+    async def test_raises_system_exit_when_exit_error_handler_decision(self):
+        call_count = 0
+        def call_callback():
+            nonlocal call_count
+            call_count += 1
+
+        service = TestService(
+            call_callback=call_callback,
+            error_handler=ExitErrorHandler(exit_code=42)
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            await service.execute()
+
+        assert exc_info.value.code == 42
+        assert call_count == 1
+
+    async def test_retries_when_retry_error_handler_decision(self):
+        call_count = 0
+
+        class GiveUpTestException(Exception):
+            pass
+
+        class RetryTestException(Exception):
+            pass
+
+        class TestService(ErrorHandlingServiceMixin[int], Service[int]):
+            def __init__(
+                    self,
+                    error_handler: ErrorHandler[int]
+            ):
+                super().__init__(error_handler=error_handler)
+
+            async def _do_execute(self) -> None:
+                nonlocal call_count
+                call_count += 1
+                if call_count < 3:
+                    raise RetryTestException("Let's try again.")
+                else:
+                    raise GiveUpTestException("Giving up.")
+
+        class RetryOrContinueErrorHandler(ErrorHandler):
+            def handle(
+                    self, exception: BaseException
+            ) -> ErrorHandlerDecision[int]:
+                if isinstance(exception, RetryTestException):
+                    return ErrorHandlerDecision.retry_execution()
+                elif isinstance(exception, GiveUpTestException):
+                    return ErrorHandlerDecision.continue_execution(value=5)
+                else:
+                    return ErrorHandlerDecision.raise_exception(exception)
+
+        service = TestService(
+            error_handler=RetryOrContinueErrorHandler()
+        )
+
+        await service.execute()
+
+        assert call_count == 3
 
 
 class TestErrorHandlingService:

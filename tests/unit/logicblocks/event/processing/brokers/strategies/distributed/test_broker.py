@@ -232,18 +232,6 @@ class TestDistributedEventBrokerStatuses:
             await assert_status_eventually(broker, ProcessStatus.ERRORED)
 
 
-# Cases:
-#   - Exception raised in process, broker catches, gracefully shuts down all
-#     other processes, decides whether to exit fatally, restart, or shut itself
-#     down, via an exception handler.
-#   - Event broker task is cancelled, broker catches, gracefully shuts down all
-#     other processes, shuts itself down.
-#   - Process cancelled, bubbles up to broker, broker catches, gracefully
-#     shuts down all other processes, shuts itself down.
-# Questions:
-#   - What do we do about process statuses?
-
-
 class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
     def __init__(self):
         self._status = ProcessStatus.INITIALISED

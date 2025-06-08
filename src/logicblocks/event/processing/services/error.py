@@ -257,20 +257,14 @@ class ErrorHandlingServiceMixin[T = None](Service[T], ABC):
         raise NotImplementedError
 
 
-class ErrorHandlingService[T = Any](Service[T]):
-    _callable: Callable[[], Awaitable[T]]
-    _error_handler: Callable[[BaseException], T]
-
+class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):
     def __init__(
         self,
         callable: Callable[[], Awaitable[T]],
-        error_handler: Callable[[BaseException], T],
+        error_handler: ErrorHandler[T],
     ):
+        super().__init__(error_handler=error_handler)
         self._callable = callable
-        self._error_handler = error_handler
 
-    async def execute(self) -> T:
-        try:
-            return await self._callable()
-        except BaseException as e:
-            return self._error_handler(e)
+    async def _do_execute(self) -> T:
+        return await self._callable()

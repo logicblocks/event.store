@@ -481,51 +481,100 @@ class TestErrorHandlingServiceMixin:
 
 
 class TestErrorHandlingService:
-    async def test_captures_handleable_exceptions_and_continues(self):
+    async def test_raises_exception_when_raise_error_handler_decision(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
         class TestException(Exception):
             pass
 
-        invocations = 0
-        handled_errors = 0
+        service = ErrorHandlingService(
+            callable=callable,
+            error_handler=RaiseErrorHandler(
+                exception_factory=lambda ex: TestException(
+                    "Unhandleable exception occurred."
+                )
+            ),
+        )
 
-        async def invocation_counter() -> None:
-            nonlocal invocations
-            invocations += 1
-            raise TestException()
+        with pytest.raises(TestException):
+            await service.execute()
 
-        def error_handler(ex: BaseException) -> None:
-            if type(ex) is TestException:
-                nonlocal handled_errors
-                handled_errors += 1
+        assert call_count == 1
+
+    async def test_returns_value_when_continue_error_handler_decision(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        service = ErrorHandlingService(
+            callable=callable,
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
+        )
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10
+
+    async def test_raises_system_exit_when_exit_error_handler_decision(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        service = ErrorHandlingService(
+            callable=callable,
+            error_handler=ExitErrorHandler(exit_code=42),
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            await service.execute()
+
+        assert exc_info.value.code == 42
+        assert call_count == 1
+
+    async def test_retries_when_retry_error_handler_decision(self):
+        call_count = 0
+
+        class GiveUpTestException(Exception):
+            pass
+
+        class RetryTestException(Exception):
+            pass
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RetryTestException("Let's try again.")
             else:
-                raise ex
+                raise GiveUpTestException("Giving up.")
+
+        class RetryOrContinueErrorHandler(ErrorHandler):
+            def handle(
+                self, exception: BaseException
+            ) -> ErrorHandlerDecision[int]:
+                if isinstance(exception, RetryTestException):
+                    return ErrorHandlerDecision.retry_execution()
+                elif isinstance(exception, GiveUpTestException):
+                    return ErrorHandlerDecision.continue_execution(value=5)
+                else:
+                    return ErrorHandlerDecision.raise_exception(exception)
 
         service = ErrorHandlingService(
-            callable=invocation_counter, error_handler=error_handler
+            callable=callable, error_handler=RetryOrContinueErrorHandler()
         )
 
         await service.execute()
 
-        assert invocations == 1
-        assert handled_errors == 1
-
-    async def test_does_not_invoke_error_handler_when_no_errors_occur(self):
-        invocations = 0
-        handled_errors = 0
-
-        async def invocation_counter() -> None:
-            nonlocal invocations
-            invocations += 1
-
-        def error_handler(ex: BaseException) -> None:
-            nonlocal handled_errors
-            handled_errors += 1
-
-        service = ErrorHandlingService(
-            callable=invocation_counter, error_handler=error_handler
-        )
-
-        await service.execute()
-
-        assert invocations == 1
-        assert handled_errors == 0
+        assert call_count == 3

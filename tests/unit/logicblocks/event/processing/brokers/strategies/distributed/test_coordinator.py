@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+import time
 from typing import Protocol, cast
 
 from pytest_unordered import unordered
@@ -23,6 +24,7 @@ from logicblocks.event.processing.broker.strategies.distributed import (
 from logicblocks.event.processing.locks import (
     InMemoryLockManager,
     LockManager,
+    Lock,
 )
 from logicblocks.event.processing.process import ProcessStatus
 from logicblocks.event.store import EventSource
@@ -182,6 +184,8 @@ def make_coordinator(
     subscription_state_store_class: NodeAwareEventSubscriptionStateStoreClass = InMemoryEventSubscriptionStateStore,
     subscriber_max_time_since_last_seen: timedelta | None = None,
     distribution_interval: timedelta | None = None,
+    leadership_max_duration: timedelta | None = None,
+    leadership_attempt_interval: timedelta | None = None,
 ) -> Context:
     node_id = data.random_node_id()
 
@@ -203,6 +207,10 @@ def make_coordinator(
         )
     if distribution_interval is not None:
         kwargs["distribution_interval"] = distribution_interval
+    if leadership_max_duration is not None:
+        kwargs["leadership_max_duration"] = leadership_max_duration
+    if leadership_attempt_interval is not None:
+        kwargs["leadership_attempt_interval"] = leadership_attempt_interval
 
     coordinator = DefaultEventSubscriptionCoordinator(**kwargs)
 
@@ -1346,6 +1354,85 @@ class TestCoordinateLocking:
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
 
+    async def test_releases_lock_after_coordinator_leadership_max_duration_has_passed(self):
+        context = make_coordinator(
+            distribution_interval=timedelta(milliseconds=20),
+            leadership_max_duration=timedelta(milliseconds=50),
+        )
+        coordinator = context.coordinator
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        async def wait_until_running():
+            while True:
+                await asyncio.sleep(0)
+                status = coordinator.status
+                if status == ProcessStatus.RUNNING:
+                    return
+
+        async def wait_for_lock(
+                lock_name: str,
+                timeout: timedelta | None = None
+        ) -> Lock:
+            async with context.lock_manager.wait_for_lock(
+                    lock_name, timeout=timeout
+            ) as lock:
+                return lock
+
+        await wait_until_running()
+
+        lock = await wait_for_lock(
+            COORDINATOR_LOCK_NAME,
+            timeout=timedelta(milliseconds=75)
+        )
+
+        assert lock.locked is True
+
+        task.cancel()
+
+        await asyncio.gather(task, return_exceptions=True)
+
+    async def test_retakes_lock_after_coordinator_leadership_max_duration_has_passed(self):
+        context = make_coordinator(
+            distribution_interval=timedelta(milliseconds=20),
+            leadership_max_duration=timedelta(milliseconds=50),
+            leadership_attempt_interval=timedelta(milliseconds=20),
+        )
+        coordinator = context.coordinator
+        lock_manager = context.lock_manager
+
+        task = asyncio.create_task(coordinator.coordinate())
+
+        async def wait_until_status(target_status: ProcessStatus):
+            while True:
+                await asyncio.sleep(0)
+                status = coordinator.status
+                if status == target_status:
+                    return
+
+        async def wait_for_lock(
+                lock_name: str,
+                timeout: timedelta | None = None
+        ) -> Lock:
+            async with context.lock_manager.wait_for_lock(
+                    lock_name, timeout=timeout
+            ) as lock:
+                return lock
+
+        await wait_until_status(ProcessStatus.RUNNING)
+        await wait_for_lock(
+            COORDINATOR_LOCK_NAME,
+            timeout=timedelta(milliseconds=60)
+        )
+
+        await wait_until_status(ProcessStatus.WAITING)
+
+        await wait_until_status(ProcessStatus.RUNNING)
+
+        async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
+            task.cancel()
+            assert lock.locked is False
+
 
 class TestCoordinateDistribution:
     async def test_distributes_subscriptions(self):
@@ -1436,15 +1523,15 @@ class TestCoordinateLogging:
 
         try:
 
-            async def coordinator_starting():
+            async def coordinator_started():
                 while True:
                     await asyncio.sleep(0)
                     status = coordinator.status
-                    if status == ProcessStatus.STARTING:
+                    if status == ProcessStatus.RUNNING:
                         return
 
             await asyncio.wait_for(
-                coordinator_starting(),
+                coordinator_started(),
                 timeout=timedelta(milliseconds=50).total_seconds(),
             )
 

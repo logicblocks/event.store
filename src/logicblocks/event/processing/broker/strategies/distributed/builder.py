@@ -27,6 +27,8 @@ class DistributedEventBrokerSettings:
         seconds=60
     )
     coordinator_distribution_interval: timedelta = timedelta(seconds=20)
+    coordinator_leadership_max_duration: timedelta = timedelta(minutes=15)
+    coordinator_leadership_attempt_interval: timedelta = timedelta(seconds=5)
     observer_synchronisation_interval: timedelta = timedelta(seconds=20)
 
 
@@ -89,6 +91,8 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             subscription_state_store=self.event_subscription_state_store,
             subscriber_max_time_since_last_seen=settings.coordinator_subscriber_max_time_since_last_seen,
             distribution_interval=settings.coordinator_distribution_interval,
+            leadership_max_duration=settings.coordinator_leadership_max_duration,
+            leadership_attempt_interval=settings.coordinator_leadership_attempt_interval,
         )
 
         event_subscription_observer = DefaultEventSubscriptionObserver(

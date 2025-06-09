@@ -5,6 +5,7 @@ from enum import StrEnum
 class ProcessStatus(StrEnum):
     INITIALISED = "initialised"
     STARTING = "starting"
+    WAITING = "waiting"
     RUNNING = "running"
     STOPPING = "stopping"
     STOPPED = "stopped"

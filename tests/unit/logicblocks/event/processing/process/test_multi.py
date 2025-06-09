@@ -15,9 +15,34 @@ from logicblocks.event.processing import (
             ProcessStatus.INITIALISED,
         ),
         (
+            ProcessStatus.INITIALISED,
+            ProcessStatus.STARTING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.INITIALISED,
+            ProcessStatus.WAITING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.INITIALISED,
             ProcessStatus.RUNNING,
-            ProcessStatus.RUNNING,
-            ProcessStatus.RUNNING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.INITIALISED,
+            ProcessStatus.STOPPING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.INITIALISED,
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.INITIALISED,
+            ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
         ),
         (
             ProcessStatus.STARTING,
@@ -26,8 +51,23 @@ from logicblocks.event.processing import (
         ),
         (
             ProcessStatus.STARTING,
+            ProcessStatus.STARTING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.STARTING,
+            ProcessStatus.WAITING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.STARTING,
             ProcessStatus.RUNNING,
-            ProcessStatus.RUNNING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.STARTING,
+            ProcessStatus.STOPPING,
+            ProcessStatus.STOPPING,
         ),
         (
             ProcessStatus.STARTING,
@@ -40,47 +80,102 @@ from logicblocks.event.processing import (
             ProcessStatus.ERRORED,
         ),
         (
+            ProcessStatus.WAITING,
+            ProcessStatus.INITIALISED,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.STARTING,
+            ProcessStatus.STARTING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.WAITING,
+            ProcessStatus.WAITING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.RUNNING,
+            ProcessStatus.RUNNING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.STOPPING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.WAITING,
+            ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
+        ),
+        (
             ProcessStatus.RUNNING,
             ProcessStatus.INITIALISED,
             ProcessStatus.STARTING,
         ),
         (
-            ProcessStatus.INITIALISED,
             ProcessStatus.RUNNING,
+            ProcessStatus.STARTING,
             ProcessStatus.STARTING,
         ),
         (
-            ProcessStatus.ERRORED,
+            ProcessStatus.RUNNING,
+            ProcessStatus.WAITING,
+            ProcessStatus.RUNNING,
+        ),
+        (
+            ProcessStatus.RUNNING,
+            ProcessStatus.RUNNING,
+            ProcessStatus.RUNNING,
+        ),
+        (
+            ProcessStatus.RUNNING,
+            ProcessStatus.STOPPING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.RUNNING,
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPING,
+        ),
+        (
             ProcessStatus.RUNNING,
             ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
         ),
         (
+            ProcessStatus.STOPPING,
+            ProcessStatus.INITIALISED,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPING,
+            ProcessStatus.STARTING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPING,
+            ProcessStatus.WAITING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPING,
             ProcessStatus.RUNNING,
-            ProcessStatus.ERRORED,
-            ProcessStatus.ERRORED,
+            ProcessStatus.STOPPING,
         ),
         (
-            ProcessStatus.ERRORED,
-            ProcessStatus.INITIALISED,
-            ProcessStatus.ERRORED,
-        ),
-        (
-            ProcessStatus.INITIALISED,
-            ProcessStatus.ERRORED,
-            ProcessStatus.ERRORED,
-        ),
-        (
+            ProcessStatus.STOPPING,
             ProcessStatus.STOPPED,
-            ProcessStatus.ERRORED,
-            ProcessStatus.ERRORED,
+            ProcessStatus.STOPPING,
         ),
         (
-            ProcessStatus.ERRORED,
-            ProcessStatus.STOPPED,
-            ProcessStatus.ERRORED,
-        ),
-        (
-            ProcessStatus.ERRORED,
+            ProcessStatus.STOPPING,
             ProcessStatus.ERRORED,
             ProcessStatus.ERRORED,
         ),
@@ -90,24 +185,69 @@ from logicblocks.event.processing import (
             ProcessStatus.STOPPING,
         ),
         (
+            ProcessStatus.STOPPED,
+            ProcessStatus.STARTING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPED,
+            ProcessStatus.WAITING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPED,
+            ProcessStatus.RUNNING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPING,
+            ProcessStatus.STOPPING,
+        ),
+        (
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPED,
+            ProcessStatus.STOPPED,
+        ),
+        (
+            ProcessStatus.STOPPED,
+            ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
+        ),
+        (
+            ProcessStatus.ERRORED,
             ProcessStatus.INITIALISED,
-            ProcessStatus.STOPPED,
-            ProcessStatus.STOPPING,
+            ProcessStatus.ERRORED,
         ),
         (
-            ProcessStatus.STOPPED,
+            ProcessStatus.ERRORED,
+            ProcessStatus.STARTING,
+            ProcessStatus.ERRORED,
+        ),
+        (
+            ProcessStatus.ERRORED,
+            ProcessStatus.WAITING,
+            ProcessStatus.ERRORED,
+        ),
+        (
+            ProcessStatus.ERRORED,
             ProcessStatus.RUNNING,
-            ProcessStatus.STOPPING,
+            ProcessStatus.ERRORED,
         ),
         (
-            ProcessStatus.RUNNING,
-            ProcessStatus.STOPPED,
+            ProcessStatus.ERRORED,
             ProcessStatus.STOPPING,
+            ProcessStatus.ERRORED,
         ),
         (
+            ProcessStatus.ERRORED,
             ProcessStatus.STOPPED,
-            ProcessStatus.STOPPED,
-            ProcessStatus.STOPPED,
+            ProcessStatus.ERRORED,
+        ),
+        (
+            ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
+            ProcessStatus.ERRORED,
         ),
     ],
 )

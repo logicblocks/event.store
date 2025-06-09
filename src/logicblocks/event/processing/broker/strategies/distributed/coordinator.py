@@ -1,11 +1,13 @@
 import asyncio
 import itertools
 import operator
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any
 
+from scriv.gitinfo import current_branch_name
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.types import str_serialisation_fallback
@@ -98,6 +100,10 @@ def subscription_change_summary(
     }
 
 
+def seconds_since(start_ns: int) -> int:
+    return (time.monotonic_ns() - start_ns) / 1_000_000_000
+
+
 class EventSubscriptionCoordinator(Process, ABC):
     @abstractmethod
     async def coordinate(self) -> None:
@@ -114,6 +120,8 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
         logger: FilteringBoundLogger = default_logger,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
         distribution_interval: timedelta = timedelta(seconds=20),
+        leadership_max_duration: timedelta = timedelta(minutes=15),
+        leadership_attempt_interval: timedelta = timedelta(seconds=5),
     ):
         self._node_id = node_id
 
@@ -126,6 +134,9 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
             subscriber_max_time_since_last_seen
         )
         self._distribution_interval = distribution_interval
+        self._leadership_max_duration = leadership_max_duration
+        self._leadership_attempt_interval = leadership_attempt_interval
+
         self._status = ProcessStatus.INITIALISED
 
     @property
@@ -135,6 +146,12 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
     async def coordinate(self) -> None:
         distribution_interval_seconds = (
             self._distribution_interval.total_seconds()
+        )
+        leadership_max_duration_seconds = (
+            self._leadership_max_duration.total_seconds()
+        )
+        leadership_attempt_interval_seconds = (
+            self._leadership_attempt_interval.total_seconds()
         )
         subscriber_max_last_seen_time = (
             self._subscriber_max_time_since_last_seen.total_seconds()
@@ -148,16 +165,33 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
         self._status = ProcessStatus.STARTING
 
         try:
-            async with self._lock_manager.wait_for_lock(LOCK_NAME):
-                await self._logger.ainfo(log_event_name("running"))
-                self._status = ProcessStatus.RUNNING
-                while True:
-                    await self.distribute()
-                    await asyncio.sleep(distribution_interval_seconds)
+            self._status = ProcessStatus.WAITING
+
+            while True:
+                async with self._lock_manager.try_lock(LOCK_NAME) as lock:
+                    if lock.locked:
+                        await self._logger.ainfo(log_event_name("running"))
+                        self._status = ProcessStatus.RUNNING
+                        lock_acquired_ns = time.monotonic_ns()
+
+                        while True:
+                            if (
+                                    seconds_since(lock_acquired_ns) >
+                                    leadership_max_duration_seconds
+                            ):
+                                break
+
+                            await self.distribute()
+                            await asyncio.sleep(distribution_interval_seconds)
+
+                self._status = ProcessStatus.WAITING
+                await asyncio.sleep(leadership_attempt_interval_seconds)
+
         except asyncio.CancelledError:
             self._status = ProcessStatus.STOPPED
             await self._logger.ainfo(log_event_name("stopped"))
             raise
+
         except BaseException:
             self._status = ProcessStatus.ERRORED
             await self._logger.aexception(log_event_name("failed"))

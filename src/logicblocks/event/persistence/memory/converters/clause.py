@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import reduce
@@ -40,6 +41,16 @@ def make_field_key_function(
     return get_key_for_projection
 
 
+def regex_matches(comparison_value: str, resolved_value: str) -> bool:
+    try:
+        match = re.match(comparison_value, resolved_value)
+        return match is not None
+    except re.error as e:
+        raise ValueError(
+            f"Invalid regex pattern: {comparison_value}. Error: {e}"
+        ) from e
+
+
 class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
     @staticmethod
     def _matches(clause: FilterClause, item: Result[R]) -> bool:
@@ -63,6 +74,8 @@ class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
                 return resolved_value in comparison_value
             case Operator.CONTAINS:
                 return comparison_value in resolved_value
+            case Operator.REGEX_MATCHES:
+                return regex_matches(comparison_value, resolved_value)
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 

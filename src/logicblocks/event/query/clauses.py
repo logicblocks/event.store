@@ -17,6 +17,7 @@ class Operator(StrEnum):
     LESS_THAN_OR_EQUAL = "less_than_or_equal"
     IN = "in"
     CONTAINS = "contains"
+    REGEX_MATCHES = "regex_matches"
 
 
 class SortOrder(StrEnum):

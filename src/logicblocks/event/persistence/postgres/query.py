@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum, StrEnum
 from typing import Any, Self, TypedDict, Unpack, cast
 
 from psycopg import sql
@@ -166,6 +166,11 @@ class Constant(Expression):
 type OrderByColumn = str | ColumnReference
 
 
+class ComparisonType(Enum):
+    TEXT = "TEXT"
+    JSONB = "JSONB"
+
+
 class Operator(StrEnum):
     EQUALS = "="
     NOT_EQUALS = "!="
@@ -176,6 +181,12 @@ class Operator(StrEnum):
     IN = "IN"
     CONTAINS = "@>"
     REGEX_MATCHES = "~"
+
+    @property
+    def comparison_type(self) -> ComparisonType:
+        if self == Operator.REGEX_MATCHES:
+            return ComparisonType.TEXT
+        return ComparisonType.JSONB
 
 
 class SetQuantifier(StrEnum):

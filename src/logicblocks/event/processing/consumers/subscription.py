@@ -89,24 +89,40 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         return self._subscription_requests
 
     async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
-        await self._logger.ainfo(
-            "event.consumer.subscription.accepting-source",
-            source=source.identifier.serialise(
-                fallback=str_serialisation_fallback
-            ),
-        )
-        self._delegates[source.identifier] = self._delegate_factory(source)
+        if source.identifier in self._delegates:
+            await self._logger.ainfo(
+                "event.consumer.subscription.reaccepting-source",
+                source=source.identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
+            )
+        else:
+            await self._logger.ainfo(
+                "event.consumer.subscription.accepting-source",
+                source=source.identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
+            )
+            self._delegates[source.identifier] = self._delegate_factory(source)
 
     async def withdraw(
         self, source: EventSource[EventSourceIdentifier]
     ) -> None:
-        await self._logger.ainfo(
-            "event.consumer.subscription.withdrawing-source",
-            source=source.identifier.serialise(
-                fallback=str_serialisation_fallback
-            ),
-        )
-        self._delegates.pop(source.identifier)
+        if source.identifier in self._delegates:
+            await self._logger.ainfo(
+                "event.consumer.subscription.withdrawing-source",
+                source=source.identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
+            )
+            self._delegates.pop(source.identifier)
+        else:
+            await self._logger.awarn(
+                "event.consumer.subscription.missing-source",
+                source=source.identifier.serialise(
+                    fallback=str_serialisation_fallback
+                ),
+            )
 
     async def consume_all(self) -> None:
         await self._logger.adebug(

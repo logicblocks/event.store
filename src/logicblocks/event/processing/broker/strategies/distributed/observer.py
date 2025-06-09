@@ -9,8 +9,8 @@ from logicblocks.event.sources import EventSourceFactory
 
 from ....process import Process, ProcessStatus
 from ...logger import default_logger
+from ...subscribers import EventSubscriberStore
 from .difference import EventSubscriptionDifference
-from .subscribers import EventSubscriberStore
 from .subscriptions import EventSubscriptionState, EventSubscriptionStateStore
 
 

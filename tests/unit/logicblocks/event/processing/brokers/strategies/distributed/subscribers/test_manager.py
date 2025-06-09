@@ -1,6 +1,5 @@
 import asyncio
 from collections import defaultdict
-from collections.abc import Sequence
 from datetime import timedelta
 
 from pytest_unordered import unordered
@@ -9,57 +8,18 @@ from logicblocks.event.processing import EventSubscriber
 from logicblocks.event.processing.broker.strategies.distributed import (
     DefaultEventSubscriberManager,
     InMemoryEventSubscriberStateStore,
+)
+from logicblocks.event.processing.broker.subscribers import (
     InMemoryEventSubscriberStore,
 )
 from logicblocks.event.processing.broker.types import (
     EventSubscriberHealth,
     EventSubscriberKey,
 )
-from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.types import CategoryIdentifier, EventSourceIdentifier
-
-
-class CapturingEventSubscriber(EventSubscriber):
-    sources: list[EventSource]
-    counts: dict[str, int]
-
-    def __init__(
-        self,
-        group: str,
-        id: str,
-        subscription_requests: Sequence[EventSourceIdentifier],
-        health: EventSubscriberHealth = EventSubscriberHealth.HEALTHY,
-    ):
-        self.sources = []
-        self.counts = defaultdict(lambda: 0)
-        self._group = group
-        self._id = id
-        self._subscription_requests = subscription_requests
-        self._health = health
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return self._subscription_requests
-
-    def health(self) -> EventSubscriberHealth:
-        self.counts["health"] += 1
-        return self._health
-
-    async def accept(self, source: EventSource) -> None:
-        self.sources.append(source)
-
-    async def withdraw(self, source: EventSource) -> None:
-        self.sources.remove(source)
+from logicblocks.event.testsupport import CapturingEventSubscriber
+from logicblocks.event.types import CategoryIdentifier
 
 
 class CountingEventSubscriberStateStore(InMemoryEventSubscriberStateStore):

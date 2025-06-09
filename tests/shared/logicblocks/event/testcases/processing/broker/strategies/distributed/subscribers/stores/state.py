@@ -1,54 +1,19 @@
 from abc import abstractmethod
 from datetime import UTC, datetime, timedelta
 from random import shuffle
-from typing import Sequence
 
-from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
 from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriberState,
     EventSubscriberStateStore,
 )
-from logicblocks.event.store import EventSource
 from logicblocks.event.testing import (
     data,
 )
-from logicblocks.event.types import CategoryIdentifier, EventSourceIdentifier
+from logicblocks.event.testsupport import (
+    DummyEventSubscriber,
+)
+from logicblocks.event.types import CategoryIdentifier
 from logicblocks.event.utils.clock import Clock, TimezoneRequiredStaticClock
-
-
-class DummyEventSubscriber(EventSubscriber):
-    def __init__(
-        self,
-        group: str,
-        id: str,
-        subscription_requests: Sequence[EventSourceIdentifier],
-    ):
-        self._group = group
-        self._id = id
-        self._subscription_requests = subscription_requests
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return self._subscription_requests
-
-    def health(self) -> EventSubscriberHealth:
-        return EventSubscriberHealth.HEALTHY
-
-    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
-        pass
-
-    async def withdraw(
-        self, source: EventSource[EventSourceIdentifier]
-    ) -> None:
-        pass
 
 
 class EventSubscriberStateStoreCases:

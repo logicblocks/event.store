@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol, Self
@@ -10,19 +9,24 @@ import pytest
 from logicblocks.event.processing import (
     EventBroker,
     EventSubscriber,
-    Process,
     ProcessStatus,
 )
 from logicblocks.event.processing.broker.strategies.distributed import (
     DefaultEventSubscriberManager,
     DistributedEventBroker,
+    EventSubscriberManager,
     EventSubscriptionCoordinator,
     EventSubscriptionObserver,
 )
-from logicblocks.event.processing.broker.strategies.distributed.subscribers.manager import (
-    EventSubscriberManager,
+from logicblocks.event.processing.services.error import (
+    ContinueErrorHandler,
 )
-from logicblocks.event.processing.services.error import ContinueErrorHandler, ExitErrorHandler
+from logicblocks.event.testsupport import (
+    assert_status_eventually,
+    assert_task_eventually_done,
+    status_eventually_equal_to,
+    task_shutdown,
+)
 
 
 class StartAndCancelTrackable(Protocol):
@@ -62,34 +66,8 @@ def make_event_broker():
     )
 
 
-@asynccontextmanager
-async def task_shutdown(task: asyncio.Task):
-    try:
-        yield
-    finally:
-        if not task.cancelled():
-            task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
-
-
-async def status_not_equal_to(
-    event_broker: EventBroker, status: ProcessStatus
-):
-    while True:
-        if event_broker.status != status:
-            return
-        await asyncio.sleep(0)
-
-
-async def status_equal_to(process: Process, status: ProcessStatus):
-    while True:
-        if process.status == status:
-            return
-        await asyncio.sleep(0)
-
-
 async def cancel_count_is_equal_to(
-        trackable: StartAndCancelTrackable, cancel_count: int
+    trackable: StartAndCancelTrackable, cancel_count: int
 ):
     while True:
         if trackable.cancel_count == cancel_count:
@@ -98,7 +76,7 @@ async def cancel_count_is_equal_to(
 
 
 async def start_count_is_equal_to(
-        trackable: StartAndCancelTrackable, start_count: int
+    trackable: StartAndCancelTrackable, start_count: int
 ):
     while True:
         if trackable.start_count == start_count:
@@ -106,16 +84,8 @@ async def start_count_is_equal_to(
         await asyncio.sleep(0)
 
 
-async def status_eventually_equal_to(process: Process, status: ProcessStatus):
-    timeout = timedelta(milliseconds=500)
-    await asyncio.wait_for(
-        status_equal_to(process, status),
-        timeout=timeout.total_seconds(),
-    )
-
-
 async def cancel_count_eventually(
-        trackable: StartAndCancelTrackable, cancel_count: int
+    trackable: StartAndCancelTrackable, cancel_count: int
 ):
     timeout = timedelta(milliseconds=1000)
     await asyncio.wait_for(
@@ -125,7 +95,7 @@ async def cancel_count_eventually(
 
 
 async def start_count_eventually(
-        trackable: StartAndCancelTrackable, start_count: int
+    trackable: StartAndCancelTrackable, start_count: int
 ):
     timeout = timedelta(milliseconds=500)
     await asyncio.wait_for(
@@ -134,18 +104,8 @@ async def start_count_eventually(
     )
 
 
-async def assert_status_eventually(process: Process, status: ProcessStatus):
-    try:
-        await status_eventually_equal_to(process, status)
-    except asyncio.TimeoutError:
-        pytest.fail(
-            f"Expected status to eventually equal '{status}' "
-            f"but timed out waiting."
-        )
-
-
 async def assert_cancel_count_eventually(
-        trackable: StartAndCancelTrackable, cancel_count: int
+    trackable: StartAndCancelTrackable, cancel_count: int
 ):
     try:
         await cancel_count_eventually(trackable, cancel_count)
@@ -157,7 +117,7 @@ async def assert_cancel_count_eventually(
 
 
 async def assert_start_count_eventually(
-        trackable: StartAndCancelTrackable, start_count: int
+    trackable: StartAndCancelTrackable, start_count: int
 ):
     try:
         await start_count_eventually(trackable, start_count)
@@ -166,18 +126,6 @@ async def assert_start_count_eventually(
             f"Expected to eventually have start count {start_count} but "
             f"timed out waiting."
         )
-
-
-async def assert_task_eventually_done(task: asyncio.Task):
-    timeout = timedelta(milliseconds=500)
-    try:
-        await asyncio.wait_for(task, timeout=timeout.total_seconds())
-    except asyncio.TimeoutError:
-        pytest.fail(
-            "Expected task to eventually be done but timed out waiting."
-        )
-    except asyncio.CancelledError:
-        pytest.fail("Expected task to eventually be done but was cancelled.")
 
 
 class TestDistributedEventBrokerStatuses:
@@ -295,11 +243,11 @@ class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
         self._exception = None
 
     @property
-    def start_count(self) -> bool:
+    def start_count(self) -> int:
         return self._start_count
 
     @property
-    def cancel_count(self) -> bool:
+    def cancel_count(self) -> int:
         return self._cancel_count
 
     @property
@@ -316,7 +264,8 @@ class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
             self._status = ProcessStatus.RUNNING
             while True:
                 if self._exception is not None:
-                    raise self._exception
+                    self._exception, exception = None, self._exception
+                    raise exception
                 await asyncio.sleep(0)
         except asyncio.CancelledError:
             self._cancel_count += 1
@@ -335,11 +284,11 @@ class MockEventSubscriptionObserver(EventSubscriptionObserver):
         self._exception = None
 
     @property
-    def start_count(self) -> bool:
+    def start_count(self) -> int:
         return self._start_count
 
     @property
-    def cancel_count(self) -> bool:
+    def cancel_count(self) -> int:
         return self._cancel_count
 
     @property
@@ -355,7 +304,8 @@ class MockEventSubscriptionObserver(EventSubscriptionObserver):
         try:
             while True:
                 if self._exception is not None:
-                    raise self._exception
+                    self._exception, exception = None, self._exception
+                    raise exception
                 await asyncio.sleep(0)
         except asyncio.CancelledError:
             self._cancel_count += 1
@@ -373,11 +323,11 @@ class MockEventSubscriberManager(EventSubscriberManager):
         self._exception = None
 
     @property
-    def start_count(self) -> bool:
+    def start_count(self) -> int:
         return self._start_count
 
     @property
-    def cancel_count(self) -> bool:
+    def cancel_count(self) -> int:
         return self._cancel_count
 
     def raise_on_next_tick(self, exception: BaseException) -> None:
@@ -394,7 +344,8 @@ class MockEventSubscriberManager(EventSubscriberManager):
         try:
             while True:
                 if self._exception is not None:
-                    raise self._exception
+                    self._exception, exception = None, self._exception
+                    raise exception
                 await asyncio.sleep(0)
         except asyncio.CancelledError:
             self._cancel_count += 1
@@ -530,7 +481,7 @@ class TestDistributedEventBrokerErrorHandling:
             await assert_start_count_eventually(observer, 1)
 
     async def test_restarts_processes_when_recoverable_exception_is_raised_by_coordinator(
-            self
+        self,
     ):
         coordinator = MockEventSubscriptionCoordinator()
         observer = MockEventSubscriptionObserver()
@@ -556,14 +507,16 @@ class TestDistributedEventBrokerErrorHandling:
             await assert_start_count_eventually(coordinator, 2)
             await assert_start_count_eventually(observer, 2)
 
-            coordinator.raise_on_next_tick(BaseException("Unrecoverable error"))
+            coordinator.raise_on_next_tick(
+                BaseException("Unrecoverable error")
+            )
 
             await assert_cancel_count_eventually(coordinator, 0)
             await assert_cancel_count_eventually(observer, 2)
             await assert_cancel_count_eventually(subscriber_manager, 2)
 
     async def test_restarts_processes_when_recoverable_exception_is_raised_by_observer(
-            self
+        self,
     ):
         coordinator = MockEventSubscriptionCoordinator()
         observer = MockEventSubscriptionObserver()
@@ -596,7 +549,7 @@ class TestDistributedEventBrokerErrorHandling:
             await assert_cancel_count_eventually(subscriber_manager, 2)
 
     async def test_restarts_processes_when_recoverable_exception_is_raised_by_subscriber_manager(
-            self
+        self,
     ):
         coordinator = MockEventSubscriptionCoordinator()
         observer = MockEventSubscriptionObserver()
@@ -641,7 +594,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscriber_manager=subscriber_manager,
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
-            error_handler=ContinueErrorHandler()
+            error_handler=ContinueErrorHandler(),
         )
 
         task = asyncio.create_task(broker.execute())

@@ -251,7 +251,55 @@ class TestEventSubscriptionConsumer:
             },
         }
 
-    async def test_logs_when_withdrawing_source(self):
+    async def test_logs_when_reaccepting_source(self):
+        logger = CapturingLogger.create()
+        delegate_factory = CapturingEventConsumerFactory()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        sequence = CategoryIdentifier(category=category_name)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            subscription_requests=[sequence],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        stream_name = data.random_event_stream_name()
+
+        stream_source = event_store.stream(
+            category=category_name, stream=stream_name
+        )
+
+        await consumer.accept(stream_source)
+        await consumer.accept(stream_source)
+
+        log_events = logger.events
+        reaccept_log_events = [
+            log_event
+            for log_event in log_events
+            if log_event.event
+            == "event.consumer.subscription.reaccepting-source"
+        ]
+
+        assert len(reaccept_log_events) == 1
+        assert reaccept_log_events[0].level == LogLevel.INFO
+        assert reaccept_log_events[0].is_async is True
+        assert reaccept_log_events[0].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_name,
+            },
+        }
+
+    async def test_logs_when_withdrawing_present_source(self):
         logger = CapturingLogger.create()
         delegate_factory = CapturingEventConsumerFactory()
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -309,6 +357,49 @@ class TestEventSubscriptionConsumer:
                 "type": "stream",
                 "category": category_name,
                 "stream": stream_2_name,
+            },
+        }
+
+    async def test_logs_when_withdrawing_missing_source(self):
+        logger = CapturingLogger.create()
+        delegate_factory = CapturingEventConsumerFactory()
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        sequence = CategoryIdentifier(category=category_name)
+
+        subscriber_group = data.random_subscriber_group()
+        subscriber_id = data.random_subscriber_id()
+
+        consumer = EventSubscriptionConsumer(
+            group=subscriber_group,
+            id=subscriber_id,
+            subscription_requests=[sequence],
+            delegate_factory=delegate_factory.factory,
+            logger=logger,
+        )
+
+        stream_name = data.random_event_stream_name()
+
+        stream_source = event_store.stream(
+            category=category_name, stream=stream_name
+        )
+
+        await consumer.withdraw(stream_source)
+
+        missing_log_events = logger.find_events(
+            "event.consumer.subscription.missing-source"
+        )
+
+        assert len(missing_log_events) == 1
+        assert missing_log_events[0].level == LogLevel.WARNING
+        assert missing_log_events[0].is_async is True
+        assert missing_log_events[0].context == {
+            "subscriber": {"group": subscriber_group, "id": subscriber_id},
+            "source": {
+                "type": "stream",
+                "category": category_name,
+                "stream": stream_name,
             },
         }
 

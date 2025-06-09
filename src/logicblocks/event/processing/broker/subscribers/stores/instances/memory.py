@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from ......types import EventSubscriber, EventSubscriberKey
+from ....types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberStore
 
 

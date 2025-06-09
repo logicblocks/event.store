@@ -4,63 +4,33 @@ from datetime import timedelta
 from typing import Protocol, Sequence
 
 from logicblocks.event.processing import (
-    EventSubscriber,
-    EventSubscriberHealth,
     ProcessStatus,
 )
 from logicblocks.event.processing.broker.strategies.distributed import (
     DefaultEventSubscriptionObserver,
-    EventSubscriberStore,
     EventSubscriptionDifference,
     EventSubscriptionKey,
     EventSubscriptionState,
     EventSubscriptionStateStore,
-    InMemoryEventSubscriberStore,
     InMemoryEventSubscriptionStateStore,
+)
+from logicblocks.event.processing.broker.subscribers import (
+    EventSubscriberStore,
+    InMemoryEventSubscriberStore,
 )
 from logicblocks.event.sources import (
     InMemoryEventStoreEventSourceFactory,
 )
-from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import CapturingEventSubscriber
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
 )
-
-
-class CapturingEventSubscriber(EventSubscriber):
-    sources: list[EventSource]
-
-    def __init__(self, group: str, id: str):
-        self.sources = []
-        self._group = group
-        self._id = id
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return []
-
-    def health(self) -> EventSubscriberHealth:
-        return EventSubscriberHealth.HEALTHY
-
-    async def accept(self, source: EventSource) -> None:
-        self.sources.append(source)
-
-    async def withdraw(self, source: EventSource) -> None:
-        self.sources.remove(source)
 
 
 class ThrowingEventSubscriptionStateStore(InMemoryEventSubscriptionStateStore):

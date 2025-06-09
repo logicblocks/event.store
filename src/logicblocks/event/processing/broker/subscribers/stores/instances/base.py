@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
-from ......types import EventSubscriber, EventSubscriberKey
+from ....types import EventSubscriber, EventSubscriberKey
 
 
 class EventSubscriberStore(ABC):

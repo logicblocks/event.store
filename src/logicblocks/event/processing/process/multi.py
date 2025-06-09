@@ -26,16 +26,15 @@ def determine_multi_process_status(
         return ProcessStatus.WAITING
 
     if all(
-            status == ProcessStatus.RUNNING or
-            status == ProcessStatus.WAITING
-            for status in statuses
+        status == ProcessStatus.RUNNING or status == ProcessStatus.WAITING
+        for status in statuses
     ):
         return ProcessStatus.RUNNING
 
     if all(
-        status == ProcessStatus.INITIALISED or
-        status == ProcessStatus.WAITING or
-        status == ProcessStatus.RUNNING
+        status == ProcessStatus.INITIALISED
+        or status == ProcessStatus.WAITING
+        or status == ProcessStatus.RUNNING
         for status in statuses
     ):
         return ProcessStatus.STARTING

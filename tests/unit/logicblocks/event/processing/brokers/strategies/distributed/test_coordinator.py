@@ -3,12 +3,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-import time
 from typing import Protocol, cast
 
 from pytest_unordered import unordered
 
-from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
+from logicblocks.event.processing import EventSubscriber
 from logicblocks.event.processing.broker.strategies.distributed import (
     COORDINATOR_LOCK_NAME,
     DefaultEventSubscriptionCoordinator,
@@ -23,53 +22,21 @@ from logicblocks.event.processing.broker.strategies.distributed import (
 )
 from logicblocks.event.processing.locks import (
     InMemoryLockManager,
-    LockManager,
     Lock,
+    LockManager,
 )
 from logicblocks.event.processing.process import ProcessStatus
-from logicblocks.event.store import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import (
+    CapturingEventSubscriber,
+    random_capturing_subscriber,
+)
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
     StreamIdentifier,
 )
-
-
-class CapturingEventSubscriber(EventSubscriber):
-    sources: list[EventSource]
-
-    def __init__(
-        self,
-        group: str,
-        id: str,
-        subscription_requests: Sequence[EventSourceIdentifier],
-    ):
-        self._group = group
-        self._id = id
-        self._subscription_requests = subscription_requests
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return self._subscription_requests
-
-    def health(self) -> EventSubscriberHealth:
-        return EventSubscriberHealth.HEALTHY
-
-    async def accept(self, source: EventSource) -> None:
-        self.sources.append(source)
-
-    async def withdraw(self, source: EventSource) -> None:
-        self.sources.remove(source)
 
 
 class ThrowingEventSubscriberStateStore(EventSubscriberStateStore):
@@ -130,25 +97,6 @@ class CountingEventSubscriptionStateStore(EventSubscriptionStateStore):
     ) -> None:
         self.counts["apply"] += 1
         await self._delegate.apply(changes)
-
-
-def random_subscriber(
-    subscriber_group: str | None = None,
-    subscription_requests: Sequence[EventSourceIdentifier] | None = None,
-) -> CapturingEventSubscriber:
-    subscriber_id = data.random_subscriber_id()
-    if subscriber_group is None:
-        subscriber_group = data.random_subscriber_group()
-    if subscription_requests is None:
-        subscription_requests = [
-            CategoryIdentifier(category=data.random_event_category_name()),
-        ]
-
-    return CapturingEventSubscriber(
-        group=subscriber_group,
-        id=subscriber_id,
-        subscription_requests=subscription_requests,
-    )
 
 
 def random_event_source_identifier(
@@ -276,7 +224,7 @@ class TestDistributeNoSubscriptions:
     ):
         event_source_identifier = random_event_source_identifier()
 
-        subscriber = random_subscriber(
+        subscriber = random_capturing_subscriber(
             subscription_requests=[event_source_identifier]
         )
 
@@ -308,7 +256,7 @@ class TestDistributeNoSubscriptions:
         event_sequence_identifier_2 = random_event_source_identifier()
         event_sequence_identifier_3 = random_event_source_identifier()
 
-        subscriber = random_subscriber(
+        subscriber = random_capturing_subscriber(
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
@@ -345,11 +293,11 @@ class TestDistributeNoSubscriptions:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[event_sequence_identifier],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[event_sequence_identifier],
         )
@@ -388,7 +336,7 @@ class TestDistributeNoSubscriptions:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -396,7 +344,7 @@ class TestDistributeNoSubscriptions:
                 event_sequence_identifier_3,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -444,21 +392,21 @@ class TestDistributeNoSubscriptions:
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group_1,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group_2,
             subscription_requests=[
                 event_sequence_identifier_3,
                 event_sequence_identifier_4,
             ],
         )
-        subscriber_3 = random_subscriber(
+        subscriber_3 = random_capturing_subscriber(
             subscriber_group=subscriber_group_2,
             subscription_requests=[
                 event_sequence_identifier_3,
@@ -515,7 +463,7 @@ class TestDistributeExistingSubscriptionsSourceChanges:
         event_sequence_identifier_3 = random_event_source_identifier()
         event_sequence_identifier_4 = random_event_source_identifier()
 
-        subscriber = random_subscriber(
+        subscriber = random_capturing_subscriber(
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
@@ -571,7 +519,7 @@ class TestDistributeExistingSubscriptionsSourceChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -580,7 +528,7 @@ class TestDistributeExistingSubscriptionsSourceChanges:
                 event_sequence_identifier_4,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -665,7 +613,7 @@ class TestDistributeExistingSubscriptionsSourceChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber = random_subscriber(
+        subscriber = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_4,
@@ -720,14 +668,14 @@ class TestDistributeExistingSubscriptionsSourceChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_3,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_3,
@@ -806,20 +754,20 @@ class TestDistributeExistingSubscriptionsSourceChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_3 = random_subscriber(
+        subscriber_3 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -885,14 +833,14 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -951,21 +899,21 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_3 = random_subscriber(
+        subscriber_3 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1031,7 +979,7 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1039,7 +987,7 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
                 event_sequence_identifier_3,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1047,7 +995,7 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
                 event_sequence_identifier_3,
             ],
         )
-        subscriber_3 = random_subscriber(
+        subscriber_3 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1126,14 +1074,14 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1185,28 +1133,28 @@ class TestDistributeExistingSubscriptionSubscriberChanges:
         subscriber_group_1 = data.random_subscriber_group()
         subscriber_group_2 = data.random_subscriber_group()
 
-        subscriber_1_group_1 = random_subscriber(
+        subscriber_1_group_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group_1,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_2_group_1 = random_subscriber(
+        subscriber_2_group_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group_1,
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
             ],
         )
-        subscriber_1_group_2 = random_subscriber(
+        subscriber_1_group_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group_2,
             subscription_requests=[
                 event_sequence_identifier_3,
                 event_sequence_identifier_4,
             ],
         )
-        subscriber_2_group_2 = random_subscriber(
+        subscriber_2_group_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group_2,
             subscription_requests=[
                 event_sequence_identifier_3,
@@ -1354,7 +1302,9 @@ class TestCoordinateLocking:
         async with lock_manager.try_lock(COORDINATOR_LOCK_NAME) as lock:
             assert lock.locked is True
 
-    async def test_releases_lock_after_coordinator_leadership_max_duration_has_passed(self):
+    async def test_releases_lock_after_coordinator_leadership_max_duration_has_passed(
+        self,
+    ):
         context = make_coordinator(
             distribution_interval=timedelta(milliseconds=20),
             leadership_max_duration=timedelta(milliseconds=50),
@@ -1371,19 +1321,17 @@ class TestCoordinateLocking:
                     return
 
         async def wait_for_lock(
-                lock_name: str,
-                timeout: timedelta | None = None
+            lock_name: str, timeout: timedelta | None = None
         ) -> Lock:
             async with context.lock_manager.wait_for_lock(
-                    lock_name, timeout=timeout
+                lock_name, timeout=timeout
             ) as lock:
                 return lock
 
         await wait_until_running()
 
         lock = await wait_for_lock(
-            COORDINATOR_LOCK_NAME,
-            timeout=timedelta(milliseconds=75)
+            COORDINATOR_LOCK_NAME, timeout=timedelta(milliseconds=75)
         )
 
         assert lock.locked is True
@@ -1392,7 +1340,9 @@ class TestCoordinateLocking:
 
         await asyncio.gather(task, return_exceptions=True)
 
-    async def test_retakes_lock_after_coordinator_leadership_max_duration_has_passed(self):
+    async def test_retakes_lock_after_coordinator_leadership_max_duration_has_passed(
+        self,
+    ):
         context = make_coordinator(
             distribution_interval=timedelta(milliseconds=20),
             leadership_max_duration=timedelta(milliseconds=50),
@@ -1411,18 +1361,16 @@ class TestCoordinateLocking:
                     return
 
         async def wait_for_lock(
-                lock_name: str,
-                timeout: timedelta | None = None
+            lock_name: str, timeout: timedelta | None = None
         ) -> Lock:
             async with context.lock_manager.wait_for_lock(
-                    lock_name, timeout=timeout
+                lock_name, timeout=timeout
             ) as lock:
                 return lock
 
         await wait_until_status(ProcessStatus.RUNNING)
         await wait_for_lock(
-            COORDINATOR_LOCK_NAME,
-            timeout=timedelta(milliseconds=60)
+            COORDINATOR_LOCK_NAME, timeout=timedelta(milliseconds=60)
         )
 
         await wait_until_status(ProcessStatus.WAITING)
@@ -1677,7 +1625,7 @@ class TestDistributeLogging:
         event_sequence_identifier_1 = random_event_source_identifier()
         event_sequence_identifier_2 = random_event_source_identifier()
 
-        subscriber = random_subscriber(
+        subscriber = random_capturing_subscriber(
             subscription_requests=[
                 event_sequence_identifier_1,
                 event_sequence_identifier_2,
@@ -1733,7 +1681,7 @@ class TestDistributeLogging:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_4,
@@ -1742,7 +1690,7 @@ class TestDistributeLogging:
                 event_sequence_identifier_1,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_4,
@@ -1806,7 +1754,7 @@ class TestDistributeLogging:
 
         subscriber_group = data.random_subscriber_group()
 
-        subscriber_1 = random_subscriber(
+        subscriber_1 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_4,
@@ -1815,7 +1763,7 @@ class TestDistributeLogging:
                 event_sequence_identifier_1,
             ],
         )
-        subscriber_2 = random_subscriber(
+        subscriber_2 = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_4,
@@ -1897,7 +1845,7 @@ class TestDistributeLogging:
 
         subscriber_group = data.random_subscriber_group()
 
-        old_subscriber = random_subscriber(
+        old_subscriber = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1907,7 +1855,7 @@ class TestDistributeLogging:
                 event_sequence_identifier_5,
             ],
         )
-        continuing_subscriber = random_subscriber(
+        continuing_subscriber = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,
@@ -1917,7 +1865,7 @@ class TestDistributeLogging:
                 event_sequence_identifier_5,
             ],
         )
-        new_subscriber = random_subscriber(
+        new_subscriber = random_capturing_subscriber(
             subscriber_group=subscriber_group,
             subscription_requests=[
                 event_sequence_identifier_1,

@@ -7,13 +7,13 @@ from logicblocks.event.sources import EventStoreEventSourceFactory
 
 from ....locks import LockManager
 from ...base import EventBroker
+from ...subscribers import InMemoryEventSubscriberStore
 from .broker import DistributedEventBroker
 from .coordinator import DefaultEventSubscriptionCoordinator
 from .observer import DefaultEventSubscriptionObserver
 from .subscribers import (
     DefaultEventSubscriberManager,
     EventSubscriberStateStore,
-    InMemoryEventSubscriberStore,
 )
 from .subscriptions import EventSubscriptionStateStore
 

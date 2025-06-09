@@ -7,7 +7,6 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any
 
-from scriv.gitinfo import current_branch_name
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.types import str_serialisation_fallback
@@ -100,7 +99,7 @@ def subscription_change_summary(
     }
 
 
-def seconds_since(start_ns: int) -> int:
+def seconds_since(start_ns: int) -> float:
     return (time.monotonic_ns() - start_ns) / 1_000_000_000
 
 
@@ -176,8 +175,8 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
 
                         while True:
                             if (
-                                    seconds_since(lock_acquired_ns) >
-                                    leadership_max_duration_seconds
+                                seconds_since(lock_acquired_ns)
+                                > leadership_max_duration_seconds
                             ):
                                 break
 

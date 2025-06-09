@@ -9,8 +9,9 @@ from structlog.types import FilteringBoundLogger
 from logicblocks.event.types import str_serialisation_fallback
 
 from ....logger import default_logger
+from ....subscribers import EventSubscriberStore
 from ....types import EventSubscriber, EventSubscriberHealth
-from .stores import EventSubscriberStateStore, EventSubscriberStore
+from .stores import EventSubscriberStateStore
 
 
 def log_event_name(event: str) -> str:

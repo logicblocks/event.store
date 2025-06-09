@@ -938,3 +938,49 @@ class TestPostgresQueryConverterQueryConversion:
             '"to_jsonb"(CAST(%s AS "text"))',
             ["arr", value],
         )
+
+    def test_converts_string_regex_query_on_nested_attribute(self):
+        converter = query_converter_with_default_converters()
+        value = "regex.*"
+        query = Search(
+            filters=[
+                FilterClause(
+                    operator=Operator.REGEX_MATCHES,
+                    field=Path("state", "field"),
+                    value=value,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            "SELECT * FROM "
+            '"projections" WHERE '
+            '"jsonb_extract_path_text"("state", %s) ~ '
+            "%s",
+            ["field", "regex.*"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_regex_matches_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.REGEX_MATCHES,
+                    field=Path("state", "description"),
+                    value="world$",
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path_text"("state", %s) ~ %s',
+            ["description", "world$"],
+        )

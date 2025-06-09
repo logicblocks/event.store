@@ -862,6 +862,49 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         assert result_set.records == [projection_3]
 
+    def test_filter_on_regex_matches_value(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        matching_text = data.random_ascii_alphanumerics_string(10)
+        value_to_filter = (
+            data.random_ascii_alphanumerics_string(10)
+            + matching_text
+            + data.random_ascii_alphanumerics_string(10)
+        )
+
+        other_value1 = data.random_ascii_alphanumerics_string(10)
+        other_value2 = data.random_ascii_alphanumerics_string(10)
+
+        clause = FilterClause(
+            Operator.REGEX_MATCHES,
+            Path("state", "value_2"),
+            f".*{matching_text}.*",
+        )
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_2": other_value1})
+            .build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 15, "value_2": other_value2})
+            .build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 25, "value_2": value_to_filter})
+            .build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(projection_1, projection_2, projection_3)
+        )
+
+        assert result_set.records == [projection_3]
+
 
 class TestDelegatingQueryConverterQueryConverterRegistration:
     def test_registers_query_converter_and_converts_query(self):

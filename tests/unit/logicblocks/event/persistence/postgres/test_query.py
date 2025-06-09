@@ -499,6 +499,20 @@ class TestCondition:
             [1, 1],
         )
 
+    def test_regex_matches_condition(self):
+        condition = (
+            Condition()
+            .left(ColumnReference(field="id"))
+            .regex_matches()
+            .right(Constant("123.*"))
+            .to_fragment()
+        )
+
+        assert parameterised_query_fragment_to_string(condition) == (
+            '"id" ~ %s',
+            ["123.*"],
+        )
+
 
 class TestQuerySelect:
     def test_allows_selecting_all_columns_from_single_table(self):

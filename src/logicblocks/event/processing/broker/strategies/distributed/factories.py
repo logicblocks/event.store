@@ -28,7 +28,7 @@ from .subscriptions import (
 )
 
 
-class InMemorySubscriptionDistributedEventBrokerBuilder(
+class InMemoryDistributedEventBrokerBuilder(
     DistributedEventBrokerBuilder[(InMemoryEventStorageAdapter,)]
 ):
     def dependencies(
@@ -82,7 +82,7 @@ def make_in_memory_distributed_event_broker(
     adapter: InMemoryEventStorageAdapter,
 ) -> EventBroker:
     return (
-        InMemorySubscriptionDistributedEventBrokerBuilder(node_id)
+        InMemoryDistributedEventBrokerBuilder(node_id)
         .prepare(adapter)
         .build(settings)
     )

@@ -1,8 +1,14 @@
 from .broker import (
+    BrokerType,
+    DistributedEventBroker,
     DistributedEventBrokerSettings,
     EventBroker,
     EventSubscriber,
     EventSubscriberHealth,
+    SingletonEventBroker,
+    SingletonEventBrokerSettings,
+    StorageType,
+    make_event_broker,
     make_in_memory_event_broker,
     make_postgres_event_broker,
 )
@@ -47,6 +53,8 @@ from .services import (
 )
 
 __all__ = [
+    "BrokerType",
+    "DistributedEventBroker",
     "DistributedEventBrokerSettings",
     "ErrorHandler",
     "ErrorHandlerDecision",
@@ -82,8 +90,12 @@ __all__ = [
     "ContinueErrorHandlerDecision",
     "Service",
     "ServiceManager",
+    "SingletonEventBroker",
+    "SingletonEventBrokerSettings",
+    "StorageType",
     "TypeMappingErrorHandler",
     "determine_multi_process_status",
+    "make_event_broker",
     "make_in_memory_event_broker",
     "make_postgres_event_broker",
     "make_subscriber",

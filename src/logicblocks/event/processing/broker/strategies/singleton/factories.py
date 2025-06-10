@@ -1,0 +1,76 @@
+from psycopg import AsyncConnection
+from psycopg_pool import AsyncConnectionPool
+
+from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.sources import (
+    InMemoryEventStoreEventSourceFactory,
+    PostgresEventStoreEventSourceFactory,
+)
+from logicblocks.event.store import (
+    InMemoryEventStorageAdapter,
+    PostgresEventStorageAdapter,
+)
+
+from ...base import EventBroker
+from .builder import (
+    SingletonEventBrokerBuilder,
+    SingletonEventBrokerDependencies,
+    SingletonEventBrokerSettings,
+)
+
+
+class InMemorySingletonEventBrokerBuilder(
+    SingletonEventBrokerBuilder[(InMemoryEventStorageAdapter,)]
+):
+    def dependencies(
+        self, adapter: InMemoryEventStorageAdapter
+    ) -> SingletonEventBrokerDependencies:
+        return SingletonEventBrokerDependencies(
+            event_source_factory=InMemoryEventStoreEventSourceFactory(
+                adapter=adapter
+            )
+        )
+
+
+class PostgresSingletonEventBrokerBuilder(
+    SingletonEventBrokerBuilder[
+        (ConnectionSettings, AsyncConnectionPool[AsyncConnection])
+    ]
+):
+    def dependencies(
+        self,
+        connection_settings: ConnectionSettings,
+        connection_pool: AsyncConnectionPool[AsyncConnection],
+    ) -> SingletonEventBrokerDependencies:
+        return SingletonEventBrokerDependencies(
+            event_source_factory=PostgresEventStoreEventSourceFactory(
+                adapter=PostgresEventStorageAdapter(
+                    connection_source=connection_pool
+                )
+            )
+        )
+
+
+def make_in_memory_singleton_event_broker(
+    node_id: str,
+    settings: SingletonEventBrokerSettings,
+    adapter: InMemoryEventStorageAdapter,
+) -> EventBroker:
+    return (
+        InMemorySingletonEventBrokerBuilder(node_id)
+        .prepare(adapter)
+        .build(settings)
+    )
+
+
+def make_postgres_singleton_event_broker(
+    node_id: str,
+    connection_settings: ConnectionSettings,
+    connection_pool: AsyncConnectionPool[AsyncConnection],
+    settings: SingletonEventBrokerSettings,
+) -> EventBroker:
+    return (
+        PostgresSingletonEventBrokerBuilder(node_id)
+        .prepare(connection_settings, connection_pool)
+        .build(settings)
+    )

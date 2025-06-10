@@ -1,42 +1,13 @@
-from dataclasses import dataclass
-from typing import Sequence
-
-from logicblocks.event.processing import (
-    EventSubscriber,
-    EventSubscriberHealth,
-    EventSubscriberKey,
+from logicblocks.event.processing.broker.subscribers import (
     InMemoryEventSubscriberStore,
 )
-from logicblocks.event.store import EventSource
+from logicblocks.event.processing.broker.types import (
+    EventSubscriberKey,
+)
 from logicblocks.event.testing import data
-from logicblocks.event.types import EventSourceIdentifier
-
-
-@dataclass(frozen=True)
-class DummyEventSubscriber(EventSubscriber):
-    _group: str
-    _id: str
-
-    @property
-    def group(self) -> str:
-        return self._group
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
-        return []
-
-    def health(self) -> EventSubscriberHealth:
-        return EventSubscriberHealth.HEALTHY
-
-    async def accept(self, source: EventSource) -> None:
-        pass
-
-    async def withdraw(self, source: EventSource) -> None:
-        pass
+from logicblocks.event.testsupport import (
+    DummyEventSubscriber,
+)
 
 
 class TestInMemoryEventSubscriberStore:

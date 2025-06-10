@@ -1,4 +1,7 @@
-from .base import EventSubscriberStore as EventSubscriberStore
-from .memory import (
-    InMemoryEventSubscriberStore as InMemoryEventSubscriberStore,
-)
+from .base import EventSubscriberStore
+from .memory import InMemoryEventSubscriberStore
+
+__all__ = [
+    "EventSubscriberStore",
+    "InMemoryEventSubscriberStore",
+]

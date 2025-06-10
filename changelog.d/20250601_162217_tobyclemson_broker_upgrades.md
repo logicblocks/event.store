@@ -43,6 +43,14 @@ from logicblocks.event.processing import error_handler_type_mappingfrom logicblo
 - `DistributedEventBroker` now automatically restarts on non-fatal exception.
   The error handling strategy can be configured via a new `error_handler`
   constructor parameter, accepting any `ErrorHandler` implementation.
+- A new `SingletonEventBroker` has been introduced, which is a much simplified
+  event broker that assumes it is the only broker in the system and does no
+  coordination or work distribution. In this model, the infrastructure is 
+  responsible for ensuring that only one instance of the broker is running at a
+  time.
+- A new `make_event_broker` function has been added to the 
+  `logicblocks.event.processing` package, which allows creation of different
+  types of event brokers using different storage types.
 
 ### Changed
 
@@ -75,3 +83,5 @@ from logicblocks.event.processing import error_handler_type_mappingfrom logicblo
   - As mentioned in the "Added" section, the broker now automatically
     restarts on non-fatal exceptions, allowing it to recover from transient
     issues without manual intervention.
+- The `make_postgres_event_broker` and `make_in_memory_event_broker` functions
+  have been deprecated in favour of the new `make_event_broker` function.

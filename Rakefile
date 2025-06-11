@@ -2,6 +2,7 @@
 
 require 'confidante'
 require 'lino'
+require 'rake_docker'
 require 'rake_git'
 require 'rubocop/rake_task'
 require 'tempfile'

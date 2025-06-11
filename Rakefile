@@ -2,14 +2,9 @@
 
 require 'confidante'
 require 'lino'
-require 'rake_circle_ci'
-require 'rake_docker'
 require 'rake_git'
-require 'rake_git_crypt'
-require 'rake_github'
-require 'rake_gpg'
-require 'rake_ssh'
 require 'rubocop/rake_task'
+require 'tempfile'
 require 'yaml'
 
 task default: %i[
@@ -32,148 +27,12 @@ task check: %i[
   library:test:all
 ]
 
-RakeGitCrypt.define_standard_tasks(
-  namespace: :git_crypt,
-
-  provision_secrets_task_name: :'secrets:provision',
-  destroy_secrets_task_name: :'secrets:destroy',
-
-  install_commit_task_name: :'git:commit',
-  uninstall_commit_task_name: :'git:commit',
-
-  gpg_user_key_paths: %w[
-    config/gpg
-    config/secrets/ci/gpg.public
-  ]
-)
-
 namespace :git do
   RakeGit.define_commit_task(
     argument_names: [:message]
   ) do |t, args|
     t.message = args.message
   end
-end
-
-namespace :encryption do
-  namespace :directory do
-    desc 'Ensure CI secrets directory exists.'
-    task :ensure do
-      FileUtils.mkdir_p('config/secrets/ci')
-    end
-  end
-
-  namespace :passphrase do
-    desc 'Generate encryption passphrase for CI GPG key'
-    task generate: ['directory:ensure'] do
-      File.write(
-        'config/secrets/ci/encryption.passphrase',
-        SecureRandom.base64(36)
-      )
-    end
-  end
-end
-
-namespace :keys do
-  namespace :deploy do
-    RakeSSH.define_key_tasks(
-      path: 'config/secrets/ci/',
-      comment: 'maintainers@logicblocks.io'
-    )
-  end
-
-  namespace :secrets do
-    namespace :gpg do
-      RakeGPG.define_generate_key_task(
-        output_directory: 'config/secrets/ci',
-        name_prefix: 'gpg',
-        owner_name: 'LogicBlocks Maintainers',
-        owner_email: 'maintainers@logicblocks.io',
-        owner_comment: 'event.store CI Key'
-      )
-    end
-
-    task generate: ['gpg:generate']
-  end
-end
-
-namespace :secrets do
-  namespace :directory do
-    desc 'Ensure secrets directory exists and is set up correctly'
-    task :ensure do
-      FileUtils.mkdir_p('config/secrets')
-      unless File.exist?('config/secrets/.unlocked')
-        File.write('config/secrets/.unlocked',
-                   'true')
-      end
-    end
-  end
-
-  desc 'Generate all generatable secrets.'
-  task regenerate: %w[
-    encryption:passphrase:generate
-    keys:deploy:generate
-    keys:secrets:generate
-  ]
-
-  desc 'Provision all secrets.'
-  task provision: [:regenerate]
-
-  desc 'Delete all secrets.'
-  task :destroy do
-    rm_rf 'config/secrets'
-  end
-
-  desc 'Rotate all secrets.'
-  task rotate: [:'git_crypt:reinstall']
-end
-
-RakeCircleCI.define_project_tasks(
-  namespace: :circle_ci,
-  project_slug: 'github/logicblocks/event.store'
-) do |t|
-  circle_ci_config =
-    YAML.load_file('config/secrets/circle_ci/config.yaml')
-
-  t.api_token = circle_ci_config['circle_ci_api_token']
-  t.environment_variables = {
-    ENCRYPTION_PASSPHRASE:
-      File.read('config/secrets/ci/encryption.passphrase')
-        .chomp
-  }
-  t.checkout_keys = []
-  t.ssh_keys = [
-    {
-      hostname: 'github.com',
-      private_key: File.read('config/secrets/ci/ssh.private')
-    }
-  ]
-end
-
-RakeGithub.define_repository_tasks(
-  namespace: :github,
-  repository: 'logicblocks/event.store'
-) do |t|
-  github_config =
-    YAML.load_file('config/secrets/github/config.yaml')
-
-  t.access_token = github_config['github_personal_access_token']
-  t.deploy_keys = [
-    {
-      title: 'CircleCI',
-      public_key: File.read('config/secrets/ci/ssh.public')
-    }
-  ]
-end
-
-namespace :pipeline do
-  desc 'Prepare CircleCI Pipeline'
-  task prepare: %i[
-    circle_ci:env_vars:ensure
-    circle_ci:checkout_keys:ensure
-    circle_ci:ssh_keys:ensure
-    github:deploy_keys:ensure
-  ]
 end
 
 RuboCop::RakeTask.new
@@ -190,12 +49,9 @@ end
 
 namespace :poetry do
   desc 'Login to PyPI'
-  task :login_to_pypi do
-    pypi_config =
-      YAML.load_file('config/secrets/pypi/config.yaml')
-
+  task :login_to_pypi, [:api_token] do |_, args|
     invoke_poetry_command(
-      'config', 'pypi-token.pypi', pypi_config['pypi_api_token']
+      'config', 'pypi-token.pypi', args.api_token
     )
   end
 end
@@ -332,6 +188,68 @@ namespace :database do
       ]
     end
   end
+end
+
+namespace :repository do
+  desc 'Sets the git author for CI'
+  task :set_ci_author do
+    Lino
+      .builder_for_command('git')
+      .with_subcommand('config') do |sub|
+        sub.with_flag('--global')
+          .with_option('user.name', 'InfraBlocks CI')
+      end
+      .build
+      .execute
+
+    Lino
+      .builder_for_command('git')
+      .with_subcommand('config') do |sub|
+        sub.with_flag('--global')
+          .with_option('user.email', 'ci@infrablocks.com')
+      end
+      .build
+      .execute
+  end
+
+  desc 'commits the version bump'
+  task :commit_release do
+    version = read_poetry_version
+
+    Lino
+      .builder_for_command('git')
+      .with_subcommand('commit') do |sub|
+        sub.with_flag('-a')
+          .with_option(
+            '-m',
+            "\"Bump version to #{version} for prerelease [no ci]\""
+          )
+      end
+      .build
+      .execute
+  end
+
+  desc 'pushes the branch'
+  task :push do
+    Lino
+      .builder_for_command('git')
+      .with_subcommand('push')
+      .build
+      .execute
+  end
+end
+
+def read_poetry_version
+  stdout = Tempfile.new
+
+  Lino
+    .builder_for_command('poetry')
+    .with_arguments(['version'])
+    .build
+    .execute(stdout: stdout)
+
+  stdout.rewind
+  stdout.read.split[1]
 end
 
 def invoke_poetry_task(task_name, *args)

@@ -7,7 +7,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.store import (
-    InMemoryEventStorageAdapter,
+    EventStorageAdapter,
 )
 
 from .base import EventBroker
@@ -53,31 +53,33 @@ StorageType.Postgres = _PostgresStorageType
 
 class InMemoryDistributedBrokerParams(TypedDict):
     settings: DistributedEventBrokerSettings
-    adapter: InMemoryEventStorageAdapter
+    adapter: EventStorageAdapter
 
 
 class PostgresDistributedBrokerParams(TypedDict):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: DistributedEventBrokerSettings
+    adapter: EventStorageAdapter | None
 
 
 class InMemorySingletonBrokerParams(TypedDict):
     settings: SingletonEventBrokerSettings
-    adapter: InMemoryEventStorageAdapter
+    adapter: EventStorageAdapter
 
 
 class PostgresSingletonBrokerParams(TypedDict):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: SingletonEventBrokerSettings
+    adapter: EventStorageAdapter | None
 
 
 class CombinedBrokerParams(TypedDict, total=False):
     settings: DistributedEventBrokerSettings | SingletonEventBrokerSettings
-    adapter: InMemoryEventStorageAdapter
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
+    adapter: EventStorageAdapter | None
 
 
 @overload
@@ -147,7 +149,7 @@ def make_event_broker(
 def make_in_memory_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
-    adapter: InMemoryEventStorageAdapter,
+    adapter: EventStorageAdapter,
 ) -> EventBroker:
     return make_in_memory_distributed_event_broker(node_id, settings, adapter)
 

@@ -6,7 +6,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v3
 
@@ -17,7 +17,7 @@ jobs:
         run: ./go library:check
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     services:
       postgres:
         image: postgres:16.3
@@ -42,7 +42,7 @@ jobs:
         run: ./go library:test:all
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v3
 
@@ -53,7 +53,7 @@ jobs:
         run: ./go library:build
 
   prerelease:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: [ check, test, build ]
     steps:
       - uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
         run: ./go repository:push
 
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: [ prerelease ]
     environment: release
     steps:
@@ -86,7 +86,7 @@ jobs:
           ref: 'main'
 
       - name: Install tools
-        uses: ./.github/actions/asdf_install
+        uses: ./.github/actions/asdf-cached-install
 
       - name: Authenticate with PyPi
         run: ./go poetry:login_to_pypi[${{ secrets.PYPI_API_KEY }}]

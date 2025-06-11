@@ -23,8 +23,8 @@ from logicblocks.event.utils.clock import Clock
 connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
-    host="localhost",
-    port=5432,
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", 5432),
     dbname="some-database",
 )
 

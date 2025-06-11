@@ -4,7 +4,7 @@ from psycopg_pool import AsyncConnectionPool
 from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
-    InMemoryEventStorageAdapter,
+    EventStorageAdapter,
     PostgresEventStorageAdapter,
 )
 
@@ -17,10 +17,10 @@ from .builder import (
 
 
 class InMemorySingletonEventBrokerBuilder(
-    SingletonEventBrokerBuilder[(InMemoryEventStorageAdapter,)]
+    SingletonEventBrokerBuilder[(EventStorageAdapter,)]
 ):
     def dependencies(
-        self, adapter: InMemoryEventStorageAdapter
+        self, adapter: EventStorageAdapter
     ) -> SingletonEventBrokerDependencies:
         return SingletonEventBrokerDependencies(
             event_source_factory=EventStoreEventSourceFactory(adapter=adapter)
@@ -29,19 +29,25 @@ class InMemorySingletonEventBrokerBuilder(
 
 class PostgresSingletonEventBrokerBuilder(
     SingletonEventBrokerBuilder[
-        (ConnectionSettings, AsyncConnectionPool[AsyncConnection])
+        (
+            ConnectionSettings,
+            AsyncConnectionPool[AsyncConnection],
+            EventStorageAdapter | None,
+        )
     ]
 ):
     def dependencies(
         self,
         connection_settings: ConnectionSettings,
         connection_pool: AsyncConnectionPool[AsyncConnection],
+        adapter: EventStorageAdapter | None = None,
     ) -> SingletonEventBrokerDependencies:
+        event_storage_adapter = adapter or PostgresEventStorageAdapter(
+            connection_source=connection_pool
+        )
         return SingletonEventBrokerDependencies(
             event_source_factory=EventStoreEventSourceFactory(
-                adapter=PostgresEventStorageAdapter(
-                    connection_source=connection_pool
-                )
+                adapter=event_storage_adapter
             )
         )
 
@@ -49,7 +55,7 @@ class PostgresSingletonEventBrokerBuilder(
 def make_in_memory_singleton_event_broker(
     node_id: str,
     settings: SingletonEventBrokerSettings,
-    adapter: InMemoryEventStorageAdapter,
+    adapter: EventStorageAdapter,
 ) -> EventBroker:
     return (
         InMemorySingletonEventBrokerBuilder(node_id)
@@ -63,9 +69,10 @@ def make_postgres_singleton_event_broker(
     connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: SingletonEventBrokerSettings,
+    adapter: EventStorageAdapter | None,
 ) -> EventBroker:
     return (
         PostgresSingletonEventBrokerBuilder(node_id)
-        .prepare(connection_settings, connection_pool)
+        .prepare(connection_settings, connection_pool, adapter)
         .build(settings)
     )

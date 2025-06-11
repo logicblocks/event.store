@@ -5,7 +5,6 @@ from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
     EventStorageAdapter,
-    InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
 )
 
@@ -27,7 +26,7 @@ from .subscriptions import (
 
 
 class InMemoryDistributedEventBrokerBuilder(
-    DistributedEventBrokerBuilder[(InMemoryEventStorageAdapter,)]
+    DistributedEventBrokerBuilder[(EventStorageAdapter,)]
 ):
     def dependencies(
         self, adapter: EventStorageAdapter
@@ -46,7 +45,11 @@ class InMemoryDistributedEventBrokerBuilder(
 
 class PostgresDistributedEventBrokerBuilder(
     DistributedEventBrokerBuilder[
-        (ConnectionSettings, AsyncConnectionPool[AsyncConnection])
+        (
+            ConnectionSettings,
+            AsyncConnectionPool[AsyncConnection],
+            EventStorageAdapter | None,
+        )
     ]
 ):
     def dependencies(
@@ -77,7 +80,7 @@ class PostgresDistributedEventBrokerBuilder(
 def make_in_memory_distributed_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
-    adapter: InMemoryEventStorageAdapter,
+    adapter: EventStorageAdapter,
 ) -> EventBroker:
     return (
         InMemoryDistributedEventBrokerBuilder(node_id)
@@ -91,9 +94,10 @@ def make_postgres_distributed_event_broker(
     connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
+    adapter: EventStorageAdapter | None = None,
 ) -> EventBroker:
     return (
         PostgresDistributedEventBrokerBuilder(node_id)
-        .prepare(connection_settings, connection_pool)
+        .prepare(connection_settings, connection_pool, adapter)
         .build(settings)
     )

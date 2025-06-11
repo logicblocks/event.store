@@ -22,7 +22,7 @@ from logicblocks.event.processing.broker.subscribers import (
 )
 from logicblocks.event.sources import (
     EventSourceFactory,
-    InMemoryEventStoreEventSourceFactory,
+    EventStoreEventSourceFactory,
 )
 from logicblocks.event.store import EventSource
 from logicblocks.event.store.adapters import (
@@ -100,7 +100,7 @@ def make_event_broker_with_real_dependencies(
 
     event_subscriber_store = InMemoryEventSubscriberStore()
     event_storage_adapter = InMemoryEventStorageAdapter()
-    event_source_factory = InMemoryEventStoreEventSourceFactory(
+    event_source_factory = EventStoreEventSourceFactory(
         adapter=event_storage_adapter
     )
 

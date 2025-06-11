@@ -18,9 +18,7 @@ from logicblocks.event.processing.broker.subscribers import (
     EventSubscriberStore,
     InMemoryEventSubscriberStore,
 )
-from logicblocks.event.sources import (
-    InMemoryEventStoreEventSourceFactory,
-)
+from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
@@ -112,7 +110,7 @@ def make_observer(
     logger = CapturingLogger.create()
     subscription_difference = EventSubscriptionDifference()
     event_storage_adapter = InMemoryEventStorageAdapter()
-    event_source_factory = InMemoryEventStoreEventSourceFactory(
+    event_source_factory = EventStoreEventSourceFactory(
         adapter=event_storage_adapter
     )
 

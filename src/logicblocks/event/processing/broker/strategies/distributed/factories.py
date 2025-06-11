@@ -2,11 +2,9 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import (
-    InMemoryEventStoreEventSourceFactory,
-    PostgresEventStoreEventSourceFactory,
-)
+from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
+    EventStorageAdapter,
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
 )
@@ -32,13 +30,11 @@ class InMemoryDistributedEventBrokerBuilder(
     DistributedEventBrokerBuilder[(InMemoryEventStorageAdapter,)]
 ):
     def dependencies(
-        self, adapter: InMemoryEventStorageAdapter
+        self, adapter: EventStorageAdapter
     ) -> DistributedEventBrokerDependencies:
         return DistributedEventBrokerDependencies(
             lock_manager=InMemoryLockManager(),
-            event_source_factory=InMemoryEventStoreEventSourceFactory(
-                adapter=adapter
-            ),
+            event_source_factory=EventStoreEventSourceFactory(adapter=adapter),
             event_subscriber_state_store=InMemoryEventSubscriberStateStore(
                 node_id=self.node_id,
             ),
@@ -57,15 +53,17 @@ class PostgresDistributedEventBrokerBuilder(
         self,
         connection_settings: ConnectionSettings,
         connection_pool: AsyncConnectionPool[AsyncConnection],
+        adapter: EventStorageAdapter | None = None,
     ) -> DistributedEventBrokerDependencies:
+        event_storage_adapter = adapter or PostgresEventStorageAdapter(
+            connection_source=connection_pool
+        )
         return DistributedEventBrokerDependencies(
             lock_manager=PostgresLockManager(
                 connection_settings=connection_settings
             ),
-            event_source_factory=PostgresEventStoreEventSourceFactory(
-                adapter=PostgresEventStorageAdapter(
-                    connection_source=connection_pool
-                )
+            event_source_factory=EventStoreEventSourceFactory(
+                event_storage_adapter
             ),
             event_subscriber_state_store=PostgresEventSubscriberStateStore(
                 node_id=self.node_id, connection_source=connection_pool

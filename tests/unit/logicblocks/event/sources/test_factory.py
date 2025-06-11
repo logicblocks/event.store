@@ -1,10 +1,7 @@
 import pytest
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import (
-    InMemoryEventStoreEventSourceFactory,
-    PostgresEventStoreEventSourceFactory,
-)
+from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
     EventCategory,
     EventStream,
@@ -35,22 +32,16 @@ def make_postgres_event_storage_adapter() -> PostgresEventStorageAdapter:
 
 
 @pytest.mark.parametrize(
-    "adapter_factory,factory_class",
+    "adapter_factory",
     [
-        (
-            make_in_memory_event_storage_adapter,
-            InMemoryEventStoreEventSourceFactory,
-        ),
-        (
-            make_postgres_event_storage_adapter,
-            PostgresEventStoreEventSourceFactory,
-        ),
+        make_in_memory_event_storage_adapter,
+        make_postgres_event_storage_adapter,
     ],
 )
 class TestEventStoreEventSourceFactoryDefaultConstructors:
-    def test_constructs_event_category(self, adapter_factory, factory_class):
+    def test_constructs_event_category(self, adapter_factory):
         adapter = adapter_factory()
-        factory = factory_class(adapter)
+        factory = EventStoreEventSourceFactory(adapter)
 
         identifier = CategoryIdentifier(
             category=data.random_event_category_name()
@@ -60,9 +51,9 @@ class TestEventStoreEventSourceFactoryDefaultConstructors:
 
         assert source == EventCategory(adapter, identifier)
 
-    def test_constructs_event_stream(self, adapter_factory, factory_class):
+    def test_constructs_event_stream(self, adapter_factory):
         adapter = adapter_factory()
-        factory = factory_class(adapter)
+        factory = EventStoreEventSourceFactory(adapter)
 
         identifier = StreamIdentifier(
             category=data.random_event_category_name(),

@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, MutableMapping, Self
 
@@ -7,8 +6,6 @@ from logicblocks.event.store import (
     EventSource,
     EventStorageAdapter,
     EventStream,
-    InMemoryEventStorageAdapter,
-    PostgresEventStorageAdapter,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -36,22 +33,19 @@ type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
 ]
 
 
-class EventStoreEventSourceFactory(
-    EventSourceFactory[EventStorageAdapter], ABC
-):
-    def __init__(self):
+class EventStoreEventSourceFactory(EventSourceFactory[EventStorageAdapter]):
+    def __init__(self, adapter: EventStorageAdapter):
         self._constructors: MutableMapping[
             type[EventSourceIdentifier],
             EventSourceConstructor[Any],
         ] = {}
-
+        self._adapter = adapter
         self.register_constructor(CategoryIdentifier, construct_event_category)
         self.register_constructor(StreamIdentifier, construct_event_stream)
 
     @property
-    @abstractmethod
     def storage_adapter(self) -> EventStorageAdapter:
-        raise NotImplementedError()
+        return self._adapter
 
     def register_constructor[I: EventSourceIdentifier](
         self,
@@ -67,23 +61,3 @@ class EventStoreEventSourceFactory(
         return self._constructors[type(identifier)](
             identifier, self.storage_adapter
         )
-
-
-class InMemoryEventStoreEventSourceFactory(EventStoreEventSourceFactory):
-    def __init__(self, adapter: InMemoryEventStorageAdapter):
-        super().__init__()
-        self._adapter = adapter
-
-    @property
-    def storage_adapter(self) -> EventStorageAdapter:
-        return self._adapter
-
-
-class PostgresEventStoreEventSourceFactory(EventStoreEventSourceFactory):
-    def __init__(self, adapter: PostgresEventStorageAdapter):
-        super().__init__()
-        self._adapter = adapter
-
-    @property
-    def storage_adapter(self) -> EventStorageAdapter:
-        return self._adapter

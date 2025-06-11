@@ -2,10 +2,7 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import (
-    InMemoryEventStoreEventSourceFactory,
-    PostgresEventStoreEventSourceFactory,
-)
+from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
@@ -26,9 +23,7 @@ class InMemorySingletonEventBrokerBuilder(
         self, adapter: InMemoryEventStorageAdapter
     ) -> SingletonEventBrokerDependencies:
         return SingletonEventBrokerDependencies(
-            event_source_factory=InMemoryEventStoreEventSourceFactory(
-                adapter=adapter
-            )
+            event_source_factory=EventStoreEventSourceFactory(adapter=adapter)
         )
 
 
@@ -43,7 +38,7 @@ class PostgresSingletonEventBrokerBuilder(
         connection_pool: AsyncConnectionPool[AsyncConnection],
     ) -> SingletonEventBrokerDependencies:
         return SingletonEventBrokerDependencies(
-            event_source_factory=PostgresEventStoreEventSourceFactory(
+            event_source_factory=EventStoreEventSourceFactory(
                 adapter=PostgresEventStorageAdapter(
                     connection_source=connection_pool
                 )

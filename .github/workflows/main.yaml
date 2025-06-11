@@ -25,6 +25,8 @@ jobs:
           POSTGRES_DB: some-database
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: super-secret
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -38,9 +40,6 @@ jobs:
 
       - name: Test
         run: ./go library:test:all
-        env:
-          DB_HOST: postgres
-          DB_PORT: 5432
 
   build:
     runs-on: ubuntu-latest

@@ -48,7 +48,7 @@ connection_settings = ConnectionSettings(
     user="admin",
     password="super-secret",
     host=os.getenv("DB_HOST", "localhost"),
-    port=os.getenv("DB_PORT", 5432),
+    port=int(os.getenv("DB_PORT", "5432")),
     dbname="some-database",
 )
 

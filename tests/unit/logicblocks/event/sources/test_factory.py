@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from logicblocks.event.persistence.postgres import ConnectionSettings

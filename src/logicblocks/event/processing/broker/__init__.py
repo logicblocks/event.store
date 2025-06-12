@@ -1,7 +1,11 @@
 from .base import EventBroker
 from .factories import (
-    BrokerType,
-    StorageType,
+    DistributedEventBrokerTypeType,
+    EventBrokerStorageType,
+    EventBrokerType,
+    InMemoryEventBrokerStorageTypeType,
+    PostgresEventBrokerStorageTypeType,
+    SingletonEventBrokerTypeType,
     make_event_broker,
     make_in_memory_event_broker,
     make_postgres_event_broker,
@@ -19,7 +23,9 @@ from .strategies import (
 from .types import EventSubscriber, EventSubscriberHealth
 
 __all__ = (
-    "BrokerType",
+    "EventBrokerType",
+    "DistributedEventBrokerTypeType",
+    "SingletonEventBrokerTypeType",
     "DistributedEventBroker",
     "DistributedEventBrokerSettings",
     "EventBroker",
@@ -27,7 +33,9 @@ __all__ = (
     "EventSubscriberHealth",
     "SingletonEventBroker",
     "SingletonEventBrokerSettings",
-    "StorageType",
+    "EventBrokerStorageType",
+    "InMemoryEventBrokerStorageTypeType",
+    "PostgresEventBrokerStorageTypeType",
     "make_event_broker",
     "make_in_memory_event_broker",
     "make_postgres_event_broker",

@@ -21,34 +21,40 @@ from .strategies import (
 )
 
 
-class BrokerType(ABC):
-    Singleton: "type[_SingletonBrokerType]"
-    Distributed: "type[_DistributedBrokerType]"
+class EventBrokerType(ABC):
+    Singleton: "type[_SingletonEventBrokerType]"
+    Distributed: "type[_DistributedEventBrokerType]"
 
 
-class _SingletonBrokerType(BrokerType): ...
+class _SingletonEventBrokerType(EventBrokerType): ...
 
 
-class _DistributedBrokerType(BrokerType): ...
+class _DistributedEventBrokerType(EventBrokerType): ...
 
 
-BrokerType.Singleton = _SingletonBrokerType
-BrokerType.Distributed = _DistributedBrokerType
+SingletonEventBrokerTypeType = type[_SingletonEventBrokerType]
+DistributedEventBrokerTypeType = type[_DistributedEventBrokerType]
+
+EventBrokerType.Singleton = _SingletonEventBrokerType
+EventBrokerType.Distributed = _DistributedEventBrokerType
 
 
-class StorageType(ABC):
-    InMemory: "type[_InMemoryStorageType]"
-    Postgres: "type[_PostgresStorageType]"
+class EventBrokerStorageType(ABC):
+    InMemory: "type[_InMemoryEventBrokerStorageType]"
+    Postgres: "type[_PostgresEventBrokerStorageType]"
 
 
-class _InMemoryStorageType(StorageType): ...
+class _InMemoryEventBrokerStorageType(EventBrokerStorageType): ...
 
 
-class _PostgresStorageType(StorageType): ...
+class _PostgresEventBrokerStorageType(EventBrokerStorageType): ...
 
 
-StorageType.InMemory = _InMemoryStorageType
-StorageType.Postgres = _PostgresStorageType
+InMemoryEventBrokerStorageTypeType = type[_InMemoryEventBrokerStorageType]
+PostgresEventBrokerStorageTypeType = type[_PostgresEventBrokerStorageType]
+
+EventBrokerStorageType.InMemory = _InMemoryEventBrokerStorageType
+EventBrokerStorageType.Postgres = _PostgresEventBrokerStorageType
 
 
 class InMemoryDistributedBrokerParams(TypedDict):
@@ -85,8 +91,8 @@ class CombinedBrokerParams(TypedDict, total=False):
 @overload
 def make_event_broker(
     node_id: str,
-    broker_type: type[_DistributedBrokerType],
-    storage_type: type[_InMemoryStorageType],
+    broker_type: DistributedEventBrokerTypeType,
+    storage_type: InMemoryEventBrokerStorageTypeType,
     **kwargs: Unpack[InMemoryDistributedBrokerParams],
 ) -> EventBroker: ...
 
@@ -94,8 +100,8 @@ def make_event_broker(
 @overload
 def make_event_broker(
     node_id: str,
-    broker_type: type[_DistributedBrokerType],
-    storage_type: type[_PostgresStorageType],
+    broker_type: DistributedEventBrokerTypeType,
+    storage_type: PostgresEventBrokerStorageTypeType,
     **kwargs: Unpack[PostgresDistributedBrokerParams],
 ) -> EventBroker: ...
 
@@ -103,8 +109,8 @@ def make_event_broker(
 @overload
 def make_event_broker(
     node_id: str,
-    broker_type: type[_SingletonBrokerType],
-    storage_type: type[_InMemoryStorageType],
+    broker_type: SingletonEventBrokerTypeType,
+    storage_type: InMemoryEventBrokerStorageTypeType,
     **kwargs: Unpack[InMemorySingletonBrokerParams],
 ) -> EventBroker: ...
 
@@ -112,32 +118,36 @@ def make_event_broker(
 @overload
 def make_event_broker(
     node_id: str,
-    broker_type: type[_SingletonBrokerType],
-    storage_type: type[_PostgresStorageType],
+    broker_type: SingletonEventBrokerTypeType,
+    storage_type: PostgresEventBrokerStorageTypeType,
     **kwargs: Unpack[PostgresSingletonBrokerParams],
 ) -> EventBroker: ...
 
 
 def make_event_broker(
     node_id: str,
-    broker_type: type[_SingletonBrokerType] | type[_DistributedBrokerType],
-    storage_type: type[_InMemoryStorageType] | type[_PostgresStorageType],
+    broker_type: (
+        SingletonEventBrokerTypeType | DistributedEventBrokerTypeType
+    ),
+    storage_type: (
+        InMemoryEventBrokerStorageTypeType | PostgresEventBrokerStorageTypeType
+    ),
     **kwargs: Unpack[CombinedBrokerParams],
 ) -> EventBroker:
     match broker_type, storage_type:
-        case BrokerType.Distributed, StorageType.InMemory:
+        case EventBrokerType.Distributed, EventBrokerStorageType.InMemory:
             return make_in_memory_distributed_event_broker(
                 node_id, **cast(InMemoryDistributedBrokerParams, kwargs)
             )
-        case BrokerType.Distributed, StorageType.Postgres:
+        case EventBrokerType.Distributed, EventBrokerStorageType.Postgres:
             return make_postgres_distributed_event_broker(
                 node_id, **cast(PostgresDistributedBrokerParams, kwargs)
             )
-        case BrokerType.Singleton, StorageType.InMemory:
+        case EventBrokerType.Singleton, EventBrokerStorageType.InMemory:
             return make_in_memory_singleton_event_broker(
                 node_id, **cast(InMemorySingletonBrokerParams, kwargs)
             )
-        case BrokerType.Singleton, StorageType.Postgres:
+        case EventBrokerType.Singleton, EventBrokerStorageType.Postgres:
             return make_postgres_singleton_event_broker(
                 node_id, **cast(PostgresSingletonBrokerParams, kwargs)
             )

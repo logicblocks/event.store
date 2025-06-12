@@ -1,3 +1,19 @@
+
+<a id='changelog-0.1.6a0'></a>
+# 0.1.6 — 2025-06-12
+
+## Added
+
+- `SingletonEventBrokerTypeType`, `DistributedEventBrokerTypeType`,
+  `InMemoryEventBrokerStorageTypeType` and `PostgresEventBrokerStorageTypeType`
+  have been exported from `logicblocks.event.processing` so that they can
+  be used wherever types are needed for the `EventBrokerType.Singleton` and `EventBrokerType.Distributed` broker type specifiers.
+
+## Changed
+
+- `BrokerType` and `StorageType`, used when invoking `make_event_broker`, have
+  been renamed to `EventBrokerType` and `EventBrokerStorageType` respectively.
+
 <a id='changelog-0.1.5'></a>
 # 0.1.5 — 2025-06-11
 

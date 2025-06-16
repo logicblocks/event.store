@@ -79,7 +79,9 @@ class TestRaiseErrorHandler:
 
 
 class TestContinueErrorHandler:
-    def test_requests_continue_with_none_by_default_on_handle_of_exception_subclass(self):
+    def test_requests_continue_with_none_by_default_on_handle_of_exception_subclass(
+        self,
+    ):
         class TestException(Exception):
             pass
 

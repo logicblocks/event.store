@@ -78,8 +78,8 @@ class TestRaiseErrorHandler:
         assert decision.exception.__cause__ == test_exception
 
 
-class TestReturnErrorHandler:
-    def test_requests_continue_with_none_by_default_on_handle(self):
+class TestContinueErrorHandler:
+    def test_requests_continue_with_none_by_default_on_handle_of_exception_subclass(self):
         class TestException(Exception):
             pass
 
@@ -89,6 +89,18 @@ class TestReturnErrorHandler:
             error_handler.handle(TestException())
             == ErrorHandlerDecision.continue_execution()
         )
+
+    def test_requests_raise_on_handle_of_non_exception_subclass(self):
+        class FatalTestException(BaseException):
+            pass
+
+        exception = FatalTestException()
+
+        error_handler = ContinueErrorHandler()
+
+        assert error_handler.handle(
+            exception
+        ) == ErrorHandlerDecision.raise_exception(exception)
 
     def test_requests_continue_with_value_from_provided_factory_on_handle(
         self,

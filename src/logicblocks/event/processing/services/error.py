@@ -86,9 +86,12 @@ class ContinueErrorHandler[T = None](ErrorHandler[T]):
         self.value_factory = value_factory
 
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[T]:
-        return ErrorHandlerDecision.continue_execution(
-            value=self.value_factory(exception)
-        )
+        if isinstance(exception, Exception):
+            return ErrorHandlerDecision.continue_execution(
+                value=self.value_factory(exception)
+            )
+        else:
+            return ErrorHandlerDecision.raise_exception(exception)
 
 
 class RetryErrorHandler(ErrorHandler[Any]):

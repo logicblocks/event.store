@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TypedDict, Unpack, cast, overload, NotRequired
+from typing import NotRequired, TypedDict, Unpack, cast, overload
 from warnings import deprecated
 
 from psycopg import AsyncConnection

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TypedDict, Unpack, cast, overload
+from typing import TypedDict, Unpack, cast, overload, NotRequired
 from warnings import deprecated
 
 from psycopg import AsyncConnection
@@ -66,7 +66,7 @@ class PostgresDistributedBrokerParams(TypedDict):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: DistributedEventBrokerSettings
-    adapter: EventStorageAdapter | None
+    adapter: NotRequired[EventStorageAdapter | None]
 
 
 class InMemorySingletonBrokerParams(TypedDict):
@@ -78,14 +78,14 @@ class PostgresSingletonBrokerParams(TypedDict):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: SingletonEventBrokerSettings
-    adapter: EventStorageAdapter | None
+    adapter: NotRequired[EventStorageAdapter | None]
 
 
 class CombinedBrokerParams(TypedDict, total=False):
     settings: DistributedEventBrokerSettings | SingletonEventBrokerSettings
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
-    adapter: EventStorageAdapter | None
+    adapter: NotRequired[EventStorageAdapter | None]
 
 
 @overload

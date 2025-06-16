@@ -1,4 +1,13 @@
 
+<a id='changelog-0.1.7a0'></a>
+# 0.1.7 — 2025-06-16
+
+## Fixed
+
+- The `make_event_broker` factory was forcing an `adapter` of `None` to be
+  passed despite the parameter being optional in the case of using Postgres
+  storage. This has now been made optional.
+
 <a id='changelog-0.1.6a0'></a>
 # 0.1.6 — 2025-06-12
 

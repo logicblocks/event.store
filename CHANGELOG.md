@@ -1,4 +1,12 @@
 
+<a id='changelog-0.1.8a0'></a>
+# 0.1.8 — 2025-06-16
+
+## Fixed
+
+- `ContinueErrorHandler` now re-raises fatal exceptions and only continues on
+  non-fatal exceptions.
+
 <a id='changelog-0.1.7a0'></a>
 # 0.1.7 — 2025-06-16
 

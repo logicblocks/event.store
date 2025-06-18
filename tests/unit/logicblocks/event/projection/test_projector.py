@@ -135,7 +135,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -185,7 +185,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -203,7 +203,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -221,7 +221,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -239,7 +239,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -257,7 +257,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -275,7 +275,7 @@ class TestProjectorEventApplication:
 
         projector = AggregateProjector()
 
-        actual_state = projector.apply(event=stored_event)
+        actual_state = projector.apply(event=stored_event, state=Aggregate())
         expected_state = Aggregate(something_occurred_at=occurred_at)
 
         assert expected_state == actual_state
@@ -291,7 +291,7 @@ class TestProjectorEventApplication:
         projector = StrictAggregateProjector()
 
         with pytest.raises(MissingProjectionHandlerError):
-            projector.apply(event=stored_event)
+            projector.apply(event=stored_event, state=Aggregate())
 
     def test_ignores_event_on_missing_handler_when_requested(self):
         stored_event = generic_event.with_name(

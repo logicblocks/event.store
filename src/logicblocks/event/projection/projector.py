@@ -60,9 +60,7 @@ class Projector[
     def projection_name(self):
         return self.name if self.name is not None else self._default_name()
 
-    def apply(
-        self, *, event: StoredEvent[Any], state: State | None = None
-    ) -> State:
+    def apply(self, *, event: StoredEvent[Any], state: State) -> State:
         state = self._resolve_state(state)
         handler = self._resolve_handler(event)
 

@@ -25,7 +25,7 @@ from ...conditions import (
     WriteCondition,
 )
 from ...constraints import QueryConstraint
-from ...types import StreamPublishRequest
+from ...types import StreamPublishDefinition
 from ..base import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
@@ -90,7 +90,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         target: CategoryIdentifier,
         streams: Mapping[
-            str, StreamPublishRequest[StringPersistable, JsonPersistable]
+            str, StreamPublishDefinition[StringPersistable, JsonPersistable]
         ],
     ) -> list[str]:
         match self._serialisation_guarantee:
@@ -120,7 +120,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]: ...
 
     async def save[Name: StringPersistable, Payload: JsonPersistable](
@@ -129,7 +129,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
         | None = None,
     ) -> (
         Sequence[StoredEvent[Name, Payload]]
@@ -226,7 +226,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would

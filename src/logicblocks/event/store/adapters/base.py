@@ -16,7 +16,7 @@ from logicblocks.event.types import (
 
 from ..conditions import NoCondition, WriteCondition
 from ..constraints import QueryConstraint
-from ..types import StreamPublishRequest
+from ..types import StreamPublishDefinition
 
 # type Listable = identifier.Categories | identifier.Streams
 # type Readable = identifier.Log | identifier.Category | identifier.Stream
@@ -94,7 +94,7 @@ class EventStorageAdapter(ABC):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
         raise NotImplementedError()
 
@@ -105,7 +105,7 @@ class EventStorageAdapter(ABC):
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
         | None = None,
     ) -> (
         Sequence[StoredEvent[Name, Payload]]

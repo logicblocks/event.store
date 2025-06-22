@@ -14,6 +14,7 @@ from logicblocks.event.store import (
 )
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from logicblocks.event.store.types import stream_publish_definition
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
@@ -1029,11 +1030,11 @@ class TestCategoryPublish:
         category = store.category(category=category_name)
 
         streams = {
-            stream_1_name: {
-                "events": stream_1_events,
-                "condition": conditions.stream_is_empty(),
-            },
-            stream_2_name: {"events": stream_2_events},
+            stream_1_name: stream_publish_definition(
+                events=stream_1_events,
+                condition=conditions.stream_is_empty(),
+            ),
+            stream_2_name: stream_publish_definition(events=stream_2_events),
         }
 
         stored_events = await category.publish(streams=streams)

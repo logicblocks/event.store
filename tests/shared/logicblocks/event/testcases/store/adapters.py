@@ -19,7 +19,10 @@ from logicblocks.event.store.adapters import (
 )
 from logicblocks.event.store.conditions import NoCondition
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.store.types import StreamPublishRequest
+from logicblocks.event.store.types import (
+    StreamPublishDefinition,
+    stream_publish_definition,
+)
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.data import (
     random_event_category_name,
@@ -216,11 +219,11 @@ class CategorySaveCases(Base, ABC):
         stream_2_events = [NewEventBuilder().build() for _ in range(3)]
 
         streams = {
-            stream_1_name: {
-                "events": stream_1_events,
-                "condition": writeconditions.stream_is_empty(),
-            },
-            stream_2_name: {"events": stream_2_events},
+            stream_1_name: stream_publish_definition(
+                events=stream_1_events,
+                condition=writeconditions.stream_is_empty(),
+            ),
+            stream_2_name: stream_publish_definition(events=stream_2_events),
         }
 
         stored_events = await adapter.save(
@@ -323,11 +326,11 @@ class CategorySaveCases(Base, ABC):
         stream_2_events = [NewEventBuilder().build()]
 
         streams = {
-            stream_1_name: {"events": stream_1_events},
-            stream_2_name: {
-                "events": stream_2_events,
-                "condition": writeconditions.stream_is_empty(),
-            },
+            stream_1_name: stream_publish_definition(events=stream_1_events),
+            stream_2_name: stream_publish_definition(
+                events=stream_2_events,
+                condition=writeconditions.stream_is_empty(),
+            ),
         }
 
         with pytest.raises(UnmetWriteConditionError):
@@ -641,14 +644,14 @@ class WriteConditionCases(Base, ABC):
         stored_events_by_stream = await adapter.save(
             target=identifier.CategoryIdentifier(category=event_category),
             streams={
-                stream_1_name: {
-                    "events": stream_1_events,
-                    "condition": writeconditions.stream_is_empty(),
-                },
-                stream_2_name: {
-                    "events": stream_2_events,
-                    "condition": writeconditions.stream_is_empty(),
-                },
+                stream_1_name: stream_publish_definition(
+                    events=stream_1_events,
+                    condition=writeconditions.stream_is_empty(),
+                ),
+                stream_2_name: stream_publish_definition(
+                    events=stream_2_events,
+                    condition=writeconditions.stream_is_empty(),
+                ),
             },
         )
 
@@ -708,14 +711,14 @@ class WriteConditionCases(Base, ABC):
         stored_events_by_stream = await adapter.save(
             target=identifier.CategoryIdentifier(category=event_category),
             streams={
-                stream_1_name: {
-                    "events": stream_1_events,
-                    "condition": writeconditions.position_is(0),
-                },
-                stream_2_name: {
-                    "events": stream_2_events,
-                    "condition": writeconditions.stream_is_empty(),
-                },
+                stream_1_name: stream_publish_definition(
+                    events=stream_1_events,
+                    condition=writeconditions.position_is(0),
+                ),
+                stream_2_name: stream_publish_definition(
+                    events=stream_2_events,
+                    condition=writeconditions.stream_is_empty(),
+                ),
             },
         )
 
@@ -769,14 +772,14 @@ class WriteConditionCases(Base, ABC):
             await adapter.save(
                 target=identifier.CategoryIdentifier(category=event_category),
                 streams={
-                    stream_1_name: {
-                        "events": stream_1_events,
-                        "condition": writeconditions.stream_is_empty(),
-                    },
-                    stream_2_name: {
-                        "events": stream_2_events,
-                        "condition": writeconditions.stream_is_empty(),
-                    },
+                    stream_1_name: stream_publish_definition(
+                        events=stream_1_events,
+                        condition=writeconditions.stream_is_empty(),
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=stream_2_events,
+                        condition=writeconditions.stream_is_empty(),
+                    ),
                 },
             )
 
@@ -813,14 +816,14 @@ class WriteConditionCases(Base, ABC):
             await adapter.save(
                 target=identifier.CategoryIdentifier(category=event_category),
                 streams={
-                    stream_1_name: {
-                        "events": stream_1_events,
-                        "condition": writeconditions.position_is(0),
-                    },
-                    stream_2_name: {
-                        "events": stream_2_events,
-                        "condition": writeconditions.position_is(5),
-                    },
+                    stream_1_name: stream_publish_definition(
+                        events=stream_1_events,
+                        condition=writeconditions.position_is(0),
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=stream_2_events,
+                        condition=writeconditions.position_is(5),
+                    ),
                 },
             )
 
@@ -872,7 +875,7 @@ class StorageAdapterCategorySaveTask:
         *,
         adapter: EventStorageAdapter,
         target: identifier.CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[str, JsonValue]],
+        streams: Mapping[str, StreamPublishDefinition[str, JsonValue]],
     ):
         self.adapter = adapter
         self.target = target
@@ -1516,14 +1519,14 @@ class CategorySequenceWriter:
                 streams_data = {}
                 for stream_name in resolved_streams:
                     event_count = randint(1, 5)
-                    streams_data[stream_name] = {
-                        "events": [
+                    streams_data[stream_name] = stream_publish_definition(
+                        events=[
                             NewEventBuilder()
                             .with_name(f"event-{stream_name}-{id}-{n}")
                             .build()
                             for n in range(0, event_count)
                         ]
-                    }
+                    )
 
                 await logger.ainfo(
                     "category.sequence.writer.publishing",
@@ -2050,8 +2053,8 @@ class AsyncioConcurrencyCases(Base, ABC):
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_1_name: {
-                        "events": [
+                    stream_1_name: stream_publish_definition(
+                        events=[
                             (
                                 NewEventBuilder()
                                 .with_name(f"event-1-for-task-${task_id}")
@@ -2063,18 +2066,18 @@ class AsyncioConcurrencyCases(Base, ABC):
                                 .build()
                             ),
                         ],
-                        "condition": writeconditions.stream_is_empty(),
-                    },
-                    stream_2_name: {
-                        "events": [
+                        condition=writeconditions.stream_is_empty(),
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=[
                             (
                                 NewEventBuilder()
                                 .with_name(f"event-3-for-task-${task_id}")
                                 .build()
                             ),
                         ],
-                        "condition": writeconditions.stream_is_empty(),
-                    },
+                        condition=writeconditions.stream_is_empty(),
+                    ),
                 },
             )
             for task_id in range(simultaneous_write_count)
@@ -2123,8 +2126,8 @@ class AsyncioConcurrencyCases(Base, ABC):
         await adapter.save(
             target=identifier.CategoryIdentifier(category=event_category),
             streams={
-                stream_1_name: {
-                    "events": [
+                stream_1_name: stream_publish_definition(
+                    events=[
                         (
                             NewEventBuilder()
                             .with_name("event-1-preexisting")
@@ -2136,16 +2139,16 @@ class AsyncioConcurrencyCases(Base, ABC):
                             .build()
                         ),
                     ],
-                },
-                stream_2_name: {
-                    "events": [
+                ),
+                stream_2_name: stream_publish_definition(
+                    events=[
                         (
                             NewEventBuilder()
                             .with_name("event-3-preexisting")
                             .build()
                         ),
                     ],
-                },
+                ),
             },
         )
 
@@ -2156,8 +2159,8 @@ class AsyncioConcurrencyCases(Base, ABC):
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_1_name: {
-                        "events": [
+                    stream_1_name: stream_publish_definition(
+                        events=[
                             (
                                 NewEventBuilder()
                                 .with_name(f"event-1-for-task-${task_id}")
@@ -2169,18 +2172,18 @@ class AsyncioConcurrencyCases(Base, ABC):
                                 .build()
                             ),
                         ],
-                        "condition": writeconditions.position_is(1),
-                    },
-                    stream_2_name: {
-                        "events": [
+                        condition=writeconditions.position_is(1),
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=[
                             (
                                 NewEventBuilder()
                                 .with_name(f"event-3-for-task-${task_id}")
                                 .build()
                             ),
                         ],
-                        "condition": writeconditions.position_is(0),
-                    },
+                        condition=writeconditions.position_is(0),
+                    ),
                 },
             )
             for task_id in range(simultaneous_write_count)
@@ -2233,24 +2236,24 @@ class AsyncioConcurrencyCases(Base, ABC):
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_1_name: {
-                        "events": [NewEventBuilder().build()],
-                    },
-                    stream_2_name: {
-                        "events": [NewEventBuilder().build()],
-                    },
+                    stream_1_name: stream_publish_definition(
+                        events=[NewEventBuilder().build()],
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=[NewEventBuilder().build()],
+                    ),
                 },
             ),
             StorageAdapterCategorySaveTask(
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_3_name: {
-                        "events": [NewEventBuilder().build()],
-                    },
-                    stream_4_name: {
-                        "events": [NewEventBuilder().build()],
-                    },
+                    stream_3_name: stream_publish_definition(
+                        events=[NewEventBuilder().build()],
+                    ),
+                    stream_4_name: stream_publish_definition(
+                        events=[NewEventBuilder().build()],
+                    ),
                 },
             ),
         ]
@@ -2295,8 +2298,8 @@ class AsyncioConcurrencyCases(Base, ABC):
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_1_name: {
-                        "events": [
+                    stream_1_name: stream_publish_definition(
+                        events=[
                             NewEventBuilder()
                             .with_name("event-1-write-0")
                             .build(),
@@ -2304,22 +2307,22 @@ class AsyncioConcurrencyCases(Base, ABC):
                             .with_name("event-2-write-0")
                             .build(),
                         ],
-                    },
-                    stream_2_name: {
-                        "events": [
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=[
                             NewEventBuilder()
                             .with_name("event-3-write-0")
                             .build(),
                         ],
-                    },
+                    ),
                 },
             ),
             StorageAdapterCategorySaveTask(
                 adapter=adapter,
                 target=target,
                 streams={
-                    stream_1_name: {
-                        "events": [
+                    stream_1_name: stream_publish_definition(
+                        events=[
                             NewEventBuilder()
                             .with_name("event-1-write-1")
                             .build(),
@@ -2327,14 +2330,14 @@ class AsyncioConcurrencyCases(Base, ABC):
                             .with_name("event-2-write-1")
                             .build(),
                         ],
-                    },
-                    stream_2_name: {
-                        "events": [
+                    ),
+                    stream_2_name: stream_publish_definition(
+                        events=[
                             NewEventBuilder()
                             .with_name("event-3-write-1")
                             .build(),
                         ],
-                    },
+                    ),
                 },
             ),
         ]

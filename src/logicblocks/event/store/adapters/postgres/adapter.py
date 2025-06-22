@@ -44,7 +44,7 @@ from ...constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
 )
-from ...types import StreamPublishRequest
+from ...types import StreamPublishDefinition
 from ..base import (
     AnyEventSerialisationGuarantee,
     CategoryEventSerialisationGuarantee,
@@ -572,7 +572,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]: ...
 
     async def save[Name: StringPersistable, Payload: JsonPersistable](
@@ -581,7 +581,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
         | None = None,
     ) -> (
         Sequence[StoredEvent[Name, Payload]]
@@ -672,7 +672,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(

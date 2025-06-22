@@ -1,2 +1,7 @@
-from . import postgres as postgres
-from .converter import TypeRegistryConverter as TypeRegistryConverter
+from . import postgres
+from .converter import TypeRegistryConverter
+
+__all__ = [
+    "TypeRegistryConverter",
+    "postgres",
+]

@@ -1,1 +1,5 @@
-from .logger import CapturingLogger as CapturingLogger
+from .logger import CapturingLogger
+
+__all__ = [
+    "CapturingLogger",
+]

@@ -1,2 +1,7 @@
-from .base import EventSourceFactory as EventSourceFactory
-from .store import EventStoreEventSourceFactory as EventStoreEventSourceFactory
+from .base import EventSourceFactory
+from .store import EventStoreEventSourceFactory
+
+__all__ = [
+    "EventSourceFactory",
+    "EventStoreEventSourceFactory",
+]

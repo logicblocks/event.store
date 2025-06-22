@@ -1,2 +1,6 @@
-from .adapter import PostgresEventStorageAdapter as PostgresEventStorageAdapter
-from .adapter import QuerySettings as QuerySettings
+from .adapter import PostgresEventStorageAdapter, QuerySettings
+
+__all__ = [
+    "PostgresEventStorageAdapter",
+    "QuerySettings",
+]

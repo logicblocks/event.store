@@ -90,6 +90,10 @@
   - `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" ./go` for full 
     build (linting, type checking, formatting, building, and all tests)
   - `./go library:build` for library build only
+- Changelog commands:
+  - `poetry run poe changelog-fragment-create` to generate a changelog fragment
+  - `poetry run poe changelog-assemble` to assemble changelog fragments into the
+    CHANGELOG.md file
 
 ### Test Structure
 

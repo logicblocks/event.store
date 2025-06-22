@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Sequence, Set
-from typing import Self
+from collections.abc import AsyncIterator, Mapping, Sequence, Set
+from typing import overload
 
 from logicblocks.event.types import (
     CategoryIdentifier,
+    EventSourceIdentifier,
     JsonPersistable,
     JsonValue,
     LogIdentifier,
@@ -15,36 +16,58 @@ from logicblocks.event.types import (
 
 from ..conditions import NoCondition, WriteCondition
 from ..constraints import QueryConstraint
+from ..types import StreamPublishRequest
 
 # type Listable = identifier.Categories | identifier.Streams
 # type Readable = identifier.Log | identifier.Category | identifier.Stream
-type Saveable = StreamIdentifier
+type Saveable = StreamIdentifier | CategoryIdentifier
 type Scannable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 type Latestable = LogIdentifier | CategoryIdentifier | StreamIdentifier
 
 
-class EventSerialisationGuarantee(ABC):
-    LOG: Self
-    CATEGORY: Self
-    STREAM: Self
+class EventSerialisationGuarantee[Identifier: EventSourceIdentifier](ABC):
+    LOG: "LogEventSerialisationGuarantee"
+    CATEGORY: "CategoryEventSerialisationGuarantee"
+    STREAM: "StreamEventSerialisationGuarantee"
 
     @abstractmethod
-    def lock_name(self, namespace: str, target: Saveable) -> str:
+    def lock_name(self, namespace: str, target: Identifier) -> str:
         raise NotImplementedError
 
 
-class LogEventSerialisationGuarantee(EventSerialisationGuarantee):
-    def lock_name(self, namespace: str, target: Saveable) -> str:
+type AnyEventSerialisationGuarantee = (
+    LogEventSerialisationGuarantee
+    | CategoryEventSerialisationGuarantee
+    | StreamEventSerialisationGuarantee
+)
+
+
+class LogEventSerialisationGuarantee(
+    EventSerialisationGuarantee[
+        CategoryIdentifier | StreamIdentifier | LogIdentifier
+    ]
+):
+    def lock_name(
+        self,
+        namespace: str,
+        target: CategoryIdentifier | StreamIdentifier | LogIdentifier,
+    ) -> str:
         return namespace
 
 
-class CategoryEventSerialisationGuarantee(EventSerialisationGuarantee):
-    def lock_name(self, namespace: str, target: Saveable) -> str:
+class CategoryEventSerialisationGuarantee(
+    EventSerialisationGuarantee[CategoryIdentifier | StreamIdentifier]
+):
+    def lock_name(
+        self, namespace: str, target: CategoryIdentifier | StreamIdentifier
+    ) -> str:
         return f"{namespace}.{target.category}"
 
 
-class StreamEventSerialisationGuarantee(EventSerialisationGuarantee):
-    def lock_name(self, namespace: str, target: Saveable) -> str:
+class StreamEventSerialisationGuarantee(
+    EventSerialisationGuarantee[StreamIdentifier]
+):
+    def lock_name(self, namespace: str, target: StreamIdentifier) -> str:
         return f"{namespace}.{target.category}.{target.stream}"
 
 
@@ -54,14 +77,40 @@ EventSerialisationGuarantee.STREAM = StreamEventSerialisationGuarantee()
 
 
 class EventStorageAdapter(ABC):
+    @overload
+    @abstractmethod
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
+        self,
+        *,
+        target: StreamIdentifier,
+        events: Sequence[NewEvent[Name, Payload]],
+        condition: WriteCondition = NoCondition(),
+    ) -> Sequence[StoredEvent[Name, Payload]]:
+        raise NotImplementedError()
+
+    @overload
+    @abstractmethod
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
+        self,
+        *,
+        target: CategoryIdentifier,
+        streams: Mapping[str, StreamPublishRequest[Name, Payload]],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        raise NotImplementedError()
+
     @abstractmethod
     async def save[Name: StringPersistable, Payload: JsonPersistable](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload]] | None = None,
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]:
+        streams: Mapping[str, StreamPublishRequest[Name, Payload]]
+        | None = None,
+    ) -> (
+        Sequence[StoredEvent[Name, Payload]]
+        | Mapping[str, Sequence[StoredEvent[Name, Payload]]]
+    ):
         raise NotImplementedError()
 
     @abstractmethod

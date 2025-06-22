@@ -1,6 +1,7 @@
 import sys
+from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import cast
+from typing import Sequence, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -15,11 +16,13 @@ from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.store.adapters.postgres.adapter import (
+    StreamInsertDefinition,
     insert_batch,
     insert_batch_query,
 )
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder
 from logicblocks.event.types import (
+    NewEvent,
     StreamIdentifier,
 )
 
@@ -200,13 +203,17 @@ class TestBatchInsert:
         ]
         cursor.fetchall.return_value = stub_stored_events
 
-        returned_events = await insert_batch(
+        definitions = {
+            target: StreamInsertDefinition(events=events, position=10)
+        }
+
+        returned_events_mapping = await insert_batch(
             cursor,
-            target=target,
-            events=events,
-            start_position=10,
+            definitions=definitions,
             table_settings=TableSettings(table_name="test_events"),
         )
+
+        returned_events = returned_events_mapping[target]
 
         assert len(returned_events) == 3
         assert returned_events[0].name == "event1"
@@ -226,15 +233,17 @@ class TestBatchInsert:
 
         empty_events = []
 
+        definitions = {
+            target: StreamInsertDefinition(events=empty_events, position=10)
+        }
+
         result = await insert_batch(
             cursor,
-            target=target,
-            events=empty_events,
-            start_position=10,
+            definitions=definitions,
             table_settings=TableSettings(table_name="test_events"),
         )
 
-        assert result == []
+        assert result == {target: []}
 
     def test_batch_insert_query_builds_correct_sql(self):
         target = StreamIdentifier(
@@ -242,7 +251,7 @@ class TestBatchInsert:
         )
         fixed_timestamp = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        events = [
+        events: Sequence[NewEvent[str, Mapping[str, str]]] = [
             NewEventBuilder(
                 name="event1",
                 payload={"data": "value1"},
@@ -257,9 +266,9 @@ class TestBatchInsert:
             ).build(),
         ]
         query, params = insert_batch_query(
-            target=target,
-            events=events,
-            start_position=10,
+            definitions={
+                target: StreamInsertDefinition(events=events, position=10)
+            },
             table_settings=TableSettings(table_name="test_events"),
         )
         # Convert the query to a real SQL string
@@ -267,19 +276,12 @@ class TestBatchInsert:
         query_str = query.as_string(None)
 
         expected_query_str = """
-         INSERT INTO "test_events" (
-           id, 
-           name, 
-           stream, 
-           category, 
-           position, 
-           payload, 
-           observed_at, 
-           occurred_at
-         )
-         VALUES
+        INSERT INTO "test_events" 
+        (id, name, stream, category, position, 
+         payload, observed_at, occurred_at)
+        VALUES
           (%s, %s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s, %s)
-           RETURNING *;
+          RETURNING *;
         """
         assert normalize_whitespace(query_str) == normalize_whitespace(
             expected_query_str

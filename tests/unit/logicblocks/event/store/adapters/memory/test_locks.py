@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock
 
 import aiologic
@@ -63,7 +62,6 @@ class TestMultiLock:
         def track_call(lock_name):
             def mock_release():
                 all_calls.append(lock_name)
-                return asyncio.sleep(0)
 
             return mock_release
 

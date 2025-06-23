@@ -1,6 +1,12 @@
 import asyncio
 from collections import defaultdict
-from collections.abc import AsyncIterator, Mapping, Sequence, Set
+from collections.abc import (
+    AsyncGenerator, 
+    AsyncIterator, 
+    Mapping, 
+    Sequence, 
+    Set
+)
 from typing import overload
 from uuid import uuid4
 
@@ -320,6 +326,11 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 
-        async for event in snapshot.scan_events(target, constraints):
-            await asyncio.sleep(0)
-            yield event
+        async_generator = snapshot.scan_events(target, constraints)
+        try:
+            async for event in async_generator:
+                await asyncio.sleep(0)
+                yield event
+        finally:
+            if isinstance(async_generator, AsyncGenerator):
+                await async_generator.aclose()

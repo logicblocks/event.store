@@ -15,7 +15,6 @@ from logicblocks.event.types import (
 from ...constraints import QueryConstraint
 from ..base import (
     Latestable,
-    Saveable,
     Scannable,
 )
 from .types import QueryConstraintCheck
@@ -77,7 +76,7 @@ class InMemoryEventsDB:
         return InMemoryEventsDBTransaction(db=self)
 
     def stream_events(
-        self, target: Saveable
+        self, target: StreamIdentifier
     ) -> list[StoredEvent[str, JsonValue]]:
         stream_key = (target.category, target.stream)
         events = [self._events[i] for i in self._stream_index[stream_key]]
@@ -90,12 +89,12 @@ class InMemoryEventsDB:
         return cast(list[StoredEvent[str, JsonValue]], events)
 
     def last_stream_event(
-        self, target: Saveable
+        self, target: StreamIdentifier
     ) -> StoredEvent[str, JsonValue] | None:
         stream_events = self.stream_events(target)
         return stream_events[-1] if stream_events else None
 
-    def last_stream_position(self, target: Saveable) -> int:
+    def last_stream_position(self, target: StreamIdentifier) -> int:
         last_stream_event = self.last_stream_event(target)
         return -1 if last_stream_event is None else last_stream_event.position
 
@@ -164,9 +163,9 @@ class InMemoryEventsDBTransaction:
             self._db.add(event)
 
     def last_stream_event(
-        self, target: Saveable
+        self, target: StreamIdentifier
     ) -> StoredEvent[str, JsonValue] | None:
         return self._db.last_stream_event(target)
 
-    def last_stream_position(self, target: Saveable) -> int:
+    def last_stream_position(self, target: StreamIdentifier) -> int:
         return self._db.last_stream_position(target)

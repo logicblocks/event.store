@@ -27,3 +27,5 @@ from .transactions import (
 from .transactions import (
     retry_on_unmet_condition_error as retry_on_unmet_condition_error,
 )
+from .types import StreamPublishDefinition as StreamPublishDefinition
+from .types import stream_publish_definition as stream_publish_definition

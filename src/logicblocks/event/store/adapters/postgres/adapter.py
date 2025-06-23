@@ -1,7 +1,8 @@
 import hashlib
-from collections.abc import AsyncIterator, Set
+from collections.abc import AsyncIterator, Mapping, Set
 from dataclasses import dataclass
-from typing import Sequence
+from datetime import datetime
+from typing import Sequence, TypedDict, overload
 from uuid import uuid4
 
 from psycopg import AsyncConnection, AsyncCursor, sql
@@ -43,12 +44,17 @@ from ...constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
 )
+from ...types import StreamPublishDefinition
 from ..base import (
+    AnyEventSerialisationGuarantee,
+    CategoryEventSerialisationGuarantee,
     EventSerialisationGuarantee,
     EventStorageAdapter,
     Latestable,
+    LogEventSerialisationGuarantee,
     Saveable,
     Scannable,
+    StreamEventSerialisationGuarantee,
 )
 from .converters import (
     TypeRegistryConditionConverter,
@@ -56,6 +62,14 @@ from .converters import (
     WriteConditionEnforcer,
     WriteConditionEnforcerContext,
 )
+
+
+class StreamInsertDefinition[
+    Name: StringPersistable,
+    Payload: JsonPersistable,
+](TypedDict):
+    events: Sequence[NewEvent[Name, Payload]]
+    position: int
 
 
 @dataclass(frozen=True)
@@ -172,22 +186,92 @@ def scan_query(
     return builder.build()
 
 
-def obtain_write_lock_query(
-    target: Saveable,
-    serialisation_guarantee: EventSerialisationGuarantee,
+@overload
+def obtain_write_locks_query(
+    targets: StreamIdentifier,
+    serialisation_guarantee: AnyEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> ParameterisedQuery: ...
+
+
+@overload
+def obtain_write_locks_query(
+    targets: CategoryIdentifier,
+    serialisation_guarantee: CategoryEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> ParameterisedQuery: ...
+
+
+@overload
+def obtain_write_locks_query(
+    targets: CategoryIdentifier,
+    serialisation_guarantee: LogEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> ParameterisedQuery: ...
+
+
+@overload
+def obtain_write_locks_query(
+    targets: Sequence[StreamIdentifier],
+    serialisation_guarantee: StreamEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> ParameterisedQuery: ...
+
+
+def obtain_write_locks_query(
+    targets: CategoryIdentifier
+    | StreamIdentifier
+    | Sequence[StreamIdentifier],
+    serialisation_guarantee: AnyEventSerialisationGuarantee,
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    lock_name = serialisation_guarantee.lock_name(
-        namespace=table_settings.table_name, target=target
-    )
-    return (
-        sql.SQL(
-            """
-            SELECT pg_advisory_xact_lock(%s);
-            """
-        ),
-        [get_digest(lock_name)],
-    )
+    if not targets:
+        return sql.SQL("SELECT 1;"), []
+
+    match targets, serialisation_guarantee:
+        case StreamIdentifier() as target, _:
+            lock_name = serialisation_guarantee.lock_name(
+                namespace=table_settings.table_name, target=target
+            )
+            lock_digest = get_digest(lock_name)
+            return (
+                sql.SQL("SELECT pg_advisory_xact_lock(%s);"),
+                [lock_digest],
+            )
+        case (
+            CategoryIdentifier() as target,
+            LogEventSerialisationGuarantee()
+            | CategoryEventSerialisationGuarantee(),
+        ):
+            lock_name = serialisation_guarantee.lock_name(
+                namespace=table_settings.table_name, target=target
+            )
+            lock_digest = get_digest(lock_name)
+            return (
+                sql.SQL("SELECT pg_advisory_xact_lock(%s);"),
+                [lock_digest],
+            )
+        case [*targets], StreamEventSerialisationGuarantee():
+            lock_names = [
+                serialisation_guarantee.lock_name(
+                    namespace=table_settings.table_name, target=target
+                )
+                for target in targets
+            ]
+            lock_digests = [get_digest(lock_name) for lock_name in lock_names]
+            lock_placeholders = sql.SQL(", ").join(
+                [sql.SQL("pg_advisory_xact_lock(%s)") for _ in lock_digests]
+            )
+
+            return (
+                sql.SQL("SELECT {0};").format(lock_placeholders),
+                lock_digests,
+            )
+        case _:
+            raise ValueError(
+                "Invalid type for targets, expected StreamIdentifier, "
+                "CategoryIdentifier, or a sequence of StreamIdentifiers."
+            )
 
 
 def read_last_query(
@@ -243,62 +327,123 @@ def read_last_query(
     return query, params
 
 
-def insert_batch_query(
-    target: Saveable,
-    events: Sequence[NewEvent[StringPersistable, JsonPersistable]],
-    start_position: int,
+def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
+    definitions: Mapping[
+        StreamIdentifier, StreamInsertDefinition[Name, Payload]
+    ],
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    value_lists = [sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s)") for _ in events]
-    values_clause = sql.SQL(", ").join(value_lists)
+    rows: list[sql.SQL] = []
+    values: list[str | int | Jsonb | datetime] = []
 
-    values = [
-        param
-        for i, event in enumerate(events)
-        for param in [
-            uuid4().hex,
-            serialise_to_string(event.name),
-            target.stream,
-            target.category,
-            start_position + i,
-            Jsonb(serialise_to_json_value(event.payload)),
-            event.observed_at,
-            event.occurred_at,
-        ]
-    ]
+    for identifier, definition in definitions.items():
+        events = definition["events"]
+        start_position = definition["position"]
+
+        for i, event in enumerate(events):
+            rows.append(sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s)"))
+            values.extend(
+                [
+                    uuid4().hex,
+                    serialise_to_string(event.name),
+                    identifier.stream,
+                    identifier.category,
+                    start_position + i,
+                    Jsonb(serialise_to_json_value(event.payload)),
+                    event.observed_at,
+                    event.occurred_at,
+                ]
+            )
+
+    rows_expression = sql.SQL(", ").join(rows)
 
     return (
         sql.SQL("""
-                INSERT INTO {0} (
-                    id,
-                    name,
-                    stream,
-                    category,
-                    position,
-                    payload,
-                    observed_at,
-                    occurred_at
-                )
+                INSERT INTO {0} (id,
+                                 name,
+                                 stream,
+                                 category,
+                                 position,
+                                 payload,
+                                 observed_at,
+                                 occurred_at)
                 VALUES
                     {1}
                     RETURNING *;
                 """).format(
-            sql.Identifier(table_settings.table_name), values_clause
+            sql.Identifier(table_settings.table_name), rows_expression
         ),
         values,
     )
 
 
-async def obtain_write_lock(
+@overload
+async def obtain_write_locks(
     cursor: AsyncCursor[StoredEvent[str, JsonValue]],
-    target: Saveable,
-    *,
-    serialisation_guarantee: EventSerialisationGuarantee,
+    targets: StreamIdentifier,
+    serialisation_guarantee: AnyEventSerialisationGuarantee,
     table_settings: TableSettings,
-):
-    query = obtain_write_lock_query(
-        target, serialisation_guarantee, table_settings
-    )
+) -> None: ...
+
+
+@overload
+async def obtain_write_locks(
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    targets: CategoryIdentifier,
+    serialisation_guarantee: CategoryEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> None: ...
+
+
+@overload
+async def obtain_write_locks(
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    targets: CategoryIdentifier,
+    serialisation_guarantee: LogEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> None: ...
+
+
+@overload
+async def obtain_write_locks(
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    targets: Sequence[StreamIdentifier],
+    serialisation_guarantee: StreamEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> None: ...
+
+
+async def obtain_write_locks(
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    targets: StreamIdentifier
+    | CategoryIdentifier
+    | Sequence[StreamIdentifier],
+    serialisation_guarantee: AnyEventSerialisationGuarantee,
+    table_settings: TableSettings,
+) -> None:
+    match targets, serialisation_guarantee:
+        case StreamIdentifier() as target, _:
+            query = obtain_write_locks_query(
+                target, serialisation_guarantee, table_settings
+            )
+        case (
+            CategoryIdentifier() as target,
+            LogEventSerialisationGuarantee()
+            | CategoryEventSerialisationGuarantee(),
+        ):
+            query = obtain_write_locks_query(
+                target, serialisation_guarantee, table_settings
+            )
+        case [*targets], StreamEventSerialisationGuarantee():
+            query = obtain_write_locks_query(
+                targets, serialisation_guarantee, table_settings
+            )
+        case _:
+            raise ValueError(
+                "Invalid type for targets, expected StreamIdentifier, "
+                "CategoryIdentifier, or a sequence of StreamIdentifiers."
+            )
+
     await cursor.execute(*query)
 
 
@@ -315,38 +460,52 @@ async def read_last(
 async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
     cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
-    target: Saveable,
-    events: Sequence[NewEvent[Name, Payload]],
-    start_position: int,
+    definitions: Mapping[
+        StreamIdentifier, StreamInsertDefinition[Name, Payload]
+    ],
     table_settings: TableSettings,
-) -> list[StoredEvent[Name, Payload]]:
-    if not events:
-        return []
+) -> Mapping[StreamIdentifier, Sequence[StoredEvent[Name, Payload]]]:
+    if not definitions:
+        return {}
 
-    await cursor.execute(
-        *insert_batch_query(target, events, start_position, table_settings)
-    )
+    await cursor.execute(*insert_batch_query(definitions, table_settings))
     stored_events = await cursor.fetchall()
 
-    if len(stored_events) != len(events):
+    expected_event_count = sum(
+        len(definition["events"]) for definition in definitions.values()
+    )
+    if len(stored_events) != expected_event_count:
         raise RuntimeError(
-            f"Batch insert failed: expected {len(events)} rows, got {len(stored_events)}"
+            f"Batch insert failed: expected {expected_event_count} rows, got {len(stored_events)}"
         )
 
-    return [
-        StoredEvent[Name, Payload](
-            id=stored_event.id,
-            name=events[i].name,
-            stream=stored_event.stream,
-            category=stored_event.category,
-            position=stored_event.position,
-            sequence_number=stored_event.sequence_number,
-            payload=events[i].payload,
-            observed_at=stored_event.observed_at,
-            occurred_at=stored_event.occurred_at,
-        )
-        for i, stored_event in enumerate(stored_events)
-    ]
+    results: dict[StreamIdentifier, list[StoredEvent[Name, Payload]]] = {}
+    event_index = 0
+
+    for identifier, definition in definitions.items():
+        events = definition["events"]
+        stream_stored_events: list[StoredEvent[Name, Payload]] = []
+
+        for event in events:
+            stored_event = stored_events[event_index]
+            stream_stored_events.append(
+                StoredEvent[Name, Payload](
+                    id=stored_event.id,
+                    name=event.name,
+                    stream=stored_event.stream,
+                    category=stored_event.category,
+                    position=stored_event.position,
+                    sequence_number=stored_event.sequence_number,
+                    payload=event.payload,
+                    observed_at=stored_event.observed_at,
+                    occurred_at=stored_event.occurred_at,
+                )
+            )
+            event_index += 1
+
+        results[identifier] = stream_stored_events
+
+    return results
 
 
 class PostgresEventStorageAdapter(EventStorageAdapter):
@@ -354,7 +513,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         connection_source: ConnectionSource,
-        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
+        serialisation_guarantee: AnyEventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(table_name="events"),
         constraint_converter: Converter[QueryConstraint, QueryApplier]
@@ -399,10 +558,64 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         if self._connection_pool_owner:
             await self.connection_pool.close()
 
+    @overload
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
+        self,
+        *,
+        target: StreamIdentifier,
+        events: Sequence[NewEvent[Name, Payload]],
+        condition: WriteCondition = NoCondition(),
+    ) -> Sequence[StoredEvent[Name, Payload]]: ...
+
+    @overload
+    async def save[Name: StringPersistable, Payload: JsonPersistable](
+        self,
+        *,
+        target: CategoryIdentifier,
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]: ...
+
     async def save[Name: StringPersistable, Payload: JsonPersistable](
         self,
         *,
         target: Saveable,
+        events: Sequence[NewEvent[Name, Payload]] | None = None,
+        condition: WriteCondition = NoCondition(),
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
+        | None = None,
+    ) -> (
+        Sequence[StoredEvent[Name, Payload]]
+        | Mapping[str, Sequence[StoredEvent[Name, Payload]]]
+    ):
+        match target:
+            case StreamIdentifier():
+                if events is None:
+                    raise ValueError(
+                        "The `events` parameter must be provided for "
+                        "stream level publish."
+                    )
+                return await self._save_to_stream(
+                    target=target, events=events, condition=condition
+                )
+            case CategoryIdentifier():
+                if streams is None:
+                    raise ValueError(
+                        "The `streams` parameter must be provided for "
+                        "category level publish."
+                    )
+                return await self._save_to_category(
+                    target=target, streams=streams
+                )
+            case _:
+                raise ValueError(f"Unsupported target type: {type(target)}")
+
+    async def _save_to_stream[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+    ](
+        self,
+        *,
+        target: StreamIdentifier,
         events: Sequence[NewEvent[Name, Payload]],
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload]]:
@@ -410,7 +623,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
-                await obtain_write_lock(
+                await obtain_write_locks(
                     cursor,
                     target,
                     serialisation_guarantee=self.serialisation_guarantee,
@@ -438,22 +651,107 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     latest_event.position + 1 if latest_event else 0
                 )
 
-                all_stored_events: list[StoredEvent[Name, Payload]] = []
-                for i in range(0, len(events), self.max_insert_batch_size):
-                    batch_events = events[i : i + self.max_insert_batch_size]
-                    batch_position = current_position + i
+                definitions = {
+                    target: StreamInsertDefinition[Name, Payload](
+                        events=events, position=current_position
+                    )
+                }
 
-                    batch_results = await insert_batch(
+                batch_results = await insert_batch(
+                    cursor,
+                    definitions=definitions,
+                    table_settings=self.table_settings,
+                )
+
+                return batch_results[target]
+
+    async def _save_to_category[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+    ](
+        self,
+        *,
+        target: CategoryIdentifier,
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor(
+                row_factory=class_row(StoredEvent[str, JsonValue])
+            ) as cursor:
+                if isinstance(
+                    self.serialisation_guarantee,
+                    StreamEventSerialisationGuarantee,
+                ):
+                    await obtain_write_locks(
                         cursor,
-                        target=target,
-                        events=batch_events,
-                        start_position=batch_position,
+                        [
+                            StreamIdentifier(
+                                category=target.category, stream=stream_name
+                            )
+                            for stream_name in sorted(streams.keys())
+                        ],
+                        serialisation_guarantee=self.serialisation_guarantee,
+                        table_settings=self.table_settings,
+                    )
+                else:
+                    await obtain_write_locks(
+                        cursor,
+                        target,
+                        serialisation_guarantee=self.serialisation_guarantee,
                         table_settings=self.table_settings,
                     )
 
-                    all_stored_events.extend(batch_results)
+                definitions: dict[
+                    StreamIdentifier, StreamInsertDefinition[Name, Payload]
+                ] = {}
 
-                return all_stored_events
+                for stream_name, stream_request in streams.items():
+                    identifier = StreamIdentifier(
+                        category=target.category, stream=stream_name
+                    )
+
+                    condition = stream_request.get("condition", NoCondition())
+                    events = stream_request["events"]
+
+                    latest_event = await read_last(
+                        cursor,
+                        parameters=LatestQueryParameters(target=identifier),
+                        table_settings=self.table_settings,
+                    )
+
+                    condition_enforcer = self.condition_converter.convert(
+                        condition
+                    )
+                    await condition_enforcer.assert_satisfied(
+                        context=WriteConditionEnforcerContext(
+                            identifier=identifier,
+                            latest_event=latest_event,
+                        ),
+                        connection=connection,
+                    )
+
+                    current_position = (
+                        latest_event.position + 1 if latest_event else 0
+                    )
+
+                    definitions[identifier] = StreamInsertDefinition[
+                        Name, Payload
+                    ](events=events, position=current_position)
+
+                batch_results = await insert_batch(
+                    cursor,
+                    definitions=definitions,
+                    table_settings=self.table_settings,
+                )
+
+                results: dict[str, Sequence[StoredEvent[Name, Payload]]] = {}
+                for stream_name in streams.keys():
+                    identifier = StreamIdentifier(
+                        category=target.category, stream=stream_name
+                    )
+                    results[stream_name] = batch_results[identifier]
+
+                return results
 
     async def latest(
         self, *, target: Latestable

@@ -21,6 +21,7 @@ from logicblocks.event.persistence.postgres import (
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
 from logicblocks.event.store.adapters import (
+    AnyEventSerialisationGuarantee,
     EventSerialisationGuarantee,
     EventStorageAdapter,
     PostgresEventStorageAdapter,
@@ -139,7 +140,7 @@ class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
     def construct_storage_adapter(
         self,
         *,
-        serialisation_guarantee: EventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
+        serialisation_guarantee: AnyEventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
     ) -> EventStorageAdapter:
         return PostgresEventStorageAdapter(
             connection_source=self.pool,
@@ -632,9 +633,7 @@ class TestPostgresStorageAdapterQueryConstraints:
     async def test_raises_when_using_unknown_query_constraint(self):
         adapter = PostgresEventStorageAdapter(connection_source=self.pool)
 
-        class UnknownQueryConstraint(QueryConstraint):
-            def met_by(self, *, event: StoredEvent) -> bool:
-                return False
+        class UnknownQueryConstraint(QueryConstraint): ...
 
         with pytest.raises(ValueError):
             _ = [
@@ -646,9 +645,7 @@ class TestPostgresStorageAdapterQueryConstraints:
             ]
 
     async def test_allows_custom_query_constraints_to_be_applied(self):
-        class CustomQueryConstraint(QueryConstraint):
-            def met_by(self, *, event: StoredEvent) -> bool:
-                return True
+        class CustomQueryConstraint(QueryConstraint): ...
 
         class CustomQueryConstraintQueryApplier(QueryApplier):
             def apply(self, target: Query) -> Query:

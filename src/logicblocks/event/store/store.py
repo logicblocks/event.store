@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Sequence, Set
+from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from typing import Any
 
 import structlog
@@ -23,6 +23,7 @@ from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .constraints import QueryConstraint
 from .exceptions import UnmetWriteConditionError
+from .types import StreamPublishDefinition
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
@@ -225,6 +226,16 @@ class EventCategory(EventSource[CategoryIdentifier]):
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
+        )
+
+    async def publish[Name: StringPersistable, Payload: JsonPersistable](
+        self,
+        *,
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        """Publish events to multiple streams in the category atomically."""
+        return await self._adapter.save(
+            target=self._identifier, streams=streams
         )
 
     def __eq__(self, other: Any) -> bool:

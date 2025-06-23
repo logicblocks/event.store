@@ -7,9 +7,14 @@ from typing import Any, Literal, Self
 
 import pytest
 
-from logicblocks.event.store import EventStore, conditions, constraints
+from logicblocks.event.store import (
+    EventStore,
+    conditions,
+    constraints,
+)
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
+from logicblocks.event.store.types import stream_publish_definition
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
@@ -1010,6 +1015,72 @@ class TestCategoryBasics:
         ]
 
         assert read_events == expected_events
+
+
+class TestCategoryPublish:
+    async def test_publishes_events_to_multiple_streams_in_category(self):
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        stream_1_events = [NewEventBuilder().build() for _ in range(2)]
+        stream_2_events = [NewEventBuilder().build() for _ in range(3)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        streams = {
+            stream_1_name: stream_publish_definition(
+                events=stream_1_events,
+                condition=conditions.stream_is_empty(),
+            ),
+            stream_2_name: stream_publish_definition(events=stream_2_events),
+        }
+
+        stored_events = await category.publish(streams=streams)
+
+        stream_1 = category.stream(stream=stream_1_name)
+        stream_2 = category.stream(stream=stream_2_name)
+
+        stream_1_read_events = await stream_1.read()
+        stream_2_read_events = await stream_2.read()
+
+        expected_stream_1_events = [
+            StoredEvent(
+                id=stored_events[stream_1_name][i].id,
+                name=event.name,
+                category=category_name,
+                stream=stream_1_name,
+                payload=event.payload,
+                position=i,
+                sequence_number=stored_events[stream_1_name][
+                    i
+                ].sequence_number,
+                occurred_at=event.occurred_at,
+                observed_at=event.observed_at,
+            )
+            for i, event in enumerate(stream_1_events)
+        ]
+
+        expected_stream_2_events = [
+            StoredEvent(
+                id=stored_events[stream_2_name][i].id,
+                name=event.name,
+                category=category_name,
+                stream=stream_2_name,
+                payload=event.payload,
+                position=i,
+                sequence_number=stored_events[stream_2_name][
+                    i
+                ].sequence_number,
+                occurred_at=event.occurred_at,
+                observed_at=event.observed_at,
+            )
+            for i, event in enumerate(stream_2_events)
+        ]
+
+        assert stream_1_read_events == expected_stream_1_events
+        assert stream_2_read_events == expected_stream_2_events
 
 
 class TestCategoryRead:

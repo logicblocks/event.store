@@ -1,8 +1,13 @@
 from .adapters import (
-    InMemoryProjectionStorageAdapter as InMemoryProjectionStorageAdapter,
+    InMemoryProjectionStorageAdapter,
+    PostgresProjectionStorageAdapter,
+    ProjectionStorageAdapter,
 )
-from .adapters import (
-    PostgresProjectionStorageAdapter as PostgresProjectionStorageAdapter,
-)
-from .adapters import ProjectionStorageAdapter as ProjectionStorageAdapter
-from .store import ProjectionStore as ProjectionStore
+from .store import ProjectionStore
+
+__all__ = [
+    "InMemoryProjectionStorageAdapter",
+    "PostgresProjectionStorageAdapter",
+    "ProjectionStorageAdapter",
+    "ProjectionStore",
+]

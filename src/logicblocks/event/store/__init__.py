@@ -5,7 +5,13 @@ from .adapters import (
     PostgresEventStorageAdapter,
 )
 from .exceptions import UnmetWriteConditionError
-from .store import EventCategory, EventSource, EventStore, EventStream
+from .store import (
+    EventCategory,
+    EventLog,
+    EventSource,
+    EventStore,
+    EventStream,
+)
 from .transactions import (
     event_store_transaction,
     ignore_on_error,
@@ -17,6 +23,7 @@ from .types import StreamPublishDefinition, stream_publish_definition
 
 __all__ = [
     "EventCategory",
+    "EventLog",
     "EventSource",
     "EventStore",
     "EventStorageAdapter",

@@ -17,9 +17,13 @@ from .event import NewEvent, StoredEvent
 from .functions import Applier, Converter
 from .identifier import (
     CategoryIdentifier,
+    CategoryPartitionIdentifier,
     EventSourceIdentifier,
     LogIdentifier,
+    LogPartitionIdentifier,
+    PartitionIdentifier,
     StreamIdentifier,
+    StreamNamePrefixPartitionIdentifier,
 )
 from .json import (
     JsonArray,
@@ -46,6 +50,7 @@ from .string import StringConvertible, StringDeserialisable, StringSerialisable
 __all__ = [
     "Applier",
     "CategoryIdentifier",
+    "CategoryPartitionIdentifier",
     "Converter",
     "EventSourceIdentifier",
     "JsonArray",
@@ -59,11 +64,14 @@ __all__ = [
     "JsonValueSerialisable",
     "JsonValueType",
     "LogIdentifier",
+    "LogPartitionIdentifier",
     "NewEvent",
+    "PartitionIdentifier",
     "Projectable",
     "Projection",
     "StoredEvent",
     "StreamIdentifier",
+    "StreamNamePrefixPartitionIdentifier",
     "StringConvertible",
     "StringDeserialisable",
     "StringLoggable",

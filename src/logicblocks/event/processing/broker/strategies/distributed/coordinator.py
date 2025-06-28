@@ -9,6 +9,7 @@ from typing import Any
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.sources.partitioner import EventSourcePartitioner
 from logicblocks.event.types import str_serialisation_fallback
 from logicblocks.event.utils.klass import class_fullname
 
@@ -116,6 +117,7 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
         lock_manager: LockManager,
         subscriber_state_store: EventSubscriberStateStore,
         subscription_state_store: EventSubscriptionStateStore,
+        event_source_partitioner: EventSourcePartitioner,
         logger: FilteringBoundLogger = default_logger,
         subscriber_max_time_since_last_seen: timedelta = timedelta(seconds=60),
         distribution_interval: timedelta = timedelta(seconds=20),
@@ -128,6 +130,7 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
         self._logger = logger.bind(node=node_id)
         self._subscriber_state_store = subscriber_state_store
         self._subscription_state_store = subscription_state_store
+        self._event_source_partitioner = event_source_partitioner
 
         self._subscriber_max_time_since_last_seen = (
             subscriber_max_time_since_last_seen
@@ -256,6 +259,9 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
 
             target_event_sources = next(
                 iter(subscription_requests_sorted_by_count)
+            )
+            target_event_sources = self._event_source_partitioner.partition(
+                target_event_sources
             )
 
             ineligible_subscribers = {

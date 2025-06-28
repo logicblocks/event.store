@@ -8,6 +8,7 @@ from .factory import (
 from .memory import InMemoryEventSource
 from .partitioner import (
     EventSourcePartitioner,
+    NoOpEventSourcePartitioner,
     StreamNamePrefixEventSourcePartitioner,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "EventSourcePartitioner",
     "EventStoreEventSourceFactory",
     "InMemoryEventSource",
+    "NoOpEventSourcePartitioner",
     "StreamNamePrefixEventSourcePartitioner",
 ]

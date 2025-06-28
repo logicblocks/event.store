@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Self, TypedDict
 
-from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.sources import (
+    EventSourcePartitioner,
+    EventStoreEventSourceFactory,
+)
 
 from ....locks import LockManager
 from ...base import EventBroker
@@ -37,6 +40,7 @@ class DistributedEventBrokerDependencies(TypedDict):
     event_source_factory: EventStoreEventSourceFactory
     event_subscriber_state_store: EventSubscriberStateStore
     event_subscription_state_store: EventSubscriptionStateStore
+    event_source_partitioner: EventSourcePartitioner
 
 
 class DistributedEventBrokerBuilder[**P = ...](ABC):
@@ -46,6 +50,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
     event_subscription_state_store: EventSubscriptionStateStore
     lock_manager: LockManager
     event_source_factory: EventStoreEventSourceFactory
+    event_source_partitioner: EventSourcePartitioner
 
     def __init__(self, node_id: str):
         self.node_id = node_id
@@ -66,6 +71,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
         self.event_subscription_state_store = prepare[
             "event_subscription_state_store"
         ]
+        self.event_source_partitioner = prepare["event_source_partitioner"]
 
         return self
 
@@ -89,6 +95,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             lock_manager=self.lock_manager,
             subscriber_state_store=self.event_subscriber_state_store,
             subscription_state_store=self.event_subscription_state_store,
+            event_source_partitioner=self.event_source_partitioner,
             subscriber_max_time_since_last_seen=settings.coordinator_subscriber_max_time_since_last_seen,
             distribution_interval=settings.coordinator_distribution_interval,
             leadership_max_duration=settings.coordinator_leadership_max_duration,

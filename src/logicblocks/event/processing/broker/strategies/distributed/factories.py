@@ -3,6 +3,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.sources.partitioner import NoOpEventSourcePartitioner
 from logicblocks.event.store import (
     EventStorageAdapter,
     PostgresEventStorageAdapter,
@@ -40,6 +41,7 @@ class InMemoryDistributedEventBrokerBuilder(
             event_subscription_state_store=InMemoryEventSubscriptionStateStore(
                 node_id=self.node_id
             ),
+            event_source_partitioner=NoOpEventSourcePartitioner(),
         )
 
 
@@ -74,6 +76,7 @@ class PostgresDistributedEventBrokerBuilder(
             event_subscription_state_store=PostgresEventSubscriptionStateStore(
                 node_id=self.node_id, connection_source=connection_pool
             ),
+            event_source_partitioner=NoOpEventSourcePartitioner(),
         )
 
 

@@ -26,6 +26,7 @@ from logicblocks.event.processing.locks import (
     LockManager,
 )
 from logicblocks.event.processing.process import ProcessStatus
+from logicblocks.event.sources import NoOpEventSourcePartitioner
 from logicblocks.event.testing import data
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.testsupport import (
@@ -141,6 +142,7 @@ def make_coordinator(
     subscriber_state_store = subscriber_state_store_class(node_id=node_id)
     subscription_state_store = subscription_state_store_class(node_id=node_id)
     lock_manager = InMemoryLockManager()
+    partitioner = NoOpEventSourcePartitioner()
 
     kwargs = {
         "node_id": node_id,
@@ -148,6 +150,7 @@ def make_coordinator(
         "logger": logger,
         "subscriber_state_store": subscriber_state_store,
         "subscription_state_store": subscription_state_store,
+        "event_source_partitioner": partitioner,
     }
     if subscriber_max_time_since_last_seen is not None:
         kwargs["subscriber_max_time_since_last_seen"] = (

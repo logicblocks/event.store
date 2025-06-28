@@ -36,7 +36,9 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            identifier=identifier,
+            delegate=delegate,
+            constraints={SequenceNumberAfterConstraint(1)},
         )
 
         assert constrained.identifier == identifier
@@ -55,7 +57,9 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            identifier=identifier,
+            delegate=delegate,
+            constraints={SequenceNumberAfterConstraint(1)},
         )
 
         assert await constrained.latest() == event_3
@@ -74,7 +78,9 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            identifier=identifier,
+            delegate=delegate,
+            constraints={SequenceNumberAfterConstraint(1)},
         )
 
         events = [event async for event in constrained.iterate()]
@@ -140,7 +146,9 @@ class TestConstrainedEventSource:
             constraint_converter=constraint_converter,
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            identifier=identifier,
+            delegate=delegate,
+            constraints={SequenceNumberAfterConstraint(1)},
         )
 
         events = [
@@ -166,7 +174,9 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            identifier=identifier,
+            delegate=delegate,
+            constraints={SequenceNumberAfterConstraint(1)},
         )
 
         events = [event async for event in constrained]
@@ -187,6 +197,7 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
+            identifier=identifier,
             delegate=delegate,
             constraints={constraints.sequence_number_after(1)},
         )

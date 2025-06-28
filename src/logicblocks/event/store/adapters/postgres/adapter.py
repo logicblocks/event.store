@@ -146,6 +146,29 @@ class LatestQueryParameters:
                 return None
 
 
+@dataclass(frozen=True)
+class CategoryStreamsLatestQueryParameters:
+    _target: CategoryIdentifier
+    _streams: Sequence[str]
+
+    def __init__(
+        self,
+        *,
+        target: CategoryIdentifier,
+        streams: Sequence[str] = (),
+    ):
+        object.__setattr__(self, "_target", target)
+        object.__setattr__(self, "_streams", streams)
+
+    @property
+    def category(self) -> str:
+        return self._target.category
+
+    @property
+    def streams(self) -> Sequence[str]:
+        return self._streams
+
+
 def get_digest(lock_id: str) -> int:
     return (
         int(hashlib.sha256(lock_id.encode("utf-8")).hexdigest(), 16) % 10**16
@@ -327,6 +350,54 @@ def read_last_query(
     return query, params
 
 
+def read_last_category_batch_query(
+    parameters: CategoryStreamsLatestQueryParameters,
+    table_settings: TableSettings,
+) -> ParameterisedQuery:
+    table = table_settings.table_name
+
+    select_clause = sql.SQL("SELECT DISTINCT ON (category, stream ) *")
+    from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
+
+    category_where_clause = sql.SQL("category = %s")
+    stream_where_placeholders = sql.SQL(", ").join(
+        [sql.Placeholder() for _ in parameters.streams]
+    )
+    stream_where_clause = sql.SQL("stream IN ({})").format(
+        stream_where_placeholders
+    )
+    where_clauses = [
+        clause
+        for clause in [
+            category_where_clause,
+            stream_where_clause,
+        ]
+    ]
+    where_clause = (
+        sql.SQL("WHERE ") + sql.SQL(" AND ").join(where_clauses)
+        if len(where_clauses) > 0
+        else None
+    )
+
+    order_by_clause = sql.SQL("ORDER BY category, stream, position DESC")
+
+    clauses = [
+        clause
+        for clause in [
+            select_clause,
+            from_clause,
+            where_clause,
+            order_by_clause,
+        ]
+        if clause is not None
+    ]
+
+    query = sql.SQL(" ").join(clauses)
+    params = [param for param in [parameters.category, *parameters.streams]]
+
+    return query, params
+
+
 def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
     definitions: Mapping[
         StreamIdentifier, StreamInsertDefinition[Name, Payload]
@@ -455,6 +526,20 @@ async def read_last(
 ):
     await cursor.execute(*read_last_query(parameters, table_settings))
     return await cursor.fetchone()
+
+
+async def read_last_category_batch(
+    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    *,
+    parameters: CategoryStreamsLatestQueryParameters,
+    table_settings: TableSettings,
+):
+    await cursor.execute(
+        *read_last_category_batch_query(parameters, table_settings)
+    )
+    results = await cursor.fetchall()
+
+    return {result.stream: result for result in results}
 
 
 async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
@@ -705,6 +790,14 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     StreamIdentifier, StreamInsertDefinition[Name, Payload]
                 ] = {}
 
+                latest_events = await read_last_category_batch(
+                    cursor,
+                    parameters=CategoryStreamsLatestQueryParameters(
+                        target=target, streams=list(streams.keys())
+                    ),
+                    table_settings=self.table_settings,
+                )
+
                 for stream_name, stream_request in streams.items():
                     identifier = StreamIdentifier(
                         category=target.category, stream=stream_name
@@ -713,11 +806,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     condition = stream_request.get("condition", NoCondition())
                     events = stream_request["events"]
 
-                    latest_event = await read_last(
-                        cursor,
-                        parameters=LatestQueryParameters(target=identifier),
-                        table_settings=self.table_settings,
-                    )
+                    latest_event = latest_events.get(stream_name, None)
 
                     condition_enforcer = self.condition_converter.convert(
                         condition

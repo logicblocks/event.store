@@ -513,6 +513,20 @@ class TestCondition:
             ["123.*"],
         )
 
+    def test_like_condition(self):
+        condition = (
+            Condition()
+            .left(ColumnReference(field="name"))
+            .operator(Operator.LIKE)
+            .right(Constant("test_%"))
+            .to_fragment()
+        )
+
+        assert parameterised_query_fragment_to_string(condition) == (
+            '"name" LIKE %s',
+            ["test_%"],
+        )
+
 
 class TestQuerySelect:
     def test_allows_selecting_all_columns_from_single_table(self):

@@ -22,6 +22,7 @@ from logicblocks.event.types import (
 from ...constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
+    StreamNamePrefixConstraint,
 )
 from .db import InMemoryEventsDBTransaction
 from .types import QueryConstraintCheck
@@ -35,6 +36,18 @@ class SequenceNumberAfterConstraintConverter(
     ) -> QueryConstraintCheck:
         def check(event: StoredEvent[Any, Any]) -> bool:
             return event.sequence_number > item.sequence_number
+
+        return check
+
+
+class StreamNamePrefixConstraintConverter(
+    Converter[StreamNamePrefixConstraint, QueryConstraintCheck]
+):
+    def convert(
+        self, item: StreamNamePrefixConstraint
+    ) -> QueryConstraintCheck:
+        def check(event: StoredEvent[Any, Any]) -> bool:
+            return event.stream.startswith(item.prefix)
 
         return check
 
@@ -53,6 +66,9 @@ class TypeRegistryConstraintConverter(
         return self.register(
             SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
+        ).register(
+            StreamNamePrefixConstraint,
+            StreamNamePrefixConstraintConverter(),
         )
 
 

@@ -4,9 +4,18 @@ from unittest.mock import AsyncMock
 import pytest
 from psycopg import AsyncConnection
 
+from logicblocks.event.persistence.postgres import (
+    ColumnReference,
+    Condition,
+    Constant,
+    Operator,
+    Query,
+)
 from logicblocks.event.store.adapters.postgres.converters import (
     AndConditionConverter,
     OrConditionConverter,
+    SequenceNumberAfterConstraintConverter,
+    StreamNamePrefixConstraintConverter,
     TypeRegistryConditionConverter,
     WriteConditionEnforcer,
     WriteConditionEnforcerContext,
@@ -15,6 +24,10 @@ from logicblocks.event.store.conditions import (
     AndCondition,
     OrCondition,
     WriteCondition,
+)
+from logicblocks.event.store.constraints import (
+    SequenceNumberAfterConstraint,
+    StreamNamePrefixConstraint,
 )
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import StoredEventBuilder, data
@@ -128,7 +141,7 @@ def make_context(
     )
 
 
-class TestAndCondition:
+class TestWriteConditionsAnd:
     async def test_met(self):
         event_name = data.random_event_name()
         stream_name = data.random_event_stream_name()
@@ -347,3 +360,55 @@ class TestWriteConditionsOr:
             await enforcer.assert_satisfied(
                 context=make_context(event), connection=make_connection()
             )
+
+
+class TestSequenceNumberAfterConstraintConversion:
+    def test_applies_greater_than_where_clause_to_query(self):
+        sequence_number = 100
+        constraint = SequenceNumberAfterConstraint(
+            sequence_number=sequence_number
+        )
+        converter = SequenceNumberAfterConstraintConverter()
+
+        query_applier = converter.convert(constraint)
+        base_query = Query().select("*").from_table("events")
+        result_query = query_applier.apply(base_query)
+
+        expected_query = (
+            Query()
+            .select("*")
+            .from_table("events")
+            .where(
+                Condition()
+                .left(ColumnReference(field="sequence_number"))
+                .operator(Operator.GREATER_THAN)
+                .right(Constant(sequence_number))
+            )
+        )
+
+        assert str(result_query) == str(expected_query)
+
+
+class TestStreamNamePrefixConstraintConversion:
+    def test_applies_like_where_clause_to_query(self):
+        stream_name_prefix = "test_"
+        constraint = StreamNamePrefixConstraint(prefix=stream_name_prefix)
+        converter = StreamNamePrefixConstraintConverter()
+
+        query_applier = converter.convert(constraint)
+        base_query = Query().select("*").from_table("events")
+        result_query = query_applier.apply(base_query)
+
+        expected_query = (
+            Query()
+            .select("*")
+            .from_table("events")
+            .where(
+                Condition()
+                .left(ColumnReference(field="stream_name"))
+                .operator(Operator.LIKE)
+                .right(Constant(f"{stream_name_prefix}%"))
+            )
+        )
+
+        assert str(result_query) == str(expected_query)

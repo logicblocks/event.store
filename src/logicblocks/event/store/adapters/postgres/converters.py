@@ -32,6 +32,7 @@ from logicblocks.event.types import (
 from ...constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
+    StreamNamePrefixConstraint,
 )
 
 
@@ -55,6 +56,26 @@ class SequenceNumberAfterConstraintConverter(
         return SequenceNumberAfterConstraintQueryApplier(item.sequence_number)
 
 
+class StreamNamePrefixConstraintQueryApplier(QueryApplier):
+    def __init__(self, prefix: str):
+        self.prefix = prefix
+
+    def apply(self, target: Query) -> Query:
+        return target.where(
+            Condition()
+            .left(ColumnReference(field="stream_name"))
+            .operator(Operator.LIKE)
+            .right(Constant(f"{self.prefix}%"))
+        )
+
+
+class StreamNamePrefixConstraintConverter(
+    Converter[StreamNamePrefixConstraint, QueryApplier]
+):
+    def convert(self, item: StreamNamePrefixConstraint) -> QueryApplier:
+        return StreamNamePrefixConstraintQueryApplier(item.prefix)
+
+
 class TypeRegistryConstraintConverter(
     TypeRegistryConverter[QueryConstraint, QueryApplier]
 ):
@@ -69,6 +90,9 @@ class TypeRegistryConstraintConverter(
         return self.register(
             SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
+        ).register(
+            StreamNamePrefixConstraint,
+            StreamNamePrefixConstraintConverter(),
         )
 
 

@@ -181,10 +181,11 @@ class Operator(StrEnum):
     IN = "IN"
     CONTAINS = "@>"
     REGEX_MATCHES = "~"
+    LIKE = "LIKE"
 
     @property
     def comparison_type(self) -> ComparisonType:
-        if self == Operator.REGEX_MATCHES:
+        if self == Operator.REGEX_MATCHES or self == Operator.LIKE:
             return ComparisonType.TEXT
         return ComparisonType.JSONB
 

@@ -5,6 +5,8 @@ import pytest
 from logicblocks.event.store.adapters.memory.converters import (
     AndConditionConverter,
     OrConditionConverter,
+    SequenceNumberAfterConstraintConverter,
+    StreamNamePrefixConstraintConverter,
     TypeRegistryConditionConverter,
     TypeRegistryConstraintConverter,
     WriteConditionEnforcer,
@@ -18,6 +20,10 @@ from logicblocks.event.store.conditions import (
     AndCondition,
     OrCondition,
     WriteCondition,
+)
+from logicblocks.event.store.constraints import (
+    SequenceNumberAfterConstraint,
+    StreamNamePrefixConstraint,
 )
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.testing import StoredEventBuilder, data
@@ -135,7 +141,7 @@ def make_context(
     )
 
 
-class TestAndCondition:
+class TestWriteConditionAnd:
     def test_met(self):
         event_name = data.random_event_name()
         stream_name = data.random_event_stream_name()
@@ -258,7 +264,7 @@ class TestAndCondition:
         )
 
 
-class TestWriteConditionsOr:
+class TestWriteConditionOr:
     def test_both_met(self):
         event_name = data.random_event_name()
         stream_name = data.random_event_stream_name()
@@ -354,3 +360,65 @@ class TestWriteConditionsOr:
             enforcer.assert_satisfied(
                 context=make_context(event), transaction=make_transaction()
             )
+
+
+class TestSequenceNumberAfterConstraintConversion:
+    def test_returns_function_that_checks_sequence_number(self):
+        sequence_number = 100
+        constraint = SequenceNumberAfterConstraint(
+            sequence_number=sequence_number
+        )
+        converter = SequenceNumberAfterConstraintConverter()
+
+        query_check = converter.convert(constraint)
+
+        matching_event = StoredEventBuilder(sequence_number=150).build()
+        non_matching_event = StoredEventBuilder(sequence_number=50).build()
+
+        assert query_check(matching_event) is True
+        assert query_check(non_matching_event) is False
+
+
+class TestStreamNamePrefixConstraintConversion:
+    def test_returns_function_that_checks_stream_name_prefix(self):
+        stream_name_prefix = "test_"
+        constraint = StreamNamePrefixConstraint(prefix=stream_name_prefix)
+        converter = StreamNamePrefixConstraintConverter()
+
+        query_check = converter.convert(constraint)
+
+        matching_event = StoredEventBuilder(stream="test_stream_1").build()
+        non_matching_event = StoredEventBuilder(stream="other_stream").build()
+
+        assert query_check(matching_event) is True
+        assert query_check(non_matching_event) is False
+
+
+class TestTypeRegistryConstraintConverterDefaults:
+    def test_includes_sequence_number_after_constraint_converter(self):
+        converter = TypeRegistryConstraintConverter().with_default_constraint_converters()
+        sequence_number = 100
+        constraint = SequenceNumberAfterConstraint(
+            sequence_number=sequence_number
+        )
+
+        query_check = converter.convert(constraint)
+
+        matching_event = StoredEventBuilder(sequence_number=150).build()
+        non_matching_event = StoredEventBuilder(sequence_number=50).build()
+
+        assert query_check(matching_event) is True
+        assert query_check(non_matching_event) is False
+
+    def test_includes_stream_name_prefix_constraint_converter(self):
+        converter = TypeRegistryConstraintConverter().with_default_constraint_converters()
+        stream_name_prefix = "test_"
+        constraint = StreamNamePrefixConstraint(prefix=stream_name_prefix)
+
+        query_check = converter.convert(constraint)
+
+        matching_event = StoredEventBuilder(stream="test_stream_1").build()
+        non_matching_event = StoredEventBuilder(stream="other_stream").build()
+
+        assert query_check(matching_event) is True
+        assert query_check(non_matching_event) is False

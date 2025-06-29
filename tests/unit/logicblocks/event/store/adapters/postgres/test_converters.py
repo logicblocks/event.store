@@ -405,7 +405,7 @@ class TestStreamNamePrefixConstraintConversion:
             .from_table("events")
             .where(
                 Condition()
-                .left(ColumnReference(field="stream_name"))
+                .left(ColumnReference(field="stream"))
                 .operator(Operator.LIKE)
                 .right(Constant(f"{stream_name_prefix}%"))
             )

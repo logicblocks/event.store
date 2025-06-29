@@ -63,7 +63,7 @@ class StreamNamePrefixConstraintQueryApplier(QueryApplier):
     def apply(self, target: Query) -> Query:
         return target.where(
             Condition()
-            .left(ColumnReference(field="stream_name"))
+            .left(ColumnReference(field="stream"))
             .operator(Operator.LIKE)
             .right(Constant(f"{self.prefix}%"))
         )

@@ -3,6 +3,7 @@ from typing import Any, MutableMapping, Self
 
 from logicblocks.event.store import (
     EventCategory,
+    EventLog,
     EventSource,
     EventStorageAdapter,
     EventStream,
@@ -10,10 +11,17 @@ from logicblocks.event.store import (
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
+    LogIdentifier,
     StreamIdentifier,
 )
 
 from .base import EventSourceFactory
+
+
+def construct_event_log(
+    identifier: LogIdentifier, adapter: EventStorageAdapter
+) -> EventLog:
+    return EventLog(adapter, identifier)
 
 
 def construct_event_category(
@@ -40,6 +48,7 @@ class EventStoreEventSourceFactory(EventSourceFactory[EventStorageAdapter]):
             EventSourceConstructor[Any],
         ] = {}
         self._adapter = adapter
+        self.register_constructor(LogIdentifier, construct_event_log)
         self.register_constructor(CategoryIdentifier, construct_event_category)
         self.register_constructor(StreamIdentifier, construct_event_stream)
 

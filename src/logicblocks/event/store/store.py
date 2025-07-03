@@ -257,11 +257,12 @@ class EventLog(EventSource[LogIdentifier]):
     def __init__(
         self,
         adapter: EventStorageAdapter,
+        log: LogIdentifier = LogIdentifier(),
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
         self._logger = logger.bind()
-        self._identifier = LogIdentifier()
+        self._identifier = log
 
     @property
     def identifier(self) -> LogIdentifier:

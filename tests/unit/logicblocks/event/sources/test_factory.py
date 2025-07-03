@@ -8,9 +8,11 @@ from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,
 )
+from logicblocks.event.store.store import EventLog
 from logicblocks.event.testing import data
 from logicblocks.event.types import (
     CategoryIdentifier,
+    LogIdentifier,
     StreamIdentifier,
 )
 
@@ -39,6 +41,16 @@ def make_postgres_event_storage_adapter() -> PostgresEventStorageAdapter:
     ],
 )
 class TestEventStoreEventSourceFactoryDefaultConstructors:
+    def test_constructs_event_log(self, adapter_factory):
+        adapter = adapter_factory()
+        factory = EventStoreEventSourceFactory(adapter)
+
+        identifier = LogIdentifier()
+
+        source = factory.construct(identifier)
+
+        assert source == EventLog(adapter)
+
     def test_constructs_event_category(self, adapter_factory):
         adapter = adapter_factory()
         factory = EventStoreEventSourceFactory(adapter)

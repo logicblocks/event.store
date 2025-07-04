@@ -1,10 +1,15 @@
 import asyncio
+import os
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
 import pytest
+import pytest_asyncio
+from psycopg import AsyncConnection
+from psycopg_pool import AsyncConnectionPool
 
+from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     EventBroker,
     EventBrokerStorageType,
@@ -23,12 +28,32 @@ from logicblocks.event.processing.consumers.logger import (
 )
 from logicblocks.event.store import (
     EventStore,
-    InMemoryEventStorageAdapter,
+    PostgresEventStorageAdapter,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import NewEventBuilder
+from logicblocks.event.testsupport import (
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from logicblocks.event.types import JsonValue, LogIdentifier, StoredEvent
 from logicblocks.event.types.identifier import CategoryIdentifier
+
+connection_settings = ConnectionSettings(
+    user="admin",
+    password="super-secret",
+    host=os.getenv("DB_HOST", "localhost"),
+    port=int(os.getenv("DB_PORT", "5432")),
+    dbname="some-database",
+)
+
+
+@pytest_asyncio.fixture
+async def open_connection_pool():
+    async with connection_pool(connection_settings) as pool:
+        yield pool
+
 
 event_broker_settings = SingletonEventBrokerSettings(
     distribution_interval=timedelta(milliseconds=400),
@@ -95,10 +120,29 @@ async def cleanup(event_broker_task):
 
 
 class TestEventProcessing:
+    connection_pool: AsyncConnectionPool[AsyncConnection]
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def store_connection_pool(self, open_connection_pool):
+        self.connection_pool = open_connection_pool
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await drop_table(open_connection_pool, "events")
+        await drop_table(open_connection_pool, "projections")
+        await drop_table(open_connection_pool, "subscribers")
+        await drop_table(open_connection_pool, "subscriptions")
+        await create_table(open_connection_pool, "events")
+        await create_table(open_connection_pool, "projections")
+        await create_table(open_connection_pool, "subscribers")
+        await create_table(open_connection_pool, "subscriptions")
+
     async def test_consumes_from_category(self):
         subscriber_group_count = 10
 
-        adapter = InMemoryEventStorageAdapter()
+        adapter = PostgresEventStorageAdapter(
+            connection_source=self.connection_pool
+        )
         event_processor = CapturingEventProcessor()
         event_store = EventStore(adapter=adapter)
 
@@ -124,10 +168,12 @@ class TestEventProcessing:
         event_broker = make_event_broker(
             node_id=node_id,
             broker_type=EventBrokerType.Singleton,
-            storage_type=EventBrokerStorageType.InMemory,
+            storage_type=EventBrokerStorageType.Postgres,
             settings=SingletonEventBrokerSettings(
                 distribution_interval=timedelta(seconds=10)
             ),
+            connection_settings=connection_settings,
+            connection_pool=self.connection_pool,
             adapter=adapter,
         )
 
@@ -148,13 +194,15 @@ class TestEventProcessing:
                     subscribers,
                     expected_event_count,
                 ),
-                timeout=timedelta(seconds=10).total_seconds(),
+                timeout=timedelta(seconds=20).total_seconds(),
             )
 
     async def test_consumes_from_log(self):
         subscriber_group_count = 10
 
-        adapter = InMemoryEventStorageAdapter()
+        adapter = PostgresEventStorageAdapter(
+            connection_source=self.connection_pool
+        )
         event_processor = CapturingEventProcessor()
         event_store = EventStore(adapter=adapter)
 
@@ -179,10 +227,12 @@ class TestEventProcessing:
         event_broker = make_event_broker(
             node_id=node_id,
             broker_type=EventBrokerType.Singleton,
-            storage_type=EventBrokerStorageType.InMemory,
+            storage_type=EventBrokerStorageType.Postgres,
             settings=SingletonEventBrokerSettings(
                 distribution_interval=timedelta(seconds=10)
             ),
+            connection_settings=connection_settings,
+            connection_pool=self.connection_pool,
             adapter=adapter,
         )
 
@@ -203,5 +253,5 @@ class TestEventProcessing:
                     subscribers,
                     expected_event_count,
                 ),
-                timeout=timedelta(seconds=10).total_seconds(),
+                timeout=timedelta(seconds=20).total_seconds(),
             )

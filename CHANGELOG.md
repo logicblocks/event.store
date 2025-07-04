@@ -1,6 +1,6 @@
 
-<a id='changelog-0.1.9a3'></a>
-# 0.1.9a3 — 2025-07-04
+<a id='changelog-0.1.9'></a>
+# 0.1.9 — 2025-07-04
 
 ## Added
 
@@ -15,7 +15,8 @@
 - Added comprehensive test coverage for category publish functionality across
   all adapter implementations.
 
-- Added `EventStoreEventSourceFactory` for `EventLog`.
+- Added `EventStoreEventSourceFactory` for `EventLog` to enable log-level event
+  processors.
 
 ## Changed
 

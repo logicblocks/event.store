@@ -1,4 +1,30 @@
 
+<a id='changelog-0.1.9a3'></a>
+# 0.1.9a3 — 2025-07-04
+
+## Added
+
+- Added category-level publish functionality allowing atomic publishing of
+  events to multiple streams within a category via `EventCategory.publish()`.
+- Added `StreamPublishDefinition` TypedDict for type-safe stream definitions
+  in category publishes.
+- Added `stream_publish_definition` factory function to simplify creation of
+  stream definitions for category-level publishes.
+- Added `MultiLock` utility class for coordinating multiple async locks in
+  memory adapter.
+- Added comprehensive test coverage for category publish functionality across
+  all adapter implementations.
+
+- Added `EventStoreEventSourceFactory` for `EventLog`.
+
+## Changed
+
+- Enhanced `EventStorageAdapter` base class with category-level save method
+  supporting atomic multi-stream operations.
+- Implemented category-level save in `InMemoryEventStorageAdapter` and
+  `PostgresEventStorageAdapter` ensuring atomicity and serialisation guarantee
+  through appropriate locking.
+
 <a id='changelog-0.1.8a0'></a>
 # 0.1.8 — 2025-06-16
 

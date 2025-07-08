@@ -15,6 +15,10 @@ from .subscribers import EventSubscriberManager
 
 
 class DistributedEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
+    _event_subscriber_manager: EventSubscriberManager
+    _event_subscription_coordinator: EventSubscriptionCoordinator
+    _event_subscription_observer: EventSubscriptionObserver
+
     def __init__(
         self,
         event_subscriber_manager: EventSubscriberManager,

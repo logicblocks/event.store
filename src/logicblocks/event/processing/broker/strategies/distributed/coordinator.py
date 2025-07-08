@@ -111,6 +111,17 @@ class EventSubscriptionCoordinator(Process, ABC):
 
 
 class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
+    _node_id: str
+    _lock_manager: LockManager
+    _subscriber_state_store: EventSubscriberStateStore
+    _subscription_state_store: EventSubscriptionStateStore
+    _event_source_partitioner: EventSourcePartitioner
+    _subscriber_max_time_since_last_seen: timedelta
+    _distribution_interval: timedelta
+    _leadership_max_duration: timedelta
+    _leadership_attempt_interval: timedelta
+    _logger: FilteringBoundLogger
+
     def __init__(
         self,
         node_id: str,

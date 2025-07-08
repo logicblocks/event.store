@@ -2,7 +2,10 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.sources import (
+    EventSourcePartitioner,
+    EventStoreEventSourceFactory,
+)
 from logicblocks.event.sources.partitioner import NoOpEventSourcePartitioner
 from logicblocks.event.store import (
     EventStorageAdapter,
@@ -27,10 +30,14 @@ from .subscriptions import (
 
 
 class InMemoryDistributedEventBrokerBuilder(
-    DistributedEventBrokerBuilder[(EventStorageAdapter,)]
+    DistributedEventBrokerBuilder[
+        (EventStorageAdapter, EventSourcePartitioner | None)
+    ]
 ):
     def dependencies(
-        self, adapter: EventStorageAdapter
+        self,
+        adapter: EventStorageAdapter,
+        partitioner: EventSourcePartitioner | None = None,
     ) -> DistributedEventBrokerDependencies:
         return DistributedEventBrokerDependencies(
             lock_manager=InMemoryLockManager(),
@@ -41,7 +48,11 @@ class InMemoryDistributedEventBrokerBuilder(
             event_subscription_state_store=InMemoryEventSubscriptionStateStore(
                 node_id=self.node_id
             ),
-            event_source_partitioner=NoOpEventSourcePartitioner(),
+            event_source_partitioner=(
+                partitioner
+                if partitioner is not None
+                else NoOpEventSourcePartitioner()
+            ),
         )
 
 
@@ -51,6 +62,7 @@ class PostgresDistributedEventBrokerBuilder(
             ConnectionSettings,
             AsyncConnectionPool[AsyncConnection],
             EventStorageAdapter | None,
+            EventSourcePartitioner | None,
         )
     ]
 ):
@@ -59,6 +71,7 @@ class PostgresDistributedEventBrokerBuilder(
         connection_settings: ConnectionSettings,
         connection_pool: AsyncConnectionPool[AsyncConnection],
         adapter: EventStorageAdapter | None = None,
+        partitioner: EventSourcePartitioner | None = None,
     ) -> DistributedEventBrokerDependencies:
         event_storage_adapter = adapter or PostgresEventStorageAdapter(
             connection_source=connection_pool
@@ -76,7 +89,11 @@ class PostgresDistributedEventBrokerBuilder(
             event_subscription_state_store=PostgresEventSubscriptionStateStore(
                 node_id=self.node_id, connection_source=connection_pool
             ),
-            event_source_partitioner=NoOpEventSourcePartitioner(),
+            event_source_partitioner=(
+                partitioner
+                if partitioner is not None
+                else NoOpEventSourcePartitioner()
+            ),
         )
 
 
@@ -84,10 +101,11 @@ def make_in_memory_distributed_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter,
+    partitioner: EventSourcePartitioner | None = None,
 ) -> EventBroker:
     return (
         InMemoryDistributedEventBrokerBuilder(node_id)
-        .prepare(adapter)
+        .prepare(adapter, partitioner)
         .build(settings)
     )
 
@@ -98,9 +116,10 @@ def make_postgres_distributed_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter | None = None,
+    partitioner: EventSourcePartitioner | None = None,
 ) -> EventBroker:
     return (
         PostgresDistributedEventBrokerBuilder(node_id)
-        .prepare(connection_settings, connection_pool, adapter)
+        .prepare(connection_settings, connection_pool, adapter, partitioner)
         .build(settings)
     )

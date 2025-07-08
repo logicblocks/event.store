@@ -6,6 +6,7 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.sources import EventSourcePartitioner
 from logicblocks.event.store import (
     EventStorageAdapter,
 )
@@ -60,6 +61,7 @@ EventBrokerStorageType.Postgres = _PostgresEventBrokerStorageType
 class InMemoryDistributedBrokerParams(TypedDict):
     settings: DistributedEventBrokerSettings
     adapter: EventStorageAdapter
+    partitioner: NotRequired[EventSourcePartitioner | None]
 
 
 class PostgresDistributedBrokerParams(TypedDict):
@@ -67,6 +69,7 @@ class PostgresDistributedBrokerParams(TypedDict):
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: DistributedEventBrokerSettings
     adapter: NotRequired[EventStorageAdapter | None]
+    partitioner: NotRequired[EventSourcePartitioner | None]
 
 
 class InMemorySingletonBrokerParams(TypedDict):
@@ -86,6 +89,7 @@ class CombinedBrokerParams(TypedDict, total=False):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     adapter: NotRequired[EventStorageAdapter | None]
+    partitioner: NotRequired[EventSourcePartitioner | None]
 
 
 @overload

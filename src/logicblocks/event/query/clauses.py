@@ -18,6 +18,7 @@ class Operator(StrEnum):
     IN = "in"
     CONTAINS = "contains"
     REGEX_MATCHES = "regex_matches"
+    NOT_REGEX_MATCHES = "not_regex_matches"
 
 
 class SortOrder(StrEnum):

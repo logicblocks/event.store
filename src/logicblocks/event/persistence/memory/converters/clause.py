@@ -76,6 +76,8 @@ class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
                 return comparison_value in resolved_value
             case Operator.REGEX_MATCHES:
                 return regex_matches(comparison_value, resolved_value)
+            case Operator.NOT_REGEX_MATCHES:
+                return not regex_matches(comparison_value, resolved_value)
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 

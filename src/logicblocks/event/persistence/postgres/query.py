@@ -181,10 +181,14 @@ class Operator(StrEnum):
     IN = "IN"
     CONTAINS = "@>"
     REGEX_MATCHES = "~"
+    NOT_REGEX_MATCHES = "!~"
 
     @property
     def comparison_type(self) -> ComparisonType:
-        if self == Operator.REGEX_MATCHES:
+        if (
+            self == Operator.REGEX_MATCHES
+            or self == Operator.NOT_REGEX_MATCHES
+        ):
             return ComparisonType.TEXT
         return ComparisonType.JSONB
 
@@ -300,6 +304,9 @@ class Condition(Expression):
 
     def regex_matches(self):
         return self.operator(Operator.REGEX_MATCHES)
+
+    def not_regex_matches(self):
+        return self.operator(Operator.NOT_REGEX_MATCHES)
 
     @staticmethod
     def _operand_fragment(

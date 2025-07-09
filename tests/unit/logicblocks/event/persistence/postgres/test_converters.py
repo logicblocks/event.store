@@ -984,3 +984,49 @@ class TestPostgresQueryConverterQueryConversion:
             'WHERE "jsonb_extract_path_text"("state", %s) ~ %s',
             ["description", "world$"],
         )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_not_regex_matches_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.NOT_REGEX_MATCHES,
+                    field=Path("state", "description"),
+                    value="world$",
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path_text"("state", %s) !~ %s',
+            ["description", "world$"],
+        )
+
+    def test_converts_string_not_regex_query_on_nested_attribute(self):
+        converter = query_converter_with_default_converters()
+        value = "regex.*"
+        query = Search(
+            filters=[
+                FilterClause(
+                    operator=Operator.NOT_REGEX_MATCHES,
+                    field=Path("state", "field"),
+                    value=value,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            "SELECT * FROM "
+            '"projections" WHERE '
+            '"jsonb_extract_path_text"("state", %s) !~ '
+            "%s",
+            ["field", "regex.*"],
+        )

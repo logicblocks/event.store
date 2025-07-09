@@ -54,9 +54,21 @@ jobs:
 
   prerelease:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: 'write'
+      actions: 'read'
     needs: [ check, test, build ]
     steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_SECRET }}
+
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
         uses: ./.github/actions/asdf-cached-install
@@ -78,12 +90,23 @@ jobs:
 
   release:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: 'write'
+      actions: 'read'
     needs: [ prerelease ]
     environment: release
     steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_SECRET }}
+
       - uses: actions/checkout@v3
         with:
           ref: 'main'
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
         uses: ./.github/actions/asdf-cached-install

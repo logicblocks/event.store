@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from datetime import UTC, timedelta
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 from ......types import EventSubscriber
@@ -11,9 +12,9 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(self, node_id: str, clock: Clock = SystemClock()):
         self.node_id = node_id
         self.clock = clock
-        self.subscribers: list[EventSubscriberState] = []
+        self.subscribers: list[EventSubscriberState[BaseEvent]] = []
 
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         existing = next(
             (
                 candidate
@@ -36,7 +37,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             )
         )
 
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         existing = next(
             (
                 candidate
@@ -54,8 +55,8 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState]:
-        subscribers: list[EventSubscriberState] = self.subscribers
+    ) -> Sequence[EventSubscriberState[BaseEvent]]:
+        subscribers: list[EventSubscriberState[BaseEvent]] = self.subscribers
         if subscriber_group is not None:
             subscribers = [
                 subscriber
@@ -72,7 +73,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             ]
         return subscribers
 
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         index, existing = next(
             (
                 (index, candidate)

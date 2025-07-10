@@ -8,9 +8,9 @@ from .exceptions import UnmetWriteConditionError
 from .store import (
     EventCategory,
     EventLog,
-    EventSource,
     EventStore,
     EventStream,
+    StoredEventSource,
 )
 from .transactions import (
     event_store_transaction,
@@ -24,7 +24,7 @@ from .types import StreamPublishDefinition, stream_publish_definition
 __all__ = [
     "EventCategory",
     "EventLog",
-    "EventSource",
+    "StoredEventSource",
     "EventStore",
     "EventStorageAdapter",
     "EventStream",

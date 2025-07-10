@@ -12,6 +12,7 @@ from logicblocks.event.query import (
     FilterClause,
     Search,
 )
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types.identifier import event_sequence_identifier
 
 from .base import (
@@ -24,7 +25,7 @@ from .base import (
 
 
 def insert_query(
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -51,7 +52,7 @@ def insert_query(
 
 
 def upsert_query(
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -74,7 +75,7 @@ def upsert_query(
 
 
 def remove_query(
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -94,7 +95,7 @@ def remove_query(
 
 async def add(
     connection: ACT,
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ):
     try:
@@ -111,7 +112,7 @@ async def add(
 
 async def remove(
     connection: ACT,
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
@@ -128,7 +129,7 @@ async def remove(
 
 async def replace(
     connection: ACT,
-    subscription: EventSubscriptionState,
+    subscription: EventSubscriptionState[BaseEvent],
     table_settings: postgres.TableSettings,
 ):
     async with connection.cursor() as cursor:
@@ -175,7 +176,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
             )
         )
 
-    async def list(self) -> Sequence[EventSubscriptionState]:
+    async def list(self) -> Sequence[EventSubscriptionState[BaseEvent]]:
         filters: list[FilterClause] = []
         query = self.query_converter.convert_query(Search(filters=filters))
         async with self.connection_pool.connection() as connection:
@@ -199,12 +200,14 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
                     for subscription_state_dict in subscription_state_dicts
                 ]
 
-    async def get(
-        self, key: EventSubscriptionKey
-    ) -> EventSubscriptionState | None:
+    async def get[E: BaseEvent](
+        self, key: EventSubscriptionKey[E]
+    ) -> EventSubscriptionState[E] | None:
         raise NotImplementedError()
 
-    async def add(self, subscription: EventSubscriptionState) -> None:
+    async def add[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         async with self.connection_pool.connection() as connection:
             await add(
                 connection,
@@ -217,7 +220,9 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
                 self.table_settings,
             )
 
-    async def remove(self, subscription: EventSubscriptionState) -> None:
+    async def remove[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         async with self.connection_pool.connection() as connection:
             await remove(
                 connection,
@@ -230,7 +235,9 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
                 self.table_settings,
             )
 
-    async def replace(self, subscription: EventSubscriptionState) -> None:
+    async def replace[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         async with self.connection_pool.connection() as connection:
             await replace(
                 connection,
@@ -244,7 +251,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
             )
 
     async def apply(
-        self, changes: Sequence[EventSubscriptionStateChange]
+        self, changes: Sequence[EventSubscriptionStateChange[BaseEvent]]
     ) -> None:
         keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):
@@ -254,7 +261,7 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
 
         async with self.connection_pool.connection() as connection:
             for change in changes:
-                state = EventSubscriptionState(
+                state = EventSubscriptionState[BaseEvent](
                     group=change.subscription.group,
                     id=change.subscription.id,
                     node_id=self.node_id,

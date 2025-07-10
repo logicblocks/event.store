@@ -4,7 +4,6 @@ from typing import Any, MutableMapping, Self
 from logicblocks.event.store import (
     EventCategory,
     EventLog,
-    EventSource,
     EventStorageAdapter,
     EventStream,
 )
@@ -15,6 +14,8 @@ from logicblocks.event.types import (
     StreamIdentifier,
 )
 
+from ...store.store import JsonStoredEvent
+from ..base import EventSource
 from .base import EventSourceFactory
 
 
@@ -37,7 +38,7 @@ def construct_event_stream(
 
 
 type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
-    [I, EventStorageAdapter], EventSource[I]
+    [I, EventStorageAdapter], EventSource[I, JsonStoredEvent]
 ]
 
 
@@ -66,7 +67,7 @@ class EventStoreEventSourceFactory(EventSourceFactory[EventStorageAdapter]):
 
     def construct[I: EventSourceIdentifier](
         self, identifier: I
-    ) -> EventSource[I]:
+    ) -> EventSource[I, JsonStoredEvent]:
         return self._constructors[type(identifier)](
             identifier, self.storage_adapter
         )

@@ -1,6 +1,8 @@
 import asyncio
 from types import NoneType
 
+from logicblocks.event.sources.base import BaseEvent
+
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
     ErrorHandler,
@@ -34,7 +36,9 @@ class DistributedEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
             self._event_subscription_observer.status,
         )
 
-    async def register(self, subscriber: EventSubscriber) -> None:
+    async def register[E: BaseEvent](
+        self, subscriber: EventSubscriber[E]
+    ) -> None:
         await self._event_subscriber_manager.add(subscriber)
 
     async def _do_execute(self) -> None:

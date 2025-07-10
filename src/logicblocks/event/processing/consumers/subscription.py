@@ -3,12 +3,13 @@ from uuid import uuid4
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.store import EventCategory, EventSource
+from logicblocks.event.store import EventCategory
 from logicblocks.event.types import (
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
 
+from ...sources.base import BaseEvent, EventSource
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer
@@ -16,16 +17,16 @@ from .state import EventConsumerStateStore, EventCount
 from .types import EventConsumer, EventProcessor
 
 
-def make_subscriber(
+def make_subscriber[E: BaseEvent](
     *,
     subscriber_group: str,
     subscriber_id: str | None = None,
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
-    event_processor: EventProcessor,
+    event_processor: EventProcessor[E],
     logger: FilteringBoundLogger = default_logger,
-) -> "EventSubscriptionConsumer":
+) -> "EventSubscriptionConsumer[E]":
     subscriber_id = (
         subscriber_id if subscriber_id is not None else str(uuid4())
     )
@@ -34,9 +35,9 @@ def make_subscriber(
         persistence_interval=subscriber_state_persistence_interval,
     )
 
-    def delegate_factory[S: EventSource[EventSourceIdentifier]](
-        source: S,
-    ) -> EventSourceConsumer[S]:
+    def delegate_factory[I: EventSourceIdentifier](
+        source: EventSource[I, E],
+    ) -> EventSourceConsumer[I, E]:
         return EventSourceConsumer(
             source=source,
             processor=event_processor,
@@ -53,14 +54,16 @@ def make_subscriber(
     )
 
 
-class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
+class EventSubscriptionConsumer[E: BaseEvent](
+    EventConsumer[E], EventSubscriber[E]
+):
     def __init__(
         self,
         group: str,
         id: str,
         subscription_requests: Sequence[EventSourceIdentifier],
         delegate_factory: Callable[
-            [EventSource[EventSourceIdentifier]], EventConsumer
+            [EventSource[EventSourceIdentifier, E]], EventConsumer[E]
         ],
         logger: FilteringBoundLogger = default_logger,
     ):
@@ -70,7 +73,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
         self._delegate_factory = delegate_factory
         self._logger = logger.bind(subscriber={"group": group, "id": id})
         self._delegates: MutableMapping[
-            EventSourceIdentifier, EventConsumer
+            EventSourceIdentifier, EventConsumer[E]
         ] = {}
 
     @property
@@ -88,7 +91,9 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
     def subscription_requests(self) -> Sequence[EventSourceIdentifier]:
         return self._subscription_requests
 
-    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
+    async def accept(
+        self, source: EventSource[EventSourceIdentifier, E]
+    ) -> None:
         if source.identifier in self._delegates:
             await self._logger.ainfo(
                 "event.consumer.subscription.reaccepting-source",
@@ -106,7 +111,7 @@ class EventSubscriptionConsumer(EventConsumer, EventSubscriber):
             self._delegates[source.identifier] = self._delegate_factory(source)
 
     async def withdraw(
-        self, source: EventSource[EventSourceIdentifier]
+        self, source: EventSource[EventSourceIdentifier, E]
     ) -> None:
         if source.identifier in self._delegates:
             await self._logger.ainfo(

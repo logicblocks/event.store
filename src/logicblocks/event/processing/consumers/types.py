@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 
-from logicblocks.event.types import JsonValue, StoredEvent
+from logicblocks.event.sources.base import BaseEvent
 
 
-class EventConsumer(ABC):
+class EventConsumer[E: BaseEvent](ABC):
     @abstractmethod
     async def consume_all(self) -> None:
         raise NotImplementedError()
 
 
-class EventProcessor(ABC):
+class EventProcessor[E: BaseEvent](ABC):
     @abstractmethod
-    async def process_event(self, event: StoredEvent[str, JsonValue]) -> None:
+    async def process_event(self, event: E) -> None:
         raise NotImplementedError()

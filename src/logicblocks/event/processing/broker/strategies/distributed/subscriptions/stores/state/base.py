@@ -3,30 +3,31 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types import EventSourceIdentifier
 
 from ......types import EventSubscriberKey
 
 
 @dataclass(frozen=True)
-class EventSubscriptionKey:
+class EventSubscriptionKey[E: BaseEvent]:
     group: str
     id: str
 
 
 @dataclass(frozen=True)
-class EventSubscriptionState:
+class EventSubscriptionState[E: BaseEvent]:
     group: str
     id: str
     node_id: str
     event_sources: Sequence[EventSourceIdentifier]
 
     @property
-    def key(self) -> EventSubscriptionKey:
+    def key(self) -> EventSubscriptionKey[E]:
         return EventSubscriptionKey(group=self.group, id=self.id)
 
     @property
-    def subscriber_key(self) -> EventSubscriberKey:
+    def subscriber_key(self) -> EventSubscriberKey[E]:
         return EventSubscriberKey(group=self.group, id=self.id)
 
 
@@ -37,36 +38,42 @@ class EventSubscriptionStateChangeType(StrEnum):
 
 
 @dataclass(frozen=True)
-class EventSubscriptionStateChange:
+class EventSubscriptionStateChange[E: BaseEvent]:
     type: EventSubscriptionStateChangeType
-    subscription: EventSubscriptionState
+    subscription: EventSubscriptionState[E]
 
 
 class EventSubscriptionStateStore(ABC):
     @abstractmethod
-    async def list(self) -> Sequence[EventSubscriptionState]:
+    async def list(self) -> Sequence[EventSubscriptionState[BaseEvent]]:
         raise NotImplementedError
 
     @abstractmethod
-    async def get(
-        self, key: EventSubscriptionKey
-    ) -> EventSubscriptionState | None:
+    async def get[E: BaseEvent](
+        self, key: EventSubscriptionKey[E]
+    ) -> E | None:
         raise NotImplementedError
 
     @abstractmethod
-    async def add(self, subscription: EventSubscriptionState) -> None:
+    async def add[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def remove(self, subscription: EventSubscriptionState) -> None:
+    async def remove[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def replace(self, subscription: EventSubscriptionState) -> None:
+    async def replace[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def apply(
-        self, changes: Sequence[EventSubscriptionStateChange]
+        self, changes: Sequence[EventSubscriptionStateChange[BaseEvent]]
     ) -> None:
         raise NotImplementedError

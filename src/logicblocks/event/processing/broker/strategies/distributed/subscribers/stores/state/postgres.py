@@ -13,6 +13,7 @@ from logicblocks.event.query import (
     Path,
     Search,
 )
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types.identifier import event_sequence_identifier
 from logicblocks.event.utils.clock import Clock, SystemClock
 
@@ -21,7 +22,7 @@ from .base import EventSubscriberState, EventSubscriberStateStore
 
 
 def insert_query(
-    subscriber: EventSubscriberState,
+    subscriber: EventSubscriberState[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     subscription_requests_jsonb = Jsonb(
@@ -58,7 +59,7 @@ def insert_query(
 
 
 def delete_query(
-    key: EventSubscriber,
+    key: EventSubscriber[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -76,7 +77,7 @@ def delete_query(
 
 
 def heartbeat_query(
-    subscriber: EventSubscriberState,
+    subscriber: EventSubscriberState[BaseEvent],
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -150,7 +151,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
             )
         )
 
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -166,7 +167,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     )
                 )
 
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -177,7 +178,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState]:
+    ) -> Sequence[EventSubscriberState[BaseEvent]]:
         filters: list[FilterClause] = []
         if subscriber_group is not None:
             filters.append(
@@ -214,7 +215,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     for subscriber_state_dict in subscriber_state_dicts
                 ]
 
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(

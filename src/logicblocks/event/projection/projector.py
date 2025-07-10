@@ -6,7 +6,7 @@ from typing import Any
 from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
 
-from logicblocks.event.store import EventSource
+from logicblocks.event.sources.base import EventSource
 from logicblocks.event.types import (
     EventSourceIdentifier,
     JsonValue,
@@ -71,7 +71,7 @@ class Projector[
     async def project(
         self,
         *,
-        source: EventSource[Identifier],
+        source: EventSource[Identifier, StoredEvent],
         state: State | None = None,
         metadata: Metadata | None = None,
     ) -> Projection[State, Metadata]:

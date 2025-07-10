@@ -9,6 +9,7 @@ from typing import Any
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types import str_serialisation_fallback
 from logicblocks.event.utils.klass import class_fullname
 
@@ -33,7 +34,7 @@ def log_event_name(event: str) -> str:
 
 
 def subscription_status(
-    subscriptions: Sequence[EventSubscriptionState],
+    subscriptions: Sequence[EventSubscriptionState[BaseEvent]],
 ) -> dict[str, Any]:
     existing: dict[str, Any] = {}
     for subscription in subscriptions:
@@ -50,7 +51,7 @@ def subscription_status(
 
 
 def subscriber_group_status(
-    subscribers: Sequence[EventSubscriberState],
+    subscribers: Sequence[EventSubscriberState[BaseEvent]],
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     for subscriber in subscribers:
@@ -72,7 +73,7 @@ def subscriber_group_status(
 
 
 def subscription_change_summary(
-    changes: Sequence[EventSubscriptionStateChange],
+    changes: Sequence[EventSubscriptionStateChange[BaseEvent]],
 ) -> dict[str, Any]:
     return {
         "additions": len(
@@ -225,7 +226,7 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
             subscriber_groups=subscriber_group_status(subscribers),
         )
 
-        changes: list[EventSubscriptionStateChange] = []
+        changes: list[EventSubscriptionStateChange[BaseEvent]] = []
 
         for subscription in subscriptions:
             if subscription.subscriber_key not in subscriber_map:

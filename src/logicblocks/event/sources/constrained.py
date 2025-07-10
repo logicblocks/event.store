@@ -1,18 +1,18 @@
 from collections.abc import AsyncIterator, Set
 from typing import Any
 
-from logicblocks.event.store import EventSource
+from logicblocks.event.sources.base import BaseEvent, EventSource
 from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
     EventSourceIdentifier,
-    JsonValue,
-    StoredEvent,
 )
 
 
-class ConstrainedEventSource[I: EventSourceIdentifier](EventSource[I]):
+class ConstrainedEventSource[I: EventSourceIdentifier, E: BaseEvent](
+    EventSource[I, E]
+):
     def __init__(
-        self, delegate: EventSource[I], constraints: Set[QueryConstraint]
+        self, delegate: EventSource[I, E], constraints: Set[QueryConstraint]
     ):
         self._delegate = delegate
         self._constraints = constraints
@@ -21,12 +21,12 @@ class ConstrainedEventSource[I: EventSourceIdentifier](EventSource[I]):
     def identifier(self) -> I:
         return self._delegate.identifier
 
-    async def latest(self) -> StoredEvent[str, JsonValue] | None:
+    async def latest(self) -> E | None:
         return await self._delegate.latest()
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[E]:
         return self._delegate.iterate(
             constraints=self._constraints | constraints
         )

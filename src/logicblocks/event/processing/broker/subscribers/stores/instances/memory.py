@@ -1,23 +1,31 @@
 from typing import Sequence
 
+from logicblocks.event.sources.base import BaseEvent
+
 from ....types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberStore
 
 
 class InMemoryEventSubscriberStore(EventSubscriberStore):
     def __init__(self):
-        self.subscribers: dict[EventSubscriberKey, EventSubscriber] = {}
+        self.subscribers: dict[
+            EventSubscriberKey[BaseEvent], EventSubscriber[BaseEvent]
+        ] = {}
 
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add[E: BaseEvent](self, subscriber: EventSubscriber[E]) -> None:
         self.subscribers[subscriber.key] = subscriber
 
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove[E: BaseEvent](
+        self, subscriber: EventSubscriber[E]
+    ) -> None:
         if subscriber.key not in self.subscribers:
             return
         self.subscribers.pop(subscriber.key)
 
-    async def get(self, key: EventSubscriberKey) -> EventSubscriber | None:
+    async def get[E: BaseEvent](
+        self, key: EventSubscriberKey[E]
+    ) -> EventSubscriber[E] | None:
         return self.subscribers.get(key, None)
 
-    async def list(self) -> Sequence[EventSubscriber]:
+    async def list(self) -> Sequence[EventSubscriber[BaseEvent]]:
         return [subscriber for subscriber in self.subscribers.values()]

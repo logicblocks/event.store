@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+from logicblocks.event.sources.base import BaseEvent
+
 from .base import (
     EventSubscriptionKey,
     EventSubscriptionState,
@@ -13,18 +15,20 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
     def __init__(self, node_id: str):
         self.node_id = node_id
         self._subscriptions: dict[
-            EventSubscriptionKey, EventSubscriptionState
+            EventSubscriptionKey[BaseEvent], EventSubscriptionState[BaseEvent]
         ] = {}
 
-    async def list(self) -> Sequence[EventSubscriptionState]:
+    async def list(self) -> Sequence[EventSubscriptionState[BaseEvent]]:
         return list(self._subscriptions.values())
 
-    async def get(
-        self, key: EventSubscriptionKey
-    ) -> EventSubscriptionState | None:
+    async def get[E: BaseEvent](
+        self, key: EventSubscriptionKey[E]
+    ) -> EventSubscriptionState[E] | None:
         return self._subscriptions.get(key, None)
 
-    async def add(self, subscription: EventSubscriptionState) -> None:
+    async def add[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         existing = await self.get(subscription.key)
 
         if existing is not None:
@@ -37,7 +41,9 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
             event_sources=subscription.event_sources,
         )
 
-    async def remove(self, subscription: EventSubscriptionState) -> None:
+    async def remove[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         existing = await self.get(subscription.key)
 
         if existing is None:
@@ -45,7 +51,9 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
 
         self._subscriptions.pop(subscription.key)
 
-    async def replace(self, subscription: EventSubscriptionState) -> None:
+    async def replace[E: BaseEvent](
+        self, subscription: EventSubscriptionState[E]
+    ) -> None:
         existing = await self.get(subscription.key)
 
         if existing is None:
@@ -59,7 +67,7 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
         )
 
     async def apply(
-        self, changes: Sequence[EventSubscriptionStateChange]
+        self, changes: Sequence[EventSubscriptionStateChange[BaseEvent]]
     ) -> None:
         keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):

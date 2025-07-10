@@ -1,13 +1,13 @@
 from logicblocks.event.sources import InMemoryEventSource
 from logicblocks.event.store import constraints
 from logicblocks.event.testing.builders import StoredEventBuilder
-from logicblocks.event.types import CategoryIdentifier
+from logicblocks.event.types import CategoryIdentifier, StoredEvent
 
 
 class TestInMemoryEventSource:
     async def test_identifier_exposes_provided_identifier(self):
         identifier = CategoryIdentifier(category="test")
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[], identifier=identifier
         )
 
@@ -18,7 +18,7 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
         )
@@ -26,7 +26,7 @@ class TestInMemoryEventSource:
         assert await source.latest() == event_3
 
     async def test_latest_returns_none_when_no_provided_events(self):
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[], identifier=CategoryIdentifier(category="test")
         )
 
@@ -37,7 +37,7 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
         )
@@ -52,7 +52,7 @@ class TestInMemoryEventSource:
         event_3 = StoredEventBuilder().with_sequence_number(2).build()
         event_4 = StoredEventBuilder().with_sequence_number(3).build()
 
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3, event_4],
             identifier=CategoryIdentifier(category="test"),
         )
@@ -65,7 +65,7 @@ class TestInMemoryEventSource:
         assert events == [event_3, event_4]
 
     async def test_iterate_yields_nothing_when_no_provided_events(self):
-        source = InMemoryEventSource[CategoryIdentifier](
+        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[], identifier=CategoryIdentifier(category="test")
         )
 
@@ -78,12 +78,12 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source_1 = InMemoryEventSource[CategoryIdentifier](
+        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier](
+        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
         )
@@ -98,11 +98,11 @@ class TestInMemoryEventSource:
         identifier_1 = CategoryIdentifier(category="test-1")
         identifier_2 = CategoryIdentifier(category="test-2")
 
-        source_1 = InMemoryEventSource[CategoryIdentifier](
+        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3], identifier=identifier_1
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier](
+        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2, event_3], identifier=identifier_2
         )
 
@@ -113,12 +113,12 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source_1 = InMemoryEventSource[CategoryIdentifier](
+        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_1, event_2],
             identifier=CategoryIdentifier(category="test"),
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier](
+        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
             events=[event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
         )

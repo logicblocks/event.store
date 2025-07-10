@@ -24,7 +24,7 @@ from logicblocks.event.sources import (
     EventSourceFactory,
     EventStoreEventSourceFactory,
 )
-from logicblocks.event.store import EventSource
+from logicblocks.event.sources.base import BaseEvent, EventSource
 from logicblocks.event.store.adapters import (
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
@@ -125,7 +125,7 @@ def make_event_broker_with_real_dependencies(
 
 async def subscriber_has_sources(
     subscriber: CapturingEventSubscriber,
-    sources: Sequence[EventSource[EventSourceIdentifier]],
+    sources: Sequence[EventSource[EventSourceIdentifier, BaseEvent]],
 ) -> bool:
     while True:
         if subscriber.sources == sources:
@@ -135,7 +135,7 @@ async def subscriber_has_sources(
 
 async def assert_sources_eventually(
     subscriber: CapturingEventSubscriber,
-    sources: Sequence[EventSource[EventSourceIdentifier]],
+    sources: Sequence[EventSource[EventSourceIdentifier, BaseEvent]],
 ):
     timeout = timedelta(milliseconds=500)
     try:

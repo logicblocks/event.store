@@ -1,6 +1,7 @@
 from collections.abc import Sequence, Set
 from dataclasses import dataclass
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types import EventSourceIdentifier
 
 from ...types import EventSubscriberKey
@@ -11,34 +12,34 @@ from .subscriptions import (
 
 
 @dataclass(frozen=True)
-class EventSubscriptionChange:
+class EventSubscriptionChange[E: BaseEvent]:
     group: str
     id: str
     event_source: EventSourceIdentifier
 
     @property
-    def key(self) -> EventSubscriptionKey:
+    def key(self) -> EventSubscriptionKey[E]:
         return EventSubscriptionKey(self.group, self.id)
 
     @property
-    def subscriber_key(self) -> EventSubscriberKey:
+    def subscriber_key(self) -> EventSubscriberKey[E]:
         return EventSubscriberKey(self.group, self.id)
 
 
 @dataclass(frozen=True)
 class EventSubscriptionChangeset:
-    allocations: Set[EventSubscriptionChange]
-    revocations: Set[EventSubscriptionChange]
+    allocations: Set[EventSubscriptionChange[BaseEvent]]
+    revocations: Set[EventSubscriptionChange[BaseEvent]]
 
 
 class EventSubscriptionDifference:
     @staticmethod
     def diff(
-        existing: Sequence[EventSubscriptionState],
-        updated: Sequence[EventSubscriptionState],
+        existing: Sequence[EventSubscriptionState[BaseEvent]],
+        updated: Sequence[EventSubscriptionState[BaseEvent]],
     ) -> EventSubscriptionChangeset:
-        allocations: set[EventSubscriptionChange] = set()
-        revocations: set[EventSubscriptionChange] = set()
+        allocations: set[EventSubscriptionChange[BaseEvent]] = set()
+        revocations: set[EventSubscriptionChange[BaseEvent]] = set()
 
         existing_map = {
             subscription.key: subscription for subscription in existing

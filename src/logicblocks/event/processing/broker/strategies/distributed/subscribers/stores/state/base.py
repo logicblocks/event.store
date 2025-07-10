@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.types import EventSourceIdentifier
 
 from ......types import EventSubscriber, EventSubscriberKey
@@ -10,7 +11,7 @@ from ....subscriptions import EventSubscriptionKey
 
 
 @dataclass(frozen=True)
-class EventSubscriberState:
+class EventSubscriberState[E: BaseEvent]:
     group: str
     id: str
     node_id: str
@@ -23,21 +24,21 @@ class EventSubscriberState:
         )
 
     @property
-    def key(self) -> EventSubscriberKey:
+    def key(self) -> EventSubscriberKey[E]:
         return EventSubscriberKey(self.group, self.id)
 
     @property
-    def subscription_key(self) -> EventSubscriptionKey:
+    def subscription_key(self) -> EventSubscriptionKey[E]:
         return EventSubscriptionKey(self.group, self.id)
 
 
 class EventSubscriberStateStore(ABC):
     @abstractmethod
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -45,11 +46,11 @@ class EventSubscriberStateStore(ABC):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState]:
+    ) -> Sequence[EventSubscriberState[BaseEvent]]:
         raise NotImplementedError
 
     @abstractmethod
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -4,6 +4,7 @@ from types import NoneType
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.sources.factory.base import EventSourceFactory
 
 from ....process import ProcessStatus
@@ -44,7 +45,7 @@ class SingletonEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
     def status(self) -> ProcessStatus:
         return self._status
 
-    async def register(self, subscriber: EventSubscriber) -> None:
+    async def register(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         await self._event_subscriber_store.add(subscriber)
 
     async def _do_execute(self) -> None:

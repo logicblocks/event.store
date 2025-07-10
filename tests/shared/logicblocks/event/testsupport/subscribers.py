@@ -2,9 +2,10 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
-from logicblocks.event.sources.base import BaseEvent, EventSource
+from logicblocks.event.sources import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.types import (
+    BaseEvent,
     CategoryIdentifier,
     EventSourceIdentifier,
 )

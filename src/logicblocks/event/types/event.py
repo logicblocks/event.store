@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable
+from typing import Any, Callable
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 from . import default_serialisation_fallback
 from .conversion import JsonPersistable, serialise_to_json_value
 from .json import JsonValue, JsonValueSerialisable
+
+type BaseEvent = Any
 
 
 @dataclass(frozen=True)

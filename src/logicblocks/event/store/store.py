@@ -17,7 +17,7 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
-from ..sources.base import EventSource
+from ..sources import EventSource
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError

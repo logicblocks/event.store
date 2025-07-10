@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 
 from .base import (
     EventSubscriptionKey,

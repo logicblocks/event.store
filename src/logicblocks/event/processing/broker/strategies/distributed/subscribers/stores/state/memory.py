@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from datetime import UTC, timedelta
 
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 from ......types import EventSubscriber

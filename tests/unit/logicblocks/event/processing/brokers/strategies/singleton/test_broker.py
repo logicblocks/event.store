@@ -21,10 +21,10 @@ from logicblocks.event.processing.broker.subscribers import (
     InMemoryEventSubscriberStore,
 )
 from logicblocks.event.sources import (
+    EventSource,
     EventSourceFactory,
     EventStoreEventSourceFactory,
 )
-from logicblocks.event.sources.base import BaseEvent, EventSource
 from logicblocks.event.store.adapters import (
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
@@ -40,7 +40,7 @@ from logicblocks.event.testsupport import (
     task_shutdown,
 )
 from logicblocks.event.testsupport.subscribers import CapturingEventSubscriber
-from logicblocks.event.types import CategoryIdentifier
+from logicblocks.event.types import BaseEvent, CategoryIdentifier
 from logicblocks.event.types.identifier import EventSourceIdentifier
 
 

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from logicblocks.event.sources.base import BaseEvent, EventSource
+from logicblocks.event.sources import EventSource
+from logicblocks.event.types import BaseEvent
 from logicblocks.event.types.identifier import EventSourceIdentifier
 
 

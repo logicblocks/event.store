@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 
 
 class EventConsumer[E: BaseEvent](ABC):

@@ -12,7 +12,7 @@ from logicblocks.event.query import (
     FilterClause,
     Search,
 )
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 from logicblocks.event.types.identifier import event_sequence_identifier
 
 from .base import (

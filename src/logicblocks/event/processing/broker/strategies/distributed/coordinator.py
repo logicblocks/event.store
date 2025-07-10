@@ -9,8 +9,7 @@ from typing import Any
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.sources.base import BaseEvent
-from logicblocks.event.types import str_serialisation_fallback
+from logicblocks.event.types import BaseEvent, str_serialisation_fallback
 from logicblocks.event.utils.klass import class_fullname
 
 from ....locks import LockManager

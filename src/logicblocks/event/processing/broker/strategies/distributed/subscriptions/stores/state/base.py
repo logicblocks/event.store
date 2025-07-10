@@ -3,8 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from logicblocks.event.sources.base import BaseEvent
-from logicblocks.event.types import EventSourceIdentifier
+from logicblocks.event.types import BaseEvent, EventSourceIdentifier
 
 from ......types import EventSubscriberKey
 

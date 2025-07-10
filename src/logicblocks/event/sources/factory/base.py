@@ -2,8 +2,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any, Self
 
-from logicblocks.event.sources.base import BaseEvent, EventSource
-from logicblocks.event.types import EventSourceIdentifier
+from logicblocks.event.sources import EventSource
+from logicblocks.event.types import (
+    BaseEvent,
+    EventSourceIdentifier,
+)
 
 
 class EventSourceFactory[ConstructorArg = Any](ABC):

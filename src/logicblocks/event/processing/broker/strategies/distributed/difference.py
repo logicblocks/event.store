@@ -1,8 +1,7 @@
 from collections.abc import Sequence, Set
 from dataclasses import dataclass
 
-from logicblocks.event.sources.base import BaseEvent
-from logicblocks.event.types import EventSourceIdentifier
+from logicblocks.event.types import BaseEvent, EventSourceIdentifier
 
 from ...types import EventSubscriberKey
 from .subscriptions import (

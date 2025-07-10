@@ -1,7 +1,8 @@
 from abc import abstractmethod
 from types import NoneType
 
-from ...sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
+
 from ..process import Process
 from ..services import Service
 from .types import EventSubscriber

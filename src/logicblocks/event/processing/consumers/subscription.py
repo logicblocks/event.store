@@ -5,11 +5,12 @@ from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.store import EventCategory
 from logicblocks.event.types import (
+    BaseEvent,
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
 
-from ...sources.base import BaseEvent, EventSource
+from ...sources import EventSource
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer

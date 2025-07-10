@@ -6,8 +6,7 @@ from typing import Any, Self
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.sources.base import BaseEvent
-from logicblocks.event.types import str_serialisation_fallback
+from logicblocks.event.types import BaseEvent, str_serialisation_fallback
 
 from ....logger import default_logger
 from ....subscribers import EventSubscriberStore

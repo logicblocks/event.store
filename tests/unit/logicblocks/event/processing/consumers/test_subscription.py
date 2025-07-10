@@ -6,7 +6,7 @@ from logicblocks.event.processing import (
     EventSubscriber,
     EventSubscriptionConsumer,
 )
-from logicblocks.event.sources.base import EventSource
+from logicblocks.event.sources import EventSource
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,

@@ -6,7 +6,7 @@ from datetime import timedelta
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSourceFactory
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 
 from ....process import Process, ProcessStatus
 from ...logger import default_logger

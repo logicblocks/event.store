@@ -1,7 +1,7 @@
 import asyncio
 from types import NoneType
 
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (

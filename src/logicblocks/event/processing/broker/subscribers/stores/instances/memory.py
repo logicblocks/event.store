@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from logicblocks.event.sources.base import BaseEvent
+from logicblocks.event.types import BaseEvent
 
 from ....types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberStore

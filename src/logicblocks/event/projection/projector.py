@@ -6,7 +6,7 @@ from typing import Any
 from pyheck import kebab as to_kebab_case
 from pyheck import snake as to_snake_case
 
-from logicblocks.event.sources.base import EventSource
+from logicblocks.event.sources import EventSource
 from logicblocks.event.types import (
     EventSourceIdentifier,
     JsonValue,

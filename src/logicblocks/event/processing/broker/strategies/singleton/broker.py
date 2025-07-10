@@ -4,8 +4,8 @@ from types import NoneType
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.sources.base import BaseEvent
 from logicblocks.event.sources.factory.base import EventSourceFactory
+from logicblocks.event.types import BaseEvent
 
 from ....process import ProcessStatus
 from ....services import (

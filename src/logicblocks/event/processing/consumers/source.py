@@ -2,13 +2,13 @@ import asyncio
 
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.sources import constraints
+from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
+    BaseEvent,
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
 
-from ...sources.base import BaseEvent, EventSource
 from .logger import default_logger
 from .state import EventConsumerStateStore
 from .types import EventConsumer, EventProcessor

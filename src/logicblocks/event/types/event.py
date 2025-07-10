@@ -13,6 +13,10 @@ class BaseEvent(Protocol):
     def summarise(self) -> JsonValue:
         raise NotImplementedError
 
+    @property
+    def sequence_number(self) -> int:
+        raise NotImplementedError
+
 
 @dataclass(frozen=True)
 class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any, Self
+from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.sources.constraints import (
@@ -17,6 +17,7 @@ from logicblocks.event.store.conditions import (
 )
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
+    BaseEvent,
     Converter,
     JsonValue,
     StoredEvent,
@@ -28,24 +29,24 @@ from .types import QueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[StoredEvent]]
+    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[BaseEvent]]
 ):
     def convert(
         self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck[StoredEvent]:
-        def check(event: StoredEvent[Any, Any]) -> bool:
+    ) -> QueryConstraintCheck[BaseEvent]:
+        def check(event: BaseEvent) -> bool:
             return event.sequence_number > item.sequence_number
 
         return check
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[StoredEvent]]
+    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[BaseEvent]]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck[StoredEvent]],
+        converter: Converter[QC, QueryConstraintCheck[BaseEvent]],
     ) -> Self:
         return super()._register(item_type, converter)
 

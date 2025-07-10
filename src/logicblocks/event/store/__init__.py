@@ -10,7 +10,6 @@ from .store import (
     EventLog,
     EventStore,
     EventStream,
-    StoredEventSource,
 )
 from .transactions import (
     event_store_transaction,
@@ -24,7 +23,6 @@ from .types import StreamPublishDefinition, stream_publish_definition
 __all__ = [
     "EventCategory",
     "EventLog",
-    "StoredEventSource",
     "EventStore",
     "EventStorageAdapter",
     "EventStream",

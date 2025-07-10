@@ -1,15 +1,15 @@
 from logicblocks.event.sources import (
     ConstrainedEventSource,
     InMemoryEventSource,
+    constraints,
 )
-from logicblocks.event.store import constraints
+from logicblocks.event.sources.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.store.adapters.memory import (
     InMemoryQueryConstraintCheck,
     InMemoryTypeRegistryConstraintConverter,
-)
-from logicblocks.event.store.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import StoredEventBuilder

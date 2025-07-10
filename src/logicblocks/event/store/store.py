@@ -6,6 +6,7 @@ from typing import Any
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -22,7 +23,6 @@ from logicblocks.event.types import (
 from ..sources.base import EventSource
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
-from .constraints import QueryConstraint
 from .exceptions import UnmetWriteConditionError
 from .types import StreamPublishDefinition
 

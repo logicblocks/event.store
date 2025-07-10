@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from aiologic import Lock
 
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
     Converter,
@@ -30,7 +31,6 @@ from ...conditions import (
     NoCondition,
     WriteCondition,
 )
-from ...constraints import QueryConstraint
 from ...types import StreamPublishDefinition
 from ..base import (
     EventSerialisationGuarantee,

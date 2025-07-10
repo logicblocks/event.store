@@ -25,6 +25,10 @@ from logicblocks.event.persistence.postgres.query import (
     ColumnReference,
     SortBy,
 )
+from logicblocks.event.sources.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.types import (
     CategoryIdentifier,
     Converter,
@@ -40,10 +44,6 @@ from logicblocks.event.types import (
 )
 
 from ...conditions import NoCondition, WriteCondition
-from ...constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
-)
 from ...types import StreamPublishDefinition
 from ..base import (
     AnyEventSerialisationGuarantee,

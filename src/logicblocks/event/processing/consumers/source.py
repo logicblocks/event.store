@@ -2,7 +2,7 @@ import asyncio
 
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.store import constraints
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     EventSourceIdentifier,
     str_serialisation_fallback,

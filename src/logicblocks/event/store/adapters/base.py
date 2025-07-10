@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from typing import overload
 
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -15,7 +16,6 @@ from logicblocks.event.types import (
 )
 
 from ..conditions import NoCondition, WriteCondition
-from ..constraints import QueryConstraint
 from ..types import StreamPublishDefinition
 
 # type Listable = identifier.Categories | identifier.Streams

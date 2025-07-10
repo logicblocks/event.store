@@ -1,4 +1,4 @@
-from . import conditions, constraints
+from . import conditions
 from .adapters import (
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
@@ -33,7 +33,6 @@ __all__ = [
     "StreamPublishDefinition",
     "UnmetWriteConditionError",
     "conditions",
-    "constraints",
     "event_store_transaction",
     "ignore_on_error",
     "ignore_on_unmet_condition_error",

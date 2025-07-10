@@ -1,5 +1,4 @@
-from logicblocks.event.sources import InMemoryEventSource
-from logicblocks.event.store import constraints
+from logicblocks.event.sources import InMemoryEventSource, constraints
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import CategoryIdentifier, StoredEvent
 

@@ -1,3 +1,4 @@
+from . import constraints
 from .base import EventSource
 from .constrained import ConstrainedEventSource
 from .factory import EventSourceFactory, EventStoreEventSourceFactory
@@ -9,4 +10,5 @@ __all__ = [
     "EventSourceFactory",
     "EventStoreEventSourceFactory",
     "InMemoryEventSource",
+    "constraints",
 ]

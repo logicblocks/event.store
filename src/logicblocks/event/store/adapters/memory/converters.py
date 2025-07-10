@@ -3,6 +3,10 @@ from collections.abc import Sequence
 from typing import Any, Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
+from logicblocks.event.sources.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.store.conditions import (
     AndCondition,
     EmptyStreamCondition,
@@ -19,10 +23,6 @@ from logicblocks.event.types import (
     StreamIdentifier,
 )
 
-from ...constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
-)
 from .db import InMemoryEventsDBTransaction
 from .types import QueryConstraintCheck
 

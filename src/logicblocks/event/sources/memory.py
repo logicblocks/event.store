@@ -3,11 +3,11 @@ from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
 from logicblocks.event.sources.base import BaseEvent, EventSource
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.store.adapters.memory.converters import (
     QueryConstraintCheck,
     TypeRegistryConstraintConverter,
 )
-from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.types import (
     Converter,
     EventSourceIdentifier,

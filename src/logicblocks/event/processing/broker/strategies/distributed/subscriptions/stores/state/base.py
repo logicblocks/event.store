@@ -51,7 +51,7 @@ class EventSubscriptionStateStore(ABC):
     @abstractmethod
     async def get[E: BaseEvent](
         self, key: EventSubscriptionKey[E]
-    ) -> E | None:
+    ) -> EventSubscriptionState[E] | None:
         raise NotImplementedError
 
     @abstractmethod

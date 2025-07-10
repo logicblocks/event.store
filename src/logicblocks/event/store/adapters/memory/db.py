@@ -43,7 +43,9 @@ class InMemoryEventsDB:
         log_index: EventPositionList | None = None,
         category_index: EventIndexDict[CategoryKey] | None = None,
         stream_index: EventIndexDict[StreamKey] | None = None,
-        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck],
+        constraint_converter: Converter[
+            QueryConstraint, QueryConstraintCheck[StoredEvent]
+        ],
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
             events if events is not None else []

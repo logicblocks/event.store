@@ -10,7 +10,7 @@ from logicblocks.event.types.identifier import EventSourceIdentifier
 
 
 @dataclass(frozen=True)
-class EventSubscriberKey[E: BaseEvent]:
+class EventSubscriberKey:
     group: str
     id: str
 
@@ -35,7 +35,7 @@ class EventSubscriber[E: BaseEvent](ABC):
         raise NotImplementedError
 
     @property
-    def key(self) -> EventSubscriberKey[E]:
+    def key(self) -> EventSubscriberKey:
         return EventSubscriberKey(self.group, self.id)
 
     @property

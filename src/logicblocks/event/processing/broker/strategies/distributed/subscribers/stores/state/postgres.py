@@ -22,7 +22,7 @@ from .base import EventSubscriberState, EventSubscriberStateStore
 
 
 def insert_query(
-    subscriber: EventSubscriberState[BaseEvent],
+    subscriber: EventSubscriberState,
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     subscription_requests_jsonb = Jsonb(
@@ -77,7 +77,7 @@ def delete_query(
 
 
 def heartbeat_query(
-    subscriber: EventSubscriberState[BaseEvent],
+    subscriber: EventSubscriberState,
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -178,7 +178,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState[BaseEvent]]:
+    ) -> Sequence[EventSubscriberState]:
         filters: list[FilterClause] = []
         if subscriber_group is not None:
             filters.append(

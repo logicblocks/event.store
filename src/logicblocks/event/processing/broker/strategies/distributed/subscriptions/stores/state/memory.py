@@ -1,7 +1,5 @@
 from collections.abc import Sequence
 
-from logicblocks.event.types import BaseEvent
-
 from .base import (
     EventSubscriptionKey,
     EventSubscriptionState,
@@ -15,20 +13,18 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
     def __init__(self, node_id: str):
         self.node_id = node_id
         self._subscriptions: dict[
-            EventSubscriptionKey[BaseEvent], EventSubscriptionState[BaseEvent]
+            EventSubscriptionKey, EventSubscriptionState
         ] = {}
 
-    async def list(self) -> Sequence[EventSubscriptionState[BaseEvent]]:
+    async def list(self) -> Sequence[EventSubscriptionState]:
         return list(self._subscriptions.values())
 
-    async def get[E: BaseEvent](
-        self, key: EventSubscriptionKey[E]
-    ) -> EventSubscriptionState[E] | None:
+    async def get(
+        self, key: EventSubscriptionKey
+    ) -> EventSubscriptionState | None:
         return self._subscriptions.get(key, None)
 
-    async def add[E: BaseEvent](
-        self, subscription: EventSubscriptionState[E]
-    ) -> None:
+    async def add(self, subscription: EventSubscriptionState) -> None:
         existing = await self.get(subscription.key)
 
         if existing is not None:
@@ -41,9 +37,7 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
             event_sources=subscription.event_sources,
         )
 
-    async def remove[E: BaseEvent](
-        self, subscription: EventSubscriptionState[E]
-    ) -> None:
+    async def remove(self, subscription: EventSubscriptionState) -> None:
         existing = await self.get(subscription.key)
 
         if existing is None:
@@ -51,9 +45,7 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
 
         self._subscriptions.pop(subscription.key)
 
-    async def replace[E: BaseEvent](
-        self, subscription: EventSubscriptionState[E]
-    ) -> None:
+    async def replace(self, subscription: EventSubscriptionState) -> None:
         existing = await self.get(subscription.key)
 
         if existing is None:
@@ -67,7 +59,7 @@ class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
         )
 
     async def apply(
-        self, changes: Sequence[EventSubscriptionStateChange[BaseEvent]]
+        self, changes: Sequence[EventSubscriptionStateChange]
     ) -> None:
         keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):

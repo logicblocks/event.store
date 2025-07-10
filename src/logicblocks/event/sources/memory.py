@@ -22,7 +22,9 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: BaseEvent](
         self,
         events: Sequence[E],
         identifier: I,
-        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck]
+        constraint_converter: Converter[
+            QueryConstraint, QueryConstraintCheck[E]
+        ]
         | None = None,
     ):
         self._events = events

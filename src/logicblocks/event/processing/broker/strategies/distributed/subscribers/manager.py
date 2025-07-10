@@ -20,7 +20,7 @@ def log_event_name(event: str) -> str:
 
 class EventSubscriberManager(ABC):
     @abstractmethod
-    async def add[E](self, subscriber: EventSubscriber[E]) -> Self:
+    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> Self:
         raise NotImplementedError
 
     @abstractmethod

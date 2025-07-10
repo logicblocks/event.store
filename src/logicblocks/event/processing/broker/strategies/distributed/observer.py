@@ -6,7 +6,6 @@ from datetime import timedelta
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSourceFactory
-from logicblocks.event.types import BaseEvent
 
 from ....process import Process, ProcessStatus
 from ...logger import default_logger
@@ -26,7 +25,7 @@ class EventSubscriptionObserver(Process, ABC):
 
 
 class DefaultEventSubscriptionObserver(EventSubscriptionObserver):
-    _existing_subscriptions: Sequence[EventSubscriptionState[BaseEvent]]
+    _existing_subscriptions: Sequence[EventSubscriptionState]
 
     def __init__(
         self,

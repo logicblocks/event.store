@@ -56,7 +56,7 @@ def make_subscriber[E: BaseEvent](
 
 
 class EventSubscriptionConsumer[E: BaseEvent](
-    EventConsumer[E], EventSubscriber[E]
+    EventConsumer, EventSubscriber[E]
 ):
     def __init__(
         self,
@@ -64,7 +64,7 @@ class EventSubscriptionConsumer[E: BaseEvent](
         id: str,
         subscription_requests: Sequence[EventSourceIdentifier],
         delegate_factory: Callable[
-            [EventSource[EventSourceIdentifier, E]], EventConsumer[E]
+            [EventSource[EventSourceIdentifier, E]], EventConsumer
         ],
         logger: FilteringBoundLogger = default_logger,
     ):
@@ -74,7 +74,7 @@ class EventSubscriptionConsumer[E: BaseEvent](
         self._delegate_factory = delegate_factory
         self._logger = logger.bind(subscriber={"group": group, "id": id})
         self._delegates: MutableMapping[
-            EventSourceIdentifier, EventConsumer[E]
+            EventSourceIdentifier, EventConsumer
         ] = {}
 
     @property

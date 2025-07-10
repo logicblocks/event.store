@@ -1,8 +1,7 @@
 from collections.abc import Callable
 
 from logicblocks.event.types import (
-    JsonValue,
-    StoredEvent,
+    BaseEvent,
 )
 
-type QueryConstraintCheck = Callable[[StoredEvent[str, JsonValue]], bool]
+type QueryConstraintCheck[E: BaseEvent] = Callable[[E], bool]

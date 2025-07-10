@@ -12,7 +12,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
     def __init__(self, node_id: str, clock: Clock = SystemClock()):
         self.node_id = node_id
         self.clock = clock
-        self.subscribers: list[EventSubscriberState[BaseEvent]] = []
+        self.subscribers: list[EventSubscriberState] = []
 
     async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         existing = next(
@@ -55,8 +55,8 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState[BaseEvent]]:
-        subscribers: list[EventSubscriberState[BaseEvent]] = self.subscribers
+    ) -> Sequence[EventSubscriberState]:
+        subscribers: list[EventSubscriberState] = self.subscribers
         if subscriber_group is not None:
             subscribers = [
                 subscriber

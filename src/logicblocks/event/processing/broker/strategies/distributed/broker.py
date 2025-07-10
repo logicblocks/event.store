@@ -36,9 +36,7 @@ class DistributedEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
             self._event_subscription_observer.status,
         )
 
-    async def register[E: BaseEvent](
-        self, subscriber: EventSubscriber[E]
-    ) -> None:
+    async def register(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         await self._event_subscriber_manager.add(subscriber)
 
     async def _do_execute(self) -> None:

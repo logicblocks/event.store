@@ -19,7 +19,7 @@ def log_event_name(event: str) -> str:
 
 
 class EventSourceConsumer[I: EventSourceIdentifier, E: BaseEvent](
-    EventConsumer[E]
+    EventConsumer
 ):
     def __init__(
         self,

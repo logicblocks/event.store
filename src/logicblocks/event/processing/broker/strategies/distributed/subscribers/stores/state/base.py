@@ -10,7 +10,7 @@ from ....subscriptions import EventSubscriptionKey
 
 
 @dataclass(frozen=True)
-class EventSubscriberState[E: BaseEvent]:
+class EventSubscriberState:
     group: str
     id: str
     node_id: str
@@ -23,11 +23,11 @@ class EventSubscriberState[E: BaseEvent]:
         )
 
     @property
-    def key(self) -> EventSubscriberKey[E]:
+    def key(self) -> EventSubscriberKey:
         return EventSubscriberKey(self.group, self.id)
 
     @property
-    def subscription_key(self) -> EventSubscriptionKey[E]:
+    def subscription_key(self) -> EventSubscriptionKey:
         return EventSubscriptionKey(self.group, self.id)
 
 
@@ -45,7 +45,7 @@ class EventSubscriberStateStore(ABC):
         self,
         subscriber_group: str | None = None,
         max_time_since_last_seen: timedelta | None = None,
-    ) -> Sequence[EventSubscriberState[BaseEvent]]:
+    ) -> Sequence[EventSubscriberState]:
         raise NotImplementedError
 
     @abstractmethod

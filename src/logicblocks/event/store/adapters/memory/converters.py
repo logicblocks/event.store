@@ -28,11 +28,11 @@ from .types import QueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck]
+    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[StoredEvent]]
 ):
     def convert(
         self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck:
+    ) -> QueryConstraintCheck[StoredEvent]:
         def check(event: StoredEvent[Any, Any]) -> bool:
             return event.sequence_number > item.sequence_number
 
@@ -40,12 +40,12 @@ class SequenceNumberAfterConstraintConverter(
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck]
+    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[StoredEvent]]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck],
+        converter: Converter[QC, QueryConstraintCheck[StoredEvent]],
     ) -> Self:
         return super()._register(item_type, converter)
 

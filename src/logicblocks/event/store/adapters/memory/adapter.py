@@ -57,7 +57,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         serialisation_guarantee: EventSerialisationGuarantee[
             CategoryIdentifier | StreamIdentifier | LogIdentifier
         ] = EventSerialisationGuarantee.LOG,
-        constraint_converter: Converter[QueryConstraint, QueryConstraintCheck]
+        constraint_converter: Converter[
+            QueryConstraint, QueryConstraintCheck[StoredEvent]
+        ]
         | None = None,
         condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
         | None = None,

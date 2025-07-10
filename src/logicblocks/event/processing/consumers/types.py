@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from logicblocks.event.types import BaseEvent
 
 
-class EventConsumer[E: BaseEvent](ABC):
+class EventConsumer(ABC):
     @abstractmethod
     async def consume_all(self) -> None:
         raise NotImplementedError()

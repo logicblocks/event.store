@@ -14,7 +14,7 @@ class EventSourceFactory[ConstructorArg = Any](ABC):
     def register_constructor[I: EventSourceIdentifier](
         self,
         identifier_type: type[I],
-        constructor: Callable[[I, ConstructorArg], EventSource[I, BaseEvent]],
+        constructor: Callable[[I, ConstructorArg], EventSource[I, Any]],
     ) -> Self:
         raise NotImplementedError
 

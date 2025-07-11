@@ -19,7 +19,6 @@ from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     BaseEvent,
     Converter,
-    JsonValue,
     StoredEvent,
     StreamIdentifier,
 )
@@ -61,7 +60,7 @@ class WriteConditionEnforcerContext:
     def __init__(
         self,
         identifier: StreamIdentifier,
-        latest_event: StoredEvent[str, JsonValue] | None,
+        latest_event: StoredEvent | None,
     ):
         self.identifier = identifier
         self.latest_event = latest_event

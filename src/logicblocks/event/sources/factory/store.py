@@ -12,6 +12,7 @@ from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
     LogIdentifier,
+    StoredEvent,
     StreamIdentifier,
 )
 
@@ -38,7 +39,7 @@ def construct_event_stream(
 
 
 type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
-    [I, EventStorageAdapter], EventSource[I, BaseEvent]
+    [I, EventStorageAdapter], EventSource[I, StoredEvent[Any, Any]]
 ]
 
 

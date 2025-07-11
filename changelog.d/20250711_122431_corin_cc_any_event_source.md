@@ -7,6 +7,11 @@
   - `ConstrainedEventSource`
   - `InMemoryEventSource`
   - `EventSubscriber`
+  - `EventBroker`
+  - `EventSubscriptionObserver`
+  - `EventSubscriberManager`
+  - `EventSubscriberStore`
+  - `EventSourceFactory`
   - `EventProcessor`
   - `EventSourceConsumer`
   - `EventSubscriptionConsumer`

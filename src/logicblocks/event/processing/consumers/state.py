@@ -5,7 +5,7 @@ from typing import Any, Self
 
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     JsonValue,
     NewEvent,
     default_deserialisation_fallback,
@@ -74,7 +74,7 @@ class EventConsumerStateStore:
 
     async def record_processed(
         self,
-        event: BaseEvent,
+        event: Event,
         *,
         state: JsonValue = None,
         partition: str = "default",

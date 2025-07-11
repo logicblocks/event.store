@@ -13,7 +13,7 @@ from .conversion import (
     serialise_to_string,
     str_serialisation_fallback,
 )
-from .event import BaseEvent, NewEvent, StoredEvent
+from .event import Event, NewEvent, StoredEvent
 from .functions import Applier, Converter
 from .identifier import (
     CategoryIdentifier,
@@ -45,7 +45,7 @@ from .string import StringConvertible, StringDeserialisable, StringSerialisable
 
 __all__ = [
     "Applier",
-    "BaseEvent",
+    "Event",
     "CategoryIdentifier",
     "Converter",
     "EventSourceIdentifier",

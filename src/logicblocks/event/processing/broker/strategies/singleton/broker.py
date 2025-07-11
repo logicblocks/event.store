@@ -5,7 +5,7 @@ from types import NoneType
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.sources.factory.base import EventSourceFactory
-from logicblocks.event.types import BaseEvent
+from logicblocks.event.types import Event
 
 from ....process import ProcessStatus
 from ....services import (
@@ -23,7 +23,7 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.{event}"
 
 
-class SingletonEventBroker[E: BaseEvent](
+class SingletonEventBroker[E: Event](
     EventBroker[E], ErrorHandlingServiceMixin[NoneType]
 ):
     def __init__(

@@ -5,8 +5,8 @@ from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
 from logicblocks.event.sources import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.types import (
-    BaseEvent,
     CategoryIdentifier,
+    Event,
     EventSourceIdentifier,
 )
 
@@ -81,12 +81,12 @@ class DummyEventSubscriber(EventSubscriber):
         return EventSubscriberHealth.HEALTHY
 
     async def accept(
-        self, source: EventSource[EventSourceIdentifier, BaseEvent]
+        self, source: EventSource[EventSourceIdentifier, Event]
     ) -> None:
         pass
 
     async def withdraw(
-        self, source: EventSource[EventSourceIdentifier, BaseEvent]
+        self, source: EventSource[EventSourceIdentifier, Event]
     ) -> None:
         pass
 

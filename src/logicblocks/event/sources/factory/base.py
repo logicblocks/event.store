@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 
 from logicblocks.event.sources import EventSource
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     EventSourceIdentifier,
 )
 
-class EventSourceFactory[E: BaseEvent](ABC):
+
+class EventSourceFactory[E: Event](ABC):
     @abstractmethod
     def construct[I: EventSourceIdentifier](
         self, identifier: I

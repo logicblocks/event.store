@@ -7,7 +7,7 @@ from structlog.types import FilteringBoundLogger
 from logicblocks.event.sources import EventSource
 from logicblocks.event.store import EventCategory
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
@@ -19,7 +19,7 @@ from .state import EventConsumerStateStore, EventCount
 from .types import EventConsumer, EventProcessor
 
 
-def make_subscriber[E: BaseEvent](
+def make_subscriber[E: Event](
     *,
     subscriber_group: str,
     subscriber_id: str | None = None,
@@ -56,9 +56,7 @@ def make_subscriber[E: BaseEvent](
     )
 
 
-class EventSubscriptionConsumer[E: BaseEvent](
-    EventConsumer, EventSubscriber[E]
-):
+class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
     def __init__(
         self,
         group: str,

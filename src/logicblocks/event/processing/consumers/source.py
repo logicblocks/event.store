@@ -4,7 +4,7 @@ from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
@@ -18,9 +18,7 @@ def log_event_name(event: str) -> str:
     return f"event.consumer.source.{event}"
 
 
-class EventSourceConsumer[I: EventSourceIdentifier, E: BaseEvent](
-    EventConsumer
-):
+class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
     def __init__(
         self,
         *,

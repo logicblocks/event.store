@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
 )
 
-type QueryConstraintCheck[E: BaseEvent] = Callable[[E], bool]
+type QueryConstraintCheck[E: Event] = Callable[[E], bool]

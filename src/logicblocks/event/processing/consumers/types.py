@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from logicblocks.event.types import BaseEvent
+from logicblocks.event.types import Event
 
 
 class EventConsumer(ABC):
@@ -9,7 +9,7 @@ class EventConsumer(ABC):
         raise NotImplementedError()
 
 
-class EventProcessor[E: BaseEvent](ABC):
+class EventProcessor[E: Event](ABC):
     @abstractmethod
     async def process_event(self, event: E) -> None:
         raise NotImplementedError()

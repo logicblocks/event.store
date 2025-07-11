@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator, Set
 from typing import Any
 
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     EventSourceIdentifier,
 )
 
@@ -10,7 +10,7 @@ from .base import EventSource
 from .constraints import QueryConstraint
 
 
-class ConstrainedEventSource[I: EventSourceIdentifier, E: BaseEvent](
+class ConstrainedEventSource[I: EventSourceIdentifier, E: Event](
     EventSource[I, E]
 ):
     def __init__(

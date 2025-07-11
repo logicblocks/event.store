@@ -6,7 +6,7 @@ from typing import Any, Self
 
 from structlog.types import FilteringBoundLogger
 
-from logicblocks.event.types import BaseEvent, str_serialisation_fallback
+from logicblocks.event.types import Event, str_serialisation_fallback
 
 from ....logger import default_logger
 from ....subscribers import EventSubscriberStore
@@ -18,7 +18,7 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.subscriber-manager.{event}"
 
 
-class EventSubscriberManager[E: BaseEvent](ABC):
+class EventSubscriberManager[E: Event](ABC):
     @abstractmethod
     async def add(self, subscriber: EventSubscriber[E]) -> Self:
         raise NotImplementedError
@@ -36,7 +36,7 @@ class EventSubscriberManager[E: BaseEvent](ABC):
         raise NotImplementedError
 
 
-class DefaultEventSubscriberManager[E: BaseEvent](EventSubscriberManager[E]):
+class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
     def __init__(
         self,
         node_id: str,

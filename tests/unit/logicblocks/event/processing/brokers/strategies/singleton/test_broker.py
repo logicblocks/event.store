@@ -40,7 +40,7 @@ from logicblocks.event.testsupport import (
     task_shutdown,
 )
 from logicblocks.event.testsupport.subscribers import CapturingEventSubscriber
-from logicblocks.event.types import BaseEvent, CategoryIdentifier
+from logicblocks.event.types import CategoryIdentifier, Event
 from logicblocks.event.types.identifier import EventSourceIdentifier
 
 
@@ -125,7 +125,7 @@ def make_event_broker_with_real_dependencies(
 
 async def subscriber_has_sources(
     subscriber: CapturingEventSubscriber,
-    sources: Sequence[EventSource[EventSourceIdentifier, BaseEvent]],
+    sources: Sequence[EventSource[EventSourceIdentifier, Event]],
 ) -> bool:
     while True:
         if subscriber.sources == sources:
@@ -135,7 +135,7 @@ async def subscriber_has_sources(
 
 async def assert_sources_eventually(
     subscriber: CapturingEventSubscriber,
-    sources: Sequence[EventSource[EventSourceIdentifier, BaseEvent]],
+    sources: Sequence[EventSource[EventSourceIdentifier, Event]],
 ):
     timeout = timedelta(milliseconds=500)
     try:

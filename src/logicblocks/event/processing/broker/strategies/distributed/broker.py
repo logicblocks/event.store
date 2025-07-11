@@ -1,7 +1,7 @@
 import asyncio
 from types import NoneType
 
-from logicblocks.event.types import BaseEvent
+from logicblocks.event.types import Event
 
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
@@ -16,7 +16,7 @@ from .observer import EventSubscriptionObserver
 from .subscribers import EventSubscriberManager
 
 
-class DistributedEventBroker[E: BaseEvent](
+class DistributedEventBroker[E: Event](
     EventBroker[E], ErrorHandlingServiceMixin[NoneType]
 ):
     def __init__(

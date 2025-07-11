@@ -7,8 +7,8 @@ from logicblocks.event.store.adapters.memory.converters import (
     TypeRegistryConstraintConverter,
 )
 from logicblocks.event.types import (
-    BaseEvent,
     Converter,
+    Event,
     EventSourceIdentifier,
 )
 
@@ -16,7 +16,7 @@ from .base import EventSource
 from .constraints import QueryConstraint
 
 
-class InMemoryEventSource[I: EventSourceIdentifier, E: BaseEvent](
+class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
     EventSource[I, E]
 ):
     def __init__(

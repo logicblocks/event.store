@@ -1,12 +1,12 @@
 from typing import Sequence
 
-from logicblocks.event.types import BaseEvent
+from logicblocks.event.types import Event
 
 from ....types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberStore
 
 
-class InMemoryEventSubscriberStore[E: BaseEvent](EventSubscriberStore[E]):
+class InMemoryEventSubscriberStore[E: Event](EventSubscriberStore[E]):
     def __init__(self):
         self.subscribers: dict[EventSubscriberKey, EventSubscriber[E]] = {}
 

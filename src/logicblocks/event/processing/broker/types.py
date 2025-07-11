@@ -6,7 +6,7 @@ from typing import Any
 
 from logicblocks.event.sources import EventSource
 from logicblocks.event.types import (
-    BaseEvent,
+    Event,
     EventSourceIdentifier,
 )
 
@@ -25,7 +25,7 @@ class EventSubscriberHealth(StrEnum):
     UNHEALTHY = "unhealthy"
 
 
-class EventSubscriber[E: BaseEvent](ABC):
+class EventSubscriber[E: Event](ABC):
     @property
     @abstractmethod
     def group(self) -> str:

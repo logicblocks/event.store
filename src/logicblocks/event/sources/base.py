@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 
 from logicblocks.event.sources.constraints import QueryConstraint
-from logicblocks.event.types import BaseEvent, EventSourceIdentifier
+from logicblocks.event.types import Event, EventSourceIdentifier
 
 
-class EventSource[I: EventSourceIdentifier, E: BaseEvent](ABC):
+class EventSource[I: EventSourceIdentifier, E: Event](ABC):
     @property
     @abstractmethod
     def identifier(self) -> I:

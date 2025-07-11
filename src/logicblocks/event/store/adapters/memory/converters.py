@@ -17,8 +17,8 @@ from logicblocks.event.store.conditions import (
 )
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
-    BaseEvent,
     Converter,
+    Event,
     StoredEvent,
     StreamIdentifier,
 )
@@ -28,24 +28,24 @@ from .types import QueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[BaseEvent]]
+    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[Event]]
 ):
     def convert(
         self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck[BaseEvent]:
-        def check(event: BaseEvent) -> bool:
+    ) -> QueryConstraintCheck[Event]:
+        def check(event: Event) -> bool:
             return event.sequence_number > item.sequence_number
 
         return check
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[BaseEvent]]
+    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[Event]]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck[BaseEvent]],
+        converter: Converter[QC, QueryConstraintCheck[Event]],
     ) -> Self:
         return super()._register(item_type, converter)
 

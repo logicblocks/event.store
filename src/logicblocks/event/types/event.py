@@ -9,7 +9,7 @@ from .conversion import JsonPersistable, serialise_to_json_value
 from .json import JsonValue, JsonValueSerialisable
 
 
-class BaseEvent(Protocol):
+class Event(Protocol):
     def summarise(self) -> JsonValue:
         raise NotImplementedError
 

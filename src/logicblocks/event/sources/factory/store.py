@@ -38,16 +38,18 @@ def construct_event_stream(
     return EventStream(adapter, identifier)
 
 
-type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
-    [I, EventStorageAdapter], EventSource[I, StoredEvent[Any, Any]]
+type EventSourceConstructor[I: EventSourceIdentifier, E: BaseEvent] = Callable[
+    [I, EventStorageAdapter], EventSource[I, E]
 ]
 
 
-class EventStoreEventSourceFactory(EventSourceFactory[EventStorageAdapter]):
+class EventStoreEventSourceFactory(
+    EventSourceFactory[EventStorageAdapter, StoredEvent]
+):
     def __init__(self, adapter: EventStorageAdapter):
         self._constructors: MutableMapping[
             type[EventSourceIdentifier],
-            EventSourceConstructor[Any],
+            EventSourceConstructor[Any, StoredEvent],
         ] = {}
         self._adapter = adapter
         self.register_constructor(LogIdentifier, construct_event_log)
@@ -61,14 +63,14 @@ class EventStoreEventSourceFactory(EventSourceFactory[EventStorageAdapter]):
     def register_constructor[I: EventSourceIdentifier](
         self,
         identifier_type: type[I],
-        constructor: EventSourceConstructor[I],
+        constructor: EventSourceConstructor[I, StoredEvent],
     ) -> Self:
         self._constructors[identifier_type] = constructor
         return self
 
     def construct[I: EventSourceIdentifier](
         self, identifier: I
-    ) -> EventSource[I, BaseEvent]:
+    ) -> EventSource[I, StoredEvent]:
         return self._constructors[type(identifier)](
             identifier, self.storage_adapter
         )

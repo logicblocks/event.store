@@ -17,7 +17,7 @@ from logicblocks.event.types import BaseEvent
 from logicblocks.event.types.identifier import event_sequence_identifier
 from logicblocks.event.utils.clock import Clock, SystemClock
 
-from ......types import EventSubscriber
+from ......types import EventSubscriber, EventSubscriberKey
 from .base import EventSubscriberState, EventSubscriberStateStore
 
 
@@ -59,7 +59,7 @@ def insert_query(
 
 
 def delete_query(
-    key: EventSubscriber[BaseEvent],
+    key: EventSubscriberKey,
     table_settings: postgres.TableSettings,
 ) -> postgres.ParameterisedQuery:
     return (
@@ -171,7 +171,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
-                    *delete_query(subscriber, self.table_settings)
+                    *delete_query(subscriber.key, self.table_settings)
                 )
 
     async def list(

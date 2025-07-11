@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable, Protocol
+from typing import Callable, Protocol, ReadOnly
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 

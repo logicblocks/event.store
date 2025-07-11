@@ -1,12 +1,13 @@
 from collections.abc import AsyncIterator, Set
 from typing import Any
 
-from logicblocks.event.sources import EventSource
-from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import (
     BaseEvent,
     EventSourceIdentifier,
 )
+
+from .base import EventSource
+from .constraints import QueryConstraint
 
 
 class ConstrainedEventSource[I: EventSourceIdentifier, E: BaseEvent](

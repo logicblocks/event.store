@@ -5,8 +5,10 @@ from enum import StrEnum
 from typing import Any
 
 from logicblocks.event.sources import EventSource
-from logicblocks.event.types import BaseEvent
-from logicblocks.event.types.identifier import EventSourceIdentifier
+from logicblocks.event.types import (
+    BaseEvent,
+    EventSourceIdentifier,
+)
 
 
 @dataclass(frozen=True)

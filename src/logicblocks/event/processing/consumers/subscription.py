@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.sources import EventSource
 from logicblocks.event.store import EventCategory
 from logicblocks.event.types import (
     BaseEvent,
@@ -10,7 +11,6 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
-from ...sources import EventSource
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer

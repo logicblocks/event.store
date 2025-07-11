@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from types import NoneType
-from typing import Any
+
+from logicblocks.event.types import BaseEvent
 
 from ..process import Process
 from ..services import Service
@@ -9,5 +10,5 @@ from .types import EventSubscriber
 
 class EventBroker(Service[NoneType], Process):
     @abstractmethod
-    async def register(self, subscriber: EventSubscriber[Any]) -> None:
+    async def register(self, subscriber: EventSubscriber[BaseEvent]) -> None:
         raise NotImplementedError

@@ -2,8 +2,6 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
-from logicblocks.event.sources import EventSource
-from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.store.adapters.memory.converters import (
     QueryConstraintCheck,
     TypeRegistryConstraintConverter,
@@ -13,6 +11,9 @@ from logicblocks.event.types import (
     Converter,
     EventSourceIdentifier,
 )
+
+from .base import EventSource
+from .constraints import QueryConstraint
 
 
 class InMemoryEventSource[I: EventSourceIdentifier, E: BaseEvent](

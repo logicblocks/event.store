@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, Self
+from typing import Any, Self, TypeVar
 
 from logicblocks.event.sources import EventSource
 from logicblocks.event.types import (
@@ -8,18 +8,26 @@ from logicblocks.event.types import (
     EventSourceIdentifier,
 )
 
+Arg = TypeVar("Arg", bound=Any, default=Any, infer_variance=True)
+Event = TypeVar("Event", bound=BaseEvent, default=BaseEvent, covariant=True)
+Identifier = TypeVar(
+    "Identifier", bound=EventSourceIdentifier, infer_variance=True
+)
 
-class EventSourceFactory[A = Any, E: BaseEvent = BaseEvent](ABC):
+
+class EventSourceFactory(ABC):
     @abstractmethod
-    def register_constructor[I: EventSourceIdentifier](
-            self,
-            identifier_type: type[I],
-            constructor: Callable[[I, A], EventSource[I, E]],
+    def register_constructor(
+        self,
+        identifier_type: type[Identifier],
+        constructor: Callable[
+            [Identifier, Arg], EventSource[Identifier, Event]
+        ],
     ) -> Self:
         raise NotImplementedError
-    
+
     @abstractmethod
-    def construct[I: EventSourceIdentifier](
-            self, identifier: I
-    ) -> EventSource[I, E]:
+    def construct(
+        self, identifier: Identifier
+    ) -> EventSource[Identifier, Event]:
         raise NotImplementedError

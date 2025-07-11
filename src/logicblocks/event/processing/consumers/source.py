@@ -2,8 +2,9 @@ import asyncio
 
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.store import EventSource, constraints
+from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
+    Event,
     EventSourceIdentifier,
     str_serialisation_fallback,
 )
@@ -17,14 +18,12 @@ def log_event_name(event: str) -> str:
     return f"event.consumer.source.{event}"
 
 
-class EventSourceConsumer[S: EventSource[EventSourceIdentifier]](
-    EventConsumer
-):
+class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
     def __init__(
         self,
         *,
-        source: S,
-        processor: EventProcessor,
+        source: EventSource[I, E],
+        processor: EventProcessor[E],
         state_store: EventConsumerStateStore,
         logger: FilteringBoundLogger = default_logger,
     ):

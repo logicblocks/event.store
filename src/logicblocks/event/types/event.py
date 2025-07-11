@@ -1,12 +1,21 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable
+from typing import Callable, Protocol
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
 from . import default_serialisation_fallback
 from .conversion import JsonPersistable, serialise_to_json_value
 from .json import JsonValue, JsonValueSerialisable
+
+
+class Event(Protocol):
+    def summarise(self) -> JsonValue:
+        raise NotImplementedError
+
+    @property
+    def sequence_number(self) -> int:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)

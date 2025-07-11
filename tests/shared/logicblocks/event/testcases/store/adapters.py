@@ -10,8 +10,8 @@ import pytest
 import structlog
 from pytest_unordered import unordered
 
+from logicblocks.event.sources import constraints
 from logicblocks.event.store import conditions as writeconditions
-from logicblocks.event.store import constraints
 from logicblocks.event.store.adapters import (
     AnyEventSerialisationGuarantee,
     EventSerialisationGuarantee,

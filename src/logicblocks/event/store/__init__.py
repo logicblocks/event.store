@@ -1,4 +1,4 @@
-from . import conditions, constraints
+from . import conditions
 from .adapters import (
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
@@ -8,7 +8,6 @@ from .exceptions import UnmetWriteConditionError
 from .store import (
     EventCategory,
     EventLog,
-    EventSource,
     EventStore,
     EventStream,
 )
@@ -24,7 +23,6 @@ from .types import StreamPublishDefinition, stream_publish_definition
 __all__ = [
     "EventCategory",
     "EventLog",
-    "EventSource",
     "EventStore",
     "EventStorageAdapter",
     "EventStream",
@@ -33,7 +31,6 @@ __all__ = [
     "StreamPublishDefinition",
     "UnmetWriteConditionError",
     "conditions",
-    "constraints",
     "event_store_transaction",
     "ignore_on_error",
     "ignore_on_unmet_condition_error",

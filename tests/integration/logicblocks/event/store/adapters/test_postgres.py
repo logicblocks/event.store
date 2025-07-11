@@ -20,6 +20,7 @@ from logicblocks.event.persistence.postgres import (
     TableSettings,
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.store.adapters import (
     AnyEventSerialisationGuarantee,
     EventSerialisationGuarantee,
@@ -27,7 +28,6 @@ from logicblocks.event.store.adapters import (
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
 )
-from logicblocks.event.store.constraints import QueryConstraint
 from logicblocks.event.testcases.store.adapters import (
     ConcurrencyParameters,
     EventStorageAdapterCases,

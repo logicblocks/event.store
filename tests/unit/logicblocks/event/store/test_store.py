@@ -7,10 +7,10 @@ from typing import Any, Literal, Self
 
 import pytest
 
+from logicblocks.event.sources import constraints
 from logicblocks.event.store import (
     EventStore,
     conditions,
-    constraints,
 )
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError

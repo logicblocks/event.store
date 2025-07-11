@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any, Self
+from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
+from logicblocks.event.sources.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.store.conditions import (
     AndCondition,
     EmptyStreamCondition,
@@ -14,38 +18,34 @@ from logicblocks.event.store.conditions import (
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     Converter,
-    JsonValue,
+    Event,
     StoredEvent,
     StreamIdentifier,
 )
 
-from ...constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
-)
 from .db import InMemoryEventsDBTransaction
 from .types import QueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck]
+    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[Event]]
 ):
     def convert(
         self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck:
-        def check(event: StoredEvent[Any, Any]) -> bool:
+    ) -> QueryConstraintCheck[Event]:
+        def check(event: Event) -> bool:
             return event.sequence_number > item.sequence_number
 
         return check
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck]
+    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[Event]]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck],
+        converter: Converter[QC, QueryConstraintCheck[Event]],
     ) -> Self:
         return super()._register(item_type, converter)
 
@@ -60,7 +60,7 @@ class WriteConditionEnforcerContext:
     def __init__(
         self,
         identifier: StreamIdentifier,
-        latest_event: StoredEvent[str, JsonValue] | None,
+        latest_event: StoredEvent | None,
     ):
         self.identifier = identifier
         self.latest_event = latest_event

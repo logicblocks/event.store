@@ -9,6 +9,7 @@ from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.store import (
     EventStorageAdapter,
 )
+from logicblocks.event.types import StoredEvent
 
 from .base import EventBroker
 from .strategies import (
@@ -94,7 +95,7 @@ def make_event_broker(
     broker_type: DistributedEventBrokerTypeType,
     storage_type: InMemoryEventBrokerStorageTypeType,
     **kwargs: Unpack[InMemoryDistributedBrokerParams],
-) -> EventBroker: ...
+) -> EventBroker[StoredEvent]: ...
 
 
 @overload
@@ -103,7 +104,7 @@ def make_event_broker(
     broker_type: DistributedEventBrokerTypeType,
     storage_type: PostgresEventBrokerStorageTypeType,
     **kwargs: Unpack[PostgresDistributedBrokerParams],
-) -> EventBroker: ...
+) -> EventBroker[StoredEvent]: ...
 
 
 @overload
@@ -112,7 +113,7 @@ def make_event_broker(
     broker_type: SingletonEventBrokerTypeType,
     storage_type: InMemoryEventBrokerStorageTypeType,
     **kwargs: Unpack[InMemorySingletonBrokerParams],
-) -> EventBroker: ...
+) -> EventBroker[StoredEvent]: ...
 
 
 @overload
@@ -121,7 +122,7 @@ def make_event_broker(
     broker_type: SingletonEventBrokerTypeType,
     storage_type: PostgresEventBrokerStorageTypeType,
     **kwargs: Unpack[PostgresSingletonBrokerParams],
-) -> EventBroker: ...
+) -> EventBroker[StoredEvent]: ...
 
 
 def make_event_broker(
@@ -133,7 +134,7 @@ def make_event_broker(
         InMemoryEventBrokerStorageTypeType | PostgresEventBrokerStorageTypeType
     ),
     **kwargs: Unpack[CombinedBrokerParams],
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     match broker_type, storage_type:
         case EventBrokerType.Distributed, EventBrokerStorageType.InMemory:
             return make_in_memory_distributed_event_broker(
@@ -160,7 +161,7 @@ def make_in_memory_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return make_in_memory_distributed_event_broker(node_id, settings, adapter)
 
 
@@ -170,7 +171,7 @@ def make_postgres_event_broker(
     connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return make_postgres_distributed_event_broker(
         node_id, connection_settings, connection_pool, settings
     )

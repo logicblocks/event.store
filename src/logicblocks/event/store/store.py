@@ -1,16 +1,14 @@
 import logging
-from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from typing import Any
 
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import (
     CategoryIdentifier,
-    EventSourceIdentifier,
     JsonPersistable,
-    JsonValue,
     LogIdentifier,
     NewEvent,
     StoredEvent,
@@ -19,43 +17,16 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
+from ..sources import EventSource
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
-from .constraints import QueryConstraint
 from .exceptions import UnmetWriteConditionError
 from .types import StreamPublishDefinition
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
 
-class EventSource[I: EventSourceIdentifier](ABC):
-    @property
-    @abstractmethod
-    def identifier(self) -> I:
-        raise NotImplementedError()
-
-    @abstractmethod
-    async def latest(self) -> StoredEvent[str, JsonValue] | None:
-        pass
-
-    async def read(
-        self,
-        *,
-        constraints: Set[QueryConstraint] = frozenset(),
-    ) -> Sequence[StoredEvent[str, JsonValue]]:
-        return [event async for event in self.iterate(constraints=constraints)]
-
-    @abstractmethod
-    def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
-        raise NotImplementedError()
-
-    def __aiter__(self) -> AsyncIterator[StoredEvent[str, JsonValue]]:
-        return self.iterate()
-
-
-class EventStream(EventSource[StreamIdentifier]):
+class EventStream(EventSource[StreamIdentifier, StoredEvent]):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
@@ -79,7 +50,7 @@ class EventStream(EventSource[StreamIdentifier]):
     def identifier(self) -> StreamIdentifier:
         return self._identifier
 
-    async def latest(self) -> StoredEvent[str, JsonValue] | None:
+    async def latest(self) -> StoredEvent | None:
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -135,7 +106,7 @@ class EventStream(EventSource[StreamIdentifier]):
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream.
 
         Args:
@@ -163,7 +134,7 @@ class EventStream(EventSource[StreamIdentifier]):
         )
 
 
-class EventCategory(EventSource[CategoryIdentifier]):
+class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
     """A class for interacting with a specific category of events.
 
     Since a category consists of zero or more streams, the category
@@ -187,7 +158,7 @@ class EventCategory(EventSource[CategoryIdentifier]):
     def identifier(self) -> CategoryIdentifier:
         return self._identifier
 
-    async def latest(self) -> StoredEvent[str, JsonValue] | None:
+    async def latest(self) -> StoredEvent | None:
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -210,7 +181,7 @@ class EventCategory(EventSource[CategoryIdentifier]):
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the category.
 
         Args:
@@ -247,7 +218,7 @@ class EventCategory(EventSource[CategoryIdentifier]):
         )
 
 
-class EventLog(EventSource[LogIdentifier]):
+class EventLog(EventSource[LogIdentifier, StoredEvent]):
     """A class for interacting with the entire event log.
 
     This class allows reading and iterating over all events in the log,
@@ -268,13 +239,13 @@ class EventLog(EventSource[LogIdentifier]):
     def identifier(self) -> LogIdentifier:
         return self._identifier
 
-    async def latest(self) -> StoredEvent[str, JsonValue] | None:
+    async def latest(self) -> StoredEvent | None:
         await self._logger.adebug("event.log.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent]:
         """Iterate over all events in the log.
 
         Args:

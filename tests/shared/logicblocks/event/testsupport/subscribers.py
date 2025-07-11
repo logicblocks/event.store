@@ -2,10 +2,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from logicblocks.event.processing import EventSubscriber, EventSubscriberHealth
-from logicblocks.event.store import EventSource
+from logicblocks.event.sources import EventSource
 from logicblocks.event.testing import data
 from logicblocks.event.types import (
     CategoryIdentifier,
+    Event,
     EventSourceIdentifier,
 )
 
@@ -79,11 +80,13 @@ class DummyEventSubscriber(EventSubscriber):
     def health(self) -> EventSubscriberHealth:
         return EventSubscriberHealth.HEALTHY
 
-    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
+    async def accept(
+        self, source: EventSource[EventSourceIdentifier, Event]
+    ) -> None:
         pass
 
     async def withdraw(
-        self, source: EventSource[EventSourceIdentifier]
+        self, source: EventSource[EventSourceIdentifier, Event]
     ) -> None:
         pass
 

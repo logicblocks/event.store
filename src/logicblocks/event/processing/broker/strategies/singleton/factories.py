@@ -7,6 +7,7 @@ from logicblocks.event.store import (
     EventStorageAdapter,
     PostgresEventStorageAdapter,
 )
+from logicblocks.event.types import StoredEvent
 
 from ...base import EventBroker
 from .builder import (
@@ -56,7 +57,7 @@ def make_in_memory_singleton_event_broker(
     node_id: str,
     settings: SingletonEventBrokerSettings,
     adapter: EventStorageAdapter,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return (
         InMemorySingletonEventBrokerBuilder(node_id)
         .prepare(adapter)
@@ -70,7 +71,7 @@ def make_postgres_singleton_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: SingletonEventBrokerSettings,
     adapter: EventStorageAdapter | None,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return (
         PostgresSingletonEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool, adapter)

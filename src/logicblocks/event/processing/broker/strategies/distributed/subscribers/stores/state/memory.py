@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import UTC, timedelta
+from typing import Any
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
@@ -13,7 +14,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
         self.clock = clock
         self.subscribers: list[EventSubscriberState] = []
 
-    async def add(self, subscriber: EventSubscriber) -> None:
+    async def add(self, subscriber: EventSubscriber[Any]) -> None:
         existing = next(
             (
                 candidate
@@ -36,7 +37,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             )
         )
 
-    async def remove(self, subscriber: EventSubscriber) -> None:
+    async def remove(self, subscriber: EventSubscriber[Any]) -> None:
         existing = next(
             (
                 candidate
@@ -72,7 +73,7 @@ class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
             ]
         return subscribers
 
-    async def heartbeat(self, subscriber: EventSubscriber) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[Any]) -> None:
         index, existing = next(
             (
                 (index, candidate)

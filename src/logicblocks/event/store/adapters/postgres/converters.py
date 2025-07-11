@@ -13,6 +13,10 @@ from logicblocks.event.persistence.postgres import (
     QueryApplier,
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
+from logicblocks.event.sources.constraints import (
+    QueryConstraint,
+    SequenceNumberAfterConstraint,
+)
 from logicblocks.event.store.conditions import (
     AndCondition,
     EmptyStreamCondition,
@@ -27,11 +31,6 @@ from logicblocks.event.types import (
     JsonValue,
     StoredEvent,
     StreamIdentifier,
-)
-
-from ...constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
 )
 
 

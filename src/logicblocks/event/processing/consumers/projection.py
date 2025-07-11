@@ -14,7 +14,7 @@ from .types import EventProcessor
 class ProjectionEventProcessor[
     State: JsonPersistable = JsonValue,
     Metadata: JsonPersistable = JsonValue,
-](EventProcessor):
+](EventProcessor[StoredEvent]):
     def __init__(
         self,
         projector: Projector[StreamIdentifier, State, Metadata],
@@ -27,7 +27,7 @@ class ProjectionEventProcessor[
         self._state_type = state_type
         self._metadata_type = metadata_type
 
-    async def process_event(self, event: StoredEvent[str, JsonValue]) -> None:
+    async def process_event(self, event: StoredEvent) -> None:
         identifier = StreamIdentifier(
             category=event.category, stream=event.stream
         )
@@ -37,7 +37,7 @@ class ProjectionEventProcessor[
             state_type=self._state_type,
             metadata_type=self._metadata_type,
         )
-        source = InMemoryEventSource[StreamIdentifier](
+        source = InMemoryEventSource[StreamIdentifier, StoredEvent](
             events=[event], identifier=identifier
         )
         state = current_projection.state if current_projection else None

@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from logicblocks.event.store import EventSource
-from logicblocks.event.types.identifier import EventSourceIdentifier
+from logicblocks.event.sources import EventSource
+from logicblocks.event.types import (
+    Event,
+    EventSourceIdentifier,
+)
 
 
 @dataclass(frozen=True)
@@ -22,7 +25,7 @@ class EventSubscriberHealth(StrEnum):
     UNHEALTHY = "unhealthy"
 
 
-class EventSubscriber(ABC):
+class EventSubscriber[E: Event](ABC):
     @property
     @abstractmethod
     def group(self) -> str:
@@ -47,11 +50,13 @@ class EventSubscriber(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def accept(self, source: EventSource[EventSourceIdentifier]) -> None:
+    async def accept(
+        self, source: EventSource[EventSourceIdentifier, E]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def withdraw(
-        self, source: EventSource[EventSourceIdentifier]
+        self, source: EventSource[EventSourceIdentifier, E]
     ) -> None:
         raise NotImplementedError

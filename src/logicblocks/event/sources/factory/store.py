@@ -8,7 +8,6 @@ from logicblocks.event.store import (
     EventStream,
 )
 from logicblocks.event.types import (
-    BaseEvent,
     CategoryIdentifier,
     EventSourceIdentifier,
     LogIdentifier,
@@ -38,18 +37,16 @@ def construct_event_stream(
     return EventStream(adapter, identifier)
 
 
-type EventSourceConstructor[I: EventSourceIdentifier, E: BaseEvent] = Callable[
-    [I, EventStorageAdapter], EventSource[I, E]
+type EventSourceConstructor[I: EventSourceIdentifier] = Callable[
+    [I, EventStorageAdapter], EventSource[I, StoredEvent]
 ]
 
 
-class EventStoreEventSourceFactory(
-    EventSourceFactory[EventStorageAdapter, StoredEvent]
-):
+class EventStoreEventSourceFactory(EventSourceFactory[StoredEvent]):
     def __init__(self, adapter: EventStorageAdapter):
         self._constructors: MutableMapping[
             type[EventSourceIdentifier],
-            EventSourceConstructor[Any, StoredEvent],
+            EventSourceConstructor[Any],
         ] = {}
         self._adapter = adapter
         self.register_constructor(LogIdentifier, construct_event_log)
@@ -63,7 +60,7 @@ class EventStoreEventSourceFactory(
     def register_constructor[I: EventSourceIdentifier](
         self,
         identifier_type: type[I],
-        constructor: EventSourceConstructor[I, StoredEvent],
+        constructor: EventSourceConstructor[I],
     ) -> Self:
         self._constructors[identifier_type] = constructor
         return self

@@ -8,7 +8,7 @@ from ..services import Service
 from .types import EventSubscriber
 
 
-class EventBroker(Service[NoneType], Process):
+class EventBroker[E: BaseEvent](Service[NoneType], Process):
     @abstractmethod
-    async def register(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def register(self, subscriber: EventSubscriber[E]) -> None:
         raise NotImplementedError

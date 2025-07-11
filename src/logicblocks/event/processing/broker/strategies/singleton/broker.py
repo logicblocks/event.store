@@ -23,12 +23,14 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.{event}"
 
 
-class SingletonEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
+class SingletonEventBroker[E: BaseEvent](
+    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
+):
     def __init__(
         self,
         node_id: str,
-        event_subscriber_store: EventSubscriberStore,
-        event_source_factory: EventSourceFactory,
+        event_subscriber_store: EventSubscriberStore[E],
+        event_source_factory: EventSourceFactory[E],
         error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
         logger: FilteringBoundLogger = default_logger,
         distribution_interval: timedelta = timedelta(seconds=30),
@@ -45,7 +47,7 @@ class SingletonEventBroker(EventBroker, ErrorHandlingServiceMixin[NoneType]):
     def status(self) -> ProcessStatus:
         return self._status
 
-    async def register(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
 
     async def _do_execute(self) -> None:

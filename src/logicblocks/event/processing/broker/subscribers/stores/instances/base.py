@@ -6,21 +6,19 @@ from logicblocks.event.types import BaseEvent
 from ....types import EventSubscriber, EventSubscriberKey
 
 
-class EventSubscriberStore(ABC):
+class EventSubscriberStore[E: BaseEvent](ABC):
     @abstractmethod
-    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def add(self, subscriber: EventSubscriber[E]) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def remove(self, subscriber: EventSubscriber[E]) -> None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def get(
-        self, key: EventSubscriberKey
-    ) -> EventSubscriber[BaseEvent] | None:
+    async def get(self, key: EventSubscriberKey) -> EventSubscriber[E] | None:
         raise NotImplementedError()
 
     @abstractmethod
-    async def list(self) -> Sequence[EventSubscriber[BaseEvent]]:
+    async def list(self) -> Sequence[EventSubscriber[E]]:
         raise NotImplementedError()

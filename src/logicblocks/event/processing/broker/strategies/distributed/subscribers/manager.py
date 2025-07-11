@@ -18,9 +18,9 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.subscriber-manager.{event}"
 
 
-class EventSubscriberManager(ABC):
+class EventSubscriberManager[E: BaseEvent](ABC):
     @abstractmethod
-    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> Self:
+    async def add(self, subscriber: EventSubscriber[E]) -> Self:
         raise NotImplementedError
 
     @abstractmethod
@@ -36,11 +36,11 @@ class EventSubscriberManager(ABC):
         raise NotImplementedError
 
 
-class DefaultEventSubscriberManager(EventSubscriberManager):
+class DefaultEventSubscriberManager[E: BaseEvent](EventSubscriberManager[E]):
     def __init__(
         self,
         node_id: str,
-        subscriber_store: EventSubscriberStore,
+        subscriber_store: EventSubscriberStore[E],
         subscriber_state_store: EventSubscriberStateStore,
         logger: FilteringBoundLogger = default_logger,
         heartbeat_interval: timedelta = timedelta(seconds=10),
@@ -61,7 +61,7 @@ class DefaultEventSubscriberManager(EventSubscriberManager):
             for subscriber in await self._subscriber_store.list()
         ]
 
-    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> Self:
+    async def add(self, subscriber: EventSubscriber[E]) -> Self:
         await self._subscriber_store.add(subscriber)
         return self
 

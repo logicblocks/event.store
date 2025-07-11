@@ -5,28 +5,28 @@ from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import BaseEvent, EventSourceIdentifier
 
 
-class EventSource[I: EventSourceIdentifier, Event: BaseEvent](ABC):
+class EventSource[I: EventSourceIdentifier, E: BaseEvent](ABC):
     @property
     @abstractmethod
     def identifier(self) -> I:
         raise NotImplementedError()
 
     @abstractmethod
-    async def latest(self) -> Event | None:
+    async def latest(self) -> E | None:
         pass
 
     async def read(
         self,
         *,
         constraints: Set[QueryConstraint] = frozenset(),
-    ) -> Sequence[Event]:
+    ) -> Sequence[E]:
         return [event async for event in self.iterate(constraints=constraints)]
 
     @abstractmethod
     def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
-    ) -> AsyncIterator[Event]:
+    ) -> AsyncIterator[E]:
         raise NotImplementedError()
 
-    def __aiter__(self) -> AsyncIterator[Event]:
+    def __aiter__(self) -> AsyncIterator[E]:
         return self.iterate()

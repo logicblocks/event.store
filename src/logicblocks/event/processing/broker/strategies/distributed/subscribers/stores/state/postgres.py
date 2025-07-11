@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
@@ -13,7 +14,6 @@ from logicblocks.event.query import (
     Path,
     Search,
 )
-from logicblocks.event.types import BaseEvent
 from logicblocks.event.types.identifier import event_sequence_identifier
 from logicblocks.event.utils.clock import Clock, SystemClock
 
@@ -151,7 +151,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
             )
         )
 
-    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def add(self, subscriber: EventSubscriber[Any]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -167,7 +167,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     )
                 )
 
-    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def remove(self, subscriber: EventSubscriber[Any]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(
@@ -215,7 +215,7 @@ class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
                     for subscriber_state_dict in subscriber_state_dicts
                 ]
 
-    async def heartbeat(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[Any]) -> None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor() as cursor:
                 await cursor.execute(

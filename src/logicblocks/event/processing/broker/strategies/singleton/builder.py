@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Self, TypedDict
 
 from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.types import StoredEvent
 
 from ...base import EventBroker
 from ...subscribers import (
@@ -43,10 +44,10 @@ class SingletonEventBrokerBuilder[**P = ...](ABC):
     def build(
         self,
         settings: SingletonEventBrokerSettings,
-    ) -> EventBroker:
-        event_subscriber_store = InMemoryEventSubscriberStore()
+    ) -> EventBroker[StoredEvent]:
+        event_subscriber_store = InMemoryEventSubscriberStore[StoredEvent]()
 
-        return SingletonEventBroker(
+        return SingletonEventBroker[StoredEvent](
             node_id=self.node_id,
             event_subscriber_store=event_subscriber_store,
             event_source_factory=self.event_source_factory,

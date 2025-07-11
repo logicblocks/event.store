@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
-from logicblocks.event.types import BaseEvent, EventSourceIdentifier
+from logicblocks.event.types import EventSourceIdentifier
 
 from ......types import EventSubscriber, EventSubscriberKey
 from ....subscriptions import EventSubscriptionKey
@@ -33,11 +34,11 @@ class EventSubscriberState:
 
 class EventSubscriberStateStore(ABC):
     @abstractmethod
-    async def add(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def add(self, subscriber: EventSubscriber[Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def remove(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def remove(self, subscriber: EventSubscriber[Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -49,7 +50,7 @@ class EventSubscriberStateStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def heartbeat(self, subscriber: EventSubscriber[BaseEvent]) -> None:
+    async def heartbeat(self, subscriber: EventSubscriber[Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod

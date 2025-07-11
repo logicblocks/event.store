@@ -1,4 +1,5 @@
 from collections.abc import Callable, MutableMapping, Sequence
+from typing import Any
 from uuid import uuid4
 
 from structlog.types import FilteringBoundLogger
@@ -64,7 +65,7 @@ class EventSubscriptionConsumer[E: BaseEvent](
         id: str,
         subscription_requests: Sequence[EventSourceIdentifier],
         delegate_factory: Callable[
-            [EventSource[EventSourceIdentifier, E]], EventConsumer
+            [EventSource[EventSourceIdentifier, Any]], EventConsumer
         ],
         logger: FilteringBoundLogger = default_logger,
     ):

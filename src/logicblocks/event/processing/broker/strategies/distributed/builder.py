@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Self, TypedDict
 
 from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.types import StoredEvent
 
 from ....locks import LockManager
 from ...base import EventBroker
@@ -72,8 +73,8 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
     def build(
         self,
         settings: DistributedEventBrokerSettings,
-    ) -> EventBroker:
-        event_subscriber_store = InMemoryEventSubscriberStore()
+    ) -> EventBroker[StoredEvent]:
+        event_subscriber_store = InMemoryEventSubscriberStore[StoredEvent]()
 
         event_subscriber_manager = DefaultEventSubscriberManager(
             node_id=self.node_id,
@@ -103,7 +104,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             synchronisation_interval=settings.observer_synchronisation_interval,
         )
 
-        return DistributedEventBroker(
+        return DistributedEventBroker[StoredEvent](
             event_subscriber_manager=event_subscriber_manager,
             event_subscription_coordinator=event_subscription_coordinator,
             event_subscription_observer=event_subscription_observer,

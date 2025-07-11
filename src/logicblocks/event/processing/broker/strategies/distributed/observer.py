@@ -6,6 +6,7 @@ from datetime import timedelta
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSourceFactory
+from logicblocks.event.types import BaseEvent
 
 from ....process import Process, ProcessStatus
 from ...logger import default_logger
@@ -18,21 +19,23 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.observer.{event}"
 
 
-class EventSubscriptionObserver(Process, ABC):
+class EventSubscriptionObserver[E: BaseEvent](Process, ABC):
     @abstractmethod
     async def observe(self) -> None:
         raise NotImplementedError
 
 
-class DefaultEventSubscriptionObserver(EventSubscriptionObserver):
+class DefaultEventSubscriptionObserver[E: BaseEvent](
+    EventSubscriptionObserver[E]
+):
     _existing_subscriptions: Sequence[EventSubscriptionState]
 
     def __init__(
         self,
         node_id: str,
-        subscriber_store: EventSubscriberStore,
+        subscriber_store: EventSubscriberStore[E],
         subscription_state_store: EventSubscriptionStateStore,
-        event_source_factory: EventSourceFactory,
+        event_source_factory: EventSourceFactory[E],
         subscription_difference: EventSubscriptionDifference = EventSubscriptionDifference(),
         logger: FilteringBoundLogger = default_logger,
         synchronisation_interval: timedelta = timedelta(seconds=20),

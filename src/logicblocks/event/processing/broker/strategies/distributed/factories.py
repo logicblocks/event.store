@@ -7,6 +7,7 @@ from logicblocks.event.store import (
     EventStorageAdapter,
     PostgresEventStorageAdapter,
 )
+from logicblocks.event.types import StoredEvent
 
 from ....locks import InMemoryLockManager, PostgresLockManager
 from ...base import EventBroker
@@ -81,7 +82,7 @@ def make_in_memory_distributed_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return (
         InMemoryDistributedEventBrokerBuilder(node_id)
         .prepare(adapter)
@@ -95,7 +96,7 @@ def make_postgres_distributed_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter | None = None,
-) -> EventBroker:
+) -> EventBroker[StoredEvent]:
     return (
         PostgresDistributedEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool, adapter)

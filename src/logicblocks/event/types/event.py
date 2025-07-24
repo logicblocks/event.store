@@ -14,7 +14,7 @@ class Event(Protocol):
         raise NotImplementedError
 
     @property
-    def sequence_number(self) -> int:
+    def ordering_id(self) -> JsonValue:
         raise NotImplementedError
 
 
@@ -78,7 +78,9 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
 
 
 @dataclass(frozen=True)
-class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
+class StoredEvent[Name = str, Payload = JsonValue](
+    JsonValueSerialisable, Event
+):
     id: str
     name: Name
     stream: str
@@ -88,6 +90,10 @@ class StoredEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
     payload: Payload
     observed_at: datetime
     occurred_at: datetime
+
+    @property
+    def ordering_id(self) -> JsonValue:
+        return self.sequence_number
 
     def serialise(
         self,

@@ -34,24 +34,20 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
 
     async def consume_all(self) -> None:
         state = await self._state_store.load()
-        last_sequence_number = (
-            None if state is None else state.last_sequence_number
-        )
+        last_ordering_id = None if state is None else state.last_ordering_id
 
         await self._logger.adebug(
             log_event_name("starting-consume"),
             source=self._source.identifier.serialise(
                 fallback=str_serialisation_fallback
             ),
-            last_sequence_number=last_sequence_number,
+            last_ordering_id=last_ordering_id,
         )
 
         source = self._source
-        if last_sequence_number is not None:
+        if last_ordering_id is not None:
             source = self._source.iterate(
-                constraints={
-                    constraints.sequence_number_after(last_sequence_number)
-                }
+                constraints={constraints.ordering_id_after(last_ordering_id)}
             )
 
         consumed_count = 0

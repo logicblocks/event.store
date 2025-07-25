@@ -26,11 +26,13 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         processor: EventProcessor[E],
         state_store: EventConsumerStateStore,
         logger: FilteringBoundLogger = default_logger,
+        save_state_after_consumption: bool = False,
     ):
         self._source = source
         self._processor = processor
         self._state_store = state_store
         self._logger = logger
+        self._save_state_after_consumption = save_state_after_consumption
 
     async def consume_all(self) -> None:
         state = await self._state_store.load()
@@ -75,7 +77,9 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
                 )
                 raise
 
-        await self._state_store.save()
+        if self._save_state_after_consumption and consumed_count > 0:
+            await self._state_store.save()
+
         await self._logger.adebug(
             log_event_name("completed-consume"),
             source=self._source.identifier.serialise(

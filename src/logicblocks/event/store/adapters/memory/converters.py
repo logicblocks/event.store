@@ -18,26 +18,23 @@ from logicblocks.event.store.conditions import (
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     Converter,
-    Event,
     StoredEvent,
     StreamIdentifier,
 )
 
 from .db import InMemoryEventsDBTransaction
-from .types import QueryConstraintCheck
+from .types import InMemoryQueryConstraintCheck
 
 
 class OrderingIdAfterConstraintConverter(
-    Converter[OrderingIdAfterConstraint, QueryConstraintCheck[Event]]
+    Converter[OrderingIdAfterConstraint, InMemoryQueryConstraintCheck]
 ):
     def convert(
         self, item: OrderingIdAfterConstraint
-    ) -> QueryConstraintCheck[Event]:
-        def check(event: Event) -> bool:
-            if isinstance(item.ordering_id, int) and isinstance(
-                event.ordering_id, int
-            ):
-                return event.ordering_id > item.ordering_id
+    ) -> InMemoryQueryConstraintCheck:
+        def check(event: StoredEvent) -> bool:
+            if isinstance(item.ordering_id, int):
+                return event.sequence_number > item.ordering_id
 
             return False
 
@@ -45,12 +42,12 @@ class OrderingIdAfterConstraintConverter(
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[Event]]
+    TypeRegistryConverter[QueryConstraint, InMemoryQueryConstraintCheck]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck[Event]],
+        converter: Converter[QC, InMemoryQueryConstraintCheck],
     ) -> Self:
         return super()._register(item_type, converter)
 

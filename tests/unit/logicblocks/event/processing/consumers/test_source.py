@@ -124,7 +124,9 @@ class TestEventSourceConsumer:
             *publish_3_events,
         ]
 
-    async def test_doesnt_reprocess_already_processed_events_on_restart(self):
+    async def test_doesnt_reprocess_already_processed_events_on_restart_when_save_state_after_consumption_true(
+        self,
+    ):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
         state_category = event_store.category(
             category=data.random_event_category_name()
@@ -145,6 +147,7 @@ class TestEventSourceConsumer:
             source=source,
             processor=processor,
             state_store=state_store,
+            save_state_after_consumption=True,
         )
 
         published_events = await event_store.stream(
@@ -165,12 +168,125 @@ class TestEventSourceConsumer:
             source=source,
             processor=processor,
             state_store=state_store,
+            save_state_after_consumption=True,
         )
 
         await consumer.consume_all()
 
         assert processor.processed_events == [
             *published_events,
+        ]
+
+    async def test_reprocess_already_processed_events_on_restart_when_save_state_after_consumption_false(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        state_store = EventConsumerStateStore(
+            category=state_category, persistence_interval=EventCount(5)
+        )
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            save_state_after_consumption=False,
+        )
+
+        published_events = await event_store.stream(
+            category=category_name, stream=stream_name
+        ).publish(
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ]
+        )
+
+        await consumer.consume_all()
+
+        state_store = EventConsumerStateStore(
+            category=state_category, persistence_interval=EventCount(5)
+        )
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            save_state_after_consumption=False,
+        )
+
+        await consumer.consume_all()
+
+        assert processor.processed_events == [
+            *published_events,
+            *published_events,
+        ]
+
+    async def test_does_not_reprocess_already_processed_events_on_restart_when_save_state_after_consumption_false_after_event_count(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        state_store = EventConsumerStateStore(
+            category=state_category, persistence_interval=EventCount(5)
+        )
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            save_state_after_consumption=False,
+        )
+
+        published_events = await event_store.stream(
+            category=category_name, stream=stream_name
+        ).publish(
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ]
+        )
+
+        await consumer.consume_all()
+
+        state_store = EventConsumerStateStore(
+            category=state_category, persistence_interval=EventCount(5)
+        )
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+            save_state_after_consumption=False,
+        )
+
+        await consumer.consume_all()
+
+        assert processor.processed_events == [
+            *published_events,
+            *published_events[5:],
         ]
 
     async def test_logs_when_consume_all_starting(self):
@@ -224,14 +340,14 @@ class TestEventSourceConsumer:
         assert startup_log_events[0].is_async is True
         assert startup_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
-            "last_sequence_number": None,
+            "last_ordering_id": None,
         }
 
         assert startup_log_events[1].level == LogLevel.DEBUG
         assert startup_log_events[1].is_async is True
         assert startup_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
-            "last_sequence_number": stream_2_publish_1[-1].sequence_number,
+            "last_ordering_id": stream_2_publish_1[-1].sequence_number,
         }
 
     async def test_logs_when_consume_all_complete(self):

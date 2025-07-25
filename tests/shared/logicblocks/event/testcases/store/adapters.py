@@ -1285,9 +1285,7 @@ class SequenceReader:
                             category=self.category, stream=self.stream
                         ),
                         constraints={
-                            constraints.sequence_number_after(
-                                last_sequence_number
-                            )
+                            constraints.ordering_id_after(last_sequence_number)
                         },
                     )
                 ]
@@ -2843,9 +2841,7 @@ class ScanCases(Base, ABC):
             event
             async for event in adapter.scan(
                 target=identifier.LogIdentifier(),
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                },
+                constraints={constraints.ordering_id_after(sequence_number)},
             )
         ]
 
@@ -3091,9 +3087,7 @@ class ScanCases(Base, ABC):
                 target=identifier.CategoryIdentifier(
                     category=event_category_1
                 ),
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                },
+                constraints={constraints.ordering_id_after(sequence_number)},
             )
         ]
 
@@ -3401,9 +3395,7 @@ class ScanCases(Base, ABC):
                     category=event_category_1,
                     stream=event_stream,
                 ),
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                },
+                constraints={constraints.ordering_id_after(sequence_number)},
             )
         ]
 

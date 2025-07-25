@@ -3,17 +3,18 @@ from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
 from logicblocks.event.store.adapters.memory.converters import (
-    QueryConstraintCheck,
     TypeRegistryConstraintConverter,
 )
 from logicblocks.event.types import (
     Converter,
     Event,
     EventSourceIdentifier,
+    StoredEvent,
 )
 
+from ..store.adapters.memory.types import InMemoryQueryConstraintCheck
 from .base import EventSource
-from .constraints import QueryConstraint
+from .constraints import QueryConstraint, QueryConstraintCheck
 
 
 class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
@@ -25,18 +26,11 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         identifier: I,
         constraint_converter: Converter[
             QueryConstraint, QueryConstraintCheck[E]
-        ]
-        | None = None,
+        ],
     ):
         self._events = events
         self._identifier = identifier
-        self._constraint_converter = (
-            constraint_converter
-            if constraint_converter is not None
-            else (
-                TypeRegistryConstraintConverter().with_default_constraint_converters()
-            )
-        )
+        self._constraint_converter = constraint_converter
 
     @property
     def identifier(self) -> I:
@@ -63,4 +57,30 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         return (
             self._identifier == cast(Any, other.identifier)  # pyright: ignore[reportUnknownMemberType]
             and self._events == other._events  # pyright: ignore[reportUnknownMemberType]
+        )
+
+
+class InMemoryStoredEventSource[
+    I: EventSourceIdentifier,
+    E: StoredEvent = StoredEvent,
+](InMemoryEventSource[I, E]):
+    def __init__(
+        self,
+        events: Sequence[E],
+        identifier: I,
+        constraint_converter: Converter[
+            QueryConstraint, InMemoryQueryConstraintCheck[E]
+        ]
+        | None = None,
+    ):
+        super().__init__(
+            events,
+            identifier,
+            constraint_converter=(
+                constraint_converter
+                if constraint_converter is not None
+                else (
+                    TypeRegistryConstraintConverter().with_default_constraint_converters()
+                )
+            ),
         )

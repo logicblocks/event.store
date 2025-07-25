@@ -262,7 +262,7 @@ class TestStreamRead:
         sequence_number = stored_events[4].sequence_number
 
         read_events = await stream.read(
-            constraints={constraints.sequence_number_after(sequence_number)}
+            constraints={constraints.ordering_id_after(sequence_number)}
         )
 
         assert read_events == stored_events[5:]
@@ -355,9 +355,7 @@ class TestStreamIteration:
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in stream.iterate(
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                }
+                constraints={constraints.ordering_id_after(sequence_number)}
             )
         ]
 
@@ -1131,7 +1129,7 @@ class TestCategoryRead:
 
         expected_events = list(stored_events_1[5:]) + list(stored_events_2)
         read_events = await category.read(
-            constraints={constraints.sequence_number_after(sequence_number)}
+            constraints={constraints.ordering_id_after(sequence_number)}
         )
 
         assert read_events == expected_events
@@ -1269,9 +1267,7 @@ class TestCategoryIteration:
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in category.iterate(
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                }
+                constraints={constraints.ordering_id_after(sequence_number)}
             )
         ]
 
@@ -1643,7 +1639,7 @@ class TestLogRead:
         expected_events = list(stored_events_1[5:]) + list(stored_events_2)
         log = store.log()
         log_events = await log.read(
-            constraints={constraints.sequence_number_after(sequence_number)}
+            constraints={constraints.ordering_id_after(sequence_number)}
         )
 
         assert log_events == expected_events
@@ -1759,9 +1755,7 @@ class TestLogIteration:
         stream_event_keys = [
             (event.name, event.stream, event.category)
             async for event in log.iterate(
-                constraints={
-                    constraints.sequence_number_after(sequence_number)
-                }
+                constraints={constraints.ordering_id_after(sequence_number)}
             )
         ]
 

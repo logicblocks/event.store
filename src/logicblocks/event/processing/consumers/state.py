@@ -17,7 +17,7 @@ from logicblocks.event.types.json import JsonValueConvertible
 
 @dataclass(frozen=True)
 class EventConsumerState(JsonValueConvertible):
-    last_sequence_number: int
+    last_ordering_id: JsonValue
     state: JsonValue
 
     @classmethod
@@ -31,13 +31,12 @@ class EventConsumerState(JsonValueConvertible):
         if not is_json_object(value):
             return fallback(cls, value)
 
-        last_sequence_number = value["last_sequence_number"]
-        if not isinstance(last_sequence_number, int):
-            return fallback(cls, value)
+        last_ordering_id = value.get(
+            "last_ordering_id", value.get("last_sequence_number")
+        )
+        state = value.get("state", None)
 
-        state = value["state"]
-
-        return cls(last_sequence_number, state)
+        return cls(last_ordering_id, state)
 
     def serialise(
         self,
@@ -46,7 +45,7 @@ class EventConsumerState(JsonValueConvertible):
         ] = default_serialisation_fallback,
     ) -> JsonValue:
         return {
-            "last_sequence_number": self.last_sequence_number,
+            "last_ordering_id": self.last_ordering_id,
             "state": self.state,
         }
 
@@ -80,7 +79,7 @@ class EventConsumerStateStore:
         partition: str = "default",
     ) -> EventConsumerState:
         self._states[partition] = EventConsumerState(
-            last_sequence_number=event.sequence_number,
+            last_ordering_id=event.ordering_id,
             state=state,
         )
         self._persistence_lags[partition] = self._persistence_lags[
@@ -91,7 +90,7 @@ class EventConsumerStateStore:
             await self.save(partition=partition)
 
         return EventConsumerState(
-            last_sequence_number=event.sequence_number,
+            last_ordering_id=event.ordering_id,
             state=state,
         )
 

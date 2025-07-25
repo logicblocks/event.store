@@ -26,32 +26,30 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         processor: EventProcessor[E],
         state_store: EventConsumerStateStore,
         logger: FilteringBoundLogger = default_logger,
+        save_state_after_consumption: bool = False,
     ):
         self._source = source
         self._processor = processor
         self._state_store = state_store
         self._logger = logger
+        self._save_state_after_consumption = save_state_after_consumption
 
     async def consume_all(self) -> None:
         state = await self._state_store.load()
-        last_sequence_number = (
-            None if state is None else state.last_sequence_number
-        )
+        last_ordering_id = None if state is None else state.last_ordering_id
 
         await self._logger.adebug(
             log_event_name("starting-consume"),
             source=self._source.identifier.serialise(
                 fallback=str_serialisation_fallback
             ),
-            last_sequence_number=last_sequence_number,
+            last_ordering_id=last_ordering_id,
         )
 
         source = self._source
-        if last_sequence_number is not None:
+        if last_ordering_id is not None:
             source = self._source.iterate(
-                constraints={
-                    constraints.sequence_number_after(last_sequence_number)
-                }
+                constraints={constraints.ordering_id_after(last_ordering_id)}
             )
 
         consumed_count = 0
@@ -79,7 +77,9 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
                 )
                 raise
 
-        await self._state_store.save()
+        if self._save_state_after_consumption and consumed_count > 0:
+            await self._state_store.save()
+
         await self._logger.adebug(
             log_event_name("completed-consume"),
             source=self._source.identifier.serialise(

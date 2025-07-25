@@ -1,11 +1,11 @@
 from logicblocks.event.sources import (
     ConstrainedEventSource,
-    InMemoryEventSource,
+    InMemoryStoredEventSource,
     constraints,
 )
 from logicblocks.event.sources.constraints import (
+    OrderingIdAfterConstraint,
     QueryConstraint,
-    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.store.adapters.memory import (
     InMemoryQueryConstraintCheck,
@@ -32,11 +32,11 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
         )
 
         assert constrained.identifier == identifier
@@ -51,11 +51,11 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
         )
 
         assert await constrained.latest() == event_3
@@ -70,11 +70,11 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
         )
 
         events = [event async for event in constrained.iterate()]
@@ -134,13 +134,13 @@ class TestConstrainedEventSource:
             .register(NotNameConstraint, NotNameConstraintConverter())
         )
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3],
             identifier=identifier,
             constraint_converter=constraint_converter,
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
         )
 
         events = [
@@ -162,11 +162,11 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
+            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
         )
 
         events = [event async for event in constrained]
@@ -183,12 +183,12 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
             delegate=delegate,
-            constraints={constraints.sequence_number_after(1)},
+            constraints={constraints.ordering_id_after(1)},
         )
 
         events = await constrained.read()

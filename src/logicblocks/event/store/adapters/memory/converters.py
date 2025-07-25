@@ -4,8 +4,8 @@ from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.sources.constraints import (
+    OrderingIdAfterConstraint,
     QueryConstraint,
-    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.store.conditions import (
     AndCondition,
@@ -18,41 +18,43 @@ from logicblocks.event.store.conditions import (
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.types import (
     Converter,
-    Event,
     StoredEvent,
     StreamIdentifier,
 )
 
 from .db import InMemoryEventsDBTransaction
-from .types import QueryConstraintCheck
+from .types import InMemoryQueryConstraintCheck
 
 
-class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[Event]]
+class OrderingIdAfterConstraintConverter(
+    Converter[OrderingIdAfterConstraint, InMemoryQueryConstraintCheck]
 ):
     def convert(
-        self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck[Event]:
-        def check(event: Event) -> bool:
-            return event.sequence_number > item.sequence_number
+        self, item: OrderingIdAfterConstraint
+    ) -> InMemoryQueryConstraintCheck:
+        def check(event: StoredEvent) -> bool:
+            if isinstance(item.ordering_id, int):
+                return event.sequence_number > item.ordering_id
+
+            return False
 
         return check
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[Event]]
+    TypeRegistryConverter[QueryConstraint, InMemoryQueryConstraintCheck]
 ):
     def register[QC: QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck[Event]],
+        converter: Converter[QC, InMemoryQueryConstraintCheck],
     ) -> Self:
         return super()._register(item_type, converter)
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            SequenceNumberAfterConstraint,
-            SequenceNumberAfterConstraintConverter(),
+            OrderingIdAfterConstraint,
+            OrderingIdAfterConstraintConverter(),
         )
 
 

@@ -22,7 +22,7 @@ class EventIterator[E: Event](ABC, AsyncIterator[E]):
         pass
 
     @abstractmethod
-    async def commit(self) -> None:
+    async def commit(self, *, force: bool = False) -> None:
         pass
 
 

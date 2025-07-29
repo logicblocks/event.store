@@ -68,8 +68,11 @@ class EventSourceIterator[E: Event](EventIterator[E]):
             self._state_store.record_processed(event)
             self._processed_events = self._processed_events + 1
 
-    async def commit(self) -> None:
-        await self._state_store.save()
+    async def commit(self, *, force: bool = False) -> None:
+        if force:
+            await self._state_store.save()
+        else:
+            await self._state_store.save_if_needed()
 
 
 class AutoCommitEventSourceIterator[E: Event](EventSourceIterator[E]):
@@ -144,4 +147,4 @@ class SampleEventIteratorProcessor[E: Event](EventIteratorProcessor[E]):
         async for event in events:
             await asyncio.sleep(0)
             events.acknowledge(event)
-            await events.commit()
+            await events.commit(force=True)

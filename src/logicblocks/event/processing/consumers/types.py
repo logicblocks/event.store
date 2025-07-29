@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 
+from logicblocks.event.sources.iterator import EventIteratorManagerI
 from logicblocks.event.types import Event
 
 
@@ -18,5 +18,5 @@ class EventProcessor[E: Event](ABC):
 
 class EventIteratorProcessor[E: Event](ABC):
     @abstractmethod
-    def process(self, events: AsyncIterator[E]) -> AsyncIterator[E]:
+    async def process(self, events: EventIteratorManagerI[E]) -> None:
         raise NotImplementedError()

@@ -1,6 +1,5 @@
 import asyncio
-from collections.abc import AsyncIterator
-from random import random
+from collections.abc import AsyncIterator, Sequence
 
 from structlog.typing import FilteringBoundLogger
 
@@ -11,6 +10,7 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
+from ...sources.iterator import EventIteratorManagerI
 from .logger import default_logger
 from .state import EventConsumerStateStore
 from .types import EventConsumer, EventIteratorProcessor, EventProcessor
@@ -91,11 +91,45 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         )
 
 
-class Counter:
-    count: int = 0
+class EventIteratorManager[E: Event](EventIteratorManagerI[E]):
+    def __init__(
+        self,
+        *,
+        source_iterator: AsyncIterator[E],
+        state_store: EventConsumerStateStore,
+        logger: FilteringBoundLogger = default_logger,
+    ):
+        self._source_iterator = source_iterator
+        self._state_store = state_store
+        self._logger = logger
+        self._event_count = 0
 
-    def increment(self) -> None:
-        self.count += 1
+    async def __aiter__(self):
+        async for event in self._source_iterator:
+            await self._logger.adebug(
+                log_event_name("consuming-event"),
+                envelope=event.summarise(),
+            )
+            try:
+                yield event
+            except (asyncio.CancelledError, GeneratorExit):
+                raise
+            except BaseException:
+                await self._logger.aexception(
+                    log_event_name("processor-failed"),
+                    envelope=event.summarise(),
+                )
+                raise
+
+    @property
+    def processed_events(self):
+        return self._event_count
+
+    async def acknowledge(self, events: E | Sequence[E]) -> None:
+        pass
+
+    async def commit(self) -> None:
+        pass
 
 
 class EventSourceIteratorConsumer[I: EventSourceIdentifier, E: Event](
@@ -114,56 +148,19 @@ class EventSourceIteratorConsumer[I: EventSourceIdentifier, E: Event](
         self._state_store = state_store
         self._logger = logger
 
-    async def _mark_event_for_save(
-        self, events_to_save_in_state: AsyncIterator[E], events_to_save: set[E]
-    ):
-        async for event in events_to_save_in_state:
-            events_to_save.add(event)
-
-    async def _generate_events_from_source(
-        self,
-        source_iterator: AsyncIterator[E],
-        events_to_save: set[E],
-        event_count: Counter,
-    ) -> AsyncIterator[E]:
-        async for event in source_iterator:
-            await self._logger.adebug(
-                log_event_name("consuming-event"),
-                source=self._source.identifier.serialise(
-                    fallback=str_serialisation_fallback
-                ),
-                envelope=event.summarise(),
-            )
-            try:
-                yield event
-                await self._state_store.record_processed(event)
-                if event in events_to_save:
-                    await self._state_store.save()
-                    events_to_save.remove(event)
-
-                event_count.increment()
-            except (asyncio.CancelledError, GeneratorExit):
-                raise
-            except BaseException:
-                await self._logger.aexception(
-                    log_event_name("processor-failed"),
-                    source=self._source.identifier.serialise(
-                        fallback=str_serialisation_fallback
-                    ),
-                    envelope=event.summarise(),
-                )
-                raise
-
     async def _run_consume(self, source_iterator: AsyncIterator[E]):
-        event_count = Counter()
-        events_to_save: set[E] = set()
-        event_generator = self._generate_events_from_source(
-            source_iterator, events_to_save, event_count
+        logger = self._logger.bind(
+            source=self._source.identifier.serialise(
+                fallback=str_serialisation_fallback
+            )
         )
-        save_state_on_events = self._processor.process(event_generator)
-        await self._mark_event_for_save(save_state_on_events, events_to_save)
-
-        return event_count
+        event_iterator = EventIteratorManager(
+            source_iterator=source_iterator,
+            state_store=self._state_store,
+            logger=logger,
+        )
+        await self._processor.process(event_iterator)
+        return event_iterator.processed_events
 
     async def consume_all(self) -> None:
         state = await self._state_store.load()
@@ -195,14 +192,13 @@ class EventSourceIteratorConsumer[I: EventSourceIdentifier, E: Event](
             source=self._source.identifier.serialise(
                 fallback=str_serialisation_fallback
             ),
-            consumed_count=consumed_count.count,
+            consumed_count=consumed_count,
         )
 
 
 class SampleEventIteratorProcessor[E: Event](EventIteratorProcessor[E]):
-    async def process(self, events: AsyncIterator[E]) -> AsyncIterator[E]:
+    async def process(self, events: EventIteratorManagerI[E]) -> None:
         async for event in events:
             await asyncio.sleep(0)
-            if random() < 0.1:
-                # yelding means that we want to save the event state
-                yield event
+            await events.acknowledge(event)
+            await events.commit()

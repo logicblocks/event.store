@@ -137,7 +137,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         processed_event = StoredEventBuilder().build()
 
-        await state_store.record_processed(event=processed_event)
+        state_store.record_processed(event=processed_event)
 
         state = await state_store.load()
 
@@ -156,7 +156,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         processed_event = StoredEventBuilder().build()
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=processed_event, state={"extra": "state"}
         )
 
@@ -179,12 +179,12 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(5).build(),
             state={"some": "state-a"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(8).build(),
             state={"some": "state-b"},
             partition=partition_2,
@@ -204,7 +204,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         state_store = EventConsumerStateStore(category=state_category)
 
         for i in range(1, 101):
-            await state_store.record_processed(
+            state_store.record_processed(
                 event=StoredEventBuilder().with_sequence_number(i).build()
             )
 
@@ -225,7 +225,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().build(), state={"extra": "state"}
         )
 
@@ -247,12 +247,12 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().build(),
             state={"extra": "state"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().build(),
             state={"extra": "state"},
             partition=partition_2,
@@ -277,15 +277,15 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(3)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             state={"extra": "state1"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
             state={"extra": "state2"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
             state={"extra": "state3"},
         )
@@ -318,7 +318,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(1)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(14).build(),
             state={"extra": "state"},
         )
@@ -347,17 +347,17 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             state={"extra": "state1"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
             state={"extra": "state2"},
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
             state={"extra": "state3"},
             partition=partition_1,
@@ -409,12 +409,12 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(1)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(14).build(),
             state={"extra": "state1"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(15).build(),
             state={"extra": "state2"},
             partition=partition_2,
@@ -456,23 +456,23 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             state={"extra": "state1"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
             state={"extra": "state2"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
             state={"extra": "state3"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(17).build(),
             state={"extra": "state4"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(20).build(),
             state={"extra": "state5"},
         )
@@ -501,27 +501,27 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             state={"extra": "state_a_1"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
             state={"extra": "state_b_1"},
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
             state={"extra": "state_a_2"},
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(17).build(),
             state={"extra": "state_b_2"},
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(20).build(),
             state={"extra": "state_b_3"},
             partition=partition_1,
@@ -557,7 +557,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
 
         async def record_event_as_processed(sequence_number: int):
-            return await state_store.record_processed(
+            return state_store.record_processed(
                 event=(
                     StoredEventBuilder()
                     .with_sequence_number(sequence_number)
@@ -605,13 +605,13 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=state_category, persistence_interval=EventCount(1)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             state={"initial": "state"},
         )
 
         async def record_event_as_processed(sequence_number: int):
-            return await state_store.record_processed(
+            return state_store.record_processed(
                 event=(
                     StoredEventBuilder()
                     .with_sequence_number(sequence_number)
@@ -664,7 +664,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             state={"initial": "state"},
             partition=partition_1,
@@ -673,7 +673,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         async def record_event_as_processed(
             sequence_number: int, partition: str
         ):
-            return await state_store.record_processed(
+            return state_store.record_processed(
                 event=(
                     StoredEventBuilder()
                     .with_sequence_number(sequence_number)
@@ -759,7 +759,7 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build()
         )
 
@@ -786,10 +786,10 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build()
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build()
         )
 
@@ -822,7 +822,7 @@ class TestEventConsumerStateStoreSave:
             category=state_category,
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build()
         )
 
@@ -852,11 +852,11 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
@@ -897,15 +897,15 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
@@ -968,11 +968,11 @@ class TestEventConsumerStateStoreSave:
             category=state_category,
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             partition=partition_2,
         )
@@ -1033,11 +1033,11 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
@@ -1074,15 +1074,15 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
@@ -1133,11 +1133,11 @@ class TestEventConsumerStateStoreSave:
             category=state_category,
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
@@ -1175,7 +1175,7 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
@@ -1197,7 +1197,7 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
         )
 
@@ -1238,15 +1238,15 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             state={"extra": "state_1"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             state={"extra": "state_2"},
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             state={"extra": "state_3"},
         )
@@ -1303,7 +1303,7 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
         )
 
@@ -1351,11 +1351,11 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
@@ -1410,15 +1410,15 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
@@ -1494,11 +1494,11 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             partition=partition_3,
         )
@@ -1566,11 +1566,11 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
@@ -1619,15 +1619,15 @@ class TestEventConsumerStateStoreSave:
         partition_1 = "a"
         partition_2 = "b"
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
             partition=partition_1,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_1,
         )
@@ -1695,11 +1695,11 @@ class TestEventConsumerStateStoreSave:
             category=state_category, persistence_interval=EventCount(2)
         )
 
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
             partition=partition_2,
         )
-        await state_store.record_processed(
+        state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
             partition=partition_3,
         )

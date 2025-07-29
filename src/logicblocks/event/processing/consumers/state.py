@@ -64,7 +64,7 @@ class EventConsumerStateStore:
     def __init__(
         self,
         category: EventCategory,
-        persistence_interval: EventCount = EventCount(100),
+        persistence_interval: EventCount | None = EventCount(100),
     ):
         self._category = category
         self._persistence_interval = persistence_interval
@@ -72,7 +72,7 @@ class EventConsumerStateStore:
         self._states = {}
         self._positions = {}
 
-    async def record_processed(
+    def record_processed(
         self,
         event: Event,
         *,
@@ -87,13 +87,17 @@ class EventConsumerStateStore:
             partition
         ].increment()
 
-        if self._persistence_lags[partition] >= self._persistence_interval:
-            await self.save(partition=partition)
-
         return EventConsumerState(
             last_sequence_number=event.sequence_number,
             state=state,
         )
+
+    async def save_if_needed(self, *, partition: str = "default") -> None:
+        if (
+            self._persistence_interval
+            and self._persistence_lags[partition] >= self._persistence_interval
+        ):
+            await self.save(partition=partition)
 
     async def save(self, partition: str | None = None) -> None:
         partitions: Sequence[str]

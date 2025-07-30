@@ -26,7 +26,7 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         processor: EventProcessor[E],
         state_store: EventConsumerStateStore,
         logger: FilteringBoundLogger = default_logger,
-        save_state_after_consumption: bool = False,
+        save_state_after_consumption: bool = True,
     ):
         self._source = source
         self._processor = processor

@@ -31,11 +31,19 @@ def log_event_name(event: str) -> str:
 class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
     def __init__(self, state_store: EventConsumerStateStore):
         self._state_store = state_store
+        self._consumed_events = 0
         self._processed_events = 0
 
     @property
     def processed_events(self):
         return self._processed_events
+
+    @property
+    def consumed_events(self):
+        return self._consumed_events
+
+    def increment_consumed(self):
+        self._consumed_events = self._consumed_events + 1
 
     def acknowledge(self, events: E | Sequence[E]) -> None:
         for event in events if isinstance(events, Sequence) else [events]:
@@ -51,6 +59,7 @@ class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
 
 async def BaseEventIterator[E: Event](
     source_iterator: AsyncIterator[E],
+    processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> EventIterator[E]:
     async for event in source_iterator:
@@ -59,6 +68,7 @@ async def BaseEventIterator[E: Event](
             envelope=event.summarise(),
         )
         yield event
+        processor_manager.increment_consumed()
 
 
 async def AutoCommitEventIterator[E: Event](
@@ -66,7 +76,9 @@ async def AutoCommitEventIterator[E: Event](
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> EventIterator[E]:
-    async for event in BaseEventIterator(source_iterator, logger):
+    async for event in BaseEventIterator(
+        source_iterator, processor_manager, logger
+    ):
         yield event
         processor_manager.acknowledge(event)
         await processor_manager.commit()
@@ -78,7 +90,9 @@ async def process_managed_event_iterator[E: Event](
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> None:
-    event_iterator = BaseEventIterator(source_iterator, logger)
+    event_iterator = BaseEventIterator(
+        source_iterator, processor_manager, logger
+    )
     await processor.process(event_iterator, processor_manager)
 
 
@@ -200,7 +214,8 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
 
         await self._logger.adebug(
             log_event_name("completed-consume"),
-            consumed_count=processor_manager.processed_events,
+            consumed_count=processor_manager.consumed_events,
+            processed_count=processor_manager.processed_events,
         )
 
 

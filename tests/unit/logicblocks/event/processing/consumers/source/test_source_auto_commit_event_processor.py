@@ -286,6 +286,7 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         assert complete_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
             "consumed_count": 2,
+            "processed_count": 2,
         }
 
     async def test_logs_details_of_each_consumed_event(self):

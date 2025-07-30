@@ -92,7 +92,7 @@ class StoredEvent[Name = str, Payload = JsonValue](
     occurred_at: datetime
 
     @property
-    def ordering_id(self) -> JsonValue:
+    def ordering_id(self) -> int:
         return self.sequence_number
 
     def serialise(

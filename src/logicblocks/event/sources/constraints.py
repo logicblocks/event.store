@@ -19,8 +19,9 @@ def ordering_id_after(ordering_id: JsonValue) -> QueryConstraint:
     return OrderingIdAfterConstraint(ordering_id=ordering_id)
 
 
-SequenceNumberAfterConstraint = OrderingIdAfterConstraint
+def SequenceNumberAfterConstraint(sequence_number: int):
+    return OrderingIdAfterConstraint(ordering_id=sequence_number)
 
 
 def sequence_number_after(sequence_number: int) -> QueryConstraint:
-    return SequenceNumberAfterConstraint(ordering_id=sequence_number)
+    return SequenceNumberAfterConstraint(sequence_number=sequence_number)

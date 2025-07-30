@@ -16,7 +16,7 @@ class EventProcessor[E: Event](ABC):
         raise NotImplementedError()
 
 
-class EventIterator[E: Event](ABC, AsyncIterator[E]):
+class EventProcessorManager[E: Event](ABC):
     @abstractmethod
     def acknowledge(self, events: E | Sequence[E]) -> None:
         pass
@@ -26,7 +26,25 @@ class EventIterator[E: Event](ABC, AsyncIterator[E]):
         pass
 
 
-class EventIteratorProcessor[E: Event](ABC):
+type EventIterator[E: Event] = AsyncIterator[E]
+
+
+class AutoCommitEventIteratorProcessor[E: Event](ABC):
     @abstractmethod
     async def process(self, events: EventIterator[E]) -> None:
         raise NotImplementedError()
+
+
+class ManagedEventIteratorProcessor[E: Event](ABC):
+    @abstractmethod
+    async def process(
+        self, events: EventIterator[E], manager: EventProcessorManager[E]
+    ) -> None:
+        raise NotImplementedError()
+
+
+type SupportedProcessors[E: Event] = (
+    EventProcessor[E]
+    | AutoCommitEventIteratorProcessor[E]
+    | ManagedEventIteratorProcessor[E]
+)

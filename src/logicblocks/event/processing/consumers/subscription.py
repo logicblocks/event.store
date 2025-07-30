@@ -14,7 +14,7 @@ from logicblocks.event.types import (
 
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
-from .source.event_source import EventSourceConsumer
+from .source import EventSourceConsumer
 from .state import EventConsumerStateStore, EventCount
 from .types import EventConsumer, EventProcessor
 

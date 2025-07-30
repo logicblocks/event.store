@@ -1,3 +1,5 @@
+import pytest
+
 from logicblocks.event.processing import (
     EventConsumerStateStore,
     EventCount,
@@ -373,10 +375,8 @@ class TestEventSourceConsumer:
             events=[NewEventBuilder().build()]
         )
 
-        try:
+        with pytest.raises(RuntimeError):
             await consumer.consume_all()
-        except BaseException:
-            pass
 
         error_log_events = logger.find_events(
             "event.consumer.source.processor-failed"

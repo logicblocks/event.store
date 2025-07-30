@@ -1,20 +1,30 @@
 from .projection import ProjectionEventProcessor
-from .source.event_source import EventSourceConsumer
-from .source.event_source_iterator import EventSourceIteratorConsumer
+from .source import EventSourceConsumer
 from .state import EventConsumerState, EventConsumerStateStore, EventCount
 from .subscription import EventSubscriptionConsumer, make_subscriber
-from .types import EventConsumer, EventIterator, EventProcessor
+from .types import (
+    AutoCommitEventIteratorProcessor,
+    EventConsumer,
+    EventIterator,
+    EventProcessor,
+    EventProcessorManager,
+    ManagedEventIteratorProcessor,
+    SupportedProcessors,
+)
 
 __all__ = [
+    "AutoCommitEventIteratorProcessor",
     "EventConsumer",
     "EventConsumerState",
     "EventConsumerStateStore",
     "EventCount",
     "EventIterator",
     "EventProcessor",
+    "EventProcessorManager",
     "EventSourceConsumer",
-    "EventSourceIteratorConsumer",
     "EventSubscriptionConsumer",
-    "ProjectionEventProcessor",
     "make_subscriber",
+    "ManagedEventIteratorProcessor",
+    "ProjectionEventProcessor",
+    "SupportedProcessors",
 ]

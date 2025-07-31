@@ -21,16 +21,21 @@ class _EmptyConstraintConverter(
         return lambda event: True
 
 
-empty_constraint_converter = _EmptyConstraintConverter()
+class NoConstraintsInMemoryEventSource(
+    InMemoryEventSource[CategoryIdentifier, StoredEvent]
+):
+    def _get_default_constraint_converter(
+        self,
+    ) -> Converter[QueryConstraint, QueryConstraintCheck[StoredEvent]]:
+        return _EmptyConstraintConverter()
 
 
 class TestInMemoryEventSource:
     async def test_identifier_exposes_provided_identifier(self):
         identifier = CategoryIdentifier(category="test")
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[],
             identifier=identifier,
-            constraint_converter=empty_constraint_converter,
         )
 
         assert source.identifier == identifier
@@ -40,19 +45,17 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         assert await source.latest() == event_3
 
     async def test_latest_returns_none_when_no_provided_events(self):
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         assert await source.latest() is None
@@ -62,23 +65,24 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         events = [event async for event in source.iterate()]
 
         assert events == [event_1, event_2, event_3]
 
-    async def test_iterate_yields_provided_events_with_constraints(self):
+    async def test_iterate_yields_provided_events_with_overridden_constraints(
+        self,
+    ):
         event_1 = StoredEventBuilder().with_sequence_number(0).build()
         event_2 = StoredEventBuilder().with_sequence_number(1).build()
         event_3 = StoredEventBuilder().with_sequence_number(2).build()
         event_4 = StoredEventBuilder().with_sequence_number(3).build()
 
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3, event_4],
             identifier=CategoryIdentifier(category="test"),
             constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
@@ -92,10 +96,9 @@ class TestInMemoryEventSource:
         assert events == [event_3, event_4]
 
     async def test_iterate_yields_nothing_when_no_provided_events(self):
-        source = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source = NoConstraintsInMemoryEventSource(
             events=[],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         events = [event async for event in source.iterate()]
@@ -107,16 +110,14 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_1 = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_2 = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         assert source_1 == source_2
@@ -129,16 +130,14 @@ class TestInMemoryEventSource:
         identifier_1 = CategoryIdentifier(category="test-1")
         identifier_2 = CategoryIdentifier(category="test-2")
 
-        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_1 = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=identifier_1,
-            constraint_converter=empty_constraint_converter,
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_2 = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3],
             identifier=identifier_2,
-            constraint_converter=empty_constraint_converter,
         )
 
         assert source_1 != source_2
@@ -148,16 +147,14 @@ class TestInMemoryEventSource:
         event_2 = StoredEventBuilder().build()
         event_3 = StoredEventBuilder().build()
 
-        source_1 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_1 = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
-        source_2 = InMemoryEventSource[CategoryIdentifier, StoredEvent](
+        source_2 = NoConstraintsInMemoryEventSource(
             events=[event_2, event_3],
             identifier=CategoryIdentifier(category="test"),
-            constraint_converter=empty_constraint_converter,
         )
 
         assert source_1 != source_2

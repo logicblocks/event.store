@@ -1,8 +1,8 @@
-from logicblocks.event.sources.constraints import QueryConstraintCheck
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     StoredEvent,
 )
 
 type InMemoryQueryConstraintCheck[E: StoredEvent = StoredEvent] = (
-    QueryConstraintCheck[E]
+    constraints.QueryConstraintCheck[E]
 )

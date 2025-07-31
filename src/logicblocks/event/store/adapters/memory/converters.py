@@ -3,10 +3,7 @@ from collections.abc import Sequence
 from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
-from logicblocks.event.sources.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
-)
+from logicblocks.event.sources import constraints
 from logicblocks.event.store.conditions import (
     AndCondition,
     EmptyStreamCondition,
@@ -27,10 +24,12 @@ from .types import InMemoryQueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, InMemoryQueryConstraintCheck]
+    Converter[
+        constraints.SequenceNumberAfterConstraint, InMemoryQueryConstraintCheck
+    ]
 ):
     def convert(
-        self, item: SequenceNumberAfterConstraint
+        self, item: constraints.SequenceNumberAfterConstraint
     ) -> InMemoryQueryConstraintCheck:
         def check(event: StoredEvent) -> bool:
             return event.sequence_number > item.sequence_number
@@ -39,9 +38,11 @@ class SequenceNumberAfterConstraintConverter(
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, InMemoryQueryConstraintCheck]
+    TypeRegistryConverter[
+        constraints.QueryConstraint, InMemoryQueryConstraintCheck
+    ]
 ):
-    def register[QC: QueryConstraint](
+    def register[QC: constraints.QueryConstraint](
         self,
         item_type: type[QC],
         converter: Converter[QC, InMemoryQueryConstraintCheck],
@@ -50,7 +51,7 @@ class TypeRegistryConstraintConverter(
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            SequenceNumberAfterConstraint,
+            constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
         )
 

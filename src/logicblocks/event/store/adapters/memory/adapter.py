@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from aiologic import Lock
 
-from logicblocks.event.sources.constraints import QueryConstraint
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
     Converter,
@@ -47,7 +47,6 @@ from .converters import (
 )
 from .db import InMemoryEventsDB, InMemorySequence
 from .locks import MultiLock
-from .types import QueryConstraintCheck
 
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
@@ -58,7 +57,8 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             CategoryIdentifier | StreamIdentifier | LogIdentifier
         ] = EventSerialisationGuarantee.LOG,
         constraint_converter: Converter[
-            QueryConstraint, QueryConstraintCheck[StoredEvent]
+            constraints.QueryConstraint,
+            constraints.QueryConstraintCheck[StoredEvent],
         ]
         | None = None,
         condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
@@ -324,7 +324,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: Scannable = LogIdentifier(),
-        constraints: Set[QueryConstraint] = frozenset(),
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 

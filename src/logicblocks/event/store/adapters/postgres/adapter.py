@@ -25,9 +25,8 @@ from logicblocks.event.persistence.postgres.query import (
     ColumnReference,
     SortBy,
 )
-from logicblocks.event.sources.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
+from logicblocks.event.sources import (
+    constraints as source_constraints,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -83,14 +82,14 @@ class QuerySettings:
 @dataclass(frozen=True)
 class ScanQueryParameters:
     target: Scannable
-    constraints: Set[QueryConstraint]
+    constraints: Set[source_constraints.QueryConstraint]
     page_size: int
 
     def __init__(
         self,
         *,
         target: Scannable,
-        constraints: Set[QueryConstraint] = frozenset(),
+        constraints: Set[source_constraints.QueryConstraint] = frozenset(),
         page_size: int,
     ):
         object.__setattr__(self, "target", target)
@@ -177,7 +176,9 @@ def get_digest(lock_id: str) -> int:
 
 def scan_query(
     parameters: ScanQueryParameters,
-    constraint_converter: Converter[QueryConstraint, QueryApplier],
+    constraint_converter: Converter[
+        source_constraints.QueryConstraint, QueryApplier
+    ],
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
     builder = Query().select_all().from_table(table_settings.table_name)
@@ -601,7 +602,9 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         serialisation_guarantee: AnyEventSerialisationGuarantee = EventSerialisationGuarantee.LOG,
         query_settings: QuerySettings = QuerySettings(),
         table_settings: TableSettings = TableSettings(table_name="events"),
-        constraint_converter: Converter[QueryConstraint, QueryApplier]
+        constraint_converter: Converter[
+            source_constraints.QueryConstraint, QueryApplier
+        ]
         | None = None,
         condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
         | None = None,
@@ -861,7 +864,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: Scannable = LogIdentifier(),
-        constraints: Set[QueryConstraint] = frozenset(),
+        constraints: Set[source_constraints.QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
@@ -873,14 +876,17 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
                 while keep_querying:
                     if last_sequence_number is not None:
-                        constraint = SequenceNumberAfterConstraint(
-                            sequence_number=last_sequence_number
+                        constraint = (
+                            source_constraints.SequenceNumberAfterConstraint(
+                                sequence_number=last_sequence_number
+                            )
                         )
                         constraints = {
                             constraint
                             for constraint in constraints
                             if not isinstance(
-                                constraint, SequenceNumberAfterConstraint
+                                constraint,
+                                source_constraints.SequenceNumberAfterConstraint,
                             )
                         }
                         constraints.add(constraint)

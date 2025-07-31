@@ -1,5 +1,3 @@
-from collections.abc import Sequence
-
 from logicblocks.event.sources import InMemoryEventSource, constraints
 from logicblocks.event.types import (
     Converter,
@@ -15,23 +13,9 @@ class InMemoryStoredEventSource[
     I: EventSourceIdentifier,
     E: StoredEvent = StoredEvent,
 ](InMemoryEventSource[I, E]):
-    def __init__(
+    def _get_default_constraint_converter(
         self,
-        events: Sequence[E],
-        identifier: I,
-        constraint_converter: Converter[
-            constraints.QueryConstraint, InMemoryQueryConstraintCheck[E]
-        ]
-        | None = None,
-    ):
-        super().__init__(
-            events,
-            identifier,
-            constraint_converter=(
-                constraint_converter
-                if constraint_converter is not None
-                else (
-                    TypeRegistryConstraintConverter().with_default_constraint_converters()
-                )
-            ),
-        )
+    ) -> Converter[
+        constraints.QueryConstraint, InMemoryQueryConstraintCheck[E]
+    ]:
+        return TypeRegistryConstraintConverter().with_default_constraint_converters()

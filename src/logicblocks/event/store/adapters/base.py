@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from typing import overload
 
-from logicblocks.event.sources.constraints import QueryConstraint
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -124,6 +124,6 @@ class EventStorageAdapter(ABC):
         self,
         *,
         target: Scannable = LogIdentifier(),
-        constraints: Set[QueryConstraint] = frozenset(),
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         raise NotImplementedError()

@@ -2,9 +2,9 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
     EventStorageAdapter,
+    EventStoreEventSourceFactory,
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.types import StoredEvent

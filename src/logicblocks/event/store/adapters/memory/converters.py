@@ -4,7 +4,13 @@ from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.sources import constraints
-from logicblocks.event.store.conditions import (
+from logicblocks.event.types import (
+    Converter,
+    StoredEvent,
+    StreamIdentifier,
+)
+
+from ...conditions import (
     AndCondition,
     EmptyStreamCondition,
     NoCondition,
@@ -12,13 +18,7 @@ from logicblocks.event.store.conditions import (
     PositionIsCondition,
     WriteCondition,
 )
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.types import (
-    Converter,
-    StoredEvent,
-    StreamIdentifier,
-)
-
+from ...exceptions import UnmetWriteConditionError
 from .db import InMemoryEventsDBTransaction
 from .types import InMemoryQueryConstraintCheck
 

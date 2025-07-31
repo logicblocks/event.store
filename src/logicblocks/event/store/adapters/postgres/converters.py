@@ -14,7 +14,14 @@ from logicblocks.event.persistence.postgres import (
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
 from logicblocks.event.sources import constraints
-from logicblocks.event.store.conditions import (
+from logicblocks.event.types import (
+    Converter,
+    JsonValue,
+    StoredEvent,
+    StreamIdentifier,
+)
+
+from ...conditions import (
     AndCondition,
     EmptyStreamCondition,
     NoCondition,
@@ -22,13 +29,7 @@ from logicblocks.event.store.conditions import (
     PositionIsCondition,
     WriteCondition,
 )
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.types import (
-    Converter,
-    JsonValue,
-    StoredEvent,
-    StreamIdentifier,
-)
+from ...exceptions import UnmetWriteConditionError
 
 
 class SequenceNumberAfterConstraintQueryApplier(QueryApplier):

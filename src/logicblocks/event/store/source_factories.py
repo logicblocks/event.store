@@ -1,12 +1,7 @@
 from collections.abc import Callable, MutableMapping
 from typing import Any, Self
 
-from logicblocks.event.store import (
-    EventCategory,
-    EventLog,
-    EventStorageAdapter,
-    EventStream,
-)
+from logicblocks.event.sources import EventSource, EventSourceFactory
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -15,8 +10,12 @@ from logicblocks.event.types import (
     StreamIdentifier,
 )
 
-from ..base import EventSource
-from .base import EventSourceFactory
+from .store import (
+    EventCategory,
+    EventLog,
+    EventStorageAdapter,
+    EventStream,
+)
 
 
 def construct_event_log(

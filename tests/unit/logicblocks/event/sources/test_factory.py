@@ -1,9 +1,9 @@
 import pytest
 
 from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.sources import EventStoreEventSourceFactory
 from logicblocks.event.store import (
     EventCategory,
+    EventStoreEventSourceFactory,
     EventStream,
     InMemoryEventStorageAdapter,
     PostgresEventStorageAdapter,

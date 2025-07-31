@@ -5,6 +5,7 @@ from .adapters import (
     PostgresEventStorageAdapter,
 )
 from .exceptions import UnmetWriteConditionError
+from .source_factories import EventStoreEventSourceFactory
 from .sources import InMemoryStoredEventSource
 from .store import (
     EventCategory,
@@ -28,6 +29,7 @@ __all__ = [
     "EventLog",
     "EventStorageAdapter",
     "EventStore",
+    "EventStoreEventSourceFactory",
     "EventStream",
     "ignore_on_error",
     "ignore_on_unmet_condition_error",

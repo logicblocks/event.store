@@ -4,8 +4,8 @@ from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.sources.constraints import (
-    OrderingIdAfterConstraint,
     QueryConstraint,
+    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.store.conditions import (
     AndCondition,
@@ -26,17 +26,14 @@ from .db import InMemoryEventsDBTransaction
 from .types import InMemoryQueryConstraintCheck
 
 
-class OrderingIdAfterConstraintConverter(
-    Converter[OrderingIdAfterConstraint, InMemoryQueryConstraintCheck]
+class SequenceNumberAfterConstraintConverter(
+    Converter[SequenceNumberAfterConstraint, InMemoryQueryConstraintCheck]
 ):
     def convert(
-        self, item: OrderingIdAfterConstraint
+        self, item: SequenceNumberAfterConstraint
     ) -> InMemoryQueryConstraintCheck:
         def check(event: StoredEvent) -> bool:
-            if isinstance(item.ordering_id, int):
-                return event.sequence_number > item.ordering_id
-
-            return False
+            return event.sequence_number > item.sequence_number
 
         return check
 
@@ -53,8 +50,8 @@ class TypeRegistryConstraintConverter(
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            OrderingIdAfterConstraint,
-            OrderingIdAfterConstraintConverter(),
+            SequenceNumberAfterConstraint,
+            SequenceNumberAfterConstraintConverter(),
         )
 
 

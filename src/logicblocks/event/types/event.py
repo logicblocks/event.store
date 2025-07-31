@@ -13,10 +13,6 @@ class Event(Protocol):
     def summarise(self) -> JsonValue:
         raise NotImplementedError
 
-    @property
-    def ordering_id(self) -> JsonValue:
-        raise NotImplementedError
-
 
 @dataclass(frozen=True)
 class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
@@ -90,10 +86,6 @@ class StoredEvent[Name = str, Payload = JsonValue](
     payload: Payload
     observed_at: datetime
     occurred_at: datetime
-
-    @property
-    def ordering_id(self) -> int:
-        return self.sequence_number
 
     def serialise(
         self,

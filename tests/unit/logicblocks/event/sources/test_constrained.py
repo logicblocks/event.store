@@ -4,8 +4,8 @@ from logicblocks.event.sources import (
     constraints,
 )
 from logicblocks.event.sources.constraints import (
-    OrderingIdAfterConstraint,
     QueryConstraint,
+    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.store.adapters.memory import (
     InMemoryQueryConstraintCheck,
@@ -36,7 +36,7 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
+            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
         )
 
         assert constrained.identifier == identifier
@@ -55,7 +55,7 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
+            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
         )
 
         assert await constrained.latest() == event_3
@@ -74,7 +74,7 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
+            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
         )
 
         events = [event async for event in constrained.iterate()]
@@ -140,7 +140,7 @@ class TestConstrainedEventSource:
             constraint_converter=constraint_converter,
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
+            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
         )
 
         events = [
@@ -166,7 +166,7 @@ class TestConstrainedEventSource:
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
-            delegate=delegate, constraints={OrderingIdAfterConstraint(1)}
+            delegate=delegate, constraints={SequenceNumberAfterConstraint(1)}
         )
 
         events = [event async for event in constrained]
@@ -188,7 +188,7 @@ class TestConstrainedEventSource:
         )
         constrained = ConstrainedEventSource(
             delegate=delegate,
-            constraints={constraints.ordering_id_after(1)},
+            constraints={constraints.sequence_number_after(1)},
         )
 
         events = await constrained.read()

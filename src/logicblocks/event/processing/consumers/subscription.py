@@ -28,7 +28,7 @@ def make_subscriber[E: Event](
     subscriber_state_persistence_interval: EventCount = EventCount(100),
     event_processor: EventProcessor[E],
     logger: FilteringBoundLogger = default_logger,
-    save_state_after_consumption: bool = False,
+    save_state_after_consumption: bool = True,
 ) -> "EventSubscriptionConsumer[E]":
     subscriber_id = (
         subscriber_id if subscriber_id is not None else str(uuid4())

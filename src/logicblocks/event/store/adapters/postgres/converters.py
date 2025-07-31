@@ -14,8 +14,8 @@ from logicblocks.event.persistence.postgres import (
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
 from logicblocks.event.sources.constraints import (
-    OrderingIdAfterConstraint,
     QueryConstraint,
+    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.store.conditions import (
     AndCondition,
@@ -34,27 +34,27 @@ from logicblocks.event.types import (
 )
 
 
-class OrderingIdAfterConstraintQueryApplier(QueryApplier):
-    def __init__(self, ordering_id: JsonValue):
-        self.ordering_id = ordering_id
+class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
+    def __init__(self, sequence_number: JsonValue):
+        self.sequence_number = sequence_number
 
     def apply(self, target: Query) -> Query:
-        if not isinstance(self.ordering_id, int):
+        if not isinstance(self.sequence_number, int):
             return target
 
         return target.where(
             Condition()
             .left(ColumnReference(field="sequence_number"))
             .operator(Operator.GREATER_THAN)
-            .right(Constant(self.ordering_id))
+            .right(Constant(self.sequence_number))
         )
 
 
-class OrderingIdAfterConstraintConverter(
-    Converter[OrderingIdAfterConstraint, QueryApplier]
+class SequenceNumberAfterConstraintConverter(
+    Converter[SequenceNumberAfterConstraint, QueryApplier]
 ):
-    def convert(self, item: OrderingIdAfterConstraint) -> QueryApplier:
-        return OrderingIdAfterConstraintQueryApplier(item.ordering_id)
+    def convert(self, item: SequenceNumberAfterConstraint) -> QueryApplier:
+        return SequenceNumberAfterConstraintQueryApplier(item.sequence_number)
 
 
 class TypeRegistryConstraintConverter(
@@ -69,8 +69,8 @@ class TypeRegistryConstraintConverter(
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            OrderingIdAfterConstraint,
-            OrderingIdAfterConstraintConverter(),
+            SequenceNumberAfterConstraint,
+            SequenceNumberAfterConstraintConverter(),
         )
 
 

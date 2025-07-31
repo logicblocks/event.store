@@ -3,9 +3,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
+from logicblocks.event.processing.consumers.types import ConsumerStateConverter
+from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
     Event,
+    JsonObject,
     JsonValue,
     NewEvent,
     default_deserialisation_fallback,
@@ -15,10 +18,24 @@ from logicblocks.event.types import (
 from logicblocks.event.types.json import JsonValueConvertible
 
 
+def _support_bare_last_sequence_number_for_backwards_compat(
+    state: JsonObject, maybe_last_sequence_number: JsonValue | None
+) -> JsonObject:
+    """
+    Support bare last_sequence_number for backwards compatibility.
+    """
+    print(state)
+    print(maybe_last_sequence_number)
+    if isinstance(maybe_last_sequence_number, int):
+        state = dict(state)
+        state["last_sequence_number"] = maybe_last_sequence_number
+
+    return state
+
+
 @dataclass(frozen=True)
 class EventConsumerState(JsonValueConvertible):
-    last_ordering_id: JsonValue
-    state: JsonValue
+    state: JsonObject
 
     @classmethod
     def deserialise(
@@ -31,12 +48,16 @@ class EventConsumerState(JsonValueConvertible):
         if not is_json_object(value):
             return fallback(cls, value)
 
-        last_ordering_id = value.get(
-            "last_ordering_id", value.get("last_sequence_number")
-        )
         state = value.get("state", None)
+        if not is_json_object(state):
+            return fallback(cls, value)
 
-        return cls(last_ordering_id, state)
+        print(value)
+        state = _support_bare_last_sequence_number_for_backwards_compat(
+            state, value.get("last_sequence_number", None)
+        )
+
+        return cls(state)
 
     def serialise(
         self,
@@ -45,7 +66,6 @@ class EventConsumerState(JsonValueConvertible):
         ] = default_serialisation_fallback,
     ) -> JsonValue:
         return {
-            "last_ordering_id": self.last_ordering_id,
             "state": self.state,
         }
 
@@ -55,7 +75,7 @@ class EventCount(int):
         return self.__class__(self + 1)
 
 
-class EventConsumerStateStore:
+class EventConsumerStateStore[E: Event]:
     _states: dict[str, EventConsumerState | None]
     _positions: dict[str, int | None]
     _persistence_lags: dict[str, EventCount]
@@ -63,9 +83,11 @@ class EventConsumerStateStore:
     def __init__(
         self,
         category: EventCategory,
+        converter: ConsumerStateConverter[E],
         persistence_interval: EventCount = EventCount(100),
     ):
         self._category = category
+        self._converter = converter
         self._persistence_interval = persistence_interval
         self._persistence_lags = defaultdict(EventCount)
         self._states = {}
@@ -73,15 +95,18 @@ class EventConsumerStateStore:
 
     async def record_processed(
         self,
-        event: Event,
+        event: E,
         *,
-        state: JsonValue = None,
+        extra_state: JsonObject | None = None,
         partition: str = "default",
     ) -> EventConsumerState:
-        self._states[partition] = EventConsumerState(
-            last_ordering_id=event.ordering_id,
-            state=state,
-        )
+        state_object = self._converter.event_to_state(event)
+        combined_state = {
+            **state_object,
+            **(extra_state or {}),
+        }
+
+        self._states[partition] = EventConsumerState(combined_state)
         self._persistence_lags[partition] = self._persistence_lags[
             partition
         ].increment()
@@ -89,10 +114,7 @@ class EventConsumerStateStore:
         if self._persistence_lags[partition] >= self._persistence_interval:
             await self.save(partition=partition)
 
-        return EventConsumerState(
-            last_ordering_id=event.ordering_id,
-            state=state,
-        )
+        return EventConsumerState(combined_state)
 
     async def save(self, partition: str | None = None) -> None:
         partitions: Sequence[str]
@@ -148,3 +170,12 @@ class EventConsumerStateStore:
                 self._positions[partition] = event.position
 
         return self._states.get(partition, None)
+
+    async def load_to_query_constraint(
+        self, *, partition: str = "default"
+    ) -> QueryConstraint | None:
+        state = await self.load(partition=partition)
+        if state is None:
+            return None
+
+        return self._converter.state_to_query_constraint(state.state)

@@ -84,7 +84,7 @@ class TestInMemoryEventSource:
             constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
         )
 
-        constraint = constraints.ordering_id_after(1)
+        constraint = constraints.sequence_number_after(1)
         events = [
             event async for event in source.iterate(constraints={constraint})
         ]
@@ -175,7 +175,7 @@ class TestInMemoryStoredEventSource:
             identifier=CategoryIdentifier(category="test"),
         )
 
-        constraint = constraints.ordering_id_after(1)
+        constraint = constraints.sequence_number_after(1)
         events = [
             event async for event in source.iterate(constraints={constraint})
         ]

@@ -26,8 +26,8 @@ from logicblocks.event.persistence.postgres.query import (
     SortBy,
 )
 from logicblocks.event.sources.constraints import (
-    OrderingIdAfterConstraint,
     QueryConstraint,
+    SequenceNumberAfterConstraint,
 )
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -873,14 +873,14 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
                 while keep_querying:
                     if last_sequence_number is not None:
-                        constraint = OrderingIdAfterConstraint(
-                            ordering_id=last_sequence_number
+                        constraint = SequenceNumberAfterConstraint(
+                            sequence_number=last_sequence_number
                         )
                         constraints = {
                             constraint
                             for constraint in constraints
                             if not isinstance(
-                                constraint, OrderingIdAfterConstraint
+                                constraint, SequenceNumberAfterConstraint
                             )
                         }
                         constraints.add(constraint)

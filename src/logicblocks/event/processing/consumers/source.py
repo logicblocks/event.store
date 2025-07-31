@@ -57,7 +57,7 @@ class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
             await self._state_store.save_if_needed()
 
 
-async def BaseEventIterator[E: Event](
+async def base_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
@@ -71,12 +71,12 @@ async def BaseEventIterator[E: Event](
         processor_manager.increment_consumed()
 
 
-async def AutoCommitEventIterator[E: Event](
+async def auto_commit_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> EventIterator[E]:
-    async for event in BaseEventIterator(
+    async for event in base_event_iterator(
         source_iterator, processor_manager, logger
     ):
         yield event
@@ -90,7 +90,7 @@ async def process_managed_event_iterator[E: Event](
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> None:
-    event_iterator = BaseEventIterator(
+    event_iterator = base_event_iterator(
         source_iterator, processor_manager, logger
     )
     await processor.process(event_iterator, processor_manager)
@@ -102,7 +102,7 @@ async def process_auto_commit_event_iterator[E: Event](
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> None:
-    event_iterator = AutoCommitEventIterator(
+    event_iterator = auto_commit_event_iterator(
         source_iterator, processor_manager, logger
     )
     await processor.process(event_iterator)
@@ -114,7 +114,7 @@ async def process_callback_event_iterator[E: Event](
     processor_manager: StateStoreEventProcessorManager[E],
     logger: FilteringBoundLogger = default_logger,
 ) -> None:
-    event_iterator = AutoCommitEventIterator(
+    event_iterator = auto_commit_event_iterator(
         source_iterator, processor_manager, logger
     )
     async for event in event_iterator:
@@ -175,18 +175,6 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
             )
         )
 
-    async def _run_consume(
-        self,
-        source_iterator: AsyncIterator[E],
-        processor_manager: StateStoreEventProcessorManager[E],
-    ) -> None:
-        await process_event_iterator(
-            source_iterator,
-            self._processor,
-            processor_manager,
-            self._logger,
-        )
-
     async def consume_all(self) -> None:
         state = await self._state_store.load()
         last_sequence_number = (
@@ -210,20 +198,15 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         processor_manager = StateStoreEventProcessorManager[E](
             state_store=self._state_store
         )
-        await self._run_consume(source, processor_manager)
+        await process_event_iterator(
+            source,
+            self._processor,
+            processor_manager,
+            self._logger,
+        )
 
         await self._logger.adebug(
             log_event_name("completed-consume"),
             consumed_count=processor_manager.consumed_events,
             processed_count=processor_manager.processed_events,
         )
-
-
-class SampleEventIteratorProcessor[E: Event](ManagedEventIteratorProcessor[E]):
-    async def process(
-        self, events: EventIterator[E], manager: EventProcessorManager[E]
-    ) -> None:
-        async for event in events:
-            await asyncio.sleep(0)
-            manager.acknowledge(event)
-            await manager.commit(force=True)

@@ -1,5 +1,5 @@
 from collections.abc import Callable, MutableMapping, Sequence
-from typing import Any
+from typing import Any, overload
 from uuid import uuid4
 
 from structlog.types import FilteringBoundLogger
@@ -9,17 +9,35 @@ from logicblocks.event.store import EventCategory
 from logicblocks.event.types import (
     Event,
     EventSourceIdentifier,
+    StoredEvent,
     str_serialisation_fallback,
 )
 
+from ...store.state import stored_event_consumer_state_converter
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer
 from .state import EventConsumerStateStore, EventCount
-from .types import EventConsumer, EventProcessor
+from .types import ConsumerStateConverter, EventConsumer, EventProcessor
 
 
+@overload
 def make_subscriber[E: Event](
+    *,
+    subscriber_group: str,
+    subscriber_id: str | None = None,
+    subscription_request: EventSourceIdentifier,
+    subscriber_state_category: EventCategory,
+    subscriber_state_persistence_interval: EventCount = EventCount(100),
+    subscriber_state_converter: ConsumerStateConverter[E],
+    event_processor: EventProcessor[E],
+    logger: FilteringBoundLogger = default_logger,
+    save_state_after_consumption: bool = True,
+) -> "EventSubscriptionConsumer[E]": ...
+
+
+@overload
+def make_subscriber[E: StoredEvent](
     *,
     subscriber_group: str,
     subscriber_id: str | None = None,
@@ -29,12 +47,29 @@ def make_subscriber[E: Event](
     event_processor: EventProcessor[E],
     logger: FilteringBoundLogger = default_logger,
     save_state_after_consumption: bool = True,
+) -> "EventSubscriptionConsumer[E]": ...
+
+
+def make_subscriber[E: Event](
+    *,
+    subscriber_group: str,
+    subscriber_id: str | None = None,
+    subscription_request: EventSourceIdentifier,
+    subscriber_state_category: EventCategory,
+    subscriber_state_persistence_interval: EventCount = EventCount(100),
+    subscriber_state_converter: ConsumerStateConverter[
+        E
+    ] = stored_event_consumer_state_converter,
+    event_processor: EventProcessor[E],
+    logger: FilteringBoundLogger = default_logger,
+    save_state_after_consumption: bool = True,
 ) -> "EventSubscriptionConsumer[E]":
     subscriber_id = (
         subscriber_id if subscriber_id is not None else str(uuid4())
     )
     state_store = EventConsumerStateStore(
         category=subscriber_state_category,
+        converter=subscriber_state_converter,
         persistence_interval=subscriber_state_persistence_interval,
     )
 

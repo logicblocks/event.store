@@ -8,6 +8,7 @@ from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
 )
+from logicblocks.event.store.state import stored_event_consumer_state_converter
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
@@ -38,7 +39,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -80,7 +84,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -140,7 +147,9 @@ class TestEventSourceConsumer:
         processor = CapturingEventProcessor()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
 
         consumer = EventSourceConsumer(
@@ -162,7 +171,9 @@ class TestEventSourceConsumer:
         await consumer.consume_all()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
             source=source,
@@ -193,7 +204,9 @@ class TestEventSourceConsumer:
         processor = CapturingEventProcessor()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
 
         consumer = EventSourceConsumer(
@@ -215,7 +228,9 @@ class TestEventSourceConsumer:
         await consumer.consume_all()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
             source=source,
@@ -247,7 +262,9 @@ class TestEventSourceConsumer:
         processor = CapturingEventProcessor()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
 
         consumer = EventSourceConsumer(
@@ -273,7 +290,9 @@ class TestEventSourceConsumer:
         await consumer.consume_all()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+            persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
             source=source,
@@ -296,7 +315,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -357,7 +379,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -406,7 +431,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -466,7 +494,10 @@ class TestEventSourceConsumer:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=stored_event_consumer_state_converter,
+        )
 
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()

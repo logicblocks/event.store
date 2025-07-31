@@ -5,7 +5,10 @@ from uuid import uuid4
 from structlog.types import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSource
-from logicblocks.event.store import EventCategory
+from logicblocks.event.store import (
+    EventCategory,
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.types import (
     Event,
     EventSourceIdentifier,
@@ -13,12 +16,11 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
-from ...store.state import stored_event_consumer_state_converter
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer
 from .state import EventConsumerStateStore, EventCount
-from .types import ConsumerStateConverter, EventConsumer, EventProcessor
+from .types import EventConsumer, EventConsumerStateConverter, EventProcessor
 
 
 @overload
@@ -29,7 +31,7 @@ def make_subscriber[E: Event](
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
-    subscriber_state_converter: ConsumerStateConverter[E],
+    subscriber_state_converter: EventConsumerStateConverter[E],
     event_processor: EventProcessor[E],
     logger: FilteringBoundLogger = default_logger,
     save_state_after_consumption: bool = True,
@@ -57,9 +59,9 @@ def make_subscriber[E: Event](
     subscription_request: EventSourceIdentifier,
     subscriber_state_category: EventCategory,
     subscriber_state_persistence_interval: EventCount = EventCount(100),
-    subscriber_state_converter: ConsumerStateConverter[
+    subscriber_state_converter: EventConsumerStateConverter[
         E
-    ] = stored_event_consumer_state_converter,
+    ] = StoredEventEventConsumerStateConverter(),
     event_processor: EventProcessor[E],
     logger: FilteringBoundLogger = default_logger,
     save_state_after_consumption: bool = True,

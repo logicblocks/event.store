@@ -11,7 +11,9 @@ from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
     UnmetWriteConditionError,
 )
-from logicblocks.event.store.state import stored_event_consumer_state_converter
+from logicblocks.event.store.state import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import (
     NewEventBuilder,
@@ -28,7 +30,7 @@ class TestEventConsumerStateStoreLoad:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
         await state_category.stream(stream="default").publish(
@@ -57,7 +59,7 @@ class TestEventConsumerStateStoreLoad:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
         await state_category.stream(stream="default").publish(
@@ -84,7 +86,7 @@ class TestEventConsumerStateStoreLoad:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -99,7 +101,7 @@ class TestEventConsumerStateStoreLoad:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -140,7 +142,7 @@ class TestEventConsumerStateStoreLoad:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -170,7 +172,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -190,7 +192,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -215,7 +217,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -246,7 +248,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         for i in range(1, 101):
@@ -270,7 +272,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -291,7 +293,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -326,7 +328,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(3),
         )
 
@@ -368,7 +370,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(1),
         )
 
@@ -396,7 +398,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -474,7 +476,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(1),
         )
 
@@ -523,7 +525,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -565,7 +567,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -623,7 +625,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(1),
         )
 
@@ -673,7 +675,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(1),
         )
 
@@ -729,7 +731,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(1),
         )
 
@@ -826,7 +828,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -856,7 +858,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -899,7 +901,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -929,7 +931,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -978,7 +980,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1064,7 +1066,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -1116,7 +1118,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1133,7 +1135,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1177,7 +1179,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1246,7 +1248,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -1288,7 +1290,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1315,7 +1317,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1359,7 +1361,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1430,7 +1432,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1479,7 +1481,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1542,7 +1544,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1645,7 +1647,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1720,7 +1722,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1776,7 +1778,7 @@ class TestEventConsumerStateStoreSave:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 
@@ -1870,7 +1872,7 @@ class TestEventConsumerStateStoreSave:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(2),
         )
 

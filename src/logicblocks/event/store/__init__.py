@@ -7,6 +7,9 @@ from .adapters import (
 from .exceptions import UnmetWriteConditionError
 from .source_factories import EventStoreEventSourceFactory
 from .sources import InMemoryStoredEventSource
+from .state import (
+    StoredEventEventConsumerStateConverter,
+)
 from .store import (
     EventCategory,
     EventLog,
@@ -38,6 +41,7 @@ __all__ = [
     "PostgresEventStorageAdapter",
     "retry_on_error",
     "retry_on_unmet_condition_error",
+    "StoredEventEventConsumerStateConverter",
     "stream_publish_definition",
     "StreamPublishDefinition",
     "UnmetWriteConditionError",

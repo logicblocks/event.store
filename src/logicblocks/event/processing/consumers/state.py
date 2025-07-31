@@ -3,7 +3,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
-from logicblocks.event.processing.consumers.types import ConsumerStateConverter
+from logicblocks.event.processing.consumers.types import (
+    EventConsumerStateConverter,
+)
 from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
@@ -80,7 +82,7 @@ class EventConsumerStateStore[E: Event]:
     def __init__(
         self,
         category: EventCategory,
-        converter: ConsumerStateConverter[E],
+        converter: EventConsumerStateConverter[E],
         persistence_interval: EventCount = EventCount(100),
     ):
         self._category = category

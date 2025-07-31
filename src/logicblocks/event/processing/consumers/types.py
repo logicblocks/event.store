@@ -4,7 +4,7 @@ from logicblocks.event.sources.constraints import QueryConstraint
 from logicblocks.event.types import Event, JsonObject
 
 
-class ConsumerStateConverter[E: Event](ABC):
+class EventConsumerStateConverter[E: Event](ABC):
     @abstractmethod
     def event_to_state(self, event: E) -> JsonObject:
         raise NotImplementedError()

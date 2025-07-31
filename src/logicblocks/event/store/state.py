@@ -1,9 +1,13 @@
-from logicblocks.event.processing.consumers.types import ConsumerStateConverter
+from logicblocks.event.processing.consumers.types import (
+    EventConsumerStateConverter,
+)
 from logicblocks.event.sources import constraints
 from logicblocks.event.types import JsonObject, StoredEvent
 
 
-class StoredEventConsumerStateConverter(ConsumerStateConverter[StoredEvent]):
+class StoredEventEventConsumerStateConverter(
+    EventConsumerStateConverter[StoredEvent]
+):
     def event_to_state(self, event: StoredEvent) -> JsonObject:
         return {
             "last_sequence_number": event.sequence_number,
@@ -17,6 +21,3 @@ class StoredEventConsumerStateConverter(ConsumerStateConverter[StoredEvent]):
             return None
 
         return constraints.sequence_number_after(last_sequence_number)
-
-
-stored_event_consumer_state_converter = StoredEventConsumerStateConverter()

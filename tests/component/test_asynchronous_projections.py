@@ -27,7 +27,9 @@ from logicblocks.event.store import (
     EventStore,
     PostgresEventStorageAdapter,
 )
-from logicblocks.event.store.state import stored_event_consumer_state_converter
+from logicblocks.event.store.state import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testsupport import (
     connection_pool,
@@ -160,7 +162,7 @@ class TestAsynchronousProjections:
             subscription_request=CategoryIdentifier(category=category_name),
             subscriber_state_category=subscriber_state_category,
             subscriber_state_persistence_interval=EventCount(1),
-            subscriber_state_converter=stored_event_consumer_state_converter,
+            subscriber_state_converter=StoredEventEventConsumerStateConverter(),
             event_processor=event_processor,
         )
 

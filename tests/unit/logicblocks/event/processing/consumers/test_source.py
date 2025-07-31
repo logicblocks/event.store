@@ -9,7 +9,9 @@ from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
 )
-from logicblocks.event.store.state import stored_event_consumer_state_converter
+from logicblocks.event.store.state import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
@@ -42,7 +44,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()
@@ -87,7 +89,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()
@@ -149,7 +151,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
 
@@ -173,7 +175,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
@@ -206,7 +208,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
 
@@ -230,7 +232,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
@@ -264,7 +266,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
 
@@ -292,7 +294,7 @@ class TestEventSourceConsumer:
 
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
@@ -318,7 +320,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()
@@ -384,7 +386,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()
@@ -436,7 +438,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()
@@ -499,7 +501,7 @@ class TestEventSourceConsumer:
         )
         state_store = EventConsumerStateStore(
             category=state_category,
-            converter=stored_event_consumer_state_converter,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         category_name = data.random_event_category_name()

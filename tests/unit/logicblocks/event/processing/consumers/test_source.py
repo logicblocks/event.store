@@ -4,6 +4,7 @@ from logicblocks.event.processing import (
     EventProcessor,
     EventSourceConsumer,
 )
+from logicblocks.event.sources.constraints import SequenceNumberAfterConstraint
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
@@ -362,14 +363,14 @@ class TestEventSourceConsumer:
         assert startup_log_events[0].is_async is True
         assert startup_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
-            "last_ordering_id": None,
+            "constraint": None,
         }
 
         assert startup_log_events[1].level == LogLevel.DEBUG
         assert startup_log_events[1].is_async is True
         assert startup_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
-            "last_ordering_id": stream_2_publish_1[-1].sequence_number,
+            "constraint": SequenceNumberAfterConstraint(stream_2_publish_1[-1].sequence_number),
         }
 
     async def test_logs_when_consume_all_complete(self):

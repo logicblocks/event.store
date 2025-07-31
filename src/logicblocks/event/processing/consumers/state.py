@@ -24,8 +24,6 @@ def _support_bare_last_sequence_number_for_backwards_compat(
     """
     Support bare last_sequence_number for backwards compatibility.
     """
-    print(state)
-    print(maybe_last_sequence_number)
     if isinstance(maybe_last_sequence_number, int):
         state = dict(state)
         state["last_sequence_number"] = maybe_last_sequence_number
@@ -52,7 +50,6 @@ class EventConsumerState(JsonValueConvertible):
         if not is_json_object(state):
             return fallback(cls, value)
 
-        print(value)
         state = _support_bare_last_sequence_number_for_backwards_compat(
             state, value.get("last_sequence_number", None)
         )

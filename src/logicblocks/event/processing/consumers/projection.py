@@ -1,7 +1,5 @@
 from logicblocks.event.projection import ProjectionStore, Projector
-from logicblocks.event.sources import (
-    InMemoryStoredEventSource,
-)
+from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.types import (
     JsonPersistable,
     JsonValue,

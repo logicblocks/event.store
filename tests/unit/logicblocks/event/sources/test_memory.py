@@ -1,12 +1,12 @@
 from logicblocks.event.sources import (
     InMemoryEventSource,
-    InMemoryStoredEventSource,
     constraints,
 )
 from logicblocks.event.sources.constraints import (
     QueryConstraint,
     QueryConstraintCheck,
 )
+from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.store.adapters.memory.converters import (
     TypeRegistryConstraintConverter,
 )

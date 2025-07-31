@@ -35,13 +35,10 @@ from logicblocks.event.types import (
 
 
 class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
-    def __init__(self, sequence_number: JsonValue):
+    def __init__(self, sequence_number: int):
         self.sequence_number = sequence_number
 
     def apply(self, target: Query) -> Query:
-        if not isinstance(self.sequence_number, int):
-            return target
-
         return target.where(
             Condition()
             .left(ColumnReference(field="sequence_number"))

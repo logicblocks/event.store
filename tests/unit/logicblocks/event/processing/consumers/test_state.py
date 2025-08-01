@@ -1493,7 +1493,13 @@ class TestEventConsumerStateStoreSaveIfRequired:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 10, "state": {}})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 10,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
@@ -1516,8 +1522,9 @@ class TestEventConsumerStateStoreSaveIfRequired:
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 10,
-            "state": {},
+            "state": {
+                "last_sequence_number": 10,
+            },
         }
         assert state_events[1].payload == {
             "state": {"last_sequence_number": 14, "extra": "state"},
@@ -1581,7 +1588,13 @@ class TestEventConsumerStateStoreSaveIfRequired:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 10, "state": {}})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 10,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
@@ -1590,7 +1603,13 @@ class TestEventConsumerStateStoreSaveIfRequired:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 11, "state": {}})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 11,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]

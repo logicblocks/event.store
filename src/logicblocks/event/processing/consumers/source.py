@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator, Sequence
+from typing import overload
 
 from structlog.typing import FilteringBoundLogger
 
@@ -61,7 +62,7 @@ class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
 async def base_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
+    logger: FilteringBoundLogger,
 ) -> EventIterator[E]:
     async for event in source_iterator:
         await logger.adebug(
@@ -75,7 +76,7 @@ async def base_event_iterator[E: Event](
 async def auto_commit_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
+    logger: FilteringBoundLogger,
 ) -> EventIterator[E]:
     async for event in base_event_iterator(
         source_iterator, processor_manager, logger
@@ -89,7 +90,7 @@ async def process_managed_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor: ManagedEventIteratorProcessor[E],
     processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
+    logger: FilteringBoundLogger,
 ) -> None:
     event_iterator = base_event_iterator(
         source_iterator, processor_manager, logger
@@ -101,7 +102,7 @@ async def process_auto_commit_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor: AutoCommitEventIteratorProcessor[E],
     processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
+    logger: FilteringBoundLogger,
 ) -> None:
     event_iterator = auto_commit_event_iterator(
         source_iterator, processor_manager, logger
@@ -113,7 +114,8 @@ async def process_callback_event_iterator[E: Event](
     source_iterator: AsyncIterator[E],
     processor: EventProcessor[E],
     processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
+    logger: FilteringBoundLogger,
+    save_state_after_consumption: bool,
 ) -> None:
     event_iterator = auto_commit_event_iterator(
         source_iterator, processor_manager, logger
@@ -130,35 +132,33 @@ async def process_callback_event_iterator[E: Event](
             )
             raise
 
-    await processor_manager.commit(force=True)
-
-
-async def process_event_iterator[E: Event](
-    source_iterator: AsyncIterator[E],
-    processor: SupportedProcessors[E],
-    processor_manager: StateStoreEventProcessorManager[E],
-    logger: FilteringBoundLogger = default_logger,
-) -> None:
-    match processor:
-        case ManagedEventIteratorProcessor():
-            await process_managed_event_iterator(
-                source_iterator, processor, processor_manager, logger
-            )
-        case AutoCommitEventIteratorProcessor():
-            await process_auto_commit_event_iterator(
-                source_iterator, processor, processor_manager, logger
-            )
-        case EventProcessor():
-            await process_callback_event_iterator(
-                source_iterator, processor, processor_manager, logger
-            )
-        case _:
-            raise TypeError(
-                f"Unsupported processor type: {type(processor).__name__}"
-            )
+    if save_state_after_consumption:
+        await processor_manager.commit(force=True)
 
 
 class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
+    @overload
+    def __init__(
+        self,
+        *,
+        source: EventSource[I, E],
+        processor: EventProcessor[E],
+        state_store: EventConsumerStateStore[E],
+        logger: FilteringBoundLogger = default_logger,
+        save_state_after_consumption: bool = True,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        source: EventSource[I, E],
+        processor: AutoCommitEventIteratorProcessor[E]
+        | ManagedEventIteratorProcessor[E],
+        state_store: EventConsumerStateStore[E],
+        logger: FilteringBoundLogger = default_logger,
+    ) -> None: ...
+
     def __init__(
         self,
         *,
@@ -178,6 +178,39 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
             )
         )
 
+    async def _process_event_iterator(
+        self,
+        source_iterator: AsyncIterator[E],
+        processor_manager: StateStoreEventProcessorManager[E],
+    ) -> None:
+        match self._processor:
+            case ManagedEventIteratorProcessor():
+                await process_managed_event_iterator(
+                    source_iterator,
+                    self._processor,
+                    processor_manager,
+                    self._logger,
+                )
+            case AutoCommitEventIteratorProcessor():
+                await process_auto_commit_event_iterator(
+                    source_iterator,
+                    self._processor,
+                    processor_manager,
+                    self._logger,
+                )
+            case EventProcessor():
+                await process_callback_event_iterator(
+                    source_iterator,
+                    self._processor,
+                    processor_manager,
+                    self._logger,
+                    self._save_state_after_consumption,
+                )
+            case _:
+                raise TypeError(
+                    f"Unsupported processor type: {type(self._processor).__name__}"
+                )
+
     async def consume_all(self) -> None:
         constraint = await self._state_store.load_to_query_constraint()
 
@@ -194,11 +227,9 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         processor_manager = StateStoreEventProcessorManager[E](
             state_store=self._state_store
         )
-        await process_event_iterator(
+        await self._process_event_iterator(
             source,
-            self._processor,
             processor_manager,
-            self._logger,
         )
 
         await self._logger.adebug(

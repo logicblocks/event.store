@@ -18,6 +18,9 @@ from logicblocks.event.processing import (
     make_postgres_event_broker,
     make_subscriber,
 )
+from logicblocks.event.processing.consumers import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.projection import (
     PostgresProjectionStorageAdapter,
     ProjectionStore,
@@ -26,9 +29,6 @@ from logicblocks.event.projection import (
 from logicblocks.event.store import (
     EventStore,
     PostgresEventStorageAdapter,
-)
-from logicblocks.event.store.state import (
-    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testsupport import (

@@ -1,8 +1,7 @@
-from logicblocks.event.processing.consumers.types import (
-    EventConsumerStateConverter,
-)
 from logicblocks.event.sources import constraints
 from logicblocks.event.types import JsonObject, StoredEvent
+
+from .types import EventConsumerStateConverter
 
 
 class StoredEventEventConsumerStateConverter(

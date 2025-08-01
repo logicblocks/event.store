@@ -23,15 +23,15 @@ from logicblocks.event.processing import (
 from logicblocks.event.processing.broker.strategies.singleton.builder import (
     SingletonEventBrokerSettings,
 )
+from logicblocks.event.processing.consumers import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.processing.consumers.logger import (
     default_logger as consumer_logger,
 )
 from logicblocks.event.store import (
     EventStore,
     PostgresEventStorageAdapter,
-)
-from logicblocks.event.store.state import (
-    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import NewEventBuilder

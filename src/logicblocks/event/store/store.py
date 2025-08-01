@@ -5,7 +5,7 @@ from typing import Any
 import structlog
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.sources import constraints
+from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -17,7 +17,6 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
-from ..sources import EventSource
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError

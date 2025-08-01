@@ -3,21 +3,20 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
-from logicblocks.event.processing.consumers.types import (
-    EventConsumerStateConverter,
-)
-from logicblocks.event.sources.constraints import QueryConstraint
+from logicblocks.event.sources import constraints
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
     Event,
     JsonObject,
     JsonValue,
+    JsonValueConvertible,
     NewEvent,
     default_deserialisation_fallback,
     default_serialisation_fallback,
     is_json_object,
 )
-from logicblocks.event.types.json import JsonValueConvertible
+
+from .types import EventConsumerStateConverter
 
 
 def _support_bare_last_sequence_number_for_backwards_compat(
@@ -83,7 +82,7 @@ class EventConsumerStateStore[E: Event]:
         self,
         category: EventCategory,
         converter: EventConsumerStateConverter[E],
-        persistence_interval: EventCount = EventCount(100),
+        persistence_interval: EventCount | None = EventCount(100),
     ):
         self._category = category
         self._converter = converter
@@ -92,7 +91,7 @@ class EventConsumerStateStore[E: Event]:
         self._states = {}
         self._positions = {}
 
-    async def record_processed(
+    def record_processed(
         self,
         event: E,
         *,
@@ -110,10 +109,14 @@ class EventConsumerStateStore[E: Event]:
             partition
         ].increment()
 
-        if self._persistence_lags[partition] >= self._persistence_interval:
-            await self.save(partition=partition)
-
         return EventConsumerState(combined_state)
+
+    async def save_if_needed(self, *, partition: str = "default") -> None:
+        if (
+            self._persistence_interval
+            and self._persistence_lags[partition] >= self._persistence_interval
+        ):
+            await self.save(partition=partition)
 
     async def save(self, partition: str | None = None) -> None:
         partitions: Sequence[str]
@@ -172,7 +175,7 @@ class EventConsumerStateStore[E: Event]:
 
     async def load_to_query_constraint(
         self, *, partition: str = "default"
-    ) -> QueryConstraint | None:
+    ) -> constraints.QueryConstraint | None:
         state = await self.load(partition=partition)
         if state is None:
             return None

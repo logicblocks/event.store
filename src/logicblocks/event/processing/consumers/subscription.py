@@ -7,7 +7,6 @@ from structlog.types import FilteringBoundLogger
 from logicblocks.event.sources import EventSource
 from logicblocks.event.store import (
     EventCategory,
-    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.types import (
     Event,
@@ -19,8 +18,13 @@ from logicblocks.event.types import (
 from ..broker import EventSubscriber, EventSubscriberHealth
 from .logger import default_logger
 from .source import EventSourceConsumer
-from .state import EventConsumerStateStore, EventCount
-from .types import EventConsumer, EventConsumerStateConverter, EventProcessor
+from .state import (
+    EventConsumerStateConverter,
+    EventConsumerStateStore,
+    EventCount,
+    StoredEventEventConsumerStateConverter,
+)
+from .types import EventConsumer, EventProcessor
 
 
 @overload

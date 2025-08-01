@@ -19,6 +19,7 @@ from .broker import (
 from .consumers import (
     EventConsumer,
     EventConsumerState,
+    EventConsumerStateConverter,
     EventConsumerStateStore,
     EventCount,
     EventProcessor,
@@ -57,6 +58,7 @@ from .services import (
 )
 
 __all__ = [
+    "EventConsumerStateConverter",
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",
     "DistributedEventBroker",

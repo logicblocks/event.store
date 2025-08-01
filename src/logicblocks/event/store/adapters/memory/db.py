@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import AsyncIterator, Set
 from typing import Self, cast
 
-from logicblocks.event.sources.constraints import QueryConstraint
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
     Converter,
@@ -17,7 +17,6 @@ from ..base import (
     Latestable,
     Scannable,
 )
-from .types import QueryConstraintCheck
 
 type StreamKey = tuple[str, str]
 type CategoryKey = str
@@ -44,7 +43,8 @@ class InMemoryEventsDB:
         category_index: EventIndexDict[CategoryKey] | None = None,
         stream_index: EventIndexDict[StreamKey] | None = None,
         constraint_converter: Converter[
-            QueryConstraint, QueryConstraintCheck[StoredEvent]
+            constraints.QueryConstraint,
+            constraints.QueryConstraintCheck[StoredEvent],
         ],
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
@@ -122,7 +122,7 @@ class InMemoryEventsDB:
     async def scan_events(
         self,
         target: Scannable,
-        constraints: Set[QueryConstraint] = frozenset(),
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         index = self._select_index(target)
 

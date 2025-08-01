@@ -1,5 +1,5 @@
 from logicblocks.event.projection import ProjectionStore, Projector
-from logicblocks.event.sources import InMemoryEventSource
+from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.types import (
     JsonPersistable,
     JsonValue,
@@ -37,7 +37,7 @@ class ProjectionEventProcessor[
             state_type=self._state_type,
             metadata_type=self._metadata_type,
         )
-        source = InMemoryEventSource[StreamIdentifier, StoredEvent](
+        source = InMemoryStoredEventSource[StreamIdentifier](
             events=[event], identifier=identifier
         )
         state = current_projection.state if current_projection else None

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Self, TypedDict
 
-from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.store import EventStoreEventSourceFactory
 from logicblocks.event.types import StoredEvent
 
 from ....locks import LockManager

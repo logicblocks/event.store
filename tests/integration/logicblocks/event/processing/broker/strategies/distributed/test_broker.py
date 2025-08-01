@@ -31,6 +31,9 @@ from logicblocks.event.store import (
     EventStore,
     PostgresEventStorageAdapter,
 )
+from logicblocks.event.store.state import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import NewEventBuilder
 from logicblocks.event.testsupport import (
@@ -94,6 +97,7 @@ def make_subscribers(
                 subscriber_state_category=event_store.category(
                     category=f"subscriber-state-for-{category}"
                 ),
+                subscriber_state_converter=StoredEventEventConsumerStateConverter(),
                 event_processor=event_processor,
                 logger=consumer_logger.bind(node=node_id),
             )

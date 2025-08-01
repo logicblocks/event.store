@@ -1,5 +1,10 @@
 from abc import ABC
+from collections.abc import Callable
 from dataclasses import dataclass
+
+from logicblocks.event.types import Event
+
+type QueryConstraintCheck[E: Event] = Callable[[E], bool]
 
 
 class QueryConstraint(ABC): ...

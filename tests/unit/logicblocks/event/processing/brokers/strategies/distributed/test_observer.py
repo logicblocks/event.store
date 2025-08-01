@@ -18,7 +18,7 @@ from logicblocks.event.processing.broker.subscribers import (
     EventSubscriberStore,
     InMemoryEventSubscriberStore,
 )
-from logicblocks.event.sources import EventStoreEventSourceFactory
+from logicblocks.event.store import EventStoreEventSourceFactory
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory

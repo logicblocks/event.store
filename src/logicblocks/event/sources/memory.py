@@ -1,11 +1,8 @@
 import asyncio
+from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
-from logicblocks.event.store.adapters.memory.converters import (
-    QueryConstraintCheck,
-    TypeRegistryConstraintConverter,
-)
 from logicblocks.event.types import (
     Converter,
     Event,
@@ -13,11 +10,11 @@ from logicblocks.event.types import (
 )
 
 from .base import EventSource
-from .constraints import QueryConstraint
+from .constraints import QueryConstraint, QueryConstraintCheck
 
 
 class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
-    EventSource[I, E]
+    EventSource[I, E], ABC
 ):
     def __init__(
         self,
@@ -31,12 +28,14 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         self._events = events
         self._identifier = identifier
         self._constraint_converter = (
-            constraint_converter
-            if constraint_converter is not None
-            else (
-                TypeRegistryConstraintConverter().with_default_constraint_converters()
-            )
+            constraint_converter or self._get_default_constraint_converter()
         )
+
+    @abstractmethod
+    def _get_default_constraint_converter(
+        self,
+    ) -> Converter[QueryConstraint, QueryConstraintCheck[E]]:
+        raise NotImplementedError
 
     @property
     def identifier(self) -> I:

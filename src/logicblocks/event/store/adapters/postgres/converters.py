@@ -13,11 +13,15 @@ from logicblocks.event.persistence.postgres import (
     QueryApplier,
 )
 from logicblocks.event.persistence.postgres.query import ColumnReference
-from logicblocks.event.sources.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
+from logicblocks.event.sources import constraints
+from logicblocks.event.types import (
+    Converter,
+    JsonValue,
+    StoredEvent,
+    StreamIdentifier,
 )
-from logicblocks.event.store.conditions import (
+
+from ...conditions import (
     AndCondition,
     EmptyStreamCondition,
     NoCondition,
@@ -25,13 +29,7 @@ from logicblocks.event.store.conditions import (
     PositionIsCondition,
     WriteCondition,
 )
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.types import (
-    Converter,
-    JsonValue,
-    StoredEvent,
-    StreamIdentifier,
-)
+from ...exceptions import UnmetWriteConditionError
 
 
 class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
@@ -48,16 +46,18 @@ class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryApplier]
+    Converter[constraints.SequenceNumberAfterConstraint, QueryApplier]
 ):
-    def convert(self, item: SequenceNumberAfterConstraint) -> QueryApplier:
+    def convert(
+        self, item: constraints.SequenceNumberAfterConstraint
+    ) -> QueryApplier:
         return SequenceNumberAfterConstraintQueryApplier(item.sequence_number)
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryApplier]
+    TypeRegistryConverter[constraints.QueryConstraint, QueryApplier]
 ):
-    def register[QC: QueryConstraint](
+    def register[QC: constraints.QueryConstraint](
         self,
         item_type: type[QC],
         converter: Converter[QC, QueryApplier],
@@ -66,7 +66,7 @@ class TypeRegistryConstraintConverter(
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            SequenceNumberAfterConstraint,
+            constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
         )
 

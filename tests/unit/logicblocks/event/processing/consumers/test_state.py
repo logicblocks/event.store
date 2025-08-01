@@ -11,6 +11,9 @@ from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
     UnmetWriteConditionError,
 )
+from logicblocks.event.store.state import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import (
     NewEventBuilder,
@@ -26,7 +29,38 @@ class TestEventConsumerStateStoreLoad:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(10)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+        await state_category.stream(stream="default").publish(
+            events=[
+                NewEventBuilder()
+                .with_name("state-changed")
+                .with_payload(
+                    {"state": {"last_sequence_number": 42, "extra": "state"}}
+                )
+                .build()
+            ]
+        )
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(
+            state={"last_sequence_number": 42, "extra": "state"}
+        )
+
+    async def test_loads_initial_state_from_category_when_stored_on_top_level(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
         )
         await state_category.stream(stream="default").publish(
             events=[
@@ -42,7 +76,7 @@ class TestEventConsumerStateStoreLoad:
         state = await state_store.load()
 
         assert state == EventConsumerState(
-            last_sequence_number=42, state={"extra": "state"}
+            state={"last_sequence_number": 42, "extra": "state"}
         )
 
     async def test_returns_none_when_no_state_in_category(self):
@@ -51,7 +85,9 @@ class TestEventConsumerStateStoreLoad:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(10)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
         )
 
         state = await state_store.load()
@@ -64,7 +100,9 @@ class TestEventConsumerStateStoreLoad:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(10)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
         )
 
         partition_1 = "a"
@@ -94,7 +132,7 @@ class TestEventConsumerStateStoreLoad:
         state = await state_store.load(partition=partition_2)
 
         assert state == EventConsumerState(
-            last_sequence_number=35, state={"other": "state"}
+            state={"last_sequence_number": 35, "other": "state"}
         )
 
     async def test_returns_none_when_no_state_for_specified_partition(self):
@@ -103,7 +141,9 @@ class TestEventConsumerStateStoreLoad:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(10)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
         )
 
         partition_1 = "a"
@@ -132,6 +172,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -142,7 +183,7 @@ class TestEventConsumerStateStoreRecordProcessed:
         state = await state_store.load()
 
         assert state == EventConsumerState(
-            last_sequence_number=processed_event.sequence_number, state=None
+            state={"last_sequence_number": processed_event.sequence_number}
         )
 
     async def test_captures_extra_state(self):
@@ -151,20 +192,23 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
         processed_event = StoredEventBuilder().build()
 
         await state_store.record_processed(
-            event=processed_event, state={"extra": "state"}
+            event=processed_event, extra_state={"extra": "state"}
         )
 
         state = await state_store.load()
 
         assert state == EventConsumerState(
-            last_sequence_number=processed_event.sequence_number,
-            state={"extra": "state"},
+            state={
+                "last_sequence_number": processed_event.sequence_number,
+                "extra": "state",
+            },
         )
 
     async def test_records_event_per_partition(self):
@@ -173,6 +217,7 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=event_store.category(
                 category=data.random_event_category_name(),
             ),
+            converter=StoredEventEventConsumerStateConverter(),
             persistence_interval=EventCount(10),
         )
 
@@ -181,19 +226,19 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(5).build(),
-            state={"some": "state-a"},
+            extra_state={"some": "state-a"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(8).build(),
-            state={"some": "state-b"},
+            extra_state={"some": "state-b"},
             partition=partition_2,
         )
 
         state = await state_store.load(partition=partition_1)
 
         assert state == EventConsumerState(
-            last_sequence_number=5, state={"some": "state-a"}
+            state={"last_sequence_number": 5, "some": "state-a"}
         )
 
     async def test_stores_state_every_hundred_events_by_default(self):
@@ -201,7 +246,10 @@ class TestEventConsumerStateStoreRecordProcessed:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         for i in range(1, 101):
             await state_store.record_processed(
@@ -212,8 +260,9 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(events) == 1
         assert events[0].payload == {
-            "last_sequence_number": 100,
-            "state": None,
+            "state": {
+                "last_sequence_number": 100,
+            },
         }
 
     async def test_does_not_store_default_state_before_threshold_reached(self):
@@ -222,11 +271,13 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
-            event=StoredEventBuilder().build(), state={"extra": "state"}
+            event=StoredEventBuilder().build(), extra_state={"extra": "state"}
         )
 
         state = await state_category.stream(stream="default").latest()
@@ -241,7 +292,9 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -249,12 +302,12 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         await state_store.record_processed(
             event=StoredEventBuilder().build(),
-            state={"extra": "state"},
+            extra_state={"extra": "state"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().build(),
-            state={"extra": "state"},
+            extra_state={"extra": "state"},
             partition=partition_2,
         )
 
@@ -274,28 +327,29 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(3)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(3),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
-            state={"extra": "state1"},
+            extra_state={"extra": "state1"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
-            state={"extra": "state2"},
+            extra_state={"extra": "state2"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
-            state={"extra": "state3"},
+            extra_state={"extra": "state3"},
         )
 
         state_event = await state_category.stream(stream="default").latest()
 
         assert state_event is not None
         assert state_event.payload == {
-            "last_sequence_number": 13,
-            "state": {"extra": "state3"},
+            "state": {"last_sequence_number": 13, "extra": "state3"},
         }
 
     async def test_stores_default_state_when_existing_state_events(self):
@@ -308,31 +362,33 @@ class TestEventConsumerStateStoreRecordProcessed:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 10, "state": {}})
+                    .with_payload({"state": {"last_sequence_number": 10}})
                     .build()
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(1)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(1),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(14).build(),
-            state={"extra": "state"},
+            extra_state={"extra": "state"},
         )
 
         state_events = await state_category.stream(stream="default").read()
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 10,
-            "state": {},
+            "state": {
+                "last_sequence_number": 10,
+            },
         }
         assert state_events[1].payload == {
-            "last_sequence_number": 14,
-            "state": {"extra": "state"},
+            "state": {"last_sequence_number": 14, "extra": "state"},
         }
 
     async def test_stores_partitioned_state_on_threshold_reached(self):
@@ -341,7 +397,9 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -349,17 +407,17 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
-            state={"extra": "state1"},
+            extra_state={"extra": "state1"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
-            state={"extra": "state2"},
+            extra_state={"extra": "state2"},
             partition=partition_2,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
-            state={"extra": "state3"},
+            extra_state={"extra": "state3"},
             partition=partition_1,
         )
 
@@ -372,8 +430,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 13,
-            "state": {"extra": "state3"},
+            "state": {"last_sequence_number": 13, "extra": "state3"},
         }
         assert len(partition_2_events) == 1
 
@@ -390,7 +447,13 @@ class TestEventConsumerStateStoreRecordProcessed:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 10, "state": {}})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 10,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
@@ -399,24 +462,32 @@ class TestEventConsumerStateStoreRecordProcessed:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 11, "state": {}})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 11,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(1)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(1),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(14).build(),
-            state={"extra": "state1"},
+            extra_state={"extra": "state1"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(15).build(),
-            state={"extra": "state2"},
+            extra_state={"extra": "state2"},
             partition=partition_2,
         )
 
@@ -429,22 +500,22 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 10,
-            "state": {},
+            "state": {
+                "last_sequence_number": 10,
+            },
         }
         assert partition_1_events[1].payload == {
-            "last_sequence_number": 14,
-            "state": {"extra": "state1"},
+            "state": {"last_sequence_number": 14, "extra": "state1"},
         }
 
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 11,
-            "state": {},
+            "state": {
+                "last_sequence_number": 11,
+            },
         }
         assert partition_2_events[1].payload == {
-            "last_sequence_number": 15,
-            "state": {"extra": "state2"},
+            "state": {"last_sequence_number": 15, "extra": "state2"},
         }
 
     async def test_stores_default_state_every_time_threshold_reached(self):
@@ -453,40 +524,40 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
-            state={"extra": "state1"},
+            extra_state={"extra": "state1"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
-            state={"extra": "state2"},
+            extra_state={"extra": "state2"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
-            state={"extra": "state3"},
+            extra_state={"extra": "state3"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(17).build(),
-            state={"extra": "state4"},
+            extra_state={"extra": "state4"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(20).build(),
-            state={"extra": "state5"},
+            extra_state={"extra": "state5"},
         )
 
         state_events = await state_category.stream(stream="default").read()
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 12,
-            "state": {"extra": "state2"},
+            "state": {"last_sequence_number": 12, "extra": "state2"},
         }
         assert state_events[1].payload == {
-            "last_sequence_number": 17,
-            "state": {"extra": "state4"},
+            "state": {"last_sequence_number": 17, "extra": "state4"},
         }
 
     async def test_stores_partitioned_state_every_time_threshold_reached(self):
@@ -495,7 +566,9 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -503,27 +576,27 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(4).build(),
-            state={"extra": "state_a_1"},
+            extra_state={"extra": "state_a_1"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(12).build(),
-            state={"extra": "state_b_1"},
+            extra_state={"extra": "state_b_1"},
             partition=partition_2,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(13).build(),
-            state={"extra": "state_a_2"},
+            extra_state={"extra": "state_a_2"},
             partition=partition_1,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(17).build(),
-            state={"extra": "state_b_2"},
+            extra_state={"extra": "state_b_2"},
             partition=partition_2,
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(20).build(),
-            state={"extra": "state_b_3"},
+            extra_state={"extra": "state_b_3"},
             partition=partition_1,
         )
 
@@ -536,13 +609,11 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 13,
-            "state": {"extra": "state_a_2"},
+            "state": {"last_sequence_number": 13, "extra": "state_a_2"},
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 17,
-            "state": {"extra": "state_b_2"},
+            "state": {"last_sequence_number": 17, "extra": "state_b_2"},
         }
 
     async def test_consistent_concurrent_execution_when_no_stored_default_state(
@@ -553,7 +624,9 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(1)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(1),
         )
 
         async def record_event_as_processed(sequence_number: int):
@@ -563,7 +636,7 @@ class TestEventConsumerStateStoreRecordProcessed:
                     .with_sequence_number(sequence_number)
                     .build()
                 ),
-                state={"extra": f"state{sequence_number}"},
+                extra_state={"extra": f"state{sequence_number}"},
             )
 
         results = await asyncio.gather(
@@ -590,7 +663,6 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(state_events) == 1
         assert state_events[0].payload == {
-            "last_sequence_number": successful_writes[0].last_sequence_number,
             "state": successful_writes[0].state,
         }
 
@@ -602,12 +674,14 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(1)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(1),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
-            state={"initial": "state"},
+            extra_state={"initial": "state"},
         )
 
         async def record_event_as_processed(sequence_number: int):
@@ -617,7 +691,7 @@ class TestEventConsumerStateStoreRecordProcessed:
                     .with_sequence_number(sequence_number)
                     .build()
                 ),
-                state={"extra": f"state{sequence_number}"},
+                extra_state={"extra": f"state{sequence_number}"},
             )
 
         results = await asyncio.gather(
@@ -644,11 +718,9 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": {"initial": "state"},
+            "state": {"last_sequence_number": 1, "initial": "state"},
         }
         assert state_events[1].payload == {
-            "last_sequence_number": successful_writes[0].last_sequence_number,
             "state": successful_writes[0].state,
         }
 
@@ -658,7 +730,9 @@ class TestEventConsumerStateStoreRecordProcessed:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(1)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(1),
         )
 
         partition_1 = "a"
@@ -666,7 +740,7 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
-            state={"initial": "state"},
+            extra_state={"initial": "state"},
             partition=partition_1,
         )
 
@@ -679,7 +753,7 @@ class TestEventConsumerStateStoreRecordProcessed:
                     .with_sequence_number(sequence_number)
                     .build()
                 ),
-                state={"extra": f"state_{partition}_{sequence_number}"},
+                extra_state={"extra": f"state_{partition}_{sequence_number}"},
                 partition=partition,
             )
 
@@ -721,12 +795,12 @@ class TestEventConsumerStateStoreRecordProcessed:
         partition_1_write = next(
             write
             for write in successful_writes
-            if write.last_sequence_number in {2, 4}
+            if write.state["last_sequence_number"] in {2, 4}
         )
         partition_2_write = next(
             write
             for write in successful_writes
-            if write.last_sequence_number in {3, 5}
+            if write.state["last_sequence_number"] in {3, 5}
         )
 
         assert isinstance(failed_writes[0], UnmetWriteConditionError)
@@ -734,17 +808,14 @@ class TestEventConsumerStateStoreRecordProcessed:
 
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": {"initial": "state"},
+            "state": {"last_sequence_number": 1, "initial": "state"},
         }
         assert partition_1_events[1].payload == {
-            "last_sequence_number": partition_1_write.last_sequence_number,
             "state": partition_1_write.state,
         }
 
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": partition_2_write.last_sequence_number,
             "state": partition_2_write.state,
         }
 
@@ -756,7 +827,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -773,8 +846,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 1
         assert state_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
 
     async def test_skips_store_when_default_partition_already_saved(self):
@@ -783,7 +857,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -799,8 +875,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 1
         assert state_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
     async def test_stores_default_partition_when_existing_state_events(self):
@@ -813,13 +890,18 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": None},
+                    payload={
+                        "state": {
+                            "last_sequence_number": 1,
+                        }
+                    },
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
             category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -832,12 +914,14 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert state_events[1].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
     async def test_stores_state_immediately_for_all_tracked_partitions(self):
@@ -846,7 +930,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -876,13 +962,15 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
     async def test_skips_store_if_tracked_partition_already_saved(self):
@@ -891,7 +979,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -929,13 +1019,15 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
     async def test_stores_tracked_partitions_when_existing_state_events(self):
@@ -951,7 +1043,11 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": None},
+                    payload={
+                        "state": {
+                            "last_sequence_number": 1,
+                        }
+                    },
                 )
             ]
         )
@@ -959,13 +1055,18 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 2, "state": None},
+                    payload={
+                        "state": {
+                            "last_sequence_number": 2,
+                        }
+                    },
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
             category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -988,22 +1089,26 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert partition_1_events[1].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
         assert partition_2_events[1].payload == {
-            "last_sequence_number": 4,
-            "state": None,
+            "state": {
+                "last_sequence_number": 4,
+            },
         }
 
     async def test_does_nothing_when_no_state_for_tracked_partitions(self):
@@ -1012,7 +1117,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.save()
@@ -1027,7 +1134,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1057,8 +1166,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 0
 
@@ -1068,7 +1178,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1107,8 +1219,9 @@ class TestEventConsumerStateStoreSave:
         assert len(partition_1_events) == 0
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
     async def test_stores_specified_partition_when_existing_state_events(self):
@@ -1124,13 +1237,18 @@ class TestEventConsumerStateStoreSave:
             events=[
                 NewEvent(
                     name="state-changed",
-                    payload={"last_sequence_number": 1, "state": None},
+                    payload={
+                        "state": {
+                            "last_sequence_number": 1,
+                        }
+                    },
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
             category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
         )
 
         await state_store.record_processed(
@@ -1153,12 +1271,14 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 2
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert partition_1_events[1].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
         assert len(partition_2_events) == 0
@@ -1169,7 +1289,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1194,7 +1316,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -1223,8 +1347,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 1
         assert state_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_stored_default_state(
@@ -1235,20 +1360,22 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(1).build(),
-            state={"extra": "state_1"},
+            extra_state={"extra": "state_1"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(2).build(),
-            state={"extra": "state_2"},
+            extra_state={"extra": "state_2"},
         )
         await state_store.record_processed(
             event=StoredEventBuilder().with_sequence_number(3).build(),
-            state={"extra": "state_3"},
+            extra_state={"extra": "state_3"},
         )
 
         results = await asyncio.gather(
@@ -1273,12 +1400,10 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": {"extra": "state_2"},
+            "state": {"last_sequence_number": 2, "extra": "state_2"},
         }
         assert state_events[1].payload == {
-            "last_sequence_number": 3,
-            "state": {"extra": "state_3"},
+            "state": {"last_sequence_number": 3, "extra": "state_3"},
         }
 
     async def test_consistent_concurrent_execution_when_existing_default_state_event(
@@ -1293,14 +1418,22 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": None})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 1,
+                            }
+                        }
+                    )
                     .build()
                 ),
             ]
         )
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -1329,12 +1462,14 @@ class TestEventConsumerStateStoreSave:
 
         assert len(state_events) == 2
         assert state_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert state_events[1].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_no_stored_partitioned_state_all_partitions(
@@ -1345,7 +1480,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1387,13 +1524,15 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_stored_partitioned_state_all_partitions(
@@ -1404,7 +1543,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1450,13 +1591,15 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 1
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_existing_partitioned_state_events_all_partitions(
@@ -1475,7 +1618,13 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": None})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 1,
+                            }
+                        }
+                    )
                     .build()
                 ),
             ]
@@ -1484,14 +1633,22 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 2, "state": None})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 2,
+                            }
+                        }
+                    )
                     .build()
                 ),
             ]
         )
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -1533,23 +1690,27 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
         assert partition_2_events[1].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
         assert len(partition_3_events) == 1
         assert partition_3_events[0].payload == {
-            "last_sequence_number": 4,
-            "state": None,
+            "state": {
+                "last_sequence_number": 4,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_stored_partitioned_state_specific_partitions(
@@ -1560,7 +1721,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1601,8 +1764,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_no_stored_partitioned_state_specific_partitions(
@@ -1613,7 +1777,9 @@ class TestEventConsumerStateStoreSave:
             category=data.random_event_category_name()
         )
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         partition_1 = "a"
@@ -1656,8 +1822,9 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
     async def test_consistent_concurrent_execution_when_existing_partitioned_state_events_specific_partitions(
@@ -1676,7 +1843,13 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 1, "state": None})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 1,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
@@ -1685,14 +1858,22 @@ class TestEventConsumerStateStoreSave:
             events=[
                 (
                     NewEventBuilder()
-                    .with_payload({"last_sequence_number": 2, "state": None})
+                    .with_payload(
+                        {
+                            "state": {
+                                "last_sequence_number": 2,
+                            }
+                        }
+                    )
                     .build()
                 )
             ]
         )
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         await state_store.record_processed(
@@ -1734,18 +1915,21 @@ class TestEventConsumerStateStoreSave:
 
         assert len(partition_1_events) == 1
         assert partition_1_events[0].payload == {
-            "last_sequence_number": 1,
-            "state": None,
+            "state": {
+                "last_sequence_number": 1,
+            },
         }
 
         assert len(partition_2_events) == 2
         assert partition_2_events[0].payload == {
-            "last_sequence_number": 2,
-            "state": None,
+            "state": {
+                "last_sequence_number": 2,
+            },
         }
         assert partition_2_events[1].payload == {
-            "last_sequence_number": 3,
-            "state": None,
+            "state": {
+                "last_sequence_number": 3,
+            },
         }
 
         assert len(partition_3_events) == 0

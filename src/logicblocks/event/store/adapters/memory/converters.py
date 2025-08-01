@@ -3,11 +3,14 @@ from collections.abc import Sequence
 from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
-from logicblocks.event.sources.constraints import (
-    QueryConstraint,
-    SequenceNumberAfterConstraint,
+from logicblocks.event.sources import constraints
+from logicblocks.event.types import (
+    Converter,
+    StoredEvent,
+    StreamIdentifier,
 )
-from logicblocks.event.store.conditions import (
+
+from ...conditions import (
     AndCondition,
     EmptyStreamCondition,
     NoCondition,
@@ -15,43 +18,40 @@ from logicblocks.event.store.conditions import (
     PositionIsCondition,
     WriteCondition,
 )
-from logicblocks.event.store.exceptions import UnmetWriteConditionError
-from logicblocks.event.types import (
-    Converter,
-    Event,
-    StoredEvent,
-    StreamIdentifier,
-)
-
+from ...exceptions import UnmetWriteConditionError
 from .db import InMemoryEventsDBTransaction
-from .types import QueryConstraintCheck
+from .types import InMemoryQueryConstraintCheck
 
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[SequenceNumberAfterConstraint, QueryConstraintCheck[Event]]
+    Converter[
+        constraints.SequenceNumberAfterConstraint, InMemoryQueryConstraintCheck
+    ]
 ):
     def convert(
-        self, item: SequenceNumberAfterConstraint
-    ) -> QueryConstraintCheck[Event]:
-        def check(event: Event) -> bool:
+        self, item: constraints.SequenceNumberAfterConstraint
+    ) -> InMemoryQueryConstraintCheck:
+        def check(event: StoredEvent) -> bool:
             return event.sequence_number > item.sequence_number
 
         return check
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[QueryConstraint, QueryConstraintCheck[Event]]
+    TypeRegistryConverter[
+        constraints.QueryConstraint, InMemoryQueryConstraintCheck
+    ]
 ):
-    def register[QC: QueryConstraint](
+    def register[QC: constraints.QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, QueryConstraintCheck[Event]],
+        converter: Converter[QC, InMemoryQueryConstraintCheck],
     ) -> Self:
         return super()._register(item_type, converter)
 
     def with_default_constraint_converters(self) -> Self:
         return self.register(
-            SequenceNumberAfterConstraint,
+            constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
         )
 

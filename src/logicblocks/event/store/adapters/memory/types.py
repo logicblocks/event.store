@@ -1,7 +1,8 @@
-from collections.abc import Callable
-
+from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
-    Event,
+    StoredEvent,
 )
 
-type QueryConstraintCheck[E: Event] = Callable[[E], bool]
+type InMemoryQueryConstraintCheck[E: StoredEvent = StoredEvent] = (
+    constraints.QueryConstraintCheck[E]
+)

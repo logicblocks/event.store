@@ -1,12 +1,12 @@
 from logicblocks.event.sources import (
     ConstrainedEventSource,
-    InMemoryEventSource,
     constraints,
 )
 from logicblocks.event.sources.constraints import (
     QueryConstraint,
     SequenceNumberAfterConstraint,
 )
+from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.store.adapters.memory import (
     InMemoryQueryConstraintCheck,
     InMemoryTypeRegistryConstraintConverter,
@@ -32,7 +32,7 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
@@ -51,7 +51,7 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
@@ -70,7 +70,7 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
@@ -134,7 +134,7 @@ class TestConstrainedEventSource:
             .register(NotNameConstraint, NotNameConstraintConverter())
         )
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3],
             identifier=identifier,
             constraint_converter=constraint_converter,
@@ -162,7 +162,7 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(
@@ -183,7 +183,7 @@ class TestConstrainedEventSource:
         event_2 = StoredEventBuilder().with_sequence_number(2).build()
         event_3 = StoredEventBuilder().with_sequence_number(3).build()
 
-        delegate = InMemoryEventSource(
+        delegate = InMemoryStoredEventSource(
             events=[event_1, event_2, event_3], identifier=identifier
         )
         constrained = ConstrainedEventSource(

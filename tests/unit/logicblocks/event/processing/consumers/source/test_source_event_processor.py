@@ -4,13 +4,13 @@ from logicblocks.event.processing import (
     EventProcessor,
     EventSourceConsumer,
 )
+from logicblocks.event.processing.consumers import (
+    StoredEventEventConsumerStateConverter,
+)
 from logicblocks.event.sources.constraints import SequenceNumberAfterConstraint
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
-)
-from logicblocks.event.store.state import (
-    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger

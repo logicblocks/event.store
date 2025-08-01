@@ -3,21 +3,20 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
-from .types import (
-    EventConsumerStateConverter,
-)
 from logicblocks.event.sources import constraints
 from logicblocks.event.store import EventCategory, conditions
 from logicblocks.event.types import (
     Event,
     JsonObject,
     JsonValue,
+    JsonValueConvertible,
     NewEvent,
     default_deserialisation_fallback,
     default_serialisation_fallback,
     is_json_object,
 )
-from logicblocks.event.types.json import JsonValueConvertible
+
+from .types import EventConsumerStateConverter
 
 
 def _support_bare_last_sequence_number_for_backwards_compat(

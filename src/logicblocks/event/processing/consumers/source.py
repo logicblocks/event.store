@@ -3,6 +3,13 @@ from collections.abc import AsyncIterator, Sequence
 
 from structlog.typing import FilteringBoundLogger
 
+from logicblocks.event.sources import EventSource
+from logicblocks.event.types import (
+    Event,
+    EventSourceIdentifier,
+    str_serialisation_fallback,
+)
+
 from .logger import default_logger
 from .state import (
     EventConsumerStateStore,
@@ -15,12 +22,6 @@ from .types import (
     EventProcessorManager,
     ManagedEventIteratorProcessor,
     SupportedProcessors,
-)
-from logicblocks.event.sources import EventSource
-from logicblocks.event.types import (
-    Event,
-    EventSourceIdentifier,
-    str_serialisation_fallback,
 )
 
 

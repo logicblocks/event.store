@@ -6,11 +6,11 @@ from logicblocks.event.processing import (
 from logicblocks.event.processing.consumers import (
     AutoCommitEventIteratorProcessor,
     EventIterator,
+    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
-    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
@@ -243,14 +243,14 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         assert startup_log_events[0].is_async is True
         assert startup_log_events[0].context == {
             "source": {"type": "category", "category": category_name},
-            "last_sequence_number": None,
+            "constraint": None,
         }
 
         assert startup_log_events[1].level == LogLevel.DEBUG
         assert startup_log_events[1].is_async is True
         assert startup_log_events[1].context == {
             "source": {"type": "category", "category": category_name},
-            "last_sequence_number": stream_2_publish_1[-1].sequence_number,
+            "constraint": stream_2_publish_1[-1].sequence_number,
         }
 
     async def test_logs_when_consume_all_complete(self):

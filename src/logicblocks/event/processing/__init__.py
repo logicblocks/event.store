@@ -19,6 +19,7 @@ from .broker import (
 from .consumers import (
     EventConsumer,
     EventConsumerState,
+    EventConsumerStateConverter,
     EventConsumerStateStore,
     EventCount,
     EventProcessor,
@@ -27,7 +28,6 @@ from .consumers import (
     ProjectionEventProcessor,
     make_subscriber,
 )
-from .consumers import EventConsumerStateConverter
 from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
 from .process import (
     Process,

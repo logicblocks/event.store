@@ -11,6 +11,7 @@
 
 ### Changed
 - `EventSourceConsumer` now supports different types of `EventProcessor` (see above) .
+- `StoredEventEventConsumerStateConverter` has moved from `logicblocks.event.store` to `logicblocks.event.processing`, this is to remove circular dependencies.
 - `EventConsumerStateStore` changes:
   - No longer implicitly calls `save` inside `record_processed`.
   - Add `save_if_needed` method, which saves the processor state if the `persistence_interval` has been reached.

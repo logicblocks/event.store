@@ -3,11 +3,11 @@ from collections.abc import AsyncIterator, Sequence
 
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.processing.consumers.logger import default_logger
-from logicblocks.event.processing.consumers.state import (
+from .logger import default_logger
+from .state import (
     EventConsumerStateStore,
 )
-from logicblocks.event.processing.consumers.types import (
+from .types import (
     AutoCommitEventIteratorProcessor,
     EventConsumer,
     EventIterator,
@@ -16,7 +16,7 @@ from logicblocks.event.processing.consumers.types import (
     ManagedEventIteratorProcessor,
     SupportedProcessors,
 )
-from logicblocks.event.sources import EventSource, constraints
+from logicblocks.event.sources import EventSource
 from logicblocks.event.types import (
     Event,
     EventSourceIdentifier,
@@ -29,7 +29,7 @@ def log_event_name(event: str) -> str:
 
 
 class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
-    def __init__(self, state_store: EventConsumerStateStore):
+    def __init__(self, state_store: EventConsumerStateStore[E]):
         self._state_store = state_store
         self._consumed_events = 0
         self._processed_events = 0
@@ -163,12 +163,14 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         *,
         source: EventSource[I, E],
         processor: SupportedProcessors[E],
-        state_store: EventConsumerStateStore,
+        state_store: EventConsumerStateStore[E],
         logger: FilteringBoundLogger = default_logger,
+        save_state_after_consumption: bool = True,
     ):
         self._source = source
         self._processor = processor
         self._state_store = state_store
+        self._save_state_after_consumption = save_state_after_consumption
         self._logger = logger.bind(
             source=self._source.identifier.serialise(
                 fallback=str_serialisation_fallback
@@ -176,24 +178,17 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
         )
 
     async def consume_all(self) -> None:
-        state = await self._state_store.load()
-        last_sequence_number = (
-            None if state is None else state.last_sequence_number
-        )
+        constraint = await self._state_store.load_to_query_constraint()
 
         await self._logger.adebug(
             log_event_name("starting-consume"),
-            last_sequence_number=last_sequence_number,
+            constraint=constraint,
         )
 
-        if last_sequence_number is None:
-            source = self._source.iterate()
+        if constraint is not None:
+            source = self._source.iterate(constraints={constraint})
         else:
-            source = self._source.iterate(
-                constraints={
-                    constraints.sequence_number_after(last_sequence_number)
-                }
-            )
+            source = self._source.iterate()
 
         processor_manager = StateStoreEventProcessorManager[E](
             state_store=self._state_store

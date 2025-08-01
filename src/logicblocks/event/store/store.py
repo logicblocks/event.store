@@ -5,7 +5,7 @@ from typing import Any
 import structlog
 from structlog.typing import FilteringBoundLogger
 
-from logicblocks.event.sources.constraints import QueryConstraint
+from logicblocks.event.sources import constraints, EventSource
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -17,7 +17,6 @@ from logicblocks.event.types import (
     str_serialisation_fallback,
 )
 
-from ..sources import EventSource
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError
@@ -105,7 +104,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
             raise
 
     def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream.
 
@@ -180,7 +179,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         )
 
     def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the category.
 
@@ -244,7 +243,7 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
         return await self._adapter.latest(target=self._identifier)
 
     def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over all events in the log.
 

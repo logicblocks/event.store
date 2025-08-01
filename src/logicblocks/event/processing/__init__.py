@@ -27,6 +27,7 @@ from .consumers import (
     ProjectionEventProcessor,
     make_subscriber,
 )
+from .consumers import EventConsumerStateConverter
 from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
 from .process import (
     Process,
@@ -57,6 +58,7 @@ from .services import (
 )
 
 __all__ = [
+    "EventConsumerStateConverter",
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",
     "DistributedEventBroker",

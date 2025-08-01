@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 
-from logicblocks.event.sources.constraints import QueryConstraint
+from .constraints import QueryConstraint
 from logicblocks.event.types import Event, EventSourceIdentifier
 
 

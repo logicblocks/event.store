@@ -10,6 +10,7 @@ from .types import (
     EventProcessorManager,
     ManagedEventIteratorProcessor,
     SupportedProcessors,
+    EventConsumerStateConverter,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "ManagedEventIteratorProcessor",
     "ProjectionEventProcessor",
     "SupportedProcessors",
+    "EventConsumerStateConverter",
 ]

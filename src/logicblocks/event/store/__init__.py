@@ -5,6 +5,11 @@ from .adapters import (
     PostgresEventStorageAdapter,
 )
 from .exceptions import UnmetWriteConditionError
+from .source_factories import EventStoreEventSourceFactory
+from .sources import InMemoryStoredEventSource
+from .state import (
+    StoredEventEventConsumerStateConverter,
+)
 from .store import (
     EventCategory,
     EventLog,
@@ -21,20 +26,23 @@ from .transactions import (
 from .types import StreamPublishDefinition, stream_publish_definition
 
 __all__ = [
-    "EventCategory",
-    "EventLog",
-    "EventStore",
-    "EventStorageAdapter",
-    "EventStream",
-    "InMemoryEventStorageAdapter",
-    "PostgresEventStorageAdapter",
-    "StreamPublishDefinition",
-    "UnmetWriteConditionError",
     "conditions",
     "event_store_transaction",
+    "EventCategory",
+    "EventLog",
+    "EventStorageAdapter",
+    "EventStore",
+    "EventStoreEventSourceFactory",
+    "EventStream",
     "ignore_on_error",
     "ignore_on_unmet_condition_error",
+    "InMemoryEventStorageAdapter",
+    "InMemoryStoredEventSource",
+    "PostgresEventStorageAdapter",
     "retry_on_error",
     "retry_on_unmet_condition_error",
+    "StoredEventEventConsumerStateConverter",
     "stream_publish_definition",
+    "StreamPublishDefinition",
+    "UnmetWriteConditionError",
 ]

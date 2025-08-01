@@ -10,6 +10,7 @@ from logicblocks.event.processing.consumers import (
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
+    StoredEventEventConsumerStateConverter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testlogging import CapturingLogger
@@ -43,7 +44,10 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -85,7 +89,10 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -143,7 +150,9 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         processor = CapturingEventProcessor()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(2)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(2),
         )
 
         consumer = EventSourceConsumer(
@@ -164,7 +173,9 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         await consumer.consume_all()
 
         state_store = EventConsumerStateStore(
-            category=state_category, persistence_interval=EventCount(5)
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(5),
         )
         consumer = EventSourceConsumer(
             source=source,
@@ -185,7 +196,10 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -246,7 +260,10 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()
@@ -296,7 +313,10 @@ class TestEventSourceConsumerWithAutoCommitProcessor:
         state_category = event_store.category(
             category=data.random_event_category_name()
         )
-        state_store = EventConsumerStateStore(category=state_category)
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
 
         category_name = data.random_event_category_name()
         stream_1_name = data.random_event_stream_name()

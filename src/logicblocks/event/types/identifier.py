@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import Generic, Literal, TypedDict, TypeVar
 
 from . import default_serialisation_fallback
 from .json import JsonValue, JsonValueSerialisable
+
+Category = TypeVar("Category", default=str, bound=str, covariant=True)
 
 
 class Identifier(ABC, JsonValueSerialisable):
@@ -81,10 +83,10 @@ class LogPartitionIdentifier(EventSourceIdentifier):
 
 
 @dataclass(frozen=True)
-class CategoryIdentifier(EventSourceIdentifier):
+class CategoryIdentifier(EventSourceIdentifier, Generic[Category]):
     __hash__ = Identifier.__hash__
 
-    category: str
+    category: Category
 
     def serialise(
         self,
@@ -124,10 +126,10 @@ class CategoryPartitionIdentifier(EventSourceIdentifier):
 
 
 @dataclass(frozen=True)
-class StreamIdentifier(EventSourceIdentifier):
+class StreamIdentifier(EventSourceIdentifier, Generic[Category]):
     __hash__ = Identifier.__hash__
 
-    category: str
+    category: Category
     stream: str
 
     def serialise(

@@ -1,0 +1,58 @@
+name: Check, Test and Build
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "Runner type"
+        required: false
+        type: string
+        default: ubuntu-24.04-arm
+
+jobs:
+  check:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install tools
+        uses: ./.github/actions/asdf-cached-install
+
+      - name: Check
+        run: ./go library:check
+
+  test:
+    runs-on: ${{ inputs.runs-on }}
+    services:
+      postgres:
+        image: postgres:16.3
+        env:
+          POSTGRES_DB: some-database
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: super-secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install tools
+        uses: ./.github/actions/asdf-cached-install
+
+      - name: Test
+        run: ./go library:test:all
+
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install tools
+        uses: ./.github/actions/asdf-cached-install
+
+      - name: Build
+        run: ./go library:build

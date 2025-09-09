@@ -1,0 +1,9 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  ci:
+    uses: ./.github/workflows/check-test-build.yaml

@@ -19,14 +19,14 @@ from logicblocks.event.types import (
 from .types import EventConsumerStateConverter
 
 
-def _support_bare_last_sequence_number_for_backwards_compat(
-    state: JsonObject, maybe_last_sequence_number: JsonValue | None
+def _normalise_state_for_backwards_compat(
+    state: JsonObject | None, maybe_last_sequence_number: JsonValue | None
 ) -> JsonObject:
     """
-    Support bare last_sequence_number for backwards compatibility.
+    Support bare last_sequence_number and missing state for backwards compatibility.
     """
+    state = dict(state or {})
     if isinstance(maybe_last_sequence_number, int):
-        state = dict(state)
         state["last_sequence_number"] = maybe_last_sequence_number
 
     return state
@@ -48,10 +48,10 @@ class EventConsumerState(JsonValueConvertible):
             return fallback(cls, value)
 
         state = value.get("state", None)
-        if not is_json_object(state):
+        if state is not None and not is_json_object(state):
             return fallback(cls, value)
 
-        state = _support_bare_last_sequence_number_for_backwards_compat(
+        state = _normalise_state_for_backwards_compat(
             state, value.get("last_sequence_number", None)
         )
 

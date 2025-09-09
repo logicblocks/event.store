@@ -79,6 +79,56 @@ class TestEventConsumerStateStoreLoad:
             state={"last_sequence_number": 42, "extra": "state"}
         )
 
+    async def test_loads_initial_state_from_category_when_stored_on_top_level_with_none_state(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+        await state_category.stream(stream="default").publish(
+            events=[
+                NewEventBuilder()
+                .with_name("state-changed")
+                .with_payload({"last_sequence_number": 42, "state": None})
+                .build()
+            ]
+        )
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(state={"last_sequence_number": 42})
+
+    async def test_loads_initial_state_from_category_when_stored_on_top_level_with_missing_state(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+        await state_category.stream(stream="default").publish(
+            events=[
+                NewEventBuilder()
+                .with_name("state-changed")
+                .with_payload({"last_sequence_number": 42})
+                .build()
+            ]
+        )
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(state={"last_sequence_number": 42})
+
     async def test_returns_none_when_no_state_in_category(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
         state_category = event_store.category(

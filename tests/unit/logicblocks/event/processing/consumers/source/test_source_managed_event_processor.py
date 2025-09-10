@@ -46,7 +46,7 @@ class ThrowingEventProcessor[E: Event](ManagedEventIteratorProcessor[E]):
         raise self._error
 
 
-class TestEventSourceConsumerWithAutoCommitProcessor:
+class TestEventSourceConsumerWithManagedEventIteratorProcessor:
     async def test_consumes_all_events_on_first_consume(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
         state_category = event_store.category(

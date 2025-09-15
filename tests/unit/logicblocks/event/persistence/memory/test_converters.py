@@ -898,9 +898,16 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .with_state({"value_1": 25, "value_2": value_to_filter})
             .build()
         )
+        projection_4 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 25, "value_2": None})
+            .build()
+        )
 
         result_set = transformer(
-            ResultSet.of(projection_1, projection_2, projection_3)
+            ResultSet.of(
+                projection_1, projection_2, projection_3, projection_4
+            )
         )
 
         assert result_set.records == [projection_3]
@@ -941,9 +948,16 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .with_state({"value_1": 25, "value_2": value_to_filter})
             .build()
         )
+        projection_4 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 25, "value_2": None})
+            .build()
+        )
 
         result_set = transformer(
-            ResultSet.of(projection_1, projection_2, projection_3)
+            ResultSet.of(
+                projection_1, projection_2, projection_3, projection_4
+            )
         )
 
         assert result_set.records == [projection_1, projection_2]

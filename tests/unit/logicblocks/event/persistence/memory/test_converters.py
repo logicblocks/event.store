@@ -351,6 +351,94 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         assert result_set.records == [projection_1, projection_2]
 
+    def test_filter_is_null(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.IS_NULL, Path("state", "value_1"), None)
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder().with_state({"value_1": None}).build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder().with_state({"value_1": False}).build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder().with_state({"value_1": ""}).build()
+        )
+        projection_4 = (
+            MappingProjectionBuilder().with_state({"value_1": 0}).build()
+        )
+        projection_5 = (
+            MappingProjectionBuilder().with_state({"value_1": []}).build()
+        )
+
+        projection_6 = (
+            MappingProjectionBuilder().with_state({"value_1": "text"}).build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+                projection_6,
+            )
+        )
+
+        assert result_set.records == [projection_1]
+
+    def test_filter_is_not_null(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(
+            Operator.IS_NOT_NULL, Path("state", "value_1"), None
+        )
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder().with_state({"value_1": None}).build()
+        )
+        projection_2 = (
+            MappingProjectionBuilder().with_state({"value_1": False}).build()
+        )
+        projection_3 = (
+            MappingProjectionBuilder().with_state({"value_1": ""}).build()
+        )
+        projection_4 = (
+            MappingProjectionBuilder().with_state({"value_1": 0}).build()
+        )
+        projection_5 = (
+            MappingProjectionBuilder().with_state({"value_1": []}).build()
+        )
+
+        projection_6 = (
+            MappingProjectionBuilder().with_state({"value_1": "text"}).build()
+        )
+
+        result_set = transformer(
+            ResultSet.of(
+                projection_1,
+                projection_2,
+                projection_3,
+                projection_4,
+                projection_5,
+                projection_6,
+            )
+        )
+
+        assert result_set.records == [
+            projection_2,
+            projection_3,
+            projection_4,
+            projection_5,
+            projection_6,
+        ]
+
     def test_filter_on_non_existent_top_level_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
 

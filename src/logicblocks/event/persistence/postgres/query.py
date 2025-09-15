@@ -163,6 +163,16 @@ class Constant(Expression):
         return operand_sql, params
 
 
+@dataclass(frozen=True)
+class Raw(Expression):
+    sql: Any
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        return sql.SQL(self.sql), []
+
+
+null = Raw("NULL")
+
 type OrderByColumn = str | ColumnReference
 
 
@@ -182,15 +192,17 @@ class Operator(StrEnum):
     CONTAINS = "@>"
     REGEX_MATCHES = "~"
     NOT_REGEX_MATCHES = "!~"
+    IS_NULL = "IS"
+    IS_NOT_NULL = "IS NOT"
 
     @property
     def comparison_type(self) -> ComparisonType:
-        if (
-            self == Operator.REGEX_MATCHES
-            or self == Operator.NOT_REGEX_MATCHES
-        ):
+        if self in {Operator.REGEX_MATCHES, Operator.NOT_REGEX_MATCHES}:
             return ComparisonType.TEXT
         return ComparisonType.JSONB
+
+    def has_null_value(self) -> bool:
+        return self in {Operator.IS_NULL, Operator.IS_NOT_NULL}
 
 
 class SetQuantifier(StrEnum):

@@ -1030,3 +1030,91 @@ class TestPostgresQueryConverterQueryConversion:
             "%s",
             ["field", "regex.*"],
         )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_is_null_matches_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.IS_NULL,
+                    field=Path("state", "description"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path"("state", %s) IS NULL',
+            ["description"],
+        )
+
+    def test_converts_string_is_null_query_on_nested_attribute(self):
+        converter = query_converter_with_default_converters()
+        query = Search(
+            filters=[
+                FilterClause(
+                    operator=Operator.IS_NULL,
+                    field=Path("state", "field"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            "SELECT * FROM "
+            '"projections" WHERE '
+            '"jsonb_extract_path"("state", %s) IS NULL',
+            ["field"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_is_not_null_matches_filter_query_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.IS_NOT_NULL,
+                    field=Path("state", "description"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path"("state", %s) IS NOT NULL',
+            ["description"],
+        )
+
+    def test_converts_string_is_not_null_query_on_nested_attribute(self):
+        converter = query_converter_with_default_converters()
+        query = Search(
+            filters=[
+                FilterClause(
+                    operator=Operator.IS_NOT_NULL,
+                    field=Path("state", "field"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            "SELECT * FROM "
+            '"projections" WHERE '
+            '"jsonb_extract_path"("state", %s) IS NOT NULL',
+            ["field"],
+        )

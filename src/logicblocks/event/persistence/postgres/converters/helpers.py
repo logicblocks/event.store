@@ -53,7 +53,9 @@ def expression_for_field(
 def value_for_path(
     value: Any, path: genericquery.Path, operator: postgresquery.Operator
 ) -> postgresquery.Expression:
-    if path == genericquery.Path("source"):
+    if operator.has_null_value():
+        return postgresquery.null
+    elif path == genericquery.Path("source"):
         return postgresquery.Constant(
             Jsonb(value.serialise()),
         )

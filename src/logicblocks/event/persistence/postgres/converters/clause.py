@@ -34,7 +34,15 @@ class FilterClauseQueryApplier(QueryApplier):
         if self._operator not in self._operators:
             raise ValueError(f"Unsupported operator: {self._operator}")
 
-        return self._operators[self._operator]
+        operator = self._operators[self._operator]
+
+        match operator, self._value:
+            case (postgresquery.Operator.EQUALS, None):
+                return postgresquery.Operator.IS_NULL
+            case (postgresquery.Operator.NOT_EQUALS, None):
+                return postgresquery.Operator.IS_NOT_NULL
+            case _:
+                return operator
 
     @property
     def column(self) -> postgresquery.Expression:
@@ -46,8 +54,12 @@ class FilterClauseQueryApplier(QueryApplier):
     ) -> postgresquery.Expression | Sequence[postgresquery.Expression]:
         if is_multi_valued(self._value):
             return [
-                value_for_path(value, self._path, operator=self.operator)
-                for value in self._value
+                value
+                for value in [
+                    value_for_path(value, self._path, operator=self.operator)
+                    for value in self._value
+                ]
+                if value != postgresquery.empty
             ]
         else:
             return value_for_path(

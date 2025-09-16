@@ -39,6 +39,7 @@ class Thing(JsonValueConvertible):
     value_1: int
     value_2: str = ""
     value_3: list[str] = field(default_factory=list[str])
+    value_4: JsonValue | None = None
 
     @classmethod
     def deserialise(
@@ -63,6 +64,7 @@ class Thing(JsonValueConvertible):
             value_1=resolved["value_1"],
             value_2=resolved["value_2"],
             value_3=resolved["value_3"],
+            value_4=resolved["value_4"],
         )
 
     def serialise(
@@ -75,6 +77,7 @@ class Thing(JsonValueConvertible):
             "value_1": self.value_1,
             "value_2": self.value_2,
             "value_3": self.value_3,
+            "value_4": self.value_4,
         }
 
 
@@ -486,6 +489,71 @@ class FindManyCases(Base, ABC):
         )
 
         assert located == [projection_3, projection_4]
+
+    async def test_applies_null_filter(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=1, value_4=None))
+            .build()
+        )
+        await adapter.save(projection=projection_1)
+
+        for value in ["", [], {}, 0, False]:
+            await adapter.save(
+                projection=(
+                    ThingProjectionBuilder()
+                    .with_state(Thing(value_1=1, value_4=value))
+                    .build()
+                )
+            )
+
+        located = await adapter.find_many(
+            search=Search(
+                filters=[
+                    FilterClause(
+                        Operator.EQUAL, Path("state", "value_4"), None
+                    )
+                ]
+            ),
+            state_type=Thing,
+        )
+
+        assert located == [projection_1]
+
+    async def test_applies_not_filter(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=1, value_4=None))
+            .build()
+        )
+        await adapter.save(projection=projection_1)
+
+        other_projections = []
+        for value in ["", [], {}, 0, False]:
+            projection = (
+                ThingProjectionBuilder()
+                .with_state(Thing(value_1=1, value_4=value))
+                .build()
+            )
+            await adapter.save(projection=projection)
+            other_projections.append(projection)
+
+        located = await adapter.find_many(
+            search=Search(
+                filters=[
+                    FilterClause(
+                        Operator.NOT_EQUAL, Path("state", "value_4"), None
+                    )
+                ]
+            ),
+            state_type=Thing,
+        )
+
+        assert located == other_projections
 
     async def test_applies_simple_sorting(self):
         adapter = self.construct_storage_adapter()

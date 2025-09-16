@@ -161,7 +161,7 @@ class TestPostgresQueryConverterQueryConversion:
         converted = converter.convert_query(query)
 
         assert parameterised_query_to_string(converted) == (
-            'SELECT * FROM "projections" WHERE "id" = NULL',
+            'SELECT * FROM "projections" WHERE "id" IS NULL ',
             [],
         )
 
@@ -184,7 +184,51 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) = NULL',
+            'WHERE "jsonb_extract_path_text"("state", %s) IS NULL ',
+            ["value"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_none_values_to_not_null_on_top_level_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.NOT_EQUAL, field=Path("id"), value=None
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" WHERE "id" IS NOT NULL ',
+            [],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_none_values_to_not_null_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.NOT_EQUAL,
+                    field=Path("state", "value"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path_text"("state", %s) IS NOT NULL ',
             ["value"],
         )
 
@@ -1094,7 +1138,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) IS NULL',
+            'WHERE "jsonb_extract_path_text"("state", %s) IS NULL ',
             ["description"],
         )
 
@@ -1115,7 +1159,7 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             "SELECT * FROM "
             '"projections" WHERE '
-            '"jsonb_extract_path"("state", %s) IS NULL',
+            '"jsonb_extract_path_text"("state", %s) IS NULL ',
             ["field"],
         )
 
@@ -1138,7 +1182,7 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) IS NOT NULL',
+            'WHERE "jsonb_extract_path_text"("state", %s) IS NOT NULL ',
             ["description"],
         )
 
@@ -1159,6 +1203,6 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             "SELECT * FROM "
             '"projections" WHERE '
-            '"jsonb_extract_path"("state", %s) IS NOT NULL',
+            '"jsonb_extract_path_text"("state", %s) IS NOT NULL ',
             ["field"],
         )

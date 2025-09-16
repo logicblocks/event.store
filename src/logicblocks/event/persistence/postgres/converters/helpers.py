@@ -53,9 +53,6 @@ def expression_for_field(
 def value_for_nested_path(
     value: Any, path: genericquery.Path, operator: postgresquery.Operator
 ) -> postgresquery.Expression:
-    if value is None:
-        return postgresquery.null
-
     expression = postgresquery.Constant(value)
     if isinstance(value, str):
         expression = postgresquery.Cast(expression=expression, typename="text")
@@ -65,29 +62,22 @@ def value_for_nested_path(
     )
 
 
-def get_value_constant(value: Any) -> postgresquery.Expression:
-    if value is None:
-        return postgresquery.null
-
-    return postgresquery.Constant(value)
-
-
 def value_for_path(
     value: Any, path: genericquery.Path, operator: postgresquery.Operator
 ) -> postgresquery.Expression:
-    if operator.has_null_value():
-        return postgresquery.null
+    if not operator.has_value():
+        return postgresquery.empty
     elif path == genericquery.Path("source"):
         return postgresquery.Constant(
             Jsonb(value.serialise()),
         )
     elif path.is_nested():
         if operator.comparison_type == postgresquery.ComparisonType.TEXT:
-            return get_value_constant(value)
+            return postgresquery.Constant(value)
         else:
             return value_for_nested_path(value, path, operator)
     else:
-        return get_value_constant(value)
+        return postgresquery.Constant(value)
 
 
 def is_multi_valued(value: Any) -> TypeGuard[Sequence[Any]]:

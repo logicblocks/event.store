@@ -50,6 +50,28 @@ def expression_for_field(
             raise ValueError(f"Unsupported field type: {type(field)}")
 
 
+def value_for_nested_path(
+    value: Any, path: genericquery.Path, operator: postgresquery.Operator
+) -> postgresquery.Expression:
+    if value is None:
+        return postgresquery.null
+
+    expression = postgresquery.Constant(value)
+    if isinstance(value, str):
+        expression = postgresquery.Cast(expression=expression, typename="text")
+
+    return postgresquery.FunctionApplication(
+        function_name="to_jsonb", arguments=[expression]
+    )
+
+
+def get_value_constant(value: Any) -> postgresquery.Expression:
+    if value is None:
+        return postgresquery.null
+
+    return postgresquery.Constant(value)
+
+
 def value_for_path(
     value: Any, path: genericquery.Path, operator: postgresquery.Operator
 ) -> postgresquery.Expression:
@@ -61,18 +83,11 @@ def value_for_path(
         )
     elif path.is_nested():
         if operator.comparison_type == postgresquery.ComparisonType.TEXT:
-            return postgresquery.Constant(value)
+            return get_value_constant(value)
         else:
-            expression = postgresquery.Constant(value)
-            if isinstance(value, str):
-                expression = postgresquery.Cast(
-                    expression=expression, typename="text"
-                )
-            return postgresquery.FunctionApplication(
-                function_name="to_jsonb", arguments=[expression]
-            )
+            return value_for_nested_path(value, path, operator)
     else:
-        return postgresquery.Constant(value)
+        return get_value_constant(value)
 
 
 def is_multi_valued(value: Any) -> TypeGuard[Sequence[Any]]:

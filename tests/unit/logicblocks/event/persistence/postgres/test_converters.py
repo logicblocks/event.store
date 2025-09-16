@@ -145,6 +145,50 @@ class TestPostgresQueryConverterQueryConversion:
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_none_values_to_null_on_top_level_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.EQUAL, field=Path("id"), value=None
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" WHERE "id" = NULL',
+            [],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_none_values_to_null_on_nested_attribute(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.EQUAL,
+                    field=Path("state", "value"),
+                    value=None,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            'WHERE "jsonb_extract_path"("state", %s) = NULL',
+            ["value"],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
     def test_converts_list_of_strings_filter_query_on_nested_attribute(
         self, query_type
     ):

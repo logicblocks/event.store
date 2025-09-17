@@ -19,8 +19,6 @@ class Operator(StrEnum):
     CONTAINS = "contains"
     REGEX_MATCHES = "regex_matches"
     NOT_REGEX_MATCHES = "not_regex_matches"
-    IS_NULL = "is_null"
-    IS_NOT_NULL = "is_not_null"
 
 
 class SortOrder(StrEnum):

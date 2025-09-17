@@ -95,8 +95,6 @@ class FilterClauseConverter(ClauseConverter[genericquery.FilterClause]):
                 genericquery.Operator.CONTAINS: postgresquery.Operator.CONTAINS,
                 genericquery.Operator.REGEX_MATCHES: postgresquery.Operator.REGEX_MATCHES,
                 genericquery.Operator.NOT_REGEX_MATCHES: postgresquery.Operator.NOT_REGEX_MATCHES,
-                genericquery.Operator.IS_NULL: postgresquery.Operator.IS_NULL,
-                genericquery.Operator.IS_NOT_NULL: postgresquery.Operator.IS_NOT_NULL,
             }
         )
 

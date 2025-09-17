@@ -82,10 +82,6 @@ class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
                 return resolved_value is not None and not regex_matches(
                     comparison_value, resolved_value
                 )
-            case Operator.IS_NULL:
-                return resolved_value is None
-            case Operator.IS_NOT_NULL:
-                return resolved_value is not None
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown operator: {clause.operator}.")
 

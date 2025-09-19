@@ -221,6 +221,34 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
 
         assert result_set.records == [projection_1]
 
+    def test_filter_equal_with_none(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("state", "value_1"), None)
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": None, "value_2": "text"})
+            .build()
+        )
+
+        other_projections = [
+            (
+                MappingProjectionBuilder()
+                .with_state({"value_1": value, "value_2": "text"})
+                .build()
+            )
+            for value in ["", [], {}, 0, False]
+        ]
+
+        result_set = transformer(
+            ResultSet.of(projection_1, *other_projections)
+        )
+
+        assert result_set.records == [projection_1]
+
     def test_filter_not_equal(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()
 
@@ -242,6 +270,36 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
         result_set = transformer(ResultSet.of(projection_1, projection_2))
 
         assert result_set.records == [projection_2]
+
+    def test_filter_not_equal_with_none(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(
+            Operator.NOT_EQUAL, Path("state", "value_1"), None
+        )
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": None, "value_2": "text"})
+            .build()
+        )
+
+        other_projections = [
+            (
+                MappingProjectionBuilder()
+                .with_state({"value_1": value, "value_2": "text"})
+                .build()
+            )
+            for value in ["", [], {}, 0, False]
+        ]
+
+        result_set = transformer(
+            ResultSet.of(projection_1, *other_projections)
+        )
+
+        assert result_set.records == other_projections
 
     def test_filter_greater_than(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()

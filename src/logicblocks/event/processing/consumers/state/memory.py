@@ -14,7 +14,7 @@ class StoredEventEventConsumerStateConverter(
 
     def initial_state(self) -> JsonObject:
         return {
-            "last_sequence_number": -1,
+            "last_sequence_number": None,
         }
 
     def state_to_query_constraint(

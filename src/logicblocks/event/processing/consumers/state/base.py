@@ -111,6 +111,21 @@ class EventConsumerStateStore[E: Event]:
 
         return EventConsumerState(combined_state)
 
+    def reset(
+        self,
+        *,
+        extra_state: JsonObject | None = None,
+        partition: str = "default",
+    ):
+        initial_state = self._converter.initial_state()
+        combined_state = {
+            **initial_state,
+            **(extra_state or {}),
+        }
+
+        self._states[partition] = EventConsumerState(combined_state)
+        self._persistence_lags[partition] = EventCount(0)
+
     async def save_if_needed(self, *, partition: str = "default") -> None:
         if (
             self._persistence_interval

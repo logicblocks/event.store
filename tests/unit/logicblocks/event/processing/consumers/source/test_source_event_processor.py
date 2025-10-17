@@ -134,6 +134,61 @@ class TestEventSourceConsumerWithEventProcessor:
             *publish_3_events,
         ]
 
+    async def test_consumes_all_events_on_subsequent_consumes_when_reset(self):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+
+        category_name = data.random_event_category_name()
+        stream_1_name = data.random_event_stream_name()
+        stream_2_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+
+        processor = CapturingEventProcessor()
+
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=state_store,
+        )
+
+        stream_1 = event_store.stream(
+            category=category_name, stream=stream_1_name
+        )
+        stream_2 = event_store.stream(
+            category=category_name, stream=stream_2_name
+        )
+
+        publish_1_events = await stream_1.publish(
+            events=[NewEventBuilder().build()]
+        )
+        publish_2_events = await stream_2.publish(
+            events=[NewEventBuilder().build()]
+        )
+
+        await consumer.consume_all()
+
+        publish_3_events = await stream_1.publish(
+            events=[NewEventBuilder().build()]
+        )
+
+        state_store.reset()
+        await consumer.consume_all()
+
+        assert processor.processed_events == [
+            *publish_1_events,
+            *publish_2_events,
+            *publish_1_events,
+            *publish_2_events,
+            *publish_3_events,
+        ]
+
     async def test_doesnt_reprocess_already_processed_events_on_restart_when_save_state_after_consumption_true(
         self,
     ):

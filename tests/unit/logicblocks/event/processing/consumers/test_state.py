@@ -292,6 +292,102 @@ class TestEventConsumerStateStoreRecordProcessed:
         )
 
 
+class TestEventConsumerStateStoreReset:
+    async def test_resets_to_initial_state(self):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_store = EventConsumerStateStore(
+            category=event_store.category(
+                category=data.random_event_category_name(),
+            ),
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+
+        for seq_num in range(1, 6):
+            state_store.record_processed(
+                event=StoredEventBuilder()
+                .with_sequence_number(seq_num)
+                .build()
+            )
+
+        state_store.reset()
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(state={"last_sequence_number": 0})
+
+    async def test_captures_extra_state(self):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_store = EventConsumerStateStore(
+            category=event_store.category(
+                category=data.random_event_category_name(),
+            ),
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+
+        for seq_num in range(1, 6):
+            state_store.record_processed(
+                event=StoredEventBuilder()
+                .with_sequence_number(seq_num)
+                .build()
+            )
+
+        state_store.reset(extra_state={"extra": "state"})
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(
+            state={
+                "last_sequence_number": 0,
+                "extra": "state",
+            },
+        )
+
+    async def test_resets_per_partition(self):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_store = EventConsumerStateStore(
+            category=event_store.category(
+                category=data.random_event_category_name(),
+            ),
+            converter=StoredEventEventConsumerStateConverter(),
+            persistence_interval=EventCount(10),
+        )
+
+        partition_1 = "a"
+        partition_2 = "b"
+
+        for seq_num in range(1, 6):
+            state_store.record_processed(
+                event=StoredEventBuilder()
+                .with_sequence_number(seq_num)
+                .build(),
+                extra_state={"some": "state-a"},
+                partition=partition_1,
+            )
+            state_store.record_processed(
+                event=StoredEventBuilder()
+                .with_sequence_number(seq_num)
+                .build(),
+                extra_state={"some": "state-b"},
+                partition=partition_2,
+            )
+
+        state_store.reset(
+            partition=partition_1, extra_state={"some": "state-a"}
+        )
+
+        state_1 = await state_store.load(partition=partition_1)
+        state_2 = await state_store.load(partition=partition_2)
+
+        assert state_1 == EventConsumerState(
+            state={"last_sequence_number": 0, "some": "state-a"}
+        )
+        assert state_2 == EventConsumerState(
+            state={"last_sequence_number": 5, "some": "state-b"}
+        )
+
+
 class TestEventConsumerStateStoreSave:
     async def test_stores_state_immediately_for_default_partition(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())

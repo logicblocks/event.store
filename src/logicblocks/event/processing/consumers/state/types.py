@@ -10,6 +10,10 @@ class EventConsumerStateConverter[E: Event](ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def initial_state(self) -> JsonObject:
+        raise NotImplementedError()
+
+    @abstractmethod
     def state_to_query_constraint(
         self, state: JsonObject
     ) -> constraints.QueryConstraint | None:

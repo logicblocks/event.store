@@ -314,7 +314,7 @@ class TestEventConsumerStateStoreReset:
 
         state = await state_store.load()
 
-        assert state == EventConsumerState(state={"last_sequence_number": 0})
+        assert state == EventConsumerState(state={"last_sequence_number": -1})
 
     async def test_captures_extra_state(self):
         event_store = EventStore(adapter=InMemoryEventStorageAdapter())
@@ -339,7 +339,7 @@ class TestEventConsumerStateStoreReset:
 
         assert state == EventConsumerState(
             state={
-                "last_sequence_number": 0,
+                "last_sequence_number": -1,
                 "extra": "state",
             },
         )
@@ -381,7 +381,7 @@ class TestEventConsumerStateStoreReset:
         state_2 = await state_store.load(partition=partition_2)
 
         assert state_1 == EventConsumerState(
-            state={"last_sequence_number": 0, "some": "state-a"}
+            state={"last_sequence_number": -1, "some": "state-a"}
         )
         assert state_2 == EventConsumerState(
             state={"last_sequence_number": 5, "some": "state-b"}

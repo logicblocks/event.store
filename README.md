@@ -157,55 +157,55 @@ Development
 To run the full pre-commit build:
 
 ```shell
-./go
+mise run
 ```
 
 To run tests:
 
 ```shell
-./go library:test:all          # all tests
-./go library:test:unit         # unit tests
-./go library:test:integration  # integration tests
-./go library:test:component  # integration tests
+mise test              # all tests
+mise test:unit         # unit tests
+mise test:integration  # integration tests
+mise test:component    # integration tests
 ```
 
 The unit, integration and component tests can be run with a filter option 
 allowing running a subset of tests in the suite, for example:
 ```shell
-./go library:test:unit[TestAllTestsInFile]
-./go library:test:component[test_a_specific_test]
+mise test:unit [TestAllTestsInFile]
+mise test:component [test_a_specific_test]
 ```
 
 To perform linting:
 
 ```shell
-./go library:lint:check  # check linting rules are met
-./go library:lint:fix    # attempt to fix linting issues
+mise lint:check  # check linting rules are met
+mise lint:fix    # attempt to fix linting issues
 ```
 
 To format code:
 
 ```shell
-./go library:format:check  # check code formatting
-./go library:format:fix    # attempt to fix code formatting
+mise format:check  # check code formatting
+mise format:fix    # attempt to fix code formatting
 ```
 
 To run type checking:
 
 ```shell
-./go library:type:check  # check type hints
+mise types:check  # check type hints
 ```
 
 To build packages:
 
 ```shell
-./go library:build
+mise build
 ```
 
 To see all available tasks:
 
 ```shell
-./go -T
+mise tasks ls
 ```
 
 Contributing

@@ -21,7 +21,7 @@ jobs:
           experimental: 'true'
 
       - name: Check
-        run: ./go library:check
+        run: mise run check
 
   test:
     runs-on: ${{ inputs.runs-on }}
@@ -48,7 +48,7 @@ jobs:
           experimental: 'true'
 
       - name: Test
-        run: ./go library:test:all
+        run: mise run test
 
   build:
     runs-on: ${{ inputs.runs-on }}
@@ -61,4 +61,4 @@ jobs:
           experimental: 'true'
 
       - name: Build
-        run: ./go library:build
+        run: mise build

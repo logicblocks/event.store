@@ -13,7 +13,7 @@ def pytest_with_coverage(
 ):
     tests_path = tests_dir / suite
 
-    coverage_dir = reports_dir / "coveraege"
+    coverage_dir = reports_dir / "coverage"
 
     junit_xml = reports_dir / f"{suite}.junit.xml"
     coverage_xml = coverage_dir / f"coverage.{suite}.xml"

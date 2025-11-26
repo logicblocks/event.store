@@ -88,10 +88,10 @@ run = "poetry run mkdocs serve"
 run = "poetry run mkdocs build"
 
 [tasks."changelog:fragment:create"]
-run = "poetry run scrive create"
+run = "poetry run scriv create"
 
 [tasks."changelog:assemble"]
-run = "poetry run scrive collect"
+run = "poetry run scriv collect"
 
 [tasks.prerelease]
 run = "poetry run invoke prerelease"

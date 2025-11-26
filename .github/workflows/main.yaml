@@ -27,7 +27,9 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Authenticate with PyPi
         run: ./go poetry:login_to_pypi[${{ secrets.PYPI_API_KEY }}]
@@ -65,7 +67,9 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Authenticate with PyPi
         run: ./go poetry:login_to_pypi[${{ secrets.PYPI_API_KEY }}]

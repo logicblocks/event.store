@@ -25,11 +25,8 @@ function loose_version() {
 
 function read_version() {
   local tool="$1"
-  local tool_versions
 
-  tool_versions="$(cat "$project_dir"/.tool-versions)"
-
-  echo "$tool_versions" | grep "$tool" | cut -d ' ' -f 2
+  echo $(mise tool ${tool} --requested)
 }
 
 ruby_full_version="$(read_version "ruby")"

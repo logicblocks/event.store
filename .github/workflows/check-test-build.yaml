@@ -16,7 +16,9 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Check
         run: ./go library:check
@@ -41,7 +43,9 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Test
         run: ./go library:test:all
@@ -52,7 +56,9 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Build
         run: ./go library:build

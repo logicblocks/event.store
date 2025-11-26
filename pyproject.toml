@@ -61,7 +61,7 @@ changelog-assemble = "scriv collect"
 args = [{ name = "filter", options = ["--filter"], default = "" }]
 shell = """
   mkdir -p reports/coverage/unit
-  pytest -vv tests/unit \
+  pytest tests/unit \
     --junitxml=./reports/unit.junit.xml \
     --cov-report=xml:./reports/coverage/unit/coverage.xml \
     --cov-report=html:./reports/coverage/unit \
@@ -77,7 +77,7 @@ args = [{ name = "filter", options = ["--filter"], default = "" }]
 envfile = "config/test.env"
 shell = """
   mkdir -p reports/coverage/integration
-  pytest -vv tests/integration \
+  pytest tests/integration \
     --junitxml=./reports/integration.junit.xml \
     --cov-report=xml:./reports/coverage/integration/coverage.xml \
     --cov-report=html:./reports/coverage/integration \
@@ -93,7 +93,7 @@ args = [{ name = "filter", options = ["--filter"], default = "" }]
 envfile = "config/test.env"
 shell = """
   mkdir -p reports/coverage/component
-  pytest -vv tests/component \
+  pytest tests/component \
     --junitxml=./reports/component.junit.xml \
     --cov-report=xml:./reports/coverage/component/coverage.xml \
     --cov-report=html:./reports/coverage/component \

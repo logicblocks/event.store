@@ -74,25 +74,24 @@
 - Write a test at a time, focusing on one aspect of functionality and only move 
   on to the next when the current test passes
 - Test commands:
-  - `./go library:test:unit` for unit tests
-  - `./go library:test:unit[TestClassName]` for specific unit test class
-  - `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" ./go library:test:integration` 
-    for integration tests
-  - `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" ./go library:test:integration[TestClassName]` 
+  - `mise run test:unit` for unit tests
+  - `mise run test:unit[TestClassName]` for specific unit test class
+  - `mise run test:integration` for integration tests
+  - `mise run test:integration[TestClassName]` 
     for specific integration test class
-  - `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" ./go library:test:component`
+  - `mise run test:component`
     for component tests
 - Code quality commands:
-  - `./go library:lint:fix` for linting
-  - `./go library:format:fix` for formatting
-  - `./go library:type:check` for type checking
+  - `mise run lint:fix` for linting
+  - `mise run format:fix` for formatting
+  - `mise run type:check` for type checking
 - Build commands:
-  - `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" ./go` for full 
+  - `mise run` for full 
     build (linting, type checking, formatting, building, and all tests)
-  - `./go library:build` for library build only
+  - `mise run build` for library build only
 - Changelog commands:
-  - `poetry run poe changelog-fragment-create` to generate a changelog fragment
-  - `poetry run poe changelog-assemble` to assemble changelog fragments into the
+  - `mise run changelog:fragment:create` to generate a changelog fragment
+  - `mise run changelog:assemble` to assemble changelog fragments into the
     CHANGELOG.md file
 
 ### Test Structure

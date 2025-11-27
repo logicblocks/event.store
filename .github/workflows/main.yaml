@@ -27,22 +27,14 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
-
-      - name: Authenticate with PyPi
-        run: ./go poetry:login_to_pypi[${{ secrets.PYPI_API_KEY }}]
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Publish
-        run: ./go library:publish:prerelease
-
-      - name: Configure git Author
-        run: ./go repository:set_ci_author
-
-      - name: Commit Release
-        run: ./go repository:commit_release
-
-      - name: Push Release Commit
-        run: ./go repository:push
+        run: mise run prerelease
+        env:
+          PYPI_API_KEY: ${{ secrets.PYPI_API_KEY }}
 
   release:
     runs-on: ubuntu-24.04-arm
@@ -65,19 +57,11 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install tools
-        uses: ./.github/actions/asdf-cached-install
-
-      - name: Authenticate with PyPi
-        run: ./go poetry:login_to_pypi[${{ secrets.PYPI_API_KEY }}]
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
 
       - name: Publish
-        run: ./go library:publish:release
-
-      - name: Configure git Author
-        run: ./go repository:set_ci_author
-
-      - name: Commit Release
-        run: ./go repository:commit_release
-
-      - name: Push Release Commit
-        run: ./go repository:push
+        run: mise run release
+        env:
+          PYPI_API_KEY: ${{ secrets.PYPI_API_KEY }}

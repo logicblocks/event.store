@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any
 
-from structlog.typing import ExcInfo, FilteringBoundLogger
+from structlog.typing import Context, ExcInfo, FilteringBoundLogger
 
 type OptionalExceptionInfo = ExcInfo | tuple[None, None, None] | None
 
@@ -30,9 +30,6 @@ class LogEvent:
 
 
 class CapturingLogger(FilteringBoundLogger):
-    events: list[LogEvent] = []
-    _context: dict[str, Any] = {}
-
     def find_events(
         self, event: str, filter: Callable[[LogEvent], bool] = lambda _: True
     ) -> Sequence[LogEvent]:
@@ -66,51 +63,55 @@ class CapturingLogger(FilteringBoundLogger):
         log_level: int = LogLevel.NOTSET,
     ):
         self.events = events
-        self._context = context
-        self._log_level = log_level
+        self.context = context
+        self.log_level = log_level
+
+    @property
+    def _context(self) -> Context:
+        return self.context
 
     def bind(self, **new_values: Any) -> FilteringBoundLogger:
-        context = dict(self._context)
+        context = dict(self.context)
         context.update(new_values)
 
-        return CapturingLogger(self.events, context, self._log_level)
+        return CapturingLogger(self.events, context, self.log_level)
 
     def unbind(self, *keys: str) -> FilteringBoundLogger:
-        context = dict(self._context)
+        context = dict(self.context)
         for key in keys:
             if key not in context:
                 raise KeyError(f"No such binding: {key}")
             context.pop(key)
 
-        return CapturingLogger(self.events, context, self._log_level)
+        return CapturingLogger(self.events, context, self.log_level)
 
     def try_unbind(self, *keys: str) -> FilteringBoundLogger:
-        context = dict(self._context)
+        context = dict(self.context)
         for key in keys:
             if key not in context:
                 continue
             context.pop(key)
 
-        return CapturingLogger(self.events, context, self._log_level)
+        return CapturingLogger(self.events, context, self.log_level)
 
     def new(self, **new_values: Any) -> FilteringBoundLogger:
         context = {}
         context.update(new_values)
 
-        return CapturingLogger(self.events, context, self._log_level)
+        return CapturingLogger(self.events, context, self.log_level)
 
     def is_enabled_for(self, level: int) -> bool:
-        return level >= self._log_level
+        return level >= self.log_level
 
     def get_effective_level(self) -> int:
-        return self._log_level
+        return self.log_level
 
     def debug(self, event: str, *args: Any, **kw: Any) -> Any:
         self.events.append(
             LogEvent(
                 event=event,
                 level=LogLevel.DEBUG,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -122,7 +123,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.DEBUG,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -135,7 +136,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.INFO,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -147,7 +148,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.INFO,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -160,7 +161,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.WARNING,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -172,7 +173,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.WARNING,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -185,7 +186,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.WARNING,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -197,7 +198,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.WARNING,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -210,7 +211,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.ERROR,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -222,7 +223,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.ERROR,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -235,7 +236,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.ERROR,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -247,7 +248,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.CRITICAL,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -259,7 +260,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.CRITICAL,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -272,7 +273,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.ERROR,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=sys.exc_info(),
@@ -284,7 +285,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.ERROR,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=sys.exc_info(),
@@ -297,7 +298,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.CRITICAL,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -309,7 +310,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.CRITICAL,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -322,7 +323,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.NOTSET,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -334,7 +335,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel.NOTSET,
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,
@@ -347,7 +348,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel(level),
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=False,
                 exc_info=None,
@@ -359,7 +360,7 @@ class CapturingLogger(FilteringBoundLogger):
             LogEvent(
                 event=event,
                 level=LogLevel(level),
-                context={**self._context, **kw},
+                context={**self.context, **kw},
                 args=args,
                 is_async=True,
                 exc_info=None,

@@ -9,44 +9,40 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-
-[tool.poetry]
-packages = [
-    { include = "logicblocks", from = "src" },
+dependencies = [
+    "psycopg[binary,pool]>=3.2.3,<4",
+    "uvloop>=0.21.0,<0.22",
+    "pyheck>=0.1.5,<0.2",
+    "structlog>=25.1.0,<26",
+    "rich>=14.0.0,<15",
+    "aiologic>=0.14.0,<0.15",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.13,<4.0"
-psycopg = { extras = ["binary", "pool"], version = "^3.2.3" }
-uvloop = "^0.21.0"
-pyheck = "^0.1.5"
-structlog = "^25.1.0"
-rich = "^14.0.0"
-aiologic = "^0.14.0"
-
-[tool.poetry.group.dev.dependencies]
-coverage = "^7.6.10"
-junitparser = "^3.2.0"
-pyright = { extras = ["nodejs"], version = "^1.1.391" }
-pytest = "^8.3.4"
-pytest-asyncio = "^0.26.0"
-pytest-cov = "^6.0.0"
-pytest-diff = "^0.1.14"
-pytest-pretty = "^1.2.0"
-pytest-repeat = "^0.9.3"
-pytest-unordered = "^0.6.1"
-ruff = "^0.11.0"
-
-[tool.poetry.group.build.dependencies]
-invoke = "^2.2.1"
-
-[tool.poetry.group.changelog.dependencies]
-scriv = "^1.5.1"
-
-[tool.poetry.group.docs.dependencies]
-mkdocs-material = "^9.5.47"
-mkdocstrings = { extras = ["python"], version = "^0.29.0" }
-black = "^25.1.0"
+[dependency-groups]
+dev = [
+    "coverage>=7.6.10,<8",
+    "junitparser>=3.2.0,<4",
+    "pyright[nodejs]>=1.1.391,<2",
+    "pytest>=8.3.4,<9",
+    "pytest-asyncio>=0.26.0,<0.27",
+    "pytest-cov>=6.0.0,<7",
+    "pytest-diff>=0.1.14,<0.2",
+    "pytest-pretty>=1.2.0,<2",
+    "pytest-repeat>=0.9.3,<0.10",
+    "pytest-unordered>=0.6.1,<0.7",
+    "ruff>=0.11.0,<0.12",
+]
+build = [
+    "invoke>=2.2.1,<3",
+]
+changelog = [
+    "scriv>=1.5.1,<2",
+]
+docs = [
+    "mkdocs-material>=9.5.47,<10",
+    "mkdocstrings[python]>=0.29.0,<0.30",
+    "black>=25.1.0,<26",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests/shared"]
@@ -122,9 +118,15 @@ reportUntypedFunctionDecorator = "error"
 reportUntypedNamedTuple = "error"
 
 [tool.scriv]
-version = "literal: pyproject.toml: tool.poetry.version"
+version = "literal: pyproject.toml: project.version"
 format = "md"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/logicblocks"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/logicblocks"]
+
 [build-system]
-requires = ["poetry-core>=2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

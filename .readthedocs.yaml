@@ -6,9 +6,9 @@ build:
     python: "3.13"
   jobs:
     post_create_environment:
-      - pip install poetry
+      - pip install uv
     post_install:
-      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install --with docs
+      - uv sync --group docs
 
 mkdocs:
   configuration: mkdocs.yml

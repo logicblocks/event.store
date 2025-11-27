@@ -59,9 +59,9 @@ profile = projector.project({}, stream.read())
 ::: logicblocks.event.store.EventStore
 ::: logicblocks.event.store.EventCategory
 ::: logicblocks.event.store.EventStream
-::: logicblocks.event.store.adapters.StorageAdapter
-::: logicblocks.event.store.adapters.InMemoryStorageAdapter
-::: logicblocks.event.store.adapters.PostgresStorageAdapter
+::: logicblocks.event.store.adapters.EventStorageAdapter
+::: logicblocks.event.store.adapters.memory.InMemoryEventStorageAdapter
+::: logicblocks.event.store.adapters.postgres.PostgresEventStorageAdapter
 ::: logicblocks.event.store.conditions.WriteCondition
 ::: logicblocks.event.store.conditions.PositionIsCondition
 ::: logicblocks.event.store.conditions.EmptyStreamCondition
@@ -70,12 +70,12 @@ profile = projector.project({}, stream.read())
 
 ### ::: logicblocks.event.types
 
-::: logicblocks.event.types.identifier.Log
-::: logicblocks.event.types.identifier.Category
-::: logicblocks.event.types.identifier.Stream
-::: logicblocks.event.types.NewEvent
-::: logicblocks.event.types.StoredEvent
-::: logicblocks.event.types.Projection
+::: logicblocks.event.types.identifier.LogIdentifier
+::: logicblocks.event.types.identifier.CategoryIdentifier
+::: logicblocks.event.types.identifier.StreamIdentifier
+::: logicblocks.event.types.event.NewEvent
+::: logicblocks.event.types.event.StoredEvent
+::: logicblocks.event.types.projection.Projection
 
 ### ::: logicblocks.event.projection
 

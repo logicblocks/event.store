@@ -9,14 +9,14 @@ def prerelease(context: Context):
     git.set_author(context)
     package.publish(context)
     git.tag_version(context)
-    version.bump_and_push(context, type="prerelease")
+    version.bump_and_push(context, type=["alpha"])
 
 
 @task
 def release(context: Context):
     """Release release version of library."""
     git.set_author(context)
-    version.bump_and_push(context, type="patch")
+    version.bump_and_push(context, type=["patch"])
     package.publish(context)
     git.tag_version(context)
-    version.bump_and_push(context, type="prepatch")
+    version.bump_and_push(context, type=["patch", "alpha"])

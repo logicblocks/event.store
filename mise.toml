@@ -3,6 +3,7 @@ _.python.venv = ".venv"
 FORCE_COLOR = "1"
 
 [settings]
+python.uv_venv_auto = true
 experimental = true
 
 [hooks]
@@ -14,39 +15,37 @@ uv = "0.9.12"
 watchexec = "2.3.2"
 
 [tasks."dependencies:install"]
-sources = ["pyproject.toml", "uv.lock"]
-run = "uv run invoke deps.install"
+run = "invoke deps.install"
 
 [tasks.build]
 depends = ["dependencies:install"]
 sources = ["src/**/*"]
-run = "uv run invoke build"
-
+run = "invoke build"
 
 [tasks."lint:check"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke lint.check"
+run = "invoke lint.check"
 
 [tasks."lint:fix"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke lint.fix"
+run = "invoke lint.fix"
 
 [tasks."format:check"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke format.check"
+run = "invoke format.check"
 
 [tasks."format:fix"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke format.fix"
+run = "invoke format.fix"
 
 [tasks."types:check"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke types.check"
+run = "invoke types.check"
 
 [tasks."database:test:provision"]
 run = """
@@ -63,41 +62,41 @@ fi
 [tasks."test:unit"]
 depends = ["dependencies:install"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke test.unit"
+run = "invoke test.unit"
 
 [tasks."test:integration"]
 depends = ["dependencies:install", "database:test:provision"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke test.integration"
+run = "invoke test.integration"
 
 [tasks."test:component"]
 depends = ["dependencies:install", "database:test:provision"]
 wait_for = ["test:integration"]
 sources = ["src/**/*", "tests/**/*"]
-run = "uv run invoke test.component"
+run = "invoke test.component"
 
 [tasks."test:report"]
 depends = ["dependencies:install"]
 wait_for = ["test:unit", "test:integration", "test:component"]
-run = "uv run invoke test.report"
+run = "invoke test.report"
 
 [tasks."docs:serve"]
-run = "uv run invoke docs.serve"
+run = "invoke docs.serve"
 
 [tasks."docs:build"]
-run = "uv run invoke docs.build"
+run = "invoke docs.build"
 
 [tasks."changelog:fragment:create"]
-run = "uv run invoke changelog.create-fragment"
+run = "invoke changelog.create-fragment"
 
 [tasks."changelog:assemble"]
-run = "uv run invoke changelog.assemble"
+run = "invoke changelog.assemble"
 
 [tasks.prerelease]
-run = "uv run invoke prerelease"
+run = "invoke prerelease"
 
 [tasks.release]
-run = "uv run invoke release"
+run = "invoke release"
 
 [tasks.test]
 depends = ["test:unit", "test:integration", "test:component", "test:report"]

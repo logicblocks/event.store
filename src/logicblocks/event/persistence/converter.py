@@ -11,7 +11,9 @@ class TypeRegistryConverter[I, R](Converter[I, R], ABC):
         self,
         registry: Mapping[type[I], Converter[Any, R]] | None = None,
     ):
-        self._registry = dict(registry) if registry is not None else {}
+        self._registry: dict[type[I], Converter[Any, R]] = (
+            dict(registry) if registry is not None else {}
+        )
 
     def _register(
         self, item_type: type[I], converter: Converter[Any, R]

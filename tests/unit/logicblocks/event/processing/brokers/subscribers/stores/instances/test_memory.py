@@ -1,3 +1,7 @@
+from logicblocks.event.testsupport import (
+    DummyEventSubscriber,
+)
+
 from logicblocks.event.processing.broker.subscribers import (
     InMemoryEventSubscriberStore,
 )
@@ -5,9 +9,6 @@ from logicblocks.event.processing.broker.types import (
     EventSubscriberKey,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.testsupport import (
-    DummyEventSubscriber,
-)
 
 
 class TestInMemoryEventSubscriberStore:

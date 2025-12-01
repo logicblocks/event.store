@@ -2,15 +2,15 @@ import sys
 from collections.abc import Sequence
 
 import pytest
+from logicblocks.event.testcases.store.adapters import (
+    ConcurrencyParameters,
+    EventStorageAdapterCases,
+)
 
 from logicblocks.event.store.adapters import (
     EventSerialisationGuarantee,
     EventStorageAdapter,
     InMemoryEventStorageAdapter,
-)
-from logicblocks.event.testcases.store.adapters import (
-    ConcurrencyParameters,
-    EventStorageAdapterCases,
 )
 from logicblocks.event.types import StoredEvent, identifier
 

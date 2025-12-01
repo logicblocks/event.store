@@ -2,6 +2,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Self
 
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+
 from logicblocks.event.projection.store import (
     InMemoryProjectionStorageAdapter,
     ProjectionStore,
@@ -17,7 +19,6 @@ from logicblocks.event.query import (
     SortOrder,
 )
 from logicblocks.event.testing import BaseProjectionBuilder, data
-from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.types import (
     JsonValue,
     StreamIdentifier,

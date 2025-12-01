@@ -1,3 +1,5 @@
+from logicblocks.event.testlogging import CapturingLogger
+from logicblocks.event.testlogging.logger import LogLevel
 from pytest_unordered import unordered
 
 from logicblocks.event.processing import (
@@ -12,8 +14,6 @@ from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.testlogging import CapturingLogger
-from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import CategoryIdentifier
 
 

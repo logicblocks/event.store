@@ -1,3 +1,4 @@
+from typing import TypedDict, NotRequired
 import asyncio
 from collections import defaultdict
 from collections.abc import Sequence
@@ -5,6 +6,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Protocol, cast
 
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import (
+    CapturingEventSubscriber,
+    random_capturing_subscriber,
+)
 from pytest_unordered import unordered
 
 from logicblocks.event.processing import EventSubscriber
@@ -27,11 +33,6 @@ from logicblocks.event.processing.locks import (
 )
 from logicblocks.event.processing.process import ProcessStatus
 from logicblocks.event.testing import data
-from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.testsupport import (
-    CapturingEventSubscriber,
-    random_capturing_subscriber,
-)
 from logicblocks.event.types import (
     CategoryIdentifier,
     EventSourceIdentifier,
@@ -127,6 +128,18 @@ class NodeAwareEventSubscriptionStateStoreClass(Protocol):
     def __call__(self, node_id: str) -> EventSubscriptionStateStore: ...
 
 
+class DefaultEventSubscriptionCoordinatorParams(TypedDict):
+    node_id: str
+    lock_manager: LockManager
+    logger: CapturingLogger
+    subscriber_state_store: EventSubscriberStateStore
+    subscription_state_store: EventSubscriptionStateStore
+    subscriber_max_time_since_last_seen: NotRequired[timedelta]
+    distribution_interval: NotRequired[timedelta]
+    leadership_max_duration: NotRequired[timedelta]
+    leadership_attempt_interval: NotRequired[timedelta]
+
+
 def make_coordinator(
     subscriber_state_store_class: NodeAwareEventSubscriberStateStoreClass = InMemoryEventSubscriberStateStore,
     subscription_state_store_class: NodeAwareEventSubscriptionStateStoreClass = InMemoryEventSubscriptionStateStore,
@@ -142,7 +155,7 @@ def make_coordinator(
     subscription_state_store = subscription_state_store_class(node_id=node_id)
     lock_manager = InMemoryLockManager()
 
-    kwargs = {
+    kwargs: DefaultEventSubscriptionCoordinatorParams = {
         "node_id": node_id,
         "lock_manager": lock_manager,
         "logger": logger,

@@ -6,6 +6,16 @@ from collections.abc import AsyncIterator, Sequence
 
 import pytest
 import pytest_asyncio
+from logicblocks.event.testcases.store.adapters import (
+    ConcurrencyParameters,
+    EventStorageAdapterCases,
+)
+from logicblocks.event.testsupport import (
+    clear_table,
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from psycopg import AsyncConnection, abc, sql
 from psycopg.rows import class_row
 from psycopg_pool import AsyncConnectionPool
@@ -28,20 +38,10 @@ from logicblocks.event.store.adapters import (
     PostgresEventStorageAdapter,
     PostgresQuerySettings,
 )
-from logicblocks.event.testcases.store.adapters import (
-    ConcurrencyParameters,
-    EventStorageAdapterCases,
-)
 from logicblocks.event.testing import NewEventBuilder
 from logicblocks.event.testing.data import (
     random_event_category_name,
     random_event_stream_name,
-)
-from logicblocks.event.testsupport import (
-    clear_table,
-    connection_pool,
-    create_table,
-    drop_table,
 )
 from logicblocks.event.types import Converter, StoredEvent, identifier
 

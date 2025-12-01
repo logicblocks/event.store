@@ -60,6 +60,6 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
             return NotImplemented
 
         return (
-            self._identifier == cast(Any, other.identifier)  # pyright: ignore[reportUnknownMemberType]
-            and self._events == other._events  # pyright: ignore[reportUnknownMemberType]
+            self._identifier == cast(Any, other.identifier)
+            and self._events == other._events
         )

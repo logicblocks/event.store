@@ -2,15 +2,16 @@ from abc import abstractmethod
 from datetime import UTC, datetime, timedelta
 from random import shuffle
 
+from logicblocks.event.testsupport import (
+    DummyEventSubscriber,
+)
+
 from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriberState,
     EventSubscriberStateStore,
 )
 from logicblocks.event.testing import (
     data,
-)
-from logicblocks.event.testsupport import (
-    DummyEventSubscriber,
 )
 from logicblocks.event.types import CategoryIdentifier
 from logicblocks.event.utils.clock import Clock, TimezoneRequiredStaticClock

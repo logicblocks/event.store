@@ -1,9 +1,10 @@
+from logicblocks.event.testcases import (
+    EventSubscriberStateStoreCases,
+)
+
 from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriberStateStore,
     InMemoryEventSubscriberStateStore,
-)
-from logicblocks.event.testcases import (
-    EventSubscriberStateStoreCases,
 )
 from logicblocks.event.utils.clock import Clock
 

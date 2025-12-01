@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum, StrEnum
-from typing import Any, Self, TypedDict, Unpack, cast
+from typing import Any, Self, TypedDict, Unpack, cast, LiteralString
 
 from psycopg import sql
 
@@ -101,6 +101,9 @@ class ColumnReference(Expression):
                 return (
                     sql.SQL("{name}").format(name=sql.Identifier(self.field))
                 ), []
+            case _:
+                raise TypeError("Invalid schema and/or table name.")
+
 
 
 @dataclass(frozen=True)
@@ -131,6 +134,8 @@ class Star(Expression):
                 ), []
             case (None, None):
                 return (sql.SQL("{name}").format(name=sql.SQL("*"))), []
+            case _:
+                raise TypeError("Invalid schema and/or table name.")
 
 
 @dataclass(frozen=True)
@@ -255,7 +260,7 @@ class SortBy(Node):
             return expression_fragment
 
         sql_fragment = sql_fragment + sql.SQL(" {direction}").format(
-            direction=sql.SQL(self.direction.value)
+            direction=sql.SQL(cast(LiteralString, self.direction.value))
         )
 
         return sql_fragment, params
@@ -385,7 +390,7 @@ class Condition(Expression):
         clause = (
             left_sql
             + sql.SQL(" {operator} ").format(
-                operator=sql.SQL(self._operator.value)
+                operator=sql.SQL(cast(LiteralString, self._operator.value))
             )
             + right_sql
         )

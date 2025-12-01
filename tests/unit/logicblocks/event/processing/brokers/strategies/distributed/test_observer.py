@@ -1,7 +1,12 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Protocol, Sequence
+from typing import Protocol, Sequence, NotRequired, TypedDict
+
+from structlog.typing import FilteringBoundLogger
+
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import CapturingEventSubscriber
 
 from logicblocks.event.processing import (
     ProcessStatus,
@@ -18,16 +23,17 @@ from logicblocks.event.processing.broker.subscribers import (
     EventSubscriberStore,
     InMemoryEventSubscriberStore,
 )
+from logicblocks.event.sources import EventSourceFactory
 from logicblocks.event.store import EventStoreEventSourceFactory
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.adapters.base import EventStorageAdapter
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
-from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.testsupport import CapturingEventSubscriber
 from logicblocks.event.types import (
     CategoryIdentifier,
+    Event,
     EventSourceIdentifier,
+    StoredEvent,
 )
 
 
@@ -95,6 +101,16 @@ class NodeAwareEventSubscriptionStateStoreClass(Protocol):
     def __call__(self, node_id: str) -> EventSubscriptionStateStore: ...
 
 
+class DefaultEventSubscriptionObserverParams[E: Event](TypedDict):
+    node_id: str
+    subscriber_store: EventSubscriberStore[E]
+    subscription_state_store: EventSubscriptionStateStore
+    event_source_factory: EventSourceFactory[E]
+    subscription_difference: NotRequired[EventSubscriptionDifference]
+    logger: NotRequired[FilteringBoundLogger]
+    synchronisation_interval: NotRequired[timedelta]
+
+
 def make_observer(
     node_id: str | None = None,
     subscription_state_store: EventSubscriptionStateStore | None = None,
@@ -114,7 +130,7 @@ def make_observer(
         adapter=event_storage_adapter
     )
 
-    kwargs = {
+    kwargs: DefaultEventSubscriptionObserverParams[StoredEvent] = {
         "node_id": node_id,
         "subscriber_store": subscriber_store,
         "subscription_state_store": subscription_state_store,

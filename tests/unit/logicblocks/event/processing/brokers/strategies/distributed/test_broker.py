@@ -5,6 +5,12 @@ from typing import Protocol, Self
 from unittest.mock import Mock
 
 import pytest
+from logicblocks.event.testsupport import (
+    assert_status_eventually,
+    assert_task_eventually_done,
+    status_eventually_equal_to,
+    task_shutdown,
+)
 
 from logicblocks.event.processing import (
     EventBroker,
@@ -20,12 +26,6 @@ from logicblocks.event.processing.broker.strategies.distributed import (
 )
 from logicblocks.event.processing.services.error import (
     ContinueErrorHandler,
-)
-from logicblocks.event.testsupport import (
-    assert_status_eventually,
-    assert_task_eventually_done,
-    status_eventually_equal_to,
-    task_shutdown,
 )
 
 
@@ -237,10 +237,10 @@ class TestDistributedEventBrokerStatuses:
 
 class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
     def __init__(self):
-        self._status = ProcessStatus.INITIALISED
-        self._start_count = 0
-        self._cancel_count = 0
-        self._exception = None
+        self._status: ProcessStatus = ProcessStatus.INITIALISED
+        self._start_count: int = 0
+        self._cancel_count: int = 0
+        self._exception: BaseException | None = None
 
     @property
     def start_count(self) -> int:
@@ -278,10 +278,10 @@ class MockEventSubscriptionCoordinator(EventSubscriptionCoordinator):
 
 class MockEventSubscriptionObserver(EventSubscriptionObserver):
     def __init__(self):
-        self._status = ProcessStatus.INITIALISED
-        self._start_count = 0
-        self._cancel_count = 0
-        self._exception = None
+        self._status: ProcessStatus = ProcessStatus.INITIALISED
+        self._start_count: int = 0
+        self._cancel_count: int = 0
+        self._exception: BaseException | None = None
 
     @property
     def start_count(self) -> int:
@@ -318,9 +318,9 @@ class MockEventSubscriptionObserver(EventSubscriptionObserver):
 
 class MockEventSubscriberManager(EventSubscriberManager):
     def __init__(self):
-        self._start_count = 0
-        self._cancel_count = 0
-        self._exception = None
+        self._start_count: int = 0
+        self._cancel_count: int = 0
+        self._exception: BaseException | None = None
 
     @property
     def start_count(self) -> int:

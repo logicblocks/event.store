@@ -1,12 +1,13 @@
 import os
 
+from logicblocks.event.testcases import (
+    LockManagerCases,
+)
+
 from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     LockManager,
     PostgresLockManager,
-)
-from logicblocks.event.testcases import (
-    LockManagerCases,
 )
 
 connection_settings = ConnectionSettings(

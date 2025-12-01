@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Any, Literal, Self
 
 import pytest
+from logicblocks.event.testlogging import CapturingLogger
+from logicblocks.event.testlogging.logger import LogLevel
 
 from logicblocks.event.sources import constraints
 from logicblocks.event.store import (
@@ -16,8 +18,6 @@ from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.store.exceptions import UnmetWriteConditionError
 from logicblocks.event.store.types import stream_publish_definition
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
-from logicblocks.event.testlogging import CapturingLogger
-from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonValue,

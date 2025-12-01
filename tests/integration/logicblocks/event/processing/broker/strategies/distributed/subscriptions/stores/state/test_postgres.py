@@ -3,6 +3,14 @@ import sys
 
 import pytest
 import pytest_asyncio
+from logicblocks.event.testcases import (
+    EventSubscriptionStateStoreCases,
+)
+from logicblocks.event.testsupport import (
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from psycopg import AsyncConnection, abc, sql
 from psycopg_pool import AsyncConnectionPool
 
@@ -14,15 +22,7 @@ from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriptionStateStore,
     PostgresEventSubscriptionStateStore,
 )
-from logicblocks.event.testcases import (
-    EventSubscriptionStateStoreCases,
-)
 from logicblocks.event.testing import data
-from logicblocks.event.testsupport import (
-    connection_pool,
-    create_table,
-    drop_table,
-)
 from logicblocks.event.types import CategoryIdentifier
 
 connection_settings = ConnectionSettings(

@@ -2,6 +2,8 @@ import asyncio
 from collections import defaultdict
 from datetime import timedelta
 
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import CapturingEventSubscriber
 from pytest_unordered import unordered
 
 from logicblocks.event.processing import EventSubscriber
@@ -17,8 +19,6 @@ from logicblocks.event.processing.broker.types import (
     EventSubscriberKey,
 )
 from logicblocks.event.testing import data
-from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.testsupport import CapturingEventSubscriber
 from logicblocks.event.types import CategoryIdentifier
 
 

@@ -3,9 +3,21 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from types import NoneType
+from typing import NotRequired, TypedDict
 from unittest.mock import Mock
 
 import pytest
+from structlog.typing import FilteringBoundLogger
+
+from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
+from logicblocks.event.testsupport import (
+    assert_status_eventually,
+    assert_task_eventually_done,
+    random_capturing_subscriber,
+    status_eventually_equal_to,
+    task_shutdown,
+)
+from logicblocks.event.testsupport.subscribers import CapturingEventSubscriber
 
 from logicblocks.event.processing import (
     ContinueErrorHandler,
@@ -31,15 +43,6 @@ from logicblocks.event.store.adapters import (
 )
 from logicblocks.event.store.store import EventCategory
 from logicblocks.event.testing import data
-from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
-from logicblocks.event.testsupport import (
-    assert_status_eventually,
-    assert_task_eventually_done,
-    random_capturing_subscriber,
-    status_eventually_equal_to,
-    task_shutdown,
-)
-from logicblocks.event.testsupport.subscribers import CapturingEventSubscriber
 from logicblocks.event.types import CategoryIdentifier, Event
 from logicblocks.event.types.identifier import EventSourceIdentifier
 
@@ -61,6 +64,15 @@ class RealContext:
     event_storage_adapter: EventStorageAdapter
 
 
+class SingletonEventBrokerParams[E: Event](TypedDict):
+    node_id: str
+    event_subscriber_store: EventSubscriberStore[E]
+    event_source_factory: EventSourceFactory[E]
+    error_handler: NotRequired[ErrorHandler[NoneType]]
+    logger: NotRequired[FilteringBoundLogger]
+    distribution_interval: NotRequired[timedelta]
+
+
 def make_event_broker_with_mocked_dependencies(
     error_handler: ErrorHandler[NoneType] | None = None,
     distribution_interval: timedelta = timedelta(milliseconds=10),
@@ -71,7 +83,7 @@ def make_event_broker_with_mocked_dependencies(
     event_source_factory = Mock(spec=EventSourceFactory)
     logger = CapturingLogger.create()
 
-    kwargs = {
+    kwargs: SingletonEventBrokerParams = {
         "node_id": node_id,
         "event_subscriber_store": event_subscriber_store,
         "event_source_factory": event_source_factory,
@@ -104,7 +116,7 @@ def make_event_broker_with_real_dependencies(
         adapter=event_storage_adapter
     )
 
-    kwargs = {
+    kwargs: SingletonEventBrokerParams = {
         "node_id": node_id,
         "event_subscriber_store": event_subscriber_store,
         "event_source_factory": event_source_factory,

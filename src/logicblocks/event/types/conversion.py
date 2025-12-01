@@ -88,7 +88,7 @@ def deserialise_from_json_value[T](
     value_is_json_array = is_json_array(value)
     klass_is_sequence = klass_is_class and issubclass(klass, Sequence)
     klass_origin_is_sequence = klass_origin_is_class and issubclass(
-        klass_origin, Sequence
+        cast(type[Any], klass_origin), Sequence
     )
     if value_is_json_array and (klass_is_sequence or klass_origin_is_sequence):
         mapping = cast(Sequence[Any], value)
@@ -116,7 +116,7 @@ def deserialise_from_json_value[T](
     value_is_json_object = is_json_object(value)
     klass_is_mapping = klass_is_class and issubclass(klass, Mapping)
     klass_origin_is_mapping = klass_origin_is_class and issubclass(
-        klass_origin, Mapping
+        cast(type[Any], klass_origin), Mapping
     )
     if value_is_json_object and (klass_is_mapping or klass_origin_is_mapping):
         mapping = cast(Mapping[Any, Any], value)

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum, StrEnum
-from typing import Any, Self, TypedDict, Unpack, cast, LiteralString
+from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
 
 from psycopg import sql
 
@@ -103,7 +103,6 @@ class ColumnReference(Expression):
                 ), []
             case _:
                 raise TypeError("Invalid schema and/or table name.")
-
 
 
 @dataclass(frozen=True)

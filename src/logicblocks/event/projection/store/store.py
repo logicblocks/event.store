@@ -99,8 +99,8 @@ class ProjectionStore:
         *,
         id: str,
         name: str,
-        state_type: type[State] = Mapping[str, Any],
-        metadata_type: type[Metadata] = Mapping[str, Any],
+        state_type: type[State],
+        metadata_type: type[Metadata],
     ) -> Projection[State, Metadata] | None:
         await self._logger.adebug(log_event_name("loading"), projection_id=id)
 

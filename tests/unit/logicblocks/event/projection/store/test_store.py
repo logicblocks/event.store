@@ -86,7 +86,10 @@ class TestProjectionStoreSave:
         await store.save(projection=projection)
 
         located = await store.load(
-            name=projection_name, id=projection_id, state_type=Thing
+            name=projection_name,
+            id=projection_id,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         assert located == projection
@@ -128,7 +131,10 @@ class TestProjectionStoreSave:
         await store.save(projection=updated_projection)
 
         located = await store.load(
-            name=projection_name, id=projection_id, state_type=Thing
+            name=projection_name,
+            id=projection_id,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         assert located == updated_projection
@@ -169,13 +175,22 @@ class TestProjectionStoreLoad:
         await store.save(projection=projection_3)
 
         located_1 = await store.load(
-            name=projection_name_1, id=projection_id_1, state_type=Thing
+            name=projection_name_1,
+            id=projection_id_1,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
         located_2 = await store.load(
-            name=projection_name_2, id=projection_id_2, state_type=Thing
+            name=projection_name_2,
+            id=projection_id_2,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
         located_3 = await store.load(
-            name=projection_name_2, id=projection_id_1, state_type=Thing
+            name=projection_name_2,
+            id=projection_id_1,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         assert [located_1, located_2, located_3] == [
@@ -192,6 +207,7 @@ class TestProjectionStoreLoad:
             name=data.random_projection_name(),
             id=data.random_projection_id(),
             state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         assert located is None
@@ -503,7 +519,10 @@ class TestProjectionStoreLogging:
         await store.save(projection=projection)
 
         await store.load(
-            name=projection_name, id=projection_id, state_type=Thing
+            name=projection_name,
+            id=projection_id,
+            state_type=Thing,
+            metadata_type=Mapping[str, Any],
         )
 
         log_event = logger.find_event("event.projection.loading")

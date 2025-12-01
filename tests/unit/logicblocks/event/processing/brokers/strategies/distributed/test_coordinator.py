@@ -1,10 +1,9 @@
-from typing import TypedDict, NotRequired
 import asyncio
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Protocol, cast
+from typing import NotRequired, Protocol, TypedDict, cast
 
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.testsupport import (

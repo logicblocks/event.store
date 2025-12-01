@@ -2,7 +2,7 @@ import hashlib
 from collections.abc import AsyncIterator, Mapping, Set
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence, TypedDict, overload
+from typing import Sequence, TypedDict, cast, overload
 from uuid import uuid4
 
 from psycopg import AsyncConnection, AsyncCursor, sql
@@ -264,10 +264,12 @@ def obtain_write_locks_query(
             )
         case (
             CategoryIdentifier() as target,
-            LogEventSerialisationGuarantee()
-            | CategoryEventSerialisationGuarantee(),
+            (
+                LogEventSerialisationGuarantee()
+                | CategoryEventSerialisationGuarantee()
+            ) as log_or_category_guarantee,
         ):
-            lock_name = serialisation_guarantee.lock_name(
+            lock_name = log_or_category_guarantee.lock_name(
                 namespace=table_settings.table_name, target=target
             )
             lock_digest = get_digest(lock_name)
@@ -275,12 +277,12 @@ def obtain_write_locks_query(
                 sql.SQL("SELECT pg_advisory_xact_lock(%s);"),
                 [lock_digest],
             )
-        case [*targets], StreamEventSerialisationGuarantee():
+        case _, StreamEventSerialisationGuarantee() as stream_guarantee:
             lock_names = [
-                serialisation_guarantee.lock_name(
+                stream_guarantee.lock_name(
                     namespace=table_settings.table_name, target=target
                 )
-                for target in targets
+                for target in cast(Sequence[StreamIdentifier], targets)
             ]
             lock_digests = [get_digest(lock_name) for lock_name in lock_names]
             lock_placeholders = sql.SQL(", ").join(
@@ -500,15 +502,19 @@ async def obtain_write_locks(
             )
         case (
             CategoryIdentifier() as target,
-            LogEventSerialisationGuarantee()
-            | CategoryEventSerialisationGuarantee(),
+            (
+                LogEventSerialisationGuarantee()
+                | CategoryEventSerialisationGuarantee()
+            ) as log_or_category_guarantee,
         ):
             query = obtain_write_locks_query(
-                target, serialisation_guarantee, table_settings
+                target, log_or_category_guarantee, table_settings
             )
-        case [*targets], StreamEventSerialisationGuarantee():
+        case _, StreamEventSerialisationGuarantee() as stream_guarantee:
             query = obtain_write_locks_query(
-                targets, serialisation_guarantee, table_settings
+                cast(Sequence[StreamIdentifier], targets),
+                stream_guarantee,
+                table_settings,
             )
         case _:
             raise ValueError(
@@ -871,7 +877,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                 row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
                 page_size = self.query_settings.scan_query_page_size
-                last_sequence_number = None
+                last_sequence_number: int | None = None
                 keep_querying = True
 
                 while keep_querying:

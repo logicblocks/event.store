@@ -181,9 +181,9 @@ def event_sequence_identifier(
         case {"type": "log"}:
             return LogIdentifier()
         case {"type": "category", "category": category}:
-            return CategoryIdentifier(category=category)
+            return CategoryIdentifier(category=str(category))
         case {"type": "stream", "category": category, "stream": stream}:
-            return StreamIdentifier(category=category, stream=stream)
+            return StreamIdentifier(category=str(category), stream=str(stream))
         case _:  # pragma: no cover
             raise ValueError("Invalid serialised event sequence identifier.")
 

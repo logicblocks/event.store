@@ -111,7 +111,6 @@ class PositionIsCondition(WriteCondition):
 
 @dataclass(frozen=True)
 class EmptyStreamCondition(WriteCondition):
-
     @override
     def __eq__(self, other: object) -> bool:
         if isinstance(other, EmptyStreamCondition):

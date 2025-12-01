@@ -1,12 +1,11 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Protocol, Sequence, NotRequired, TypedDict
-
-from structlog.typing import FilteringBoundLogger
+from typing import NotRequired, Protocol, Sequence, TypedDict
 
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.testsupport import CapturingEventSubscriber
+from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.processing import (
     ProcessStatus,

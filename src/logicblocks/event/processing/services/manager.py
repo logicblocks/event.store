@@ -1,11 +1,10 @@
-from abc import abstractmethod
-from abc import ABC
 import asyncio
 import threading
+from abc import ABC, abstractmethod
 from asyncio import Future, Task
 from collections.abc import Coroutine, Sequence
 from enum import Enum, auto
-from typing import Any, Self, Awaitable, override
+from typing import Any, Self, override
 
 import uvloop
 
@@ -37,6 +36,7 @@ class ServiceDefinition[T]:
     def coroutine(self) -> Coroutine[Any, Any, T]:
         return self.service.execute()
 
+
 class ServiceExecutor(ABC):
     @abstractmethod
     async def start(self) -> Self:
@@ -45,7 +45,7 @@ class ServiceExecutor(ABC):
     @abstractmethod
     async def schedule[R = Any](
         self, definition: ServiceDefinition[R]
-    )-> Future[R]:
+    ) -> Future[R]:
         raise NotImplementedError
 
     @abstractmethod
@@ -136,13 +136,13 @@ class IsolationModeAwareServiceExecutor:
         self._shared_executor = IsolatedThreadServiceExecutor()
         self._all_executors: list[ServiceExecutor] = [
             self._main_executor,
-            self._shared_executor
+            self._shared_executor,
         ]
 
     async def start(self) -> Self:
-        await asyncio.gather(*[
-            executor.start() for executor in self._all_executors
-        ])
+        await asyncio.gather(
+            *[executor.start() for executor in self._all_executors]
+        )
         return self
 
     async def schedule[R = Any](

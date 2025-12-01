@@ -1,4 +1,3 @@
-from logicblocks.event.processing.services.error import exit_fatally_type_mapping
 from collections.abc import Callable
 
 import pytest
@@ -15,10 +14,13 @@ from logicblocks.event.processing import (
     RetryErrorHandler,
     Service,
     TypeMappingErrorHandler,
-    raise_exception_type_mapping,
-    retry_execution_type_mapping,
     continue_execution_type_mapping,
     error_handler_type_mappings,
+    raise_exception_type_mapping,
+    retry_execution_type_mapping,
+)
+from logicblocks.event.processing.services.error import (
+    exit_fatally_type_mapping,
 )
 
 
@@ -93,9 +95,7 @@ class TestContinueErrorHandler:
 
         exception = TestException()
 
-        error_handler = ContinueErrorHandler[int](
-            value_factory
-        )
+        error_handler = ContinueErrorHandler[int](value_factory)
 
         assert error_handler.handle(
             exception
@@ -217,7 +217,7 @@ class TestTypeMappingErrorHandler:
             type_mappings=error_handler_type_mappings(
                 exit_fatally=exit_fatally_type_mapping(
                     types=[TestException1, TestException2],
-                    exit_code_factory=lambda _: 10
+                    exit_code_factory=lambda _: 10,
                 )
             )
         )
@@ -264,7 +264,9 @@ class TestTypeMappingErrorHandler:
             == ErrorHandlerDecision.retry_execution()
         )
 
-    def test_requests_raise_with_specific_exception_for_specified_exception_types(self):
+    def test_requests_raise_with_specific_exception_for_specified_exception_types(
+        self,
+    ):
         class TestException1(Exception):
             pass
 
@@ -351,19 +353,17 @@ class TestTypeMappingErrorHandler:
             type_mappings=error_handler_type_mappings(
                 continue_execution=continue_execution_type_mapping(
                     types=[TestException1, TestException2],
-                    value_factory=lambda _: "failed"
+                    value_factory=lambda _: "failed",
                 )
             )
         )
 
-        assert (
-            handler.handle(exception1)
-            == ErrorHandlerDecision.continue_execution(value="failed")
-        )
-        assert (
-            handler.handle(exception2)
-            == ErrorHandlerDecision.continue_execution(value="failed")
-        )
+        assert handler.handle(
+            exception1
+        ) == ErrorHandlerDecision.continue_execution(value="failed")
+        assert handler.handle(
+            exception2
+        ) == ErrorHandlerDecision.continue_execution(value="failed")
         assert handler.handle(
             exception3
         ) == ErrorHandlerDecision.raise_exception(exception3)
@@ -409,8 +409,7 @@ class TestTypeMappingErrorHandler:
             type_mappings=error_handler_type_mappings(
                 retry_execution=[BaseExceptionType],
                 continue_execution=continue_execution_type_mapping(
-                    types=[SubExceptionType],
-                    value_factory=lambda _: None
+                    types=[SubExceptionType], value_factory=lambda _: None
                 ),
             )
         )
@@ -419,10 +418,9 @@ class TestTypeMappingErrorHandler:
             handler.handle(base_exception)
             == ErrorHandlerDecision.retry_execution()
         )
-        assert (
-            handler.handle(sub_exception)
-            == ErrorHandlerDecision.continue_execution(value=None)
-        )
+        assert handler.handle(
+            sub_exception
+        ) == ErrorHandlerDecision.continue_execution(value=None)
 
     def test_calls_callback_when_specified(self):
         class TestException(Exception):
@@ -500,9 +498,7 @@ class TestErrorHandlingServiceMixin:
 
         service = TestService(
             call_callback=call_callback,
-            error_handler=ContinueErrorHandler(
-                value_factory=lambda ex: 10
-            ),
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
         result = await service.execute()

@@ -1,9 +1,8 @@
-from unittest.mock import Base
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, NotRequired, TypedDict
 
 from .types import Service
 
@@ -56,10 +55,20 @@ class ErrorHandler[T](ABC):
         raise NotImplementedError
 
 
+def default_exit_code_factory(_: BaseException) -> int:
+    return 1
+
+
+def default_exception_factory(exception: BaseException) -> BaseException:
+    return exception
+
+
 class ExitErrorHandler(ErrorHandler[Any]):
     def __init__(
         self,
-        exit_code_factory: Callable[[BaseException], int] = lambda _: 1
+        exit_code_factory: Callable[[BaseException], int] = (
+            default_exit_code_factory
+        ),
     ):
         self.exit_code_factory = exit_code_factory
 
@@ -72,8 +81,8 @@ class ExitErrorHandler(ErrorHandler[Any]):
 class RaiseErrorHandler(ErrorHandler[Any]):
     def __init__(
         self,
-        exception_factory: Callable[[BaseException], BaseException] | None = (
-            None
+        exception_factory: Callable[[BaseException], BaseException] = (
+            default_exception_factory
         ),
     ):
         self.exception_factory = exception_factory
@@ -114,7 +123,7 @@ class ErrorHandlingDefinition[T]:
     def __init__(
         self,
         handler: ErrorHandler[T],
-        callback: Callable[[BaseException], None] = lambda _: None
+        callback: Callable[[BaseException], None] = lambda _: None,
     ):
         self.handler = handler
         self.callback = callback
@@ -145,23 +154,16 @@ class RetryExecutionTypeMappingDict(TypeMappingDict):
 
 
 type ExitFatallyTypeMappingValue = (
-    Sequence[type[BaseException]] |
-    ExitFatallyTypeMappingDict |
-    None
+    Sequence[type[BaseException]] | ExitFatallyTypeMappingDict | None
 )
 type RaiseExceptionTypeMappingValue = (
-    Sequence[type[BaseException]] |
-    RaiseExceptionTypeMappingDict |
-    None
+    Sequence[type[BaseException]] | RaiseExceptionTypeMappingDict | None
 )
 type ContinueExecutionTypeMappingValue[T] = (
-    ContinueExecutionTypeMappingDict[T] |
-    None
+    ContinueExecutionTypeMappingDict[T] | None
 )
 type RetryExecutionTypeMappingValue = (
-    Sequence[type[BaseException]] |
-    RetryExecutionTypeMappingDict |
-    None
+    Sequence[type[BaseException]] | RetryExecutionTypeMappingDict | None
 )
 
 
@@ -192,7 +194,7 @@ def resolve_callback(
 
 
 def resolve_exit_fatally_type_mapping_dict(
-    type_mapping_value: ExitFatallyTypeMappingValue
+    type_mapping_value: ExitFatallyTypeMappingValue,
 ) -> ExitFatallyTypeMappingDict | None:
     if type_mapping_value is None:
         return None
@@ -201,11 +203,13 @@ def resolve_exit_fatally_type_mapping_dict(
     callback = resolve_callback(type_mapping_value)
 
     if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
-        exit_code_factory: Callable[[BaseException], int] = lambda _: 1
-    else:
         exit_code_factory: Callable[[BaseException], int] = (
-            type_mapping_value["exit_code_factory"]
+            default_exit_code_factory
         )
+    else:
+        exit_code_factory: Callable[[BaseException], int] = type_mapping_value[
+            "exit_code_factory"
+        ]
 
     return ExitFatallyTypeMappingDict(
         types=types,
@@ -215,7 +219,7 @@ def resolve_exit_fatally_type_mapping_dict(
 
 
 def resolve_raise_exception_type_mapping_dict(
-    type_mapping_value: RaiseExceptionTypeMappingValue
+    type_mapping_value: RaiseExceptionTypeMappingValue,
 ) -> RaiseExceptionTypeMappingDict | None:
     if type_mapping_value is None:
         return None
@@ -225,7 +229,7 @@ def resolve_raise_exception_type_mapping_dict(
 
     if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
         exception_factory: Callable[[BaseException], BaseException] = (
-            lambda ex: ex
+            default_exception_factory
         )
     else:
         exception_factory: Callable[[BaseException], BaseException] = (
@@ -240,7 +244,7 @@ def resolve_raise_exception_type_mapping_dict(
 
 
 def resolve_continue_execution_type_mapping_dict[T](
-    type_mapping_value: ContinueExecutionTypeMappingValue[T]
+    type_mapping_value: ContinueExecutionTypeMappingValue[T],
 ) -> ContinueExecutionTypeMappingDict[T] | None:
     if type_mapping_value is None:
         return None
@@ -257,19 +261,19 @@ def resolve_continue_execution_type_mapping_dict[T](
 
 
 def resolve_retry_execution_type_mapping_dict(
-    type_mapping_value: RetryExecutionTypeMappingValue
+    type_mapping_value: RetryExecutionTypeMappingValue,
 ) -> RetryExecutionTypeMappingDict | None:
     if type_mapping_value is None:
         return None
 
     return RetryExecutionTypeMappingDict(
         types=resolve_exception_types(type_mapping_value),
-        callback=resolve_callback(type_mapping_value)
+        callback=resolve_callback(type_mapping_value),
     )
 
 
 def resolve_exit_fatally_type_mappings(
-    type_mapping_value: ExitFatallyTypeMappingValue
+    type_mapping_value: ExitFatallyTypeMappingValue,
 ) -> TypeMappings[Any]:
     type_mapping_dict = resolve_exit_fatally_type_mapping_dict(
         type_mapping_value
@@ -290,7 +294,7 @@ def resolve_exit_fatally_type_mappings(
 
 
 def resolve_raise_exception_type_mappings(
-    type_mapping_value: RaiseExceptionTypeMappingValue
+    type_mapping_value: RaiseExceptionTypeMappingValue,
 ) -> TypeMappings[Any]:
     type_mapping_dict = resolve_raise_exception_type_mapping_dict(
         type_mapping_value
@@ -311,7 +315,7 @@ def resolve_raise_exception_type_mappings(
 
 
 def resolve_continue_execution_type_mappings[T](
-    type_mapping_value: ContinueExecutionTypeMappingValue[T]
+    type_mapping_value: ContinueExecutionTypeMappingValue[T],
 ) -> TypeMappings[T]:
     type_mapping_dict = resolve_continue_execution_type_mapping_dict(
         type_mapping_value
@@ -332,7 +336,7 @@ def resolve_continue_execution_type_mappings[T](
 
 
 def resolve_retry_execution_type_mappings(
-    type_mapping_value: RetryExecutionTypeMappingValue
+    type_mapping_value: RetryExecutionTypeMappingValue,
 ) -> TypeMappings[Any]:
     type_mapping_dict = resolve_retry_execution_type_mapping_dict(
         type_mapping_value
@@ -367,7 +371,9 @@ def error_handler_type_mappings[T](
 
 def exit_fatally_type_mapping(
     types: Sequence[type[BaseException]],
-    exit_code_factory: Callable[[BaseException], int] = lambda _: 1,
+    exit_code_factory: Callable[[BaseException], int] = (
+        default_exit_code_factory
+    ),
     callback: Callable[[BaseException], None] | None = None,
 ) -> ExitFatallyTypeMappingDict:
     return ExitFatallyTypeMappingDict(
@@ -415,7 +421,7 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
     def __init__(
         self,
         type_mappings: TypeMappings[T] = MappingProxyType({}),
-        default_error_handler: ErrorHandler[T] = RaiseErrorHandler()
+        default_error_handler: ErrorHandler[T] = RaiseErrorHandler(),
     ):
         self.type_mappings = type_mappings
         self.default_error_handler = default_error_handler

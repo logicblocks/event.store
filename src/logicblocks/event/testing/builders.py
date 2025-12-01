@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Self, TypedDict, Unpack, NotRequired
+from typing import Any, Self, TypedDict, Unpack
 
 from logicblocks.event.types import (
     JsonValue,

@@ -12,11 +12,11 @@ from .error import (
     RetryErrorHandler,
     RetryErrorHandlerDecision,
     TypeMappingErrorHandler,
+    continue_execution_type_mapping,
     error_handler_type_mappings,
     exit_fatally_type_mapping,
     raise_exception_type_mapping,
-    continue_execution_type_mapping,
-    retry_execution_type_mapping
+    retry_execution_type_mapping,
 )
 from .manager import (
     ExecutionMode,
@@ -49,5 +49,5 @@ __all__ = [
     "exit_fatally_type_mapping",
     "raise_exception_type_mapping",
     "continue_execution_type_mapping",
-    "retry_execution_type_mapping"
+    "retry_execution_type_mapping",
 ]

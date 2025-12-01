@@ -7,8 +7,6 @@ from typing import NotRequired, TypedDict
 from unittest.mock import Mock
 
 import pytest
-from structlog.typing import FilteringBoundLogger
-
 from logicblocks.event.testlogging.logger import CapturingLogger, LogLevel
 from logicblocks.event.testsupport import (
     assert_status_eventually,
@@ -18,6 +16,7 @@ from logicblocks.event.testsupport import (
     task_shutdown,
 )
 from logicblocks.event.testsupport.subscribers import CapturingEventSubscriber
+from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.processing import (
     ContinueErrorHandler,

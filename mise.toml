@@ -1,8 +1,8 @@
 [env]
+_.python.venv = { path = ".venv", create = true }
 FORCE_COLOR = "1"
 
 [settings]
-python.uv_venv_auto = true
 experimental = true
 
 [hooks]
@@ -10,7 +10,7 @@ postinstall = "uv sync --only-group build --frozen"
 
 [tools]
 python = "3.13.9"
-uv = "0.9.13"
+uv = "0.9.14"
 watchexec = "2.3.2"
 
 [tasks."dependencies:install"]

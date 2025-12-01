@@ -11,7 +11,7 @@ postinstall = "uv sync --only-group build --frozen"
 
 [tools]
 python = "3.13.9"
-uv = "0.9.12"
+uv = "0.9.14"
 watchexec = "2.3.2"
 
 [tasks."dependencies:install"]

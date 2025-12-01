@@ -154,68 +154,32 @@ Documentation
 Development
 -----------
 
-To run the full pre-commit build:
+This project uses [mise](https://mise.jdx.dev/) for tool management. To get
+started:
 
 ```shell
+mise install
 mise run
 ```
 
-To run tests:
-
-```shell
-mise test              # all tests
-mise test:unit         # unit tests
-mise test:integration  # integration tests
-mise test:component    # integration tests
-```
-
-The unit, integration and component tests can be run with a filter option 
-allowing running a subset of tests in the suite, for example:
-```shell
-mise test:unit [TestAllTestsInFile]
-mise test:component [test_a_specific_test]
-```
-
-To perform linting:
-
-```shell
-mise lint:check  # check linting rules are met
-mise lint:fix    # attempt to fix linting issues
-```
-
-To format code:
-
-```shell
-mise format:check  # check code formatting
-mise format:fix    # attempt to fix code formatting
-```
-
-To run type checking:
-
-```shell
-mise types:check  # check type hints
-```
-
-To build packages:
-
-```shell
-mise build
-```
-
-To see all available tasks:
-
-```shell
-mise tasks ls
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development instructions.
 
 Contributing
 ------------
 
-Bug reports and pull requests are welcome on GitHub at 
-https://github.com/logicblocks/event.store. This project is intended to be a 
-safe, welcoming space for collaboration, and contributors are expected to 
-adhere to the [Contributor Covenant](http://contributor-covenant.org) code of 
-conduct.
+Bug reports and pull requests are welcome on GitHub at
+https://github.com/logicblocks/event.store.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+
+- Reporting bugs and requesting features
+- Setting up your development environment
+- Running tests and code quality checks
+- Submitting pull requests
+
+This project is intended to be a safe, welcoming space for collaboration, and
+contributors are expected to adhere to the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 License
 -------

@@ -1,5 +1,4 @@
 [env]
-_.python.venv = ".venv"
 FORCE_COLOR = "1"
 
 [settings]

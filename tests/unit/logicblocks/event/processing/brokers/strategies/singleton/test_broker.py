@@ -456,7 +456,7 @@ class TestSingletonEventBrokerErrorHandling:
 
     async def test_uses_specified_error_handler_when_provided(self):
         context = make_event_broker_with_mocked_dependencies(
-            error_handler=ContinueErrorHandler(),
+            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
         )
         broker = context.broker
         event_subscriber_store = context.event_subscriber_store

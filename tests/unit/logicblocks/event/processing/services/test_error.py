@@ -1,3 +1,4 @@
+from logicblocks.event.processing.services.error import exit_fatally_type_mapping
 from collections.abc import Callable
 
 import pytest
@@ -14,7 +15,9 @@ from logicblocks.event.processing import (
     RetryErrorHandler,
     Service,
     TypeMappingErrorHandler,
-    error_handler_type_mapping,
+    raise_exception_type_mapping,
+    retry_execution_type_mapping,
+    continue_execution_type_mapping,
     error_handler_type_mappings,
 )
 
@@ -34,7 +37,7 @@ class TestExitErrorHandler:
         class TestException(Exception):
             pass
 
-        error_handler = ExitErrorHandler(exit_code=12)
+        error_handler = ExitErrorHandler(exit_code_factory=lambda _: 12)
 
         assert error_handler.handle(
             TestException()
@@ -79,47 +82,39 @@ class TestRaiseErrorHandler:
 
 
 class TestContinueErrorHandler:
-    def test_requests_continue_with_none_by_default_on_handle_of_exception_subclass(
+    def test_requests_continue_with_value_on_handle_of_exception_subclass(
         self,
     ):
         class TestException(Exception):
             pass
 
-        error_handler = ContinueErrorHandler()
+        def value_factory(_ex: BaseException) -> int:
+            return 10
 
-        assert (
-            error_handler.handle(TestException())
-            == ErrorHandlerDecision.continue_execution()
+        exception = TestException()
+
+        error_handler = ContinueErrorHandler[int](
+            value_factory
         )
+
+        assert error_handler.handle(
+            exception
+        ) == ErrorHandlerDecision.continue_execution(value=10)
 
     def test_requests_raise_on_handle_of_non_exception_subclass(self):
         class FatalTestException(BaseException):
             pass
 
+        def value_factory(_ex: BaseException) -> int:
+            return 10
+
         exception = FatalTestException()
 
-        error_handler = ContinueErrorHandler()
+        error_handler = ContinueErrorHandler(value_factory)
 
         assert error_handler.handle(
             exception
         ) == ErrorHandlerDecision.raise_exception(exception)
-
-    def test_requests_continue_with_value_from_provided_factory_on_handle(
-        self,
-    ):
-        class TestException(Exception):
-            pass
-
-        def value_factory(ex: BaseException) -> int:
-            return 10
-
-        exception = TestException()
-
-        error_handler = ContinueErrorHandler[int](value_factory=value_factory)
-
-        assert error_handler.handle(
-            exception
-        ) == ErrorHandlerDecision.continue_execution(value=10)
 
 
 class TestRetryErrorHandler:
@@ -160,14 +155,14 @@ class TestTypeMappingErrorHandler:
             exception
         ) == ErrorHandlerDecision.raise_exception(exception)
 
-    def test_requests_decision_from_factory_when_provided(self):
+    def test_requests_decision_from_error_handler_when_provided(self):
         class TestException(Exception):
             pass
 
         exception = TestException()
 
         handler = TypeMappingErrorHandler(
-            default_decision_factory=lambda _: ErrorHandlerDecision.retry_execution()
+            default_error_handler=RetryErrorHandler()
         )
 
         assert (
@@ -204,6 +199,39 @@ class TestTypeMappingErrorHandler:
             exception3
         ) == ErrorHandlerDecision.raise_exception(exception3)
 
+    def test_requests_exit_with_exit_code_for_specified_exception_types(self):
+        class TestException1(Exception):
+            pass
+
+        class TestException2(Exception):
+            pass
+
+        class TestException3(Exception):
+            pass
+
+        exception1 = TestException1()
+        exception2 = TestException2()
+        exception3 = TestException3()
+
+        handler = TypeMappingErrorHandler(
+            type_mappings=error_handler_type_mappings(
+                exit_fatally=exit_fatally_type_mapping(
+                    types=[TestException1, TestException2],
+                    exit_code_factory=lambda _: 10
+                )
+            )
+        )
+
+        assert handler.handle(exception1) == ErrorHandlerDecision.exit_fatally(
+            exit_code=10
+        )
+        assert handler.handle(exception2) == ErrorHandlerDecision.exit_fatally(
+            exit_code=10
+        )
+        assert handler.handle(
+            exception3
+        ) == ErrorHandlerDecision.raise_exception(exception3)
+
     def test_requests_raise_exception_for_specified_exception_types(self):
         class TestException1(Exception):
             pass
@@ -222,7 +250,7 @@ class TestTypeMappingErrorHandler:
             type_mappings=error_handler_type_mappings(
                 raise_exception=[TestException1, TestException2]
             ),
-            default_decision_factory=lambda _: ErrorHandlerDecision.retry_execution(),
+            default_error_handler=RetryErrorHandler(),
         )
 
         assert handler.handle(
@@ -231,6 +259,43 @@ class TestTypeMappingErrorHandler:
         assert handler.handle(
             exception2
         ) == ErrorHandlerDecision.raise_exception(exception2)
+        assert (
+            handler.handle(exception3)
+            == ErrorHandlerDecision.retry_execution()
+        )
+
+    def test_requests_raise_with_specific_exception_for_specified_exception_types(self):
+        class TestException1(Exception):
+            pass
+
+        class TestException2(Exception):
+            pass
+
+        class TestException3(Exception):
+            pass
+
+        exception1 = TestException1()
+        exception2 = TestException2()
+        exception3 = TestException3()
+
+        raised_exception = ValueError("Oops!")
+
+        handler = TypeMappingErrorHandler(
+            type_mappings=error_handler_type_mappings(
+                raise_exception=raise_exception_type_mapping(
+                    types=[TestException1, TestException2],
+                    exception_factory=lambda _: raised_exception,
+                )
+            ),
+            default_error_handler=RetryErrorHandler(),
+        )
+
+        assert handler.handle(
+            exception1
+        ) == ErrorHandlerDecision.raise_exception(raised_exception)
+        assert handler.handle(
+            exception2
+        ) == ErrorHandlerDecision.raise_exception(raised_exception)
         assert (
             handler.handle(exception3)
             == ErrorHandlerDecision.retry_execution()
@@ -282,19 +347,22 @@ class TestTypeMappingErrorHandler:
         exception2 = TestException2()
         exception3 = TestException3()
 
-        handler = TypeMappingErrorHandler(
+        handler = TypeMappingErrorHandler[str](
             type_mappings=error_handler_type_mappings(
-                continue_execution=[TestException1, TestException2]
+                continue_execution=continue_execution_type_mapping(
+                    types=[TestException1, TestException2],
+                    value_factory=lambda _: "failed"
+                )
             )
         )
 
         assert (
             handler.handle(exception1)
-            == ErrorHandlerDecision.continue_execution()
+            == ErrorHandlerDecision.continue_execution(value="failed")
         )
         assert (
             handler.handle(exception2)
-            == ErrorHandlerDecision.continue_execution()
+            == ErrorHandlerDecision.continue_execution(value="failed")
         )
         assert handler.handle(
             exception3
@@ -340,7 +408,10 @@ class TestTypeMappingErrorHandler:
         handler = TypeMappingErrorHandler(
             type_mappings=error_handler_type_mappings(
                 retry_execution=[BaseExceptionType],
-                continue_execution=[SubExceptionType],
+                continue_execution=continue_execution_type_mapping(
+                    types=[SubExceptionType],
+                    value_factory=lambda _: None
+                ),
             )
         )
 
@@ -350,7 +421,7 @@ class TestTypeMappingErrorHandler:
         )
         assert (
             handler.handle(sub_exception)
-            == ErrorHandlerDecision.continue_execution()
+            == ErrorHandlerDecision.continue_execution(value=None)
         )
 
     def test_calls_callback_when_specified(self):
@@ -367,7 +438,7 @@ class TestTypeMappingErrorHandler:
 
         handler = TypeMappingErrorHandler(
             type_mappings=error_handler_type_mappings(
-                retry_execution=error_handler_type_mapping(
+                retry_execution=retry_execution_type_mapping(
                     types=[TestException],
                     callback=callback,
                 )
@@ -429,7 +500,9 @@ class TestErrorHandlingServiceMixin:
 
         service = TestService(
             call_callback=call_callback,
-            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
+            error_handler=ContinueErrorHandler(
+                value_factory=lambda ex: 10
+            ),
         )
 
         result = await service.execute()
@@ -446,7 +519,7 @@ class TestErrorHandlingServiceMixin:
 
         service = TestService(
             call_callback=call_callback,
-            error_handler=ExitErrorHandler(exit_code=42),
+            error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
         with pytest.raises(SystemExit) as exc_info:
@@ -548,7 +621,7 @@ class TestErrorHandlingService:
 
         service = ErrorHandlingService(
             callable=callable,
-            error_handler=ExitErrorHandler(exit_code=42),
+            error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
         with pytest.raises(SystemExit) as exc_info:

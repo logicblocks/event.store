@@ -594,7 +594,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscriber_manager=subscriber_manager,
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
-            error_handler=ContinueErrorHandler(),
+            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
         )
 
         task = asyncio.create_task(broker.execute())

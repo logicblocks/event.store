@@ -1,17 +1,9 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 
 class WriteCondition(ABC):
-    @abstractmethod
-    def __eq__(self, other: object) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __hash__(self) -> int:
-        raise NotImplementedError
-
     def _combine(
         self,
         other: "WriteCondition",
@@ -52,13 +44,16 @@ class AndCondition(WriteCondition):
     def construct(cls, *conditions: WriteCondition) -> "AndCondition":
         return cls(conditions=frozenset(conditions))
 
+    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, AndCondition):
             return NotImplemented
+
         return self.conditions == other.conditions
 
+    @override
     def __hash__(self) -> int:
-        return hash(self.conditions)
+        return hash((self.__class__.__name__, self.conditions))
 
 
 @final
@@ -70,26 +65,63 @@ class OrCondition(WriteCondition):
     def construct(cls, *conditions: WriteCondition) -> "OrCondition":
         return cls(conditions=frozenset(conditions))
 
+    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, OrCondition):
             return NotImplemented
+
         return self.conditions == other.conditions
 
+    @override
     def __hash__(self) -> int:
-        return hash(self.conditions)
+        return hash((self.__class__.__name__, self.conditions))
 
 
+@final
 @dataclass(frozen=True)
-class NoCondition(WriteCondition): ...
+class NoCondition(WriteCondition):
+    @override
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, NoCondition):
+            return True
+
+        return NotImplemented
+
+    @override
+    def __hash__(self) -> int:
+        return hash(self.__class__.__name__)
 
 
+@final
 @dataclass(frozen=True)
 class PositionIsCondition(WriteCondition):
     position: int | None
 
+    @override
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, PositionIsCondition):
+            return NotImplemented
+
+        return self.position == other.position
+
+    @override
+    def __hash__(self) -> int:
+        return hash((self.__class__.__name__, self.position))
+
 
 @dataclass(frozen=True)
-class EmptyStreamCondition(WriteCondition): ...
+class EmptyStreamCondition(WriteCondition):
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, EmptyStreamCondition):
+            return True
+
+        return NotImplemented
+
+    @override
+    def __hash__(self) -> int:
+        return hash(self.__class__.__name__)
 
 
 def position_is(position: int | None) -> WriteCondition:

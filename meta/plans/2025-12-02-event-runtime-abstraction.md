@@ -1,19 +1,16 @@
-# EventRuntime Abstraction Implementation Plan
+# EventRuntime Abstraction
 
 ## Overview
 
 Introduce an `EventRuntime` abstraction that sits over the event broker and
-service manager, simplifying subscriber registration and providing a clean
-lifecycle API. Additionally, add `BrokerRole` support to
-`DistributedEventBroker`
-to enable coordinator-only, observer-only, or full participation modes.
+service manager, simplifying subscriber and consumer registration while
+providing a clean lifecycle API.
 
 ## Current State Analysis
 
 ### Problem
 
-Registering subscribers currently requires 5+ steps across multiple
-abstractions:
+Registering subscribers currently requires 5+ steps across multiple abstractions:
 
 ```python
 # 1. Create subscriber
@@ -41,43 +38,22 @@ polling_service = PollingService(
 await event_broker.register(subscriber)
 
 # 5. Register with service manager
-service_manager.register(polling_service,
-                         execution_mode=ExecutionMode.BACKGROUND)
+service_manager.register(polling_service, execution_mode=ExecutionMode.BACKGROUND)
 ```
 
 Each consumer in the codebase solves this differently (see examples in
 `meta/examples/subscriber_registration/`), leading to inconsistency and
 boilerplate.
 
-Additionally, the `DistributedEventBroker` currently always runs all three
-components (coordinator, observer, subscriber manager) together. There's no way
-to run a coordinator-only node (for work allocation without local processing)
-or an observer-only node (for processing without coordination).
-
 ### Key Discoveries
 
-- `DistributedEventBroker` tightly couples coordinator, observer, and subscriber
-  manager in `_do_execute()` at `broker/strategies/distributed/broker.py:44-57`
 - `EventSubscriber` interface is for work allocation (accept/withdraw sources)
 - `EventConsumer` interface is for event consumption (consume_all)
 - `EventSubscriptionConsumer` implements both interfaces
 - Error handling and polling wrapping applies to consumption, not subscription
-- `node_id` is already injected into broker at construction time
+- `node_id` is injected into broker at construction time
 
 ## Desired End State
-
-### BrokerRole Support
-
-`DistributedEventBroker` supports three roles:
-
-```python
-class BrokerRole(StrEnum):
-    COORDINATOR = "coordinator"  # Work allocation only, no local subscribers
-    OBSERVER = "observer"  # Local processing only, no coordination
-    FULL = "full"  # Both coordination and observation
-```
-
-### EventRuntime Abstraction
 
 A simplified API for event processing setup:
 
@@ -91,6 +67,7 @@ class EventConsumerSettings:
     isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD
 
 
+# Create runtime with injected dependencies
 runtime = EventRuntime(
     node_id=node_id,
     event_broker=event_broker,
@@ -98,14 +75,18 @@ runtime = EventRuntime(
     default_consumer_settings=EventConsumerSettings(...),  # Optional defaults
 )
 
-# Register subscription consumer (common case)
+# Register subscription consumer (common case) - handles both broker
+# registration and consumption wrapping
 await runtime.register_subscription_consumer(
     subscription_consumer,
     settings=EventConsumerSettings(poll_interval=timedelta(milliseconds=100)),
 )
 
-# Or use defaults
-await runtime.register_subscription_consumer(subscription_consumer)
+# Or register subscriber only (work allocation, no consumption wrapping)
+await runtime.register_subscriber(subscriber)
+
+# Or register consumer only (consumption wrapping, no broker registration)
+await runtime.register_consumer(consumer, settings=EventConsumerSettings(...))
 
 # Start processing
 await runtime.start()
@@ -117,266 +98,28 @@ await runtime.stop()
 
 ### Verification
 
-- Unit tests verify each `BrokerRole` runs correct components
-- Unit tests verify `EventRuntime` registration and lifecycle
-- Integration tests verify coordinator-only and observer-only nodes work
-  together
-- Component tests verify end-to-end event processing through `EventRuntime`
+- Unit tests verify registration methods delegate correctly
+- Unit tests verify error handling and polling wrapping
+- Unit tests verify lifecycle methods
+- Integration tests verify end-to-end event processing
+- Component tests verify full PostgreSQL-backed processing
 
 ## What We're NOT Doing
 
 - Dynamic registration while running (future enhancement)
 - Factory functions or builder pattern for `EventRuntime` (can add later)
-- Changes to `SingletonEventBroker` (no coordinator/observer concept)
-- Renaming `node_id` (discussed but deferred)
-- Adding mode property to `EventBroker` base interface
+- Health/status aggregation API (future enhancement)
 
 ## Implementation Approach
 
-Split into two pull requests:
-
-1. **PR 1**: Add `BrokerRole` support to `DistributedEventBroker`
-2. **PR 2**: Introduce `EventRuntime` with lifecycle and registration API
+Follow TDD: write failing tests first, then implement minimum code to pass,
+then refactor.
 
 ---
 
-## Phase 1: BrokerRole Support for DistributedEventBroker
+## Changes Required
 
-### Overview
-
-Introduce `BrokerRole` enum and refactor `DistributedEventBroker` to
-conditionally run coordinator and/or observer based on the configured role.
-
-### Changes Required
-
-#### 1. Add BrokerRole Enum
-
-**File**: `src/logicblocks/event/processing/broker/types.py` (new file or add to
-existing)
-
-```python
-from enum import StrEnum
-
-
-class BrokerRole(StrEnum):
-    COORDINATOR = "coordinator"
-    OBSERVER = "observer"
-    FULL = "full"
-```
-
-#### 2. Update DistributedEventBroker
-
-**File**:
-`src/logicblocks/event/processing/broker/strategies/distributed/broker.py`
-
-**Changes**:
-
-- Add `role: BrokerRole` parameter to constructor
-- Store role as instance variable
-- Modify `_do_execute()` to conditionally create tasks based on role
-- Modify `register()` to raise if role is `COORDINATOR`
-- Update `status` property to handle missing coordinator/observer
-
-```python
-class DistributedEventBroker[E: Event](
-    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
-):
-    def __init__(
-        self,
-        event_subscriber_manager: EventSubscriberManager[E],
-        event_subscription_coordinator: EventSubscriptionCoordinator,
-        event_subscription_observer: EventSubscriptionObserver[E],
-        role: BrokerRole = BrokerRole.FULL,
-        error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
-    ):
-        super().__init__(error_handler)
-        self._event_subscriber_manager = event_subscriber_manager
-        self._event_subscription_coordinator = event_subscription_coordinator
-        self._event_subscription_observer = event_subscription_observer
-        self._role = role
-
-    @property
-    def role(self) -> BrokerRole:
-        return self._role
-
-    async def register(self, subscriber: EventSubscriber[E]) -> None:
-        if self._role == BrokerRole.COORDINATOR:
-            raise RuntimeError(
-                "Cannot register subscribers on a coordinator-only broker"
-            )
-        await self._event_subscriber_manager.add(subscriber)
-
-    @property
-    def status(self) -> ProcessStatus:
-        match self._role:
-            case BrokerRole.COORDINATOR:
-                return self._event_subscription_coordinator.status
-            case BrokerRole.OBSERVER:
-                return self._event_subscription_observer.status
-            case BrokerRole.FULL:
-                return determine_multi_process_status(
-                    self._event_subscription_coordinator.status,
-                    self._event_subscription_observer.status,
-                )
-
-    async def _do_execute(self) -> None:
-        subscriber_manager = self._event_subscriber_manager
-        coordinator = self._event_subscription_coordinator
-        observer = self._event_subscription_observer
-
-        try:
-            await subscriber_manager.start()
-
-            async with asyncio.TaskGroup() as tg:
-                tg.create_task(subscriber_manager.maintain())
-
-                if self._role in (BrokerRole.COORDINATOR, BrokerRole.FULL):
-                    tg.create_task(coordinator.coordinate())
-
-                if self._role in (BrokerRole.OBSERVER, BrokerRole.FULL):
-                    tg.create_task(observer.observe())
-        finally:
-            await subscriber_manager.stop()
-```
-
-#### 3. Update Builder
-
-**File**:
-`src/logicblocks/event/processing/broker/strategies/distributed/builder.py`
-
-**Changes**:
-
-- Add `role: BrokerRole` to `DistributedEventBrokerSettings`
-- Pass role through to broker construction in `build()`
-
-```python
-@dataclass(frozen=True)
-class DistributedEventBrokerSettings:
-    role: BrokerRole = BrokerRole.FULL
-    subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
-    # ... rest unchanged
-```
-
-#### 4. Update Factories
-
-**File**: `src/logicblocks/event/processing/broker/factories.py`
-
-**Changes**:
-
-- Ensure `role` flows through factory functions via settings
-
-#### 5. Export New Types
-
-**File**: `src/logicblocks/event/processing/__init__.py`
-
-**Changes**:
-
-- Export `BrokerRole` from public API
-
-### Testing Strategy
-
-#### Unit Tests
-
-**File**:
-`tests/unit/logicblocks/event/processing/brokers/strategies/distributed/test_broker.py`
-
-**New Test Cases**:
-
-```python
-class TestDistributedEventBrokerRoles:
-    async def test_full_role_runs_coordinator_and_observer(self):
-        # Verify both coordinator.coordinate() and observer.observe() are called
-        pass
-
-    async def test_coordinator_role_runs_only_coordinator(self):
-        # Verify coordinator.coordinate() called, observer.observe() not called
-        pass
-
-    async def test_observer_role_runs_only_observer(self):
-        # Verify observer.observe() called, coordinator.coordinate() not called
-        pass
-
-    async def test_coordinator_role_rejects_subscriber_registration(self):
-        # Verify register() raises RuntimeError
-        pass
-
-    async def test_observer_role_accepts_subscriber_registration(self):
-        # Verify register() succeeds
-        pass
-
-    async def test_full_role_accepts_subscriber_registration(self):
-        # Verify register() succeeds
-        pass
-
-    async def test_status_reflects_coordinator_only_when_coordinator_role(self):
-        # Verify status property returns coordinator status only
-        pass
-
-    async def test_status_reflects_observer_only_when_observer_role(self):
-        # Verify status property returns observer status only
-        pass
-```
-
-**Pattern**: Use existing `MockEventSubscriptionCoordinator` and
-`MockEventSubscriptionObserver` to track whether `coordinate()` and `observe()`
-are called.
-
-#### Integration Tests
-
-**File**:
-`tests/integration/logicblocks/event/processing/broker/strategies/distributed/test_broker.py`
-
-**New Test Cases**:
-
-```python
-class TestDistributedEventBrokerRoleIntegration:
-    async def test_coordinator_and_observer_nodes_work_together(self):
-        # Start coordinator-only node
-        # Start observer-only node with subscribers
-        # Publish events
-        # Verify observer node processes events
-        # Verify coordinator allocated work to observer
-        pass
-
-    async def test_multiple_observer_nodes_with_single_coordinator(self):
-        # Start one coordinator-only node
-        # Start multiple observer-only nodes
-        # Verify work distributed across observers
-        pass
-```
-
-**Pattern**: Extend existing `NodeSet` pattern to support mixed-role node sets.
-
-### Success Criteria
-
-#### Automated Verification
-
-- [ ] All existing broker tests pass: `mise run test:unit`
-- [ ] New role-specific unit tests pass
-- [ ] Integration tests pass: `mise run test:integration`
-- [ ] Type checking passes: `mise run type:check`
-- [ ] Linting passes: `mise run lint:fix`
-- [ ] Formatting passes: `mise run format:fix`
-
-#### Manual Verification
-
-- [ ] Coordinator-only broker starts without error
-- [ ] Observer-only broker starts without error
-- [ ] Coordinator-only broker raises on `register()` call
-
----
-
-## Phase 2: EventRuntime Abstraction
-
-### Overview
-
-Introduce `EventRuntime` class that encapsulates subscriber/consumer
-registration, error handling wrapping, polling service creation, and lifecycle
-management.
-
-### Changes Required
-
-#### 1. Add EventConsumerSettings
+### 1. Add EventConsumerSettings
 
 **File**: `src/logicblocks/event/processing/runtime/settings.py` (new file)
 
@@ -393,6 +136,17 @@ from logicblocks.event.processing.services.error import (
 
 @dataclass(frozen=True)
 class EventConsumerSettings:
+    """Settings for consumer error handling and polling behaviour.
+
+    Attributes:
+        error_handler: Handler for exceptions during consumption.
+            Defaults to ContinueErrorHandler which logs and continues.
+        poll_interval: Interval between consume_all() calls.
+            Defaults to 1 second.
+        isolation_mode: Thread isolation for the polling service.
+            Defaults to MAIN_THREAD.
+    """
+
     error_handler: ErrorHandler = field(
         default_factory=lambda: ContinueErrorHandler()
     )
@@ -400,15 +154,17 @@ class EventConsumerSettings:
     isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD
 ```
 
-#### 2. Add EventRuntime Class
+### 2. Add EventRuntime Class
 
 **File**: `src/logicblocks/event/processing/runtime/runtime.py` (new file)
 
 ```python
+from typing import Any
+
 from logicblocks.event.processing.broker import EventBroker
 from logicblocks.event.processing.broker.types import EventSubscriber
-from logicblocks.event.processing.consumers import (
-    EventConsumer,
+from logicblocks.event.processing.consumers import EventConsumer
+from logicblocks.event.processing.consumers.subscription import (
     EventSubscriptionConsumer,
 )
 from logicblocks.event.processing.services import (
@@ -422,13 +178,32 @@ from .settings import EventConsumerSettings
 
 
 class EventRuntime:
+    """Runtime for event processing that simplifies registration and lifecycle.
+
+    Encapsulates the event broker and service manager, providing a simplified
+    API for registering subscribers and consumers with appropriate error
+    handling and polling.
+
+    Attributes:
+        node_id: Identifier for this deployed instance.
+    """
+
     def __init__(
         self,
         node_id: str,
-        event_broker: EventBroker,
+        event_broker: EventBroker[Any],
         service_manager: ServiceManager,
         default_consumer_settings: EventConsumerSettings | None = None,
     ):
+        """Initialise the runtime.
+
+        Args:
+            node_id: Identifier for this deployed instance.
+            event_broker: The event broker for subscriber registration.
+            service_manager: The service manager for service lifecycle.
+            default_consumer_settings: Default settings for consumers.
+                Used when no settings provided to registration methods.
+        """
         self._node_id = node_id
         self._event_broker = event_broker
         self._service_manager = service_manager
@@ -439,40 +214,65 @@ class EventRuntime:
 
     @property
     def node_id(self) -> str:
+        """The identifier for this deployed instance."""
         return self._node_id
 
     def _resolve_settings(
         self, settings: EventConsumerSettings | None
     ) -> EventConsumerSettings:
+        """Resolve settings, using defaults if none provided."""
         return settings or self._default_consumer_settings
 
     def _check_not_started(self) -> None:
+        """Raise if runtime has already started."""
         if self._started:
-            raise RuntimeError(
-                "Cannot register after runtime has started"
-            )
+            raise RuntimeError("Cannot register after runtime has started")
 
     async def register_subscriber(
         self,
-        subscriber: EventSubscriber,
+        subscriber: EventSubscriber[Any],
     ) -> None:
         """Register a subscriber for work allocation only.
 
         The subscriber will receive event source allocations from the broker
         but no consumption wrapping (error handling, polling) is applied.
+
+        Use this when:
+        - You have a custom subscriber that manages its own consumption
+        - You need broker registration but handle polling yourself
+
+        Args:
+            subscriber: The subscriber to register with the broker.
+
+        Raises:
+            RuntimeError: If called after start().
+            RuntimeError: If broker does not accept subscribers (e.g.,
+                coordinator-only broker).
         """
         self._check_not_started()
         await self._event_broker.register(subscriber)
 
     async def register_consumer(
         self,
-        consumer: EventConsumer,
+        consumer: EventConsumer[Any],
         settings: EventConsumerSettings | None = None,
     ) -> None:
         """Register a consumer for continuous, error-resilient consumption.
 
-        Wraps the consumer with error handling and polling services.
-        Does not register with the broker for work allocation.
+        Wraps the consumer with error handling and polling services and
+        registers with the service manager. Does not register with the broker
+        for work allocation.
+
+        Use this when:
+        - You have a consumer that doesn't need broker work allocation
+        - You're consuming from a known source directly
+
+        Args:
+            consumer: The consumer to wrap and register.
+            settings: Consumer settings. Uses runtime defaults if not provided.
+
+        Raises:
+            RuntimeError: If called after start().
         """
         self._check_not_started()
         resolved_settings = self._resolve_settings(settings)
@@ -495,13 +295,22 @@ class EventRuntime:
 
     async def register_subscription_consumer(
         self,
-        subscription_consumer: EventSubscriptionConsumer,
+        subscription_consumer: EventSubscriptionConsumer[Any],
         settings: EventConsumerSettings | None = None,
     ) -> None:
-        """Register a subscription consumer for both allocation and consumption.
+        """Register a subscription consumer for allocation and consumption.
 
         Registers with the broker for work allocation and wraps with error
-        handling and polling for continuous consumption.
+        handling and polling for continuous consumption. This is the common
+        case for event processing.
+
+        Args:
+            subscription_consumer: The subscription consumer to register.
+            settings: Consumer settings. Uses runtime defaults if not provided.
+
+        Raises:
+            RuntimeError: If called after start().
+            RuntimeError: If broker does not accept subscribers.
         """
         self._check_not_started()
         await self._event_broker.register(subscription_consumer)
@@ -512,6 +321,9 @@ class EventRuntime:
 
         Registers the broker with the service manager and starts all services.
         No further registrations are allowed after calling start().
+
+        Raises:
+            RuntimeError: If already started.
         """
         self._check_not_started()
         self._service_manager.register(self._event_broker)
@@ -526,7 +338,7 @@ class EventRuntime:
         await self._service_manager.stop()
 ```
 
-#### 3. Add Module Structure
+### 3. Add Module Structure
 
 **File**: `src/logicblocks/event/processing/runtime/__init__.py` (new file)
 
@@ -540,161 +352,510 @@ __all__ = [
 ]
 ```
 
-#### 4. Export from Processing Package
+### 4. Export from Processing Package
 
 **File**: `src/logicblocks/event/processing/__init__.py`
 
 **Changes**:
 
-- Export `EventRuntime` and `EventConsumerSettings`
+- Add imports for `EventRuntime` and `EventConsumerSettings`
+- Add to `__all__` list
 
-### Testing Strategy
+---
 
-#### Unit Tests
+## Testing Strategy
 
-**File**: `tests/unit/logicblocks/event/processing/runtime/test_runtime.py` (
-new)
+### Unit Tests
+
+**File**: `tests/unit/logicblocks/event/processing/runtime/test_settings.py` (new)
 
 ```python
-class TestEventRuntimeRegistration:
-    async def test_register_subscriber_delegates_to_broker(self):
-        # Mock broker, verify register() called
-        pass
+from datetime import timedelta
 
-    async def test_register_consumer_creates_error_handling_service(self):
-        # Verify consumer wrapped with ErrorHandlingService
-        pass
+import pytest
 
-    async def test_register_consumer_creates_polling_service(self):
-        # Verify error handling service wrapped with PollingService
-        pass
+from logicblocks.event.processing.runtime import EventConsumerSettings
+from logicblocks.event.processing.services import IsolationMode
+from logicblocks.event.processing.services.error import ContinueErrorHandler
 
-    async def test_register_consumer_registers_with_service_manager(self):
-        # Verify polling service registered as BACKGROUND
-        pass
 
-    async def test_register_consumer_uses_provided_settings(self):
-        # Verify custom error_handler, poll_interval, isolation_mode used
-        pass
+class TestEventConsumerSettings:
+    def test_default_error_handler_is_continue_error_handler(self):
+        settings = EventConsumerSettings()
+        assert isinstance(settings.error_handler, ContinueErrorHandler)
 
-    async def test_register_consumer_uses_default_settings_when_none_provided(
-        self):
-        # Verify runtime defaults used
-        pass
+    def test_default_poll_interval_is_one_second(self):
+        settings = EventConsumerSettings()
+        assert settings.poll_interval == timedelta(seconds=1)
 
-    async def test_register_subscription_consumer_registers_with_broker(self):
-        # Verify broker.register() called
-        pass
+    def test_default_isolation_mode_is_main_thread(self):
+        settings = EventConsumerSettings()
+        assert settings.isolation_mode == IsolationMode.MAIN_THREAD
 
-    async def test_register_subscription_consumer_wraps_for_consumption(self):
-        # Verify error handling + polling applied
-        pass
+    def test_custom_values_are_preserved(self):
+        from logicblocks.event.processing.services.error import RaiseErrorHandler
 
-    async def test_registration_raises_after_start(self):
-        # Verify RuntimeError raised if register called after start()
-        pass
+        settings = EventConsumerSettings(
+            error_handler=RaiseErrorHandler(),
+            poll_interval=timedelta(milliseconds=500),
+            isolation_mode=IsolationMode.DEDICATED_THREAD,
+        )
+
+        assert isinstance(settings.error_handler, RaiseErrorHandler)
+        assert settings.poll_interval == timedelta(milliseconds=500)
+        assert settings.isolation_mode == IsolationMode.DEDICATED_THREAD
+
+    def test_settings_are_immutable(self):
+        settings = EventConsumerSettings()
+
+        with pytest.raises(AttributeError):
+            settings.poll_interval = timedelta(seconds=5)
+```
+
+**File**: `tests/unit/logicblocks/event/processing/runtime/test_runtime.py` (new)
+
+```python
+from datetime import timedelta
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from logicblocks.event.processing.broker import EventBroker
+from logicblocks.event.processing.consumers import EventConsumer
+from logicblocks.event.processing.consumers.subscription import (
+    EventSubscriptionConsumer,
+)
+from logicblocks.event.processing.runtime import (
+    EventConsumerSettings,
+    EventRuntime,
+)
+from logicblocks.event.processing.services import (
+    ExecutionMode,
+    IsolationMode,
+    ServiceManager,
+)
+from logicblocks.event.processing.services.error import RaiseErrorHandler
+
+
+class TestEventRuntimeConstruction:
+    def test_stores_node_id(self):
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=Mock(spec=ServiceManager),
+        )
+
+        assert runtime.node_id == "test-node"
+
+    def test_uses_provided_default_settings(self):
+        custom_settings = EventConsumerSettings(
+            poll_interval=timedelta(milliseconds=100)
+        )
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=Mock(spec=ServiceManager),
+            default_consumer_settings=custom_settings,
+        )
+
+        assert runtime._default_consumer_settings == custom_settings
+
+    def test_creates_default_settings_when_none_provided(self):
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=Mock(spec=ServiceManager),
+        )
+
+        assert runtime._default_consumer_settings is not None
+        assert runtime._default_consumer_settings.poll_interval == timedelta(
+            seconds=1
+        )
+
+
+class TestEventRuntimeRegisterSubscriber:
+    async def test_delegates_to_broker_register(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock()
+        subscriber = Mock(spec=EventSubscriptionConsumer)
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=Mock(spec=ServiceManager),
+        )
+
+        await runtime.register_subscriber(subscriber)
+
+        broker.register.assert_called_once_with(subscriber)
+
+    async def test_raises_after_start(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock()
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=service_manager,
+        )
+
+        await runtime.start()
+
+        with pytest.raises(RuntimeError, match="after runtime has started"):
+            await runtime.register_subscriber(Mock(spec=EventSubscriptionConsumer))
+
+    async def test_propagates_broker_registration_error(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock(
+            side_effect=RuntimeError("coordinator-only broker")
+        )
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=Mock(spec=ServiceManager),
+        )
+
+        with pytest.raises(RuntimeError, match="coordinator-only"):
+            await runtime.register_subscriber(Mock(spec=EventSubscriptionConsumer))
+
+
+class TestEventRuntimeRegisterConsumer:
+    async def test_registers_polling_service_with_service_manager(self):
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        consumer = Mock(spec=EventConsumer)
+        consumer.consume_all = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.register_consumer(consumer)
+
+        service_manager.register.assert_called_once()
+        call_args = service_manager.register.call_args
+        assert call_args.kwargs["execution_mode"] == ExecutionMode.BACKGROUND
+
+    async def test_uses_provided_settings(self):
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        consumer = Mock(spec=EventConsumer)
+        consumer.consume_all = AsyncMock()
+
+        custom_settings = EventConsumerSettings(
+            isolation_mode=IsolationMode.DEDICATED_THREAD
+        )
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.register_consumer(consumer, settings=custom_settings)
+
+        call_args = service_manager.register.call_args
+        assert call_args.kwargs["isolation_mode"] == IsolationMode.DEDICATED_THREAD
+
+    async def test_uses_default_settings_when_none_provided(self):
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        consumer = Mock(spec=EventConsumer)
+        consumer.consume_all = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.register_consumer(consumer)
+
+        call_args = service_manager.register.call_args
+        assert call_args.kwargs["isolation_mode"] == IsolationMode.MAIN_THREAD
+
+    async def test_raises_after_start(self):
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.start()
+
+        with pytest.raises(RuntimeError, match="after runtime has started"):
+            await runtime.register_consumer(Mock(spec=EventConsumer))
+
+
+class TestEventRuntimeRegisterSubscriptionConsumer:
+    async def test_registers_with_broker(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock()
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        subscription_consumer = Mock(spec=EventSubscriptionConsumer)
+        subscription_consumer.consume_all = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=service_manager,
+        )
+
+        await runtime.register_subscription_consumer(subscription_consumer)
+
+        broker.register.assert_called_once_with(subscription_consumer)
+
+    async def test_registers_as_consumer_for_polling(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock()
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        subscription_consumer = Mock(spec=EventSubscriptionConsumer)
+        subscription_consumer.consume_all = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=service_manager,
+        )
+
+        await runtime.register_subscription_consumer(subscription_consumer)
+
+        service_manager.register.assert_called_once()
+
+    async def test_uses_provided_settings(self):
+        broker = Mock(spec=EventBroker)
+        broker.register = AsyncMock()
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        subscription_consumer = Mock(spec=EventSubscriptionConsumer)
+        subscription_consumer.consume_all = AsyncMock()
+
+        custom_settings = EventConsumerSettings(
+            isolation_mode=IsolationMode.SHARED_THREAD
+        )
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=service_manager,
+        )
+
+        await runtime.register_subscription_consumer(
+            subscription_consumer, settings=custom_settings
+        )
+
+        call_args = service_manager.register.call_args
+        assert call_args.kwargs["isolation_mode"] == IsolationMode.SHARED_THREAD
 
 
 class TestEventRuntimeLifecycle:
     async def test_start_registers_broker_with_service_manager(self):
-        # Verify broker registered before start
-        pass
+        broker = Mock(spec=EventBroker)
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=broker,
+            service_manager=service_manager,
+        )
+
+        await runtime.start()
+
+        # Broker should be registered
+        service_manager.register.assert_called_with(broker)
 
     async def test_start_starts_service_manager(self):
-        # Verify service_manager.start() called
-        pass
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.start()
+
+        service_manager.start.assert_called_once()
+
+    async def test_start_raises_if_already_started(self):
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
+
+        await runtime.start()
+
+        with pytest.raises(RuntimeError, match="after runtime has started"):
+            await runtime.start()
 
     async def test_stop_stops_service_manager(self):
-        # Verify service_manager.stop() called
-        pass
+        service_manager = Mock(spec=ServiceManager)
+        service_manager.register = Mock(return_value=service_manager)
+        service_manager.start = AsyncMock()
+        service_manager.stop = AsyncMock()
 
+        runtime = EventRuntime(
+            node_id="test-node",
+            event_broker=Mock(spec=EventBroker),
+            service_manager=service_manager,
+        )
 
-class TestEventRuntimeWithCoordinatorBroker:
-    async def test_register_subscriber_propagates_broker_error(self):
-        # Broker configured as COORDINATOR raises on register()
-        # Verify EventRuntime propagates the error
-        pass
+        await runtime.start()
+        await runtime.stop()
+
+        service_manager.stop.assert_called_once()
 ```
 
-**File**: `tests/unit/logicblocks/event/processing/runtime/test_settings.py` (
-new)
+### Integration Tests
 
-```python
-class TestEventConsumerSettings:
-    def test_default_error_handler_is_continue(self):
-        pass
-
-    def test_default_poll_interval_is_one_second(self):
-        pass
-
-    def test_default_isolation_mode_is_main_thread(self):
-        pass
-
-    def test_settings_are_immutable(self):
-        # Verify frozen=True
-        pass
-```
-
-#### Integration Tests
-
-**File**:
-`tests/integration/logicblocks/event/processing/runtime/test_runtime.py` (new)
+**File**: `tests/integration/logicblocks/event/processing/runtime/test_runtime.py` (new)
 
 ```python
 class TestEventRuntimeIntegration:
-    async def test_processes_events_through_registered_subscription_consumer(
-        self):
-        # Create real broker, service manager, runtime
-        # Register subscription consumer
-        # Publish events
-        # Verify events processed
-        pass
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await drop_table(open_connection_pool, "events")
+        await drop_table(open_connection_pool, "subscribers")
+        await drop_table(open_connection_pool, "subscriptions")
+        await create_table(open_connection_pool, "events")
+        await create_table(open_connection_pool, "subscribers")
+        await create_table(open_connection_pool, "subscriptions")
 
-    async def test_multiple_subscription_consumers_process_concurrently(self):
-        # Register multiple subscription consumers
-        # Verify all receive events
-        pass
+    async def test_processes_events_through_subscription_consumer(
+        self, open_connection_pool
+    ):
+        """Verify events are processed when using register_subscription_consumer."""
+        adapter = PostgresEventStorageAdapter(connection_source=open_connection_pool)
+        event_store = EventStore(adapter=adapter)
+        event_processor = CapturingEventProcessor()
 
-    async def test_error_handling_continues_on_processor_exception(self):
-        # Configure ContinueErrorHandler
-        # Processor throws exception
-        # Verify processing continues
+        node_id = random_node_id()
+        category = random_category_name()
+
+        event_broker = make_event_broker(
+            node_id=node_id,
+            broker_type=EventBrokerType.Distributed,
+            storage_type=EventBrokerStorageType.Postgres,
+            settings=DistributedEventBrokerSettings(
+                observer_synchronisation_interval=timedelta(milliseconds=100),
+                coordinator_distribution_interval=timedelta(milliseconds=100),
+            ),
+            connection_settings=connection_settings,
+            connection_pool=open_connection_pool,
+            adapter=adapter,
+        )
+
+        service_manager = ServiceManager()
+
+        runtime = EventRuntime(
+            node_id=node_id,
+            event_broker=event_broker,
+            service_manager=service_manager,
+            default_consumer_settings=EventConsumerSettings(
+                poll_interval=timedelta(milliseconds=50),
+            ),
+        )
+
+        subscription_consumer = make_subscriber(
+            subscriber_group=f"test-{category}",
+            subscription_request=CategoryIdentifier(category=category),
+            subscriber_state_category=event_store.category(
+                category=f"state-{category}"
+            ),
+            event_processor=event_processor,
+            ...
+        )
+
+        await runtime.register_subscription_consumer(subscription_consumer)
+
+        # Publish event before starting
+        await event_store.category(category=category).publish(
+            NewEvent(name="test-event", payload={"key": "value"})
+        )
+
+        # Start runtime
+        start_task = asyncio.create_task(runtime.start())
+
+        try:
+            # Wait for event to be processed
+            await asyncio.wait_for(
+                wait_for_event_count(event_processor, 1),
+                timeout=10.0,
+            )
+
+            assert len(event_processor.events) == 1
+        finally:
+            await runtime.stop()
+            start_task.cancel()
+            await asyncio.gather(start_task, return_exceptions=True)
+
+    async def test_error_handling_continues_on_exception(
+        self, open_connection_pool
+    ):
+        """Verify processing continues after exception with ContinueErrorHandler."""
+        # Similar setup with a processor that throws once then succeeds
         pass
 ```
 
-#### Component Tests
+### Component Tests
 
 **File**: `tests/component/test_event_runtime.py` (new)
 
 ```python
 class TestEventRuntimeComponent:
-    async def test_end_to_end_event_processing(self):
-        # Full setup with PostgreSQL
-        # Create runtime with subscription consumers
-        # Publish events
-        # Verify processing and state persistence
+    async def test_end_to_end_event_processing_with_postgres(self):
+        """Full integration test with PostgreSQL storage."""
+        # Complete setup with real storage
+        # Multiple subscription consumers
+        # Verify all events processed
         pass
 ```
 
-### Success Criteria
+---
 
-#### Automated Verification
+## Success Criteria
+
+### Automated Verification
 
 - [ ] All existing tests pass: `mise run test:unit`
 - [ ] New runtime unit tests pass
+- [ ] New settings unit tests pass
 - [ ] Integration tests pass: `mise run test:integration`
 - [ ] Component tests pass: `mise run test:component`
 - [ ] Type checking passes: `mise run type:check`
 - [ ] Linting passes: `mise run lint:fix`
 - [ ] Formatting passes: `mise run format:fix`
 
-#### Manual Verification
+### Manual Verification
 
 - [ ] EventRuntime can be constructed with all required dependencies
 - [ ] Registration methods work with real subscribers/consumers
 - [ ] Start/stop lifecycle works correctly
 - [ ] Error handling wrapper catches and handles exceptions
 - [ ] Polling continuously calls consume_all at configured interval
+- [ ] Registration after start raises clear error
 
 ---
 
@@ -722,12 +883,10 @@ documented for future consideration:
 
 ## References
 
-- Research document:
-  `meta/research/2025-12-02-event-processing-node-abstraction.md`
+- Research document: `meta/research/2025-12-02-event-processing-node-abstraction.md`
 - Example patterns: `meta/examples/subscriber_registration/`
 - EventBroker interface: `src/logicblocks/event/processing/broker/base.py:11-14`
-- DistributedEventBroker:
-  `src/logicblocks/event/processing/broker/strategies/distributed/broker.py:19-57`
 - ServiceManager: `src/logicblocks/event/processing/services/manager.py:174-224`
-- EventSubscriptionConsumer:
-  `src/logicblocks/event/processing/consumers/subscription.py:95`
+- EventSubscriptionConsumer: `src/logicblocks/event/processing/consumers/subscription.py:95`
+- ErrorHandlingService: `src/logicblocks/event/processing/services/error.py:475-486`
+- PollingService: `src/logicblocks/event/processing/services/polling.py:9-24`

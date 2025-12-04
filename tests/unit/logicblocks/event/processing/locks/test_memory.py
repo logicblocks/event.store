@@ -1,8 +1,9 @@
-from logicblocks.event.processing import (
-    InMemoryLockManager,
-)
 from logicblocks.event.testcases import (
     LockManagerCases,
+)
+
+from logicblocks.event.processing import (
+    InMemoryLockManager,
 )
 
 

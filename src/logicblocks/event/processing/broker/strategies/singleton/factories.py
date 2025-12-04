@@ -70,7 +70,7 @@ def make_postgres_singleton_event_broker(
     connection_settings: ConnectionSettings,
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: SingletonEventBrokerSettings,
-    adapter: EventStorageAdapter | None,
+    adapter: EventStorageAdapter | None = None,
 ) -> EventBroker[StoredEvent]:
     return (
         PostgresSingletonEventBrokerBuilder(node_id)

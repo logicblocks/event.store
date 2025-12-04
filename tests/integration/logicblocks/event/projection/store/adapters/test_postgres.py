@@ -2,15 +2,6 @@ import os
 from typing import Sequence
 
 import pytest_asyncio
-from psycopg import AsyncConnection, abc, sql
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
-
-from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.projection.store import ProjectionStorageAdapter
-from logicblocks.event.projection.store.adapters import (
-    PostgresProjectionStorageAdapter,
-)
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
 )
@@ -22,6 +13,15 @@ from logicblocks.event.testsupport import (
 )
 from logicblocks.event.testsupport.db import (
     enable_extension,
+)
+from psycopg import AsyncConnection, abc, sql
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
+
+from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.projection.store import ProjectionStorageAdapter
+from logicblocks.event.projection.store.adapters import (
+    PostgresProjectionStorageAdapter,
 )
 from logicblocks.event.types import JsonValue, Projection, identifier
 

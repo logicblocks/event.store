@@ -6,6 +6,11 @@ from datetime import timedelta
 
 import pytest
 import pytest_asyncio
+from logicblocks.event.testsupport import (
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
@@ -35,11 +40,6 @@ from logicblocks.event.store import (
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import NewEventBuilder
-from logicblocks.event.testsupport import (
-    connection_pool,
-    create_table,
-    drop_table,
-)
 from logicblocks.event.types import JsonValue, LogIdentifier, StoredEvent
 from logicblocks.event.types.identifier import CategoryIdentifier
 

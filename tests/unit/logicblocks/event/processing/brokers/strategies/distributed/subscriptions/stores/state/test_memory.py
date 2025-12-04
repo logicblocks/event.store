@@ -1,9 +1,10 @@
+from logicblocks.event.testcases import (
+    EventSubscriptionStateStoreCases,
+)
+
 from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriptionStateStore,
     InMemoryEventSubscriptionStateStore,
-)
-from logicblocks.event.testcases import (
-    EventSubscriptionStateStoreCases,
 )
 
 

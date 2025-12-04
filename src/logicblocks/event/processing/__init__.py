@@ -53,8 +53,11 @@ from .services import (
     Service,
     ServiceManager,
     TypeMappingErrorHandler,
-    error_handler_type_mapping,
+    continue_execution_type_mapping,
     error_handler_type_mappings,
+    exit_fatally_type_mapping,
+    raise_exception_type_mapping,
+    retry_execution_type_mapping,
 )
 
 __all__ = [
@@ -105,7 +108,10 @@ __all__ = [
     "DistributedEventBrokerTypeType",
     "TypeMappingErrorHandler",
     "determine_multi_process_status",
-    "error_handler_type_mapping",
+    "exit_fatally_type_mapping",
+    "raise_exception_type_mapping",
+    "continue_execution_type_mapping",
+    "retry_execution_type_mapping",
     "error_handler_type_mappings",
     "make_event_broker",
     "make_in_memory_event_broker",

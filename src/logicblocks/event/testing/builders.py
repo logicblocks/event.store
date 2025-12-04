@@ -59,11 +59,16 @@ class NewEventBuilder[Name = str, Payload = JsonValue]:
         object.__setattr__(self, "observed_at", observed_at)
 
     def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Name, Payload]]):
+        name = kwargs.get("name", self.name)
+        payload = kwargs.get("payload", self.payload)
+        occurred_at = kwargs.get("occurred_at", self.occurred_at)
+        observed_at = kwargs.get("observed_at", self.observed_at)
+
         return NewEventBuilder(
-            name=kwargs.get("name", self.name),
-            payload=kwargs.get("payload", self.payload),
-            occurred_at=kwargs.get("occurred_at", self.occurred_at),
-            observed_at=kwargs.get("observed_at", self.observed_at),
+            name=name,
+            payload=payload,
+            occurred_at=occurred_at,
+            observed_at=observed_at,
         )
 
     def with_name(self, name: Name):
@@ -159,18 +164,26 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
     def _clone(
         self, **kwargs: Unpack[StoredEventBuilderParams[Name, Payload]]
     ):
+        id = kwargs.get("id", self.id)
+        name = kwargs.get("name", self.name)
+        stream = kwargs.get("stream", self.stream)
+        category = kwargs.get("category", self.category)
+        position = kwargs.get("position", self.position)
+        sequence_number = kwargs.get("sequence_number", self.sequence_number)
+        payload = kwargs.get("payload", self.payload)
+        occurred_at = kwargs.get("occurred_at", self.occurred_at)
+        observed_at = kwargs.get("observed_at", self.observed_at)
+
         return StoredEventBuilder(
-            id=kwargs.get("id", self.id),
-            name=kwargs.get("name", self.name),
-            stream=kwargs.get("stream", self.stream),
-            category=kwargs.get("category", self.category),
-            position=kwargs.get("position", self.position),
-            sequence_number=kwargs.get(
-                "sequence_number", self.sequence_number
-            ),
-            payload=kwargs.get("payload", self.payload),
-            occurred_at=kwargs.get("occurred_at", self.occurred_at),
-            observed_at=kwargs.get("observed_at", self.observed_at),
+            id=id,
+            name=name,
+            stream=stream,
+            category=category,
+            position=position,
+            sequence_number=sequence_number,
+            payload=payload,
+            occurred_at=occurred_at,
+            observed_at=observed_at,
         )
 
     def from_new_event(self, event: NewEvent[Name, Payload]):
@@ -294,12 +307,18 @@ class BaseProjectionBuilder[
     def _clone(
         self, **kwargs: Unpack[ProjectionBuilderParams[State, Metadata]]
     ) -> Self:
+        id = kwargs.get("id", self.id)
+        name = kwargs.get("name", self.name)
+        source = kwargs.get("source", self.source)
+        state = kwargs.get("state", self.state)
+        metadata = kwargs.get("metadata", self.metadata)
+
         return self.__class__(
-            id=kwargs.get("id", self.id),
-            name=kwargs.get("name", self.name),
-            source=kwargs.get("source", self.source),
-            state=kwargs.get("state", self.state),
-            metadata=kwargs.get("metadata", self.metadata),
+            id=id,
+            name=name,
+            source=source,
+            state=state,
+            metadata=metadata,
         )
 
     def with_id(self, id: str) -> Self:

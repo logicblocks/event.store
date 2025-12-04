@@ -1,9 +1,10 @@
 import asyncio
 import threading
+from abc import ABC, abstractmethod
 from asyncio import Future, Task
 from collections.abc import Coroutine, Sequence
 from enum import Enum, auto
-from typing import Any, Self
+from typing import Any, Self, override
 
 import uvloop
 
@@ -36,13 +37,31 @@ class ServiceDefinition[T]:
         return self.service.execute()
 
 
-class MainThreadServiceExecutor:
+class ServiceExecutor(ABC):
+    @abstractmethod
+    async def start(self) -> Self:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def schedule[R = Any](
+        self, definition: ServiceDefinition[R]
+    ) -> Future[R]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop(self) -> Self:
+        raise NotImplementedError
+
+
+class MainThreadServiceExecutor(ServiceExecutor):
     def __init__(self):
         self.service_tasks: set[Task[Any]] = set()
 
+    @override
     async def start(self) -> Self:
         return self
 
+    @override
     async def schedule[R = Any](
         self, definition: ServiceDefinition[R]
     ) -> Future[R]:
@@ -54,6 +73,7 @@ class MainThreadServiceExecutor:
 
         return task
 
+    @override
     async def stop(self) -> Self:
         for task in self.service_tasks:
             task.cancel()
@@ -61,15 +81,17 @@ class MainThreadServiceExecutor:
         return self
 
 
-class IsolatedThreadServiceExecutor:
+class IsolatedThreadServiceExecutor(ServiceExecutor):
     def __init__(self):
         self._loop = uvloop.new_event_loop()
         self._thread = threading.Thread(target=self._start_event_loop)
 
+    @override
     async def start(self) -> Self:
         self._thread.start()
         return self
 
+    @override
     async def schedule[R = Any](
         self, definition: ServiceDefinition[R]
     ) -> Future[R]:
@@ -79,6 +101,7 @@ class IsolatedThreadServiceExecutor:
             )
         )
 
+    @override
     async def stop(self) -> Self:
         await asyncio.wrap_future(
             asyncio.run_coroutine_threadsafe(
@@ -111,7 +134,10 @@ class IsolationModeAwareServiceExecutor:
     def __init__(self):
         self._main_executor = MainThreadServiceExecutor()
         self._shared_executor = IsolatedThreadServiceExecutor()
-        self._all_executors = [self._main_executor, self._shared_executor]
+        self._all_executors: list[ServiceExecutor] = [
+            self._main_executor,
+            self._shared_executor,
+        ]
 
     async def start(self) -> Self:
         await asyncio.gather(

@@ -3,14 +3,6 @@ import sys
 
 import pytest
 import pytest_asyncio
-from psycopg import AsyncConnection, abc, sql
-from psycopg_pool import AsyncConnectionPool
-
-from logicblocks.event.persistence.postgres import ConnectionSettings
-from logicblocks.event.processing.broker.strategies.distributed import (
-    EventSubscriberStateStore,
-    PostgresEventSubscriberStateStore,
-)
 from logicblocks.event.testcases import (
     EventSubscriberStateStoreCases,
 )
@@ -18,6 +10,14 @@ from logicblocks.event.testsupport import (
     connection_pool,
     create_table,
     drop_table,
+)
+from psycopg import AsyncConnection, abc, sql
+from psycopg_pool import AsyncConnectionPool
+
+from logicblocks.event.persistence.postgres import ConnectionSettings
+from logicblocks.event.processing.broker.strategies.distributed import (
+    EventSubscriberStateStore,
+    PostgresEventSubscriberStateStore,
 )
 from logicblocks.event.utils.clock import Clock
 

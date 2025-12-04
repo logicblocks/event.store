@@ -94,12 +94,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             namespace="memory", target=target
         )
 
-    def _determine_required_locks(
+    def _determine_required_locks[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+    ](
         self,
         target: CategoryIdentifier,
-        streams: Mapping[
-            str, StreamPublishDefinition[StringPersistable, JsonPersistable]
-        ],
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
     ) -> list[str]:
         match self._serialisation_guarantee:
             case EventSerialisationGuarantee.STREAM:

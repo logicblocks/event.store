@@ -5,6 +5,11 @@ from datetime import timedelta
 from typing import Any, Callable, Mapping, Self
 
 import pytest_asyncio
+from logicblocks.event.testsupport import (
+    connection_pool,
+    create_table,
+    drop_table,
+)
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
@@ -31,11 +36,6 @@ from logicblocks.event.store import (
     PostgresEventStorageAdapter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
-from logicblocks.event.testsupport import (
-    connection_pool,
-    create_table,
-    drop_table,
-)
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonValue,

@@ -1,3 +1,6 @@
+from logicblocks.event.testlogging import CapturingLogger
+from logicblocks.event.testlogging.logger import LogLevel
+
 from logicblocks.event.processing import (
     EventConsumerStateStore,
     EventCount,
@@ -15,8 +18,6 @@ from logicblocks.event.store import (
     InMemoryEventStorageAdapter,
 )
 from logicblocks.event.testing import NewEventBuilder, data
-from logicblocks.event.testlogging import CapturingLogger
-from logicblocks.event.testlogging.logger import LogLevel
 from logicblocks.event.types import Event
 
 

@@ -1,7 +1,7 @@
 [project]
 requires-python = ">=3.13,<4.0"
 name = "logicblocks.event.store"
-version = "0.1.10a15"
+version = "0.1.10a16"
 description = "Eventing infrastructure for event sourced architectures."
 authors = [
     { name = "Toby Clemson", email = "tobyclemson@gmail.com" },

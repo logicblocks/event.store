@@ -194,7 +194,7 @@ class ServiceManager:
         self._stop_on_signals = [*self._stop_on_signals, *signals]
         return self
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> list[Future[Any]]:
         return await self.start()
 
     async def __aexit__(
@@ -202,8 +202,9 @@ class ServiceManager:
         exc_type: type[BaseException] | None = None,
         exc_value: BaseException | None = None,
         traceback: TracebackType | None = None,
-    ):
+    ) -> bool:
         await self.stop()
+        return False
 
     async def start(self) -> list[Future[Any]]:
         loop = asyncio.get_event_loop()

@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from asyncio import Future, Task
 from collections.abc import Coroutine, Sequence
 from enum import Enum, auto
+from types import TracebackType
 from typing import Any, Self, override
 
 import uvloop
@@ -192,6 +193,18 @@ class ServiceManager:
     def stop_on(self, signals: Sequence[int]) -> Self:
         self._stop_on_signals = [*self._stop_on_signals, *signals]
         return self
+
+    async def __aenter__(self) -> list[Future[Any]]:
+        return await self.start()
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> bool:
+        await self.stop()
+        return False
 
     async def start(self) -> list[Future[Any]]:
         loop = asyncio.get_event_loop()

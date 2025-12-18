@@ -72,6 +72,52 @@ class TestServiceManagerExecutionModes:
         assert times["during"] > times["after"]
 
 
+class TestServiceManagerContextManager:
+    async def test_service_manager_can_be_used_as_async_context_manager(self):
+        class SimpleService(Service):
+            def __init__(self):
+                self.started = False
+                self.cancelled = False
+
+            async def execute(self):
+                try:
+                    await asyncio.sleep(0)
+                    self.started = True
+                    while True:
+                        await asyncio.sleep(0)
+                except CancelledError:
+                    self.cancelled = True
+                    raise
+
+        service = SimpleService()
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.BACKGROUND)
+        async with manager:
+            while not service.started:
+                await asyncio.sleep(0)
+
+        assert service.started is True
+        assert service.cancelled is True
+
+    async def test_service_manager_awaits_foreground_services_as_async_context_manager(
+        self,
+    ):
+        class SimpleService(Service):
+            def __init__(self):
+                self.has_run = False
+
+            async def execute(self):
+                await asyncio.sleep(0)
+                self.has_run = True
+                await asyncio.sleep(0)
+
+        service = SimpleService()
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.FOREGROUND)
+        async with manager:
+            assert service.has_run is True
+
+
 class TestServiceManagerIsolationModes:
     async def test_main_thread_isolation_mode_runs_services_on_main_thread(
         self,

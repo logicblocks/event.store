@@ -193,3 +193,14 @@ class PostgresProjectionStorageAdapter[
                     )
                     for projection in projections
                 ]
+
+    async def count(self) -> int:
+        query = sql.SQL("SELECT COUNT(*) FROM {0}").format(
+            sql.Identifier(self.table_settings.table_name)
+        )
+        async with self.connection_pool.connection() as connection:
+            async with connection.cursor() as cursor:
+                results = await cursor.execute(query)
+                row = await results.fetchone()
+                return row[0] if row else 0
+

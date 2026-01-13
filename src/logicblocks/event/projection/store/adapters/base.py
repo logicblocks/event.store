@@ -47,3 +47,7 @@ class ProjectionStorageAdapter[
         metadata_type: type[Metadata] = JsonValueType,
     ) -> Sequence[Projection[State, Metadata]]:
         raise NotImplementedError()
+
+    @abstractmethod
+    async def count(self) -> int:
+        raise NotImplementedError()

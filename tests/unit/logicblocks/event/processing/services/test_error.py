@@ -3,11 +3,11 @@ from collections.abc import Callable
 import pytest
 
 from logicblocks.event.processing import (
+    CallableService,
     ContinueErrorHandler,
     ErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
-    ErrorHandlingServiceMixin,
     ExitErrorHandler,
     RaiseErrorHandler,
     RaiseErrorHandlerDecision,
@@ -448,23 +448,18 @@ class TestTypeMappingErrorHandler:
         assert callback_invoked == {"called": True, "exception": exception}
 
 
-class TestService(ErrorHandlingServiceMixin[int], Service[int]):
+class ExceptionThrowingService(Service[int]):
     __test__ = False
 
-    def __init__(
-        self,
-        error_handler: ErrorHandler[int],
-        call_callback: Callable[[], None],
-    ):
-        super().__init__(error_handler=error_handler)
+    def __init__(self, call_callback: Callable[[], None]):
         self._call_callback = call_callback
 
-    async def _do_execute(self) -> int:
+    async def execute(self) -> int:
         self._call_callback()
         raise RuntimeError("Something went wrong.")
 
 
-class TestErrorHandlingServiceMixin:
+class TestErrorHandlingServiceWithCustomService:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0
 
@@ -475,8 +470,8 @@ class TestErrorHandlingServiceMixin:
         class TestException(Exception):
             pass
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=RaiseErrorHandler(
                 exception_factory=lambda ex: TestException(
                     "Unhandleable exception occurred."
@@ -485,7 +480,7 @@ class TestErrorHandlingServiceMixin:
         )
 
         with pytest.raises(TestException):
-            await service.execute()
+            await service.run()
 
         assert call_count == 1
 
@@ -496,12 +491,12 @@ class TestErrorHandlingServiceMixin:
             nonlocal call_count
             call_count += 1
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.execute()
+        result = await service.run()
 
         assert call_count == 1
         assert result == 10
@@ -513,13 +508,13 @@ class TestErrorHandlingServiceMixin:
             nonlocal call_count
             call_count += 1
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.execute()
+            await service.run()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -533,11 +528,8 @@ class TestErrorHandlingServiceMixin:
         class RetryTestException(Exception):
             pass
 
-        class TestService(ErrorHandlingServiceMixin[int], Service[int]):
-            def __init__(self, error_handler: ErrorHandler[int]):
-                super().__init__(error_handler=error_handler)
-
-            async def _do_execute(self) -> int:
+        class ConditionallyFailingService(Service[int]):
+            async def execute(self) -> int:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:
@@ -556,14 +548,17 @@ class TestErrorHandlingServiceMixin:
                 else:
                     return ErrorHandlerDecision.raise_exception(exception)
 
-        service = TestService(error_handler=RetryOrContinueErrorHandler())
+        service = ErrorHandlingService(
+            service=ConditionallyFailingService(),
+            error_handler=RetryOrContinueErrorHandler(),
+        )
 
-        await service.execute()
+        await service.run()
 
         assert call_count == 3
 
 
-class TestErrorHandlingService:
+class TestErrorHandlingServiceWithCallable:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0
 
@@ -576,7 +571,7 @@ class TestErrorHandlingService:
             pass
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=RaiseErrorHandler(
                 exception_factory=lambda ex: TestException(
                     "Unhandleable exception occurred."
@@ -585,7 +580,7 @@ class TestErrorHandlingService:
         )
 
         with pytest.raises(TestException):
-            await service.execute()
+            await service.run()
 
         assert call_count == 1
 
@@ -598,11 +593,11 @@ class TestErrorHandlingService:
             raise RuntimeError("Something went wrong.")
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.execute()
+        result = await service.run()
 
         assert call_count == 1
         assert result == 10
@@ -616,12 +611,12 @@ class TestErrorHandlingService:
             raise RuntimeError("Something went wrong.")
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.execute()
+            await service.run()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -655,9 +650,10 @@ class TestErrorHandlingService:
                     return ErrorHandlerDecision.raise_exception(exception)
 
         service = ErrorHandlingService(
-            callable=callable, error_handler=RetryOrContinueErrorHandler()
+            service=CallableService(callable),
+            error_handler=RetryOrContinueErrorHandler(),
         )
 
-        await service.execute()
+        await service.run()
 
         assert call_count == 3

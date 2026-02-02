@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
@@ -440,17 +441,15 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
         return self.default_error_handler.handle(exception)
 
 
-class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
-    def __init__(
-        self,
-        error_handler: ErrorHandler[T],
-    ):
+class ErrorHandlingService[T = Any](Service[T]):
+    def __init__(self, service: Service[T], error_handler: ErrorHandler[T]):
+        self._service = service
         self._error_handler = error_handler
 
     async def execute(self) -> T:
         while True:
             try:
-                return await self._do_execute()
+                return await self._service.run()
             except BaseException as exception:
                 decision = self._error_handler.handle(exception)
                 match decision:
@@ -467,19 +466,6 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
                             f"Unknown error handler decision: {decision}"
                         )
 
-    @abstractmethod
-    async def _do_execute(self) -> T:
-        raise NotImplementedError
-
-
-class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):
-    def __init__(
-        self,
-        callable: Callable[[], Awaitable[T]],
-        error_handler: ErrorHandler[T],
-    ):
-        super().__init__(error_handler=error_handler)
-        self._callable = callable
-
-    async def _do_execute(self) -> T:
-        return await self._callable()
+    @cached_property
+    def name(self) -> str:
+        return self._service.name

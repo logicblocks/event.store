@@ -1,5 +1,6 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
 
 class ProcessStatus(StrEnum):
@@ -12,7 +13,13 @@ class ProcessStatus(StrEnum):
     ERRORED = "errored"
 
 
-class Process:
+@runtime_checkable
+class HasProcessStatus(Protocol):
+    @property
+    def status(self) -> ProcessStatus: ...
+
+
+class Process(ABC):
     @property
     @abstractmethod
     def status(self) -> ProcessStatus:

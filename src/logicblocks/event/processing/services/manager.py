@@ -35,7 +35,7 @@ class ServiceDefinition[T]:
         self.isolation_mode = isolation_mode
 
     def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self.service.execute()
+        return self.service.run()
 
 
 class ServiceExecutor(ABC):
@@ -177,6 +177,10 @@ class ServiceManager:
         self._service_definitions: list[ServiceDefinition[Any]] = []
         self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
+
+    @property
+    def services(self) -> Sequence[ServiceDefinition[Any]]:
+        return tuple(self._service_definitions)
 
     def register(
         self,

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import timedelta
 
-from logicblocks.event.processing import PollingService
+from logicblocks.event.processing import CallableService, PollingService
 
 
 class TestPollingService:
@@ -13,10 +13,11 @@ class TestPollingService:
             counter += 1
 
         service = PollingService(
-            callable=count, poll_interval=timedelta(milliseconds=20)
+            service=CallableService(count),
+            poll_interval=timedelta(milliseconds=20),
         )
 
-        task = asyncio.create_task(service.execute())
+        task = asyncio.create_task(service.run())
 
         await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
 

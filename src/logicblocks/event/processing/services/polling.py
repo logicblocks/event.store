@@ -1,24 +1,25 @@
 import asyncio
-from collections.abc import Awaitable, Callable
 from datetime import timedelta
-from typing import Any
+from functools import cached_property
+from typing import Any, Never
 
 from .types import Service
 
 
-class PollingService[T = Any](Service[T]):
-    _callable: Callable[[], Awaitable[T]]
-    _poll_interval: timedelta = timedelta(milliseconds=200)
-
+class PollingService(Service[Never]):
     def __init__(
         self,
-        callable: Callable[[], Awaitable[T]],
+        service: Service[Any],
         poll_interval: timedelta = timedelta(milliseconds=200),
     ):
-        self._callable = callable
+        self._service = service
         self._poll_interval = poll_interval
 
-    async def execute(self):
+    async def execute(self) -> Never:
         while True:
-            await self._callable()
+            await self._service.run()
             await asyncio.sleep(self._poll_interval.total_seconds())
+
+    @cached_property
+    def name(self) -> str:
+        return self._service.name

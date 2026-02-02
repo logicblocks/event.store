@@ -1,10 +1,10 @@
+from .callable import CallableService
 from .error import (
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     ErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
-    ErrorHandlingServiceMixin,
     ExitErrorHandler,
     ExitErrorHandlerDecision,
     RaiseErrorHandler,
@@ -24,30 +24,32 @@ from .manager import (
     ServiceManager,
 )
 from .polling import PollingService
+from .status import StatusAwareServiceMixin
 from .types import Service
 
 __all__ = [
+    "CallableService",
+    "ContinueErrorHandler",
+    "ContinueErrorHandlerDecision",
     "ErrorHandler",
     "ErrorHandlerDecision",
     "ErrorHandlingService",
-    "ErrorHandlingServiceMixin",
-    "ExecutionMode",
     "ExitErrorHandler",
     "ExitErrorHandlerDecision",
+    "ExecutionMode",
     "IsolationMode",
     "PollingService",
     "RaiseErrorHandler",
     "RaiseErrorHandlerDecision",
     "RetryErrorHandler",
     "RetryErrorHandlerDecision",
-    "ContinueErrorHandler",
-    "ContinueErrorHandlerDecision",
-    "ServiceManager",
     "Service",
+    "ServiceManager",
+    "StatusAwareServiceMixin",
     "TypeMappingErrorHandler",
+    "continue_execution_type_mapping",
     "error_handler_type_mappings",
     "exit_fatally_type_mapping",
     "raise_exception_type_mapping",
-    "continue_execution_type_mapping",
     "retry_execution_type_mapping",
 ]

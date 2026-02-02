@@ -49,7 +49,7 @@ run = "invoke types.check"
 [tasks."database:test:provision"]
 run = """
 if [[ "$CI" != "true" ]]; then
-  docker-compose \
+  docker compose \
     --project-name event-store \
     --file docker-compose.yml \
     up \

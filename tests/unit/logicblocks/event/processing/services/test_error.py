@@ -485,7 +485,7 @@ class TestErrorHandlingServiceMixin:
         )
 
         with pytest.raises(TestException):
-            await service.execute()
+            await service.run()
 
         assert call_count == 1
 
@@ -501,7 +501,7 @@ class TestErrorHandlingServiceMixin:
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.execute()
+        result = await service.run()
 
         assert call_count == 1
         assert result == 10
@@ -519,7 +519,7 @@ class TestErrorHandlingServiceMixin:
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.execute()
+            await service.run()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -558,7 +558,7 @@ class TestErrorHandlingServiceMixin:
 
         service = TestService(error_handler=RetryOrContinueErrorHandler())
 
-        await service.execute()
+        await service.run()
 
         assert call_count == 3
 
@@ -585,7 +585,7 @@ class TestErrorHandlingService:
         )
 
         with pytest.raises(TestException):
-            await service.execute()
+            await service.run()
 
         assert call_count == 1
 
@@ -602,7 +602,7 @@ class TestErrorHandlingService:
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.execute()
+        result = await service.run()
 
         assert call_count == 1
         assert result == 10
@@ -621,7 +621,7 @@ class TestErrorHandlingService:
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.execute()
+            await service.run()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -658,6 +658,6 @@ class TestErrorHandlingService:
             callable=callable, error_handler=RetryOrContinueErrorHandler()
         )
 
-        await service.execute()
+        await service.run()
 
         assert call_count == 3

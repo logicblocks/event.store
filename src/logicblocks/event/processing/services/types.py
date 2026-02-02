@@ -1,8 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import Any
-
+from functools import cached_property
+from typing import Any, Protocol, runtime_checkable
 
 
 class ServiceStatus(StrEnum):
@@ -13,19 +13,26 @@ class ServiceStatus(StrEnum):
     ERRORED = "errored"
 
 
-class Service[T = Any](ABC):
+@runtime_checkable
+class HasServiceStatus(Protocol):
     @property
-    def name(self) -> str:
-        return self.__class__.__name__.removesuffix("Service")
+    def status(self) -> ServiceStatus: ...
 
-    async def run(self) -> T:
-        return await self.execute()
 
+class Service[T = Any](ABC):
     @abstractmethod
     async def execute(self) -> T:
         raise NotImplementedError()
 
-class StatusAwareServiceMixin[T = Any](Service[T], ABC):
+    @cached_property
+    def name(self) -> str:
+        return self.__class__.__name__.removesuffix("Service")
+
+    async def run(self):
+        return await self.execute()
+
+
+class StatusAwareServiceMixin[T = Any](Service[T], HasServiceStatus, ABC):
     def __init__(self):
         super().__init__()
         self._status: ServiceStatus = ServiceStatus.INITIALISED
@@ -37,7 +44,7 @@ class StatusAwareServiceMixin[T = Any](Service[T], ABC):
     async def run(self) -> T:
         self._status = ServiceStatus.RUNNING
         try:
-            result = await super().execute()
+            result = await super().run()
             self._status = ServiceStatus.STOPPED
             return result
         except asyncio.CancelledError:

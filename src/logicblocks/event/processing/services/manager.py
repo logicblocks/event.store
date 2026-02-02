@@ -3,7 +3,7 @@ import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
 from collections.abc import Coroutine, Sequence
-from enum import Enum, auto, StrEnum
+from enum import Enum, auto
 from types import TracebackType
 from typing import Any, Self, override
 

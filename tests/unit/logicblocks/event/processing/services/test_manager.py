@@ -126,10 +126,12 @@ class TestServiceManagerIsolationModes:
 
         class ThreadCapturingService(Service):
             def __init__(self, name: str):
-                self.name = name
+                self.instance_name = name
 
             async def execute(self):
-                thread_ids[f"{self.name}:execute"] = threading.get_ident()
+                thread_ids[f"{self.instance_name}:execute"] = (
+                    threading.get_ident()
+                )
 
         manager = ServiceManager()
         manager.register(
@@ -157,10 +159,12 @@ class TestServiceManagerIsolationModes:
 
         class ThreadCapturingService(Service):
             def __init__(self, name: str):
-                self.name = name
+                self.instance_name = name
 
             async def execute(self):
-                thread_ids[f"{self.name}:execute"] = threading.get_ident()
+                thread_ids[f"{self.instance_name}:execute"] = (
+                    threading.get_ident()
+                )
 
         manager = ServiceManager()
         manager.register(
@@ -189,10 +193,12 @@ class TestServiceManagerIsolationModes:
 
         class ThreadCapturingService(Service):
             def __init__(self, name: str):
-                self.name = name
+                self.instance_name = name
 
             async def execute(self):
-                thread_ids[f"{self.name}:execute"] = threading.get_ident()
+                thread_ids[f"{self.instance_name}:execute"] = (
+                    threading.get_ident()
+                )
 
         manager = ServiceManager()
         manager.register(
@@ -491,13 +497,13 @@ class TestServiceManagerLongRunningServices:
 
         class LongRunningService(Service):
             def __init__(self, name: str):
-                self.name = name
+                self.instance_name = name
 
             async def execute(self):
                 nonlocal iteration_counts
-                iteration_counts[self.name] = 0
+                iteration_counts[self.instance_name] = 0
                 while True:
-                    iteration_counts[self.name] += 1
+                    iteration_counts[self.instance_name] += 1
                     await asyncio.sleep(0)
 
         manager = ServiceManager()
@@ -606,15 +612,15 @@ class TestServiceManagerCancellation:
 
         class CancelCapturingService(Service):
             def __init__(self, name: str):
-                self.name = name
+                self.instance_name = name
 
             async def execute(self):
                 try:
                     while True:
-                        services_running[self.name] = True
+                        services_running[self.instance_name] = True
                         await asyncio.sleep(0)
                 except CancelledError:
-                    services_cancelled[self.name] = True
+                    services_cancelled[self.instance_name] = True
                     raise
 
         manager = ServiceManager()
@@ -714,15 +720,15 @@ class TestServiceManagerSignalHandling:
 
             class CancelCapturingService(Service):
                 def __init__(self, name: str):
-                    self.name = name
+                    self.instance_name = name
 
                 async def execute(self):
                     try:
                         while True:
-                            services_running[self.name] = True
+                            services_running[self.instance_name] = True
                             await asyncio.sleep(0)
                     except CancelledError:
-                        services_cancelled[self.name] = True
+                        services_cancelled[self.instance_name] = True
                         raise
 
             manager = ServiceManager()

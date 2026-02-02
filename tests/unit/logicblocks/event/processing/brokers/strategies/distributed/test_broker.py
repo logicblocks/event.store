@@ -147,7 +147,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.RUNNING
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.RUNNING)
@@ -164,7 +164,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.INITIALISED
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.STARTING)
@@ -181,7 +181,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.INITIALISED
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.STARTING)
@@ -197,7 +197,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.INITIALISED
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.ERRORED)
@@ -213,7 +213,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.INITIALISED
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.ERRORED)
@@ -229,7 +229,7 @@ class TestDistributedEventBrokerStatuses:
         observer = context.event_subscription_observer
         observer.status = ProcessStatus.INITIALISED
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.ERRORED)
@@ -369,7 +369,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -400,7 +400,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -431,7 +431,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -462,7 +462,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -493,7 +493,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -528,7 +528,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -561,7 +561,7 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_observer=observer,
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -597,7 +597,7 @@ class TestDistributedEventBrokerErrorHandling:
             error_handler=ContinueErrorHandler(value_factory=lambda _: None),
         )
 
-        task = asyncio.create_task(broker.execute())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(

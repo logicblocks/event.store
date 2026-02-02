@@ -24,7 +24,7 @@ def log_event_name(event: str) -> str:
 
 
 class SingletonEventBroker[E: Event](
-    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
+    ErrorHandlingServiceMixin[NoneType], EventBroker[E]
 ):
     def __init__(
         self,

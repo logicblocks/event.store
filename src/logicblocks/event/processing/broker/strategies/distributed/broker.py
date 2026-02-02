@@ -17,7 +17,7 @@ from .subscribers import EventSubscriberManager
 
 
 class DistributedEventBroker[E: Event](
-    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
+    ErrorHandlingServiceMixin[NoneType], EventBroker[E]
 ):
     def __init__(
         self,

@@ -1,4 +1,6 @@
+from .callable import CallableService, CallableServiceMixin
 from .error import (
+    CallableErrorHandlingService,
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     ErrorHandler,
@@ -23,31 +25,43 @@ from .manager import (
     IsolationMode,
     ServiceManager,
 )
-from .polling import PollingService
-from .types import Service
+from .polling import (
+    CallablePollingService,
+    PollingService,
+    PollingServiceMixin,
+)
+from .status import StatusAwareServiceMixin
+from .types import Service, ServiceMixin
 
 __all__ = [
+    "CallableErrorHandlingService",
+    "CallablePollingService",
+    "CallableService",
+    "CallableServiceMixin",
+    "continue_execution_type_mapping",
+    "ContinueErrorHandler",
+    "ContinueErrorHandlerDecision",
+    "error_handler_type_mappings",
     "ErrorHandler",
     "ErrorHandlerDecision",
     "ErrorHandlingService",
     "ErrorHandlingServiceMixin",
     "ExecutionMode",
+    "exit_fatally_type_mapping",
     "ExitErrorHandler",
     "ExitErrorHandlerDecision",
     "IsolationMode",
     "PollingService",
+    "PollingServiceMixin",
+    "raise_exception_type_mapping",
     "RaiseErrorHandler",
     "RaiseErrorHandlerDecision",
+    "retry_execution_type_mapping",
     "RetryErrorHandler",
     "RetryErrorHandlerDecision",
-    "ContinueErrorHandler",
-    "ContinueErrorHandlerDecision",
-    "ServiceManager",
     "Service",
+    "ServiceManager",
+    "ServiceMixin",
+    "StatusAwareServiceMixin",
     "TypeMappingErrorHandler",
-    "error_handler_type_mappings",
-    "exit_fatally_type_mapping",
-    "raise_exception_type_mapping",
-    "continue_execution_type_mapping",
-    "retry_execution_type_mapping",
 ]

@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
-from .types import Service
+from .callable import CallableServiceMixin
+from .status import StatusAwareServiceMixin
+from .types import Service, ServiceMixin
 
 
 class ErrorHandlerDecision[T]:
@@ -440,11 +442,9 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
         return self.default_error_handler.handle(exception)
 
 
-class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
-    def __init__(
-        self,
-        error_handler: ErrorHandler[T],
-    ):
+class ErrorHandlingServiceMixin[T = Any](ServiceMixin[T], ABC):
+    def __init__(self, error_handler: ErrorHandler[T], *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._error_handler = error_handler
 
     async def run(self) -> T:
@@ -468,14 +468,18 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
                         )
 
 
-class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):
+class CallableErrorHandlingService[T = Any](
+    ErrorHandlingServiceMixin[T],
+    StatusAwareServiceMixin[T],
+    CallableServiceMixin[T],
+    Service[T],
+):
     def __init__(
         self,
         callable: Callable[[], Awaitable[T]],
         error_handler: ErrorHandler[T],
     ):
-        super().__init__(error_handler=error_handler)
-        self._callable = callable
+        super().__init__(callable=callable, error_handler=error_handler)
 
-    async def execute(self) -> T:
-        return await self._callable()
+
+ErrorHandlingService = CallableErrorHandlingService

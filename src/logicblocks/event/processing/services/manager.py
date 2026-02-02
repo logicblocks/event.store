@@ -23,14 +23,6 @@ class IsolationMode(Enum):
     DEDICATED_THREAD = auto()
 
 
-class ServiceStatus(StrEnum):
-    INITIALISED = "initialised"
-    RUNNING = "running"
-    STOPPED = "stopped"
-    CANCELLED = "cancelled"
-    ERRORED = "errored"
-
-
 class ServiceDefinition[T]:
     def __init__(
         self,
@@ -41,23 +33,9 @@ class ServiceDefinition[T]:
         self.service = service
         self.execution_mode = execution_mode
         self.isolation_mode = isolation_mode
-        self.status = ServiceStatus.INITIALISED
-
-    async def _run_service(self) -> T:
-        self.status = ServiceStatus.RUNNING
-        try:
-            result = await self.service.execute()
-            self.status = ServiceStatus.STOPPED
-            return result
-        except asyncio.CancelledError:
-            self.status = ServiceStatus.CANCELLED
-            raise
-        except BaseException:
-            self.status = ServiceStatus.ERRORED
-            raise
 
     def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self._run_service()
+        return self.service.execute()
 
 
 class ServiceExecutor(ABC):
@@ -201,7 +179,7 @@ class ServiceManager:
         self._service_executor = IsolationModeAwareServiceExecutor()
 
     @property
-    def registered_services(self) -> Sequence[ServiceDefinition[Any]]:
+    def services(self) -> Sequence[ServiceDefinition[Any]]:
         return tuple(self._service_definitions)
 
     def register(

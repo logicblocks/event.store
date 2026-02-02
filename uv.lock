@@ -302,7 +302,7 @@ wheels = [
 
 [[package]]
 name = "logicblocks-event-store"
-version = "0.1.10a16"
+version = "0.1.10a17"
 source = { editable = "." }
 dependencies = [
     { name = "aiologic" },

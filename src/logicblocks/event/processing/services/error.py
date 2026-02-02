@@ -450,7 +450,7 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
     async def execute(self) -> T:
         while True:
             try:
-                return await self._do_execute()
+                return await super().execute()
             except BaseException as exception:
                 decision = self._error_handler.handle(exception)
                 match decision:
@@ -466,10 +466,6 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
                         raise ValueError(
                             f"Unknown error handler decision: {decision}"
                         )
-
-    @abstractmethod
-    async def _do_execute(self) -> T:
-        raise NotImplementedError
 
 
 class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):

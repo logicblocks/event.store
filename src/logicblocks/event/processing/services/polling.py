@@ -18,7 +18,7 @@ class PollingService[T = Any](Service[T]):
         self._callable = callable
         self._poll_interval = poll_interval
 
-    async def execute(self):
+    async def _do_execute(self):
         while True:
             await self._callable()
             await asyncio.sleep(self._poll_interval.total_seconds())

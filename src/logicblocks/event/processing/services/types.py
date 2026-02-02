@@ -18,11 +18,11 @@ class Service[T = Any](ABC):
     def name(self) -> str:
         return self.__class__.__name__.removesuffix("Service")
 
-    async def execute(self) -> T:
-        return await self._do_execute()
+    async def run(self) -> T:
+        return await self.execute()
 
     @abstractmethod
-    async def _do_execute(self) -> T:
+    async def execute(self) -> T:
         raise NotImplementedError()
 
 class StatusAwareServiceMixin[T = Any](Service[T], ABC):
@@ -34,7 +34,7 @@ class StatusAwareServiceMixin[T = Any](Service[T], ABC):
     def status(self) -> ServiceStatus:
         return getattr(self, "_status", ServiceStatus.INITIALISED)
 
-    async def execute(self) -> T:
+    async def run(self) -> T:
         self._status = ServiceStatus.RUNNING
         try:
             result = await super().execute()

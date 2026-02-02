@@ -35,7 +35,7 @@ class ServiceDefinition[T]:
         self.isolation_mode = isolation_mode
 
     def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self.service.execute()
+        return self.service.run()
 
 
 class ServiceExecutor(ABC):

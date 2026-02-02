@@ -50,7 +50,7 @@ class SingletonEventBroker[E: Event](
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
 
-    async def _do_execute(self) -> None:
+    async def execute(self) -> None:
         distribution_interval_seconds = (
             self._distribution_interval.total_seconds()
         )

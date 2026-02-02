@@ -447,10 +447,10 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
     ):
         self._error_handler = error_handler
 
-    async def execute(self) -> T:
+    async def run(self) -> T:
         while True:
             try:
-                return await super().execute()
+                return await super().run()
             except BaseException as exception:
                 decision = self._error_handler.handle(exception)
                 match decision:
@@ -477,5 +477,5 @@ class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):
         super().__init__(error_handler=error_handler)
         self._callable = callable
 
-    async def _do_execute(self) -> T:
+    async def execute(self) -> T:
         return await self._callable()

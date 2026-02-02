@@ -459,7 +459,7 @@ class TestService(ErrorHandlingServiceMixin[int], Service[int]):
         super().__init__(error_handler=error_handler)
         self._call_callback = call_callback
 
-    async def _do_execute(self) -> int:
+    async def execute(self) -> int:
         self._call_callback()
         raise RuntimeError("Something went wrong.")
 
@@ -537,7 +537,7 @@ class TestErrorHandlingServiceMixin:
             def __init__(self, error_handler: ErrorHandler[int]):
                 super().__init__(error_handler=error_handler)
 
-            async def _do_execute(self) -> int:
+            async def execute(self) -> int:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:

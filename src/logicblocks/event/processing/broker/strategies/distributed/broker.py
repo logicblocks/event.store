@@ -41,7 +41,7 @@ class DistributedEventBroker[E: Event](
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_manager.add(subscriber)
 
-    async def _do_execute(self) -> None:
+    async def execute(self) -> None:
         subscriber_manager = self._event_subscriber_manager
         coordinator = self._event_subscription_coordinator
         observer = self._event_subscription_observer

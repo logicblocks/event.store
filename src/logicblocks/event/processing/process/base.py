@@ -1,3 +1,4 @@
+from abc import ABC
 from abc import abstractmethod
 from enum import StrEnum
 
@@ -12,7 +13,7 @@ class ProcessStatus(StrEnum):
     ERRORED = "errored"
 
 
-class Process:
+class Process(ABC):
     @property
     @abstractmethod
     def status(self) -> ProcessStatus:

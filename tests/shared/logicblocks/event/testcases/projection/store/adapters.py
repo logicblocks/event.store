@@ -943,7 +943,69 @@ class FindManyCases(Base, ABC):
         assert located == [projection_2, projection_3]
 
 
+class CountCases(Base, ABC):
+    async def test_returns_zero_when_no_projections(self):
+        adapter = self.construct_storage_adapter()
+
+        total = await adapter.count()
+
+        assert total == 0
+
+    async def test_returns_count_of_single_projection(self):
+        adapter = self.construct_storage_adapter()
+
+        projection = ThingProjectionBuilder().build()
+        await adapter.save(projection=projection)
+
+        total = await adapter.count()
+
+        assert total == 1
+
+    async def test_returns_count_of_multiple_projections(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = ThingProjectionBuilder().build()
+        projection_2 = ThingProjectionBuilder().build()
+        projection_3 = ThingProjectionBuilder().build()
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+
+        total = await adapter.count()
+
+        assert total == 3
+
+    async def test_returns_same_count_when_updating_existing_projection(self):
+        projection_id = data.random_projection_id()
+        projection_name = data.random_projection_name()
+
+        adapter = self.construct_storage_adapter()
+
+        projection_v1 = (
+            ThingProjectionBuilder()
+            .with_id(projection_id)
+            .with_name(projection_name)
+            .with_state(Thing(value_1=5, value_2="first version"))
+            .build()
+        )
+        projection_v2 = (
+            ThingProjectionBuilder()
+            .with_id(projection_id)
+            .with_name(projection_name)
+            .with_state(Thing(value_1=10, value_2="second version"))
+            .build()
+        )
+
+        await adapter.save(projection=projection_v1)
+        await adapter.save(projection=projection_v2)
+
+        total = await adapter.count()
+
+        assert total == 1
+
+
 class ProjectionStorageAdapterCases(
-    SaveCases, FindOneCases, FindManyCases, ABC
+    SaveCases, FindOneCases, FindManyCases, CountCases, ABC
 ):
     pass

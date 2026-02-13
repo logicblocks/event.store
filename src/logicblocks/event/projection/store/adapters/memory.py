@@ -119,3 +119,6 @@ class InMemoryProjectionStorageAdapter[
             deserialise_projection(projection, state_type, metadata_type)
             for projection in (await self._find_raw(search))
         ]
+
+    async def count(self) -> int:
+        return len(self._projections)

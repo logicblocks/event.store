@@ -56,6 +56,23 @@ class Projector[
     ) -> Metadata:
         return metadata
 
+    def compute_derived_state(self, state: State) -> State:
+        """Compute derived properties after all events have been processed.
+        
+        Override this method to perform computations on the final state
+        after all events have been applied. This is useful for:
+        - Computing aggregate statistics (totals, averages, etc.)
+        - Deriving status flags based on multiple state properties
+        - Calculating values that depend on the final state
+        
+        Args:
+            state: The state after all events have been applied
+            
+        Returns:
+            The state with derived properties computed
+        """
+        return state
+
     @property
     def projection_name(self):
         return self.name if self.name is not None else self._default_name()
@@ -81,6 +98,8 @@ class Projector[
         async for event in source:
             state = self.apply(state=state, event=event)
             metadata = self.update_metadata(state, metadata, event)
+
+        state = self.compute_derived_state(state)
 
         return Projection[State, Metadata](
             id=self.id_factory(state, source.identifier),

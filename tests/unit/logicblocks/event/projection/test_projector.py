@@ -448,6 +448,123 @@ class TestProjectorProjection:
 
         assert expected_projection == actual_projection
 
+    async def test_projects_with_computed_derived_state(self):
+        @dataclass
+        class ShoppingCart(JsonValueConvertible):
+            items: list[tuple[str, float]]
+            total: float | None = None
+
+            @classmethod
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[
+                    [Any, JsonValue], Any
+                ] = default_deserialisation_fallback,
+            ) -> Self:
+                if not isinstance(value, Mapping):
+                    return fallback(cls, value)
+
+                items = value.get("items", [])
+                total = value.get("total", None)
+
+                return cls(items=items, total=total)
+
+            def serialise(
+                self,
+                fallback: Callable[
+                    [object], JsonValue
+                ] = default_serialisation_fallback,
+            ) -> JsonValue:
+                return {
+                    "items": self.items,
+                    "total": self.total,
+                }
+
+            def compute_total(self) -> "ShoppingCart":
+                """Compute total after all events are processed."""
+                self.total = sum(price for _, price in self.items)
+                return self
+
+        class ShoppingCartProjector(Projector[StreamIdentifier, ShoppingCart]):
+            def initial_state_factory(self) -> ShoppingCart:
+                return ShoppingCart(items=[])
+
+            def initial_metadata_factory(self) -> JsonValue:
+                return {}
+
+            def id_factory(
+                self, state: ShoppingCart, source: StreamIdentifier
+            ) -> str:
+                return source.stream
+
+            def compute_derived_state(
+                self, state: ShoppingCart
+            ) -> ShoppingCart:
+                """Compute derived properties after all events processed."""
+                return state.compute_total()
+
+            @staticmethod
+            def item_added(
+                state: ShoppingCart,
+                event: StoredEvent[str, Mapping[str, Any]],
+            ) -> ShoppingCart:
+                item_name = event.payload["name"]
+                item_price = event.payload["price"]
+                state.items.append((item_name, item_price))
+                return state
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_events = [
+            (
+                NewEventBuilder()
+                .with_name("item-added")
+                .with_payload({"name": "apple", "price": 1.50})
+                .build()
+            ),
+            (
+                NewEventBuilder()
+                .with_name("item-added")
+                .with_payload({"name": "banana", "price": 0.75})
+                .build()
+            ),
+            (
+                NewEventBuilder()
+                .with_name("item-added")
+                .with_payload({"name": "orange", "price": 1.25})
+                .build()
+            ),
+        ]
+
+        await stream.publish(events=new_events)
+
+        projector = ShoppingCartProjector()
+
+        actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[ShoppingCart](
+            id=stream_name,
+            state=ShoppingCart(
+                items=[
+                    ("apple", 1.50),
+                    ("banana", 0.75),
+                    ("orange", 1.25),
+                ],
+                total=3.50,
+            ),
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="shopping-cart",
+            metadata={},
+        )
+
+        assert expected_projection == actual_projection
+
     async def test_updates_metadata_as_mapping_type_during_projection(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()

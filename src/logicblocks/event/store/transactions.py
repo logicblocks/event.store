@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable, Coroutine
 from functools import wraps
 from typing import (
-    Awaitable,
-    Callable,
+    Any,
     ClassVar,
     Final,
     Never,
@@ -15,7 +15,7 @@ class event_store_transaction[AdditionalReturn = Never](ABC):
     def __call__[**P, R](
         self,
         handler: Callable[P, Awaitable[R]],
-    ) -> Callable[P, Awaitable[AdditionalReturn | R]]:
+    ) -> Callable[P, Coroutine[Any, Any, AdditionalReturn | R]]:
         @wraps(handler)
         async def _wrapper(
             *args: P.args, **kwargs: P.kwargs

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 
+from logicblocks.event.query import PagingClause
 from logicblocks.event.types import Event, EventSourceIdentifier
 
 from .constraints import QueryConstraint
@@ -20,12 +21,21 @@ class EventSource[I: EventSourceIdentifier, E: Event](ABC):
         self,
         *,
         constraints: Set[QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> Sequence[E]:
-        return [event async for event in self.iterate(constraints=constraints)]
+        return [
+            event
+            async for event in self.iterate(
+                constraints=constraints, paging=paging
+            )
+        ]
 
     @abstractmethod
     def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[E]:
         raise NotImplementedError()
 

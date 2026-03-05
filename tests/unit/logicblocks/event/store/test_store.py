@@ -9,6 +9,7 @@ import pytest
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
 
+from logicblocks.event.query import OffsetPagingClause
 from logicblocks.event.sources import constraints
 from logicblocks.event.store import (
     EventStore,
@@ -266,6 +267,22 @@ class TestStreamRead:
         )
 
         assert read_events == stored_events[5:]
+
+    async def test_reads_events_in_stream_with_offset_paging(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(5)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        stored_events = await stream.publish(events=new_events)
+
+        read_events = await stream.read(
+            paging=OffsetPagingClause(page_number=2, item_count=2)
+        )
+
+        assert read_events == stored_events[2:4]
 
 
 class TestStreamLatest:
@@ -1136,6 +1153,24 @@ class TestCategoryRead:
 
         assert read_events == expected_events
 
+    async def test_reads_events_in_category_with_offset_paging(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(5)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        stored_events = await category.stream(stream=stream_name).publish(
+            events=new_events
+        )
+
+        read_events = await category.read(
+            paging=OffsetPagingClause(page_number=1, item_count=3)
+        )
+
+        assert read_events == stored_events[:3]
+
 
 class TestCategoryLatest:
     async def test_reads_latest_event_in_category_if_present(self):
@@ -1647,6 +1682,25 @@ class TestLogRead:
         )
 
         assert log_events == expected_events
+
+    async def test_reads_events_in_log_with_offset_paging(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        new_events = [NewEventBuilder().build() for _ in range(5)]
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        stored_events = await category.stream(stream=stream_name).publish(
+            events=new_events
+        )
+
+        log = store.log()
+        read_events = await log.read(
+            paging=OffsetPagingClause(page_number=2, item_count=2)
+        )
+
+        assert read_events == stored_events[2:4]
 
 
 class TestLogLatest:

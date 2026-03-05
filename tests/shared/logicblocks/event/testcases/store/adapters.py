@@ -10,6 +10,7 @@ import pytest
 import structlog
 from pytest_unordered import unordered
 
+from logicblocks.event.query import OffsetPagingClause
 from logicblocks.event.sources import constraints
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store.adapters import (
@@ -3410,6 +3411,126 @@ class ScanCases(Base, ABC):
         assert scanned_events == expected_events
 
 
+class ScanPagingCases(Base, ABC):
+    async def test_log_scan_with_offset_paging_returns_first_page(self):
+        adapter = self.construct_storage_adapter()
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        all_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                paging=OffsetPagingClause(page_number=1, item_count=3),
+            )
+        ]
+
+        assert scanned_events == list(all_events)[:3]
+
+    async def test_log_scan_with_offset_paging_returns_second_page(self):
+        adapter = self.construct_storage_adapter()
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        all_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                paging=OffsetPagingClause(page_number=2, item_count=3),
+            )
+        ]
+
+        assert scanned_events == list(all_events)[3:]
+
+    async def test_stream_scan_with_offset_paging_returns_correct_page(self):
+        adapter = self.construct_storage_adapter()
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        all_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.StreamIdentifier(
+                    category=category, stream=stream
+                ),
+                paging=OffsetPagingClause(page_number=1, item_count=2),
+            )
+        ]
+
+        assert scanned_events == list(all_events)[:2]
+
+    async def test_category_scan_with_offset_paging_returns_correct_page(self):
+        adapter = self.construct_storage_adapter()
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        all_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.CategoryIdentifier(category=category),
+                paging=OffsetPagingClause(page_number=2, item_count=2),
+            )
+        ]
+
+        assert scanned_events == list(all_events)[2:4]
+
+
 class LatestCases(Base, ABC):
     async def test_latest_returns_none_when_no_events_in_stream(self):
         adapter = self.construct_storage_adapter()
@@ -3599,6 +3720,7 @@ class EventStorageAdapterCases(
     ThreadingConcurrencyCases,
     AsyncioConcurrencyCases,
     ScanCases,
+    ScanPagingCases,
     LatestCases,
     ABC,
 ):

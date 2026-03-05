@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
+from logicblocks.event.query import OffsetPagingClause, PagingClause
 from logicblocks.event.types import (
     Converter,
     Event,
@@ -45,15 +46,26 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         return self._events[-1] if len(self._events) > 0 else None
 
     async def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[E]:
-        for event in self._events:
-            await asyncio.sleep(0)
+        filtered = [
+            event
+            for event in self._events
             if all(
                 self._constraint_converter.convert(constraint)(event)
                 for constraint in constraints
-            ):
-                yield event
+            )
+        ]
+        if isinstance(paging, OffsetPagingClause):
+            filtered = filtered[
+                paging.offset : paging.offset + paging.item_count
+            ]
+        for event in filtered:
+            await asyncio.sleep(0)
+            yield event
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, InMemoryEventSource):

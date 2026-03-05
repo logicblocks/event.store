@@ -5,6 +5,7 @@ from typing import Any
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+from logicblocks.event.query import PagingClause
 from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -104,13 +105,17 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
             raise
 
     def iterate(
-        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the stream.
 
         Args:
             constraints: A set of query constraints defining which events to
                    include in the iteration
+            paging: Optional paging clause to limit and offset results
 
         Returns:
             an async iterator over the events in the stream.
@@ -122,6 +127,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
+            paging=paging,
         )
 
     def __eq__(self, other: Any) -> bool:
@@ -179,13 +185,17 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         )
 
     def iterate(
-        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over the events in the category.
 
         Args:
             constraints: A set of query constraints defining which events to
                    include in the iteration
+            paging: Optional paging clause to limit and offset results
 
         Returns:
             an async iterator over the events in the category.
@@ -196,6 +206,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
+            paging=paging,
         )
 
     async def publish[Name: StringPersistable, Payload: JsonPersistable](
@@ -243,13 +254,17 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
         return await self._adapter.latest(target=self._identifier)
 
     def iterate(
-        self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent]:
         """Iterate over all events in the log.
 
         Args:
             constraints: A set of query constraints defining which events to
                    include in the iteration
+            paging: Optional paging clause to limit and offset results
 
         Returns:
             an async iterator over the events in the log.
@@ -260,6 +275,7 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
         return self._adapter.scan(
             target=self._identifier,
             constraints=constraints,
+            paging=paging,
         )
 
     def __eq__(self, other: Any) -> bool:

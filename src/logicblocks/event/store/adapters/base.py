@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from typing import overload
 
+from logicblocks.event.query import PagingClause
 from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -125,5 +126,6 @@ class EventStorageAdapter(ABC):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         raise NotImplementedError()

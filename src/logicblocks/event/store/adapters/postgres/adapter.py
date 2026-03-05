@@ -25,6 +25,7 @@ from logicblocks.event.persistence.postgres.query import (
     ColumnReference,
     SortBy,
 )
+from logicblocks.event.query import OffsetPagingClause, PagingClause
 from logicblocks.event.sources import (
     constraints as source_constraints,
 )
@@ -180,6 +181,7 @@ def scan_query(
         source_constraints.QueryConstraint, QueryApplier
     ],
     table_settings: TableSettings,
+    paging: OffsetPagingClause | None = None,
 ) -> ParameterisedQuery:
     builder = Query().select_all().from_table(table_settings.table_name)
 
@@ -205,7 +207,14 @@ def scan_query(
 
     builder = builder.order_by(
         SortBy(expression=ColumnReference(field="sequence_number"))
-    ).limit(parameters.page_size)
+    )
+
+    if paging is not None:
+        builder = builder.limit(paging.item_count)
+        if paging.page_number > 1:
+            builder = builder.offset(paging.offset)
+    else:
+        builder = builder.limit(parameters.page_size)
 
     return builder.build()
 
@@ -871,35 +880,16 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[source_constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[str, JsonValue])
             ) as cursor:
-                page_size = self.query_settings.scan_query_page_size
-                last_sequence_number: int | None = None
-                keep_querying = True
-
-                while keep_querying:
-                    if last_sequence_number is not None:
-                        constraint = (
-                            source_constraints.SequenceNumberAfterConstraint(
-                                sequence_number=last_sequence_number
-                            )
-                        )
-                        constraints = {
-                            constraint
-                            for constraint in constraints
-                            if not isinstance(
-                                constraint,
-                                source_constraints.SequenceNumberAfterConstraint,
-                            )
-                        }
-                        constraints.add(constraint)
-
+                if isinstance(paging, OffsetPagingClause):
                     parameters = ScanQueryParameters(
                         target=target,
-                        page_size=page_size,
+                        page_size=paging.item_count,
                         constraints=constraints,
                     )
                     results = await cursor.execute(
@@ -907,11 +897,46 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                             parameters=parameters,
                             constraint_converter=self.constraint_converter,
                             table_settings=self.table_settings,
+                            paging=paging,
                         )
                     )
-
-                    keep_querying = results.rowcount == page_size
-
                     async for event in results:
                         yield event
-                        last_sequence_number = event.sequence_number
+                else:
+                    page_size = self.query_settings.scan_query_page_size
+                    last_sequence_number: int | None = None
+                    keep_querying = True
+
+                    while keep_querying:
+                        if last_sequence_number is not None:
+                            constraint = source_constraints.SequenceNumberAfterConstraint(
+                                sequence_number=last_sequence_number
+                            )
+                            constraints = {
+                                constraint
+                                for constraint in constraints
+                                if not isinstance(
+                                    constraint,
+                                    source_constraints.SequenceNumberAfterConstraint,
+                                )
+                            }
+                            constraints.add(constraint)
+
+                        parameters = ScanQueryParameters(
+                            target=target,
+                            page_size=page_size,
+                            constraints=constraints,
+                        )
+                        results = await cursor.execute(
+                            *scan_query(
+                                parameters=parameters,
+                                constraint_converter=self.constraint_converter,
+                                table_settings=self.table_settings,
+                            )
+                        )
+
+                        keep_querying = results.rowcount == page_size
+
+                        async for event in results:
+                            yield event
+                            last_sequence_number = event.sequence_number

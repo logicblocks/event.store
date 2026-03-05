@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from aiologic import Lock
 
+from logicblocks.event.query import OffsetPagingClause, PagingClause
 from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
@@ -326,14 +327,26 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 
-        async_generator = snapshot.scan_events(target, constraints)
-        try:
-            async for event in async_generator:
+        if isinstance(paging, OffsetPagingClause):
+            events = [
+                event
+                async for event in snapshot.scan_events(target, constraints)
+            ]
+            for event in events[
+                paging.offset : paging.offset + paging.item_count
+            ]:
                 await asyncio.sleep(0)
                 yield event
-        finally:
-            if isinstance(async_generator, AsyncGenerator):
-                await async_generator.aclose()
+        else:
+            async_generator = snapshot.scan_events(target, constraints)
+            try:
+                async for event in async_generator:
+                    await asyncio.sleep(0)
+                    yield event
+            finally:
+                if isinstance(async_generator, AsyncGenerator):
+                    await async_generator.aclose()

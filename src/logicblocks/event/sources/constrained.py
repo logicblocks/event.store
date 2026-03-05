@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Set
 from typing import Any
 
+from logicblocks.event.query import PagingClause
 from logicblocks.event.types import (
     Event,
     EventSourceIdentifier,
@@ -27,10 +28,13 @@ class ConstrainedEventSource[I: EventSourceIdentifier, E: Event](
         return await self._delegate.latest()
 
     def iterate(
-        self, *, constraints: Set[QueryConstraint] = frozenset()
+        self,
+        *,
+        constraints: Set[QueryConstraint] = frozenset(),
+        paging: PagingClause | None = None,
     ) -> AsyncIterator[E]:
         return self._delegate.iterate(
-            constraints=self._constraints | constraints
+            constraints=self._constraints | constraints, paging=paging
         )
 
     def __eq__(self, other: Any) -> bool:

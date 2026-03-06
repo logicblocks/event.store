@@ -10,7 +10,7 @@ import pytest
 import structlog
 from pytest_unordered import unordered
 
-from logicblocks.event.query import OffsetPagingClause
+from logicblocks.event.query import KeySetPagingClause, OffsetPagingClause
 from logicblocks.event.sources import constraints
 from logicblocks.event.store import conditions as writeconditions
 from logicblocks.event.store.adapters import (
@@ -3529,6 +3529,18 @@ class ScanPagingCases(Base, ABC):
         ]
 
         assert scanned_events == list(all_events)[2:4]
+
+    async def test_scan_raises_for_unsupported_paging_type(self):
+        adapter = self.construct_storage_adapter()
+
+        with pytest.raises(NotImplementedError):
+            _ = [
+                event
+                async for event in adapter.scan(
+                    target=identifier.LogIdentifier(),
+                    paging=KeySetPagingClause(item_count=10),
+                )
+            ]
 
 
 class LatestCases(Base, ABC):

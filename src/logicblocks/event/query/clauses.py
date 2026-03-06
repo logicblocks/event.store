@@ -85,6 +85,10 @@ class OffsetPagingClause(PagingClause):
     item_count: int
 
     def __init__(self, *, page_number: int = 1, item_count: int = 10):
+        if page_number < 1:
+            raise ValueError("page_number must be >= 1")
+        if item_count < 1:
+            raise ValueError("item_count must be >= 1")
         object.__setattr__(self, "page_number", page_number)
         object.__setattr__(self, "item_count", item_count)
 

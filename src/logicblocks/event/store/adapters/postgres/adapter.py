@@ -882,6 +882,11 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         constraints: Set[source_constraints.QueryConstraint] = frozenset(),
         paging: PagingClause | None = None,
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+        if paging is not None and not isinstance(paging, OffsetPagingClause):
+            raise NotImplementedError(
+                f"Unsupported paging type: {type(paging).__name__}"
+            )
+
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[str, JsonValue])

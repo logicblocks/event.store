@@ -331,6 +331,11 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 
+        if paging is not None and not isinstance(paging, OffsetPagingClause):
+            raise NotImplementedError(
+                f"Unsupported paging type: {type(paging).__name__}"
+            )
+
         if isinstance(paging, OffsetPagingClause):
             events = [
                 event

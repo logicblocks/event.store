@@ -59,10 +59,17 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
                 for constraint in constraints
             )
         ]
-        if isinstance(paging, OffsetPagingClause):
+        if paging is None:
+            pass
+        elif isinstance(paging, OffsetPagingClause):
             filtered = filtered[
                 paging.offset : paging.offset + paging.item_count
             ]
+        else:
+            raise NotImplementedError(
+                f"Paging type {type(paging).__name__} is not supported "
+                f"by {type(self).__name__}"
+            )
         for event in filtered:
             await asyncio.sleep(0)
             yield event

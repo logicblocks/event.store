@@ -51,28 +51,33 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         constraints: Set[QueryConstraint] = frozenset(),
         paging: PagingClause | None = None,
     ) -> AsyncIterator[E]:
-        filtered = [
-            event
-            for event in self._events
-            if all(
-                self._constraint_converter.convert(constraint)(event)
-                for constraint in constraints
-            )
-        ]
         if paging is None:
-            pass
+            for event in self._events:
+                await asyncio.sleep(0)
+                if all(
+                    self._constraint_converter.convert(constraint)(event)
+                    for constraint in constraints
+                ):
+                    yield event
         elif isinstance(paging, OffsetPagingClause):
-            filtered = filtered[
-                paging.offset : paging.offset + paging.item_count
+            filtered = [
+                event
+                for event in self._events
+                if all(
+                    self._constraint_converter.convert(constraint)(event)
+                    for constraint in constraints
+                )
             ]
+            for event in filtered[
+                paging.offset : paging.offset + paging.item_count
+            ]:
+                await asyncio.sleep(0)
+                yield event
         else:
             raise NotImplementedError(
                 f"Paging type {type(paging).__name__} is not supported "
                 f"by {type(self).__name__}"
             )
-        for event in filtered:
-            await asyncio.sleep(0)
-            yield event
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, InMemoryEventSource):

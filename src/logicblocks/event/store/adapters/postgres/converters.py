@@ -54,6 +54,27 @@ class SequenceNumberAfterConstraintConverter(
         return SequenceNumberAfterConstraintQueryApplier(item.sequence_number)
 
 
+class OffsetPagingConstraintQueryApplier(QueryApplier):
+    def __init__(self, offset: int, limit: int):
+        self._offset = offset
+        self._limit = limit
+
+    def apply(self, target: Query) -> Query:
+        result = target.limit(self._limit)
+        if self._offset > 0:
+            result = result.offset(self._offset)
+        return result
+
+
+class OffsetPagingConstraintConverter(
+    Converter[constraints.OffsetPagingConstraint, QueryApplier]
+):
+    def convert(
+        self, item: constraints.OffsetPagingConstraint
+    ) -> QueryApplier:
+        return OffsetPagingConstraintQueryApplier(item.offset, item.item_count)
+
+
 class TypeRegistryConstraintConverter(
     TypeRegistryConverter[constraints.QueryConstraint, QueryApplier]
 ):
@@ -68,6 +89,9 @@ class TypeRegistryConstraintConverter(
         return self.register(
             constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
+        ).register(
+            constraints.OffsetPagingConstraint,
+            OffsetPagingConstraintConverter(),
         )
 
 

@@ -160,6 +160,106 @@ class TestInMemoryEventSource:
         assert source_1 != source_2
 
 
+class TestInMemoryEventSourcePaging:
+    async def test_iterate_yields_first_page_of_events(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+        event_4 = StoredEventBuilder().build()
+        event_5 = StoredEventBuilder().build()
+
+        source = NoConstraintsInMemoryEventSource(
+            events=[event_1, event_2, event_3, event_4, event_5],
+            identifier=CategoryIdentifier(category="test"),
+        )
+
+        constraint = constraints.offset_paging(page_number=1, item_count=2)
+        events = [
+            event async for event in source.iterate(constraints={constraint})
+        ]
+
+        assert events == [event_1, event_2]
+
+    async def test_iterate_yields_second_page_of_events(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+        event_4 = StoredEventBuilder().build()
+        event_5 = StoredEventBuilder().build()
+
+        source = NoConstraintsInMemoryEventSource(
+            events=[event_1, event_2, event_3, event_4, event_5],
+            identifier=CategoryIdentifier(category="test"),
+        )
+
+        constraint = constraints.offset_paging(page_number=2, item_count=2)
+        events = [
+            event async for event in source.iterate(constraints={constraint})
+        ]
+
+        assert events == [event_3, event_4]
+
+    async def test_iterate_yields_partial_last_page(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+        event_4 = StoredEventBuilder().build()
+        event_5 = StoredEventBuilder().build()
+
+        source = NoConstraintsInMemoryEventSource(
+            events=[event_1, event_2, event_3, event_4, event_5],
+            identifier=CategoryIdentifier(category="test"),
+        )
+
+        constraint = constraints.offset_paging(page_number=3, item_count=2)
+        events = [
+            event async for event in source.iterate(constraints={constraint})
+        ]
+
+        assert events == [event_5]
+
+    async def test_iterate_yields_nothing_when_page_beyond_events(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+
+        source = NoConstraintsInMemoryEventSource(
+            events=[event_1, event_2],
+            identifier=CategoryIdentifier(category="test"),
+        )
+
+        constraint = constraints.offset_paging(page_number=5, item_count=2)
+        events = [
+            event async for event in source.iterate(constraints={constraint})
+        ]
+
+        assert events == []
+
+    async def test_iterate_combines_paging_with_filter_constraints(self):
+        event_1 = StoredEventBuilder().with_sequence_number(0).build()
+        event_2 = StoredEventBuilder().with_sequence_number(1).build()
+        event_3 = StoredEventBuilder().with_sequence_number(2).build()
+        event_4 = StoredEventBuilder().with_sequence_number(3).build()
+        event_5 = StoredEventBuilder().with_sequence_number(4).build()
+
+        source = NoConstraintsInMemoryEventSource(
+            events=[event_1, event_2, event_3, event_4, event_5],
+            identifier=CategoryIdentifier(category="test"),
+            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
+        )
+
+        events = [
+            event
+            async for event in source.iterate(
+                constraints={
+                    constraints.sequence_number_after(1),
+                    constraints.offset_paging(page_number=1, item_count=2),
+                }
+            )
+        ]
+
+        assert events == [event_3, event_4]
+
+
 class TestInMemoryStoredEventSource:
     async def test_iterate_yields_provided_events_with_constraints(self):
         event_1 = StoredEventBuilder().with_sequence_number(0).build()

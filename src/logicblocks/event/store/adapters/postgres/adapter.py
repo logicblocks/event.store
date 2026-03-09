@@ -199,13 +199,13 @@ def scan_query(
             .right(Constant(parameters.stream))
         )
 
-    for constraint in parameters.constraints:
-        applier = constraint_converter.convert(constraint)
-        builder = applier.apply(builder)
-
     builder = builder.order_by(
         SortBy(expression=ColumnReference(field="sequence_number"))
     ).limit(parameters.page_size)
+
+    for constraint in parameters.constraints:
+        applier = constraint_converter.convert(constraint)
+        builder = applier.apply(builder)
 
     return builder.build()
 

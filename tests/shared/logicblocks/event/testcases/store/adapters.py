@@ -3410,6 +3410,229 @@ class ScanCases(Base, ABC):
         assert scanned_events == expected_events
 
 
+class ScanPagingCases(Base, ABC):
+    async def test_log_scan_returns_first_page_of_events(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                constraints={
+                    constraints.offset_paging(page_number=1, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[:2])
+
+    async def test_log_scan_returns_second_page_of_events(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                constraints={
+                    constraints.offset_paging(page_number=2, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[2:4])
+
+    async def test_log_scan_returns_partial_last_page(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                constraints={
+                    constraints.offset_paging(page_number=3, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[4:])
+
+    async def test_log_scan_returns_empty_when_page_beyond_events(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                constraints={
+                    constraints.offset_paging(page_number=5, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == []
+
+    async def test_category_scan_returns_first_page_of_events(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.CategoryIdentifier(category=event_category),
+                constraints={
+                    constraints.offset_paging(page_number=1, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[:2])
+
+    async def test_stream_scan_returns_first_page_of_events(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.StreamIdentifier(
+                    category=event_category, stream=event_stream
+                ),
+                constraints={
+                    constraints.offset_paging(page_number=1, item_count=2)
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[:2])
+
+    async def test_log_scan_combines_paging_with_sequence_number_constraint(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+                NewEventBuilder().build(),
+            ],
+        )
+
+        sequence_number = stored_events[1].sequence_number
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=identifier.LogIdentifier(),
+                constraints={
+                    constraints.sequence_number_after(sequence_number),
+                    constraints.offset_paging(page_number=1, item_count=2),
+                },
+            )
+        ]
+
+        assert scanned_events == list(stored_events[2:4])
+
+
 class LatestCases(Base, ABC):
     async def test_latest_returns_none_when_no_events_in_stream(self):
         adapter = self.construct_storage_adapter()
@@ -3599,6 +3822,7 @@ class EventStorageAdapterCases(
     ThreadingConcurrencyCases,
     AsyncioConcurrencyCases,
     ScanCases,
+    ScanPagingCases,
     LatestCases,
     ABC,
 ):

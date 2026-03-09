@@ -10,7 +10,11 @@ from logicblocks.event.types import (
 )
 
 from .base import EventSource
-from .constraints import QueryConstraint, QueryConstraintCheck
+from .constraints import (
+    OffsetPagingConstraint,
+    QueryConstraint,
+    QueryConstraintCheck,
+)
 
 
 class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
@@ -47,13 +51,32 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
     async def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
     ) -> AsyncIterator[E]:
+        paging = None
+        filter_constraints = set()
+        for constraint in constraints:
+            if isinstance(constraint, OffsetPagingConstraint):
+                paging = constraint
+            else:
+                filter_constraints.add(constraint)
+
+        matched = 0
+        skipped = 0
+        offset = paging.offset if paging else 0
+        limit = paging.item_count if paging else None
+
         for event in self._events:
             await asyncio.sleep(0)
             if all(
                 self._constraint_converter.convert(constraint)(event)
-                for constraint in constraints
+                for constraint in filter_constraints
             ):
+                if skipped < offset:
+                    skipped += 1
+                    continue
                 yield event
+                matched += 1
+                if limit is not None and matched >= limit:
+                    return
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, InMemoryEventSource):

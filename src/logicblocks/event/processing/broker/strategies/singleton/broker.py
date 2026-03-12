@@ -4,6 +4,7 @@ from types import NoneType
 
 from structlog.types import FilteringBoundLogger
 
+from logicblocks.event.processing.services.error import ErrorHandlingService
 from logicblocks.event.sources.factory.base import EventSourceFactory
 from logicblocks.event.types import Event
 
@@ -11,7 +12,6 @@ from ....process import ProcessStatus
 from ....services import (
     ErrorHandler,
     RetryErrorHandler,
-    apply_error_handling,
 )
 from ...base import EventBroker
 from ...logger import default_logger
@@ -49,11 +49,11 @@ class SingletonEventBroker[E: Event](EventBroker[E]):
         await self._event_subscriber_store.add(subscriber)
 
     async def execute(self) -> None:
-        return await apply_error_handling(
-            self._run, self._error_handler
+        return await ErrorHandlingService[NoneType].apply_error_handling(
+            self._do_execute, self._error_handler
         )
 
-    async def _run(self) -> None:
+    async def _do_execute(self) -> None:
         distribution_interval_seconds = (
             self._distribution_interval.total_seconds()
         )

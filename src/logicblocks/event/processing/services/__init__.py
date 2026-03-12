@@ -12,7 +12,6 @@ from .error import (
     RetryErrorHandler,
     RetryErrorHandlerDecision,
     TypeMappingErrorHandler,
-    apply_error_handling,
     continue_execution_type_mapping,
     error_handler_type_mappings,
     exit_fatally_type_mapping,
@@ -29,7 +28,6 @@ from .status import StatusTrackingService
 from .types import Service
 
 __all__ = [
-    "apply_error_handling",
     "CallableService",
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",

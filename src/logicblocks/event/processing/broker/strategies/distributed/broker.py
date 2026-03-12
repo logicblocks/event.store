@@ -3,11 +3,11 @@ from types import NoneType
 
 from logicblocks.event.types import Event
 
+from .... import ErrorHandlingService
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
     ErrorHandler,
     RetryErrorHandler,
-    apply_error_handling,
 )
 from ...base import EventBroker
 from ...types import EventSubscriber
@@ -40,9 +40,11 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
         await self._event_subscriber_manager.add(subscriber)
 
     async def execute(self) -> None:
-        return await apply_error_handling(self._run, self._error_handler)
+        return await ErrorHandlingService[NoneType].apply_error_handling(
+            self._do_execute, self._error_handler
+        )
 
-    async def _run(self) -> None:
+    async def _do_execute(self) -> None:
         subscriber_manager = self._event_subscriber_manager
         coordinator = self._event_subscription_coordinator
         observer = self._event_subscription_observer

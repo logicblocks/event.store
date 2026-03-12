@@ -441,37 +441,38 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
         return self.default_error_handler.handle(exception)
 
 
-async def apply_error_handling[T](
-    run: Callable[[], Awaitable[T]],
-    error_handler: ErrorHandler[T],
-) -> T:
-    while True:
-        try:
-            return await run()
-        except BaseException as exception:
-            decision = error_handler.handle(exception)
-            match decision:
-                case RaiseErrorHandlerDecision(exception):
-                    raise exception
-                case ContinueErrorHandlerDecision(value):
-                    return value
-                case ExitErrorHandlerDecision(exit_code):
-                    raise SystemExit(exit_code)
-                case RetryErrorHandlerDecision():
-                    continue
-                case _:
-                    raise ValueError(
-                        f"Unknown error handler decision: {decision}"
-                    )
-
-
 class ErrorHandlingService[T = Any](Service[T]):
     def __init__(self, service: Service[T], error_handler: ErrorHandler[T]):
         self._service = service
         self._error_handler = error_handler
 
+    @classmethod
+    async def apply_error_handling(
+        cls,
+        run: Callable[[], Awaitable[T]],
+        error_handler: ErrorHandler[T],
+    ) -> T:
+        while True:
+            try:
+                return await run()
+            except BaseException as exception:
+                decision = error_handler.handle(exception)
+                match decision:
+                    case RaiseErrorHandlerDecision(exception):
+                        raise exception
+                    case ContinueErrorHandlerDecision(value):
+                        return value
+                    case ExitErrorHandlerDecision(exit_code):
+                        raise SystemExit(exit_code)
+                    case RetryErrorHandlerDecision():
+                        continue
+                    case _:
+                        raise ValueError(
+                            f"Unknown error handler decision: {decision}"
+                        )
+
     async def execute(self) -> T:
-        return await apply_error_handling(
+        return await self.apply_error_handling(
             self._service.execute, self._error_handler
         )
 

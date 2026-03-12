@@ -11,7 +11,6 @@ from ....process import ProcessStatus
 from ....services import (
     ErrorHandler,
     RetryErrorHandler,
-    StatusAwareServiceMixin,
     apply_error_handling,
 )
 from ...base import EventBroker
@@ -24,9 +23,7 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.{event}"
 
 
-class SingletonEventBroker[E: Event](
-    StatusAwareServiceMixin[NoneType], EventBroker[E]
-):
+class SingletonEventBroker[E: Event](EventBroker[E]):
     def __init__(
         self,
         node_id: str,
@@ -36,19 +33,36 @@ class SingletonEventBroker[E: Event](
         logger: FilteringBoundLogger = default_logger,
         distribution_interval: timedelta = timedelta(seconds=30),
     ):
-        super().__init__()
         self._node_id = node_id
         self._event_subscriber_store = event_subscriber_store
         self._event_source_factory = event_source_factory
         self._error_handler = error_handler
         self._logger = logger.bind(node=node_id)
         self._distribution_interval = distribution_interval
+        self._status = ProcessStatus.INITIALISED
+
+    @property
+    def status(self) -> ProcessStatus:
+        return self._status
 
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
 
     async def run(self) -> None:
-        return await apply_error_handling(super().run, self._error_handler)
+        return await apply_error_handling(
+            self._run_with_status, self._error_handler
+        )
+
+    async def _run_with_status(self) -> None:
+        try:
+            await self.execute()
+            self._status = ProcessStatus.STOPPED
+        except asyncio.CancelledError:
+            self._status = ProcessStatus.STOPPED
+            raise
+        except BaseException:
+            self._status = ProcessStatus.ERRORED
+            raise
 
     async def execute(self) -> None:
         distribution_interval_seconds = (

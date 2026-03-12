@@ -25,7 +25,7 @@ from .manager import (
     ServiceManager,
 )
 from .polling import PollingService
-from .status import StatusAwareServiceMixin
+from .status import StatusTrackingService
 from .types import Service
 
 __all__ = [
@@ -47,7 +47,7 @@ __all__ = [
     "RetryErrorHandlerDecision",
     "Service",
     "ServiceManager",
-    "StatusAwareServiceMixin",
+    "StatusTrackingService",
     "TypeMappingErrorHandler",
     "continue_execution_type_mapping",
     "error_handler_type_mappings",

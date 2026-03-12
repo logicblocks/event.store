@@ -1,23 +1,24 @@
 import asyncio
-from abc import ABC
+from functools import cached_property
 from typing import Any
 
 from ..process.base import ProcessStatus
 from .types import Service
 
 
-class StatusAwareServiceMixin[T = Any](Service[T], ABC):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class StatusTrackingService[T = Any](Service[T]):
+    def __init__(self, service: Service[T]):
+        self._service = service
         self._status = ProcessStatus.INITIALISED
 
     @property
     def status(self) -> ProcessStatus:
         return self._status
 
-    async def run(self) -> T:
+    async def execute(self) -> T:
         try:
-            result = await super().run()
+            self._status = ProcessStatus.RUNNING
+            result = await self._service.run()
             self._status = ProcessStatus.STOPPED
             return result
         except asyncio.CancelledError:
@@ -26,3 +27,7 @@ class StatusAwareServiceMixin[T = Any](Service[T], ABC):
         except BaseException:
             self._status = ProcessStatus.ERRORED
             raise
+
+    @cached_property
+    def name(self) -> str:
+        return self._service.name

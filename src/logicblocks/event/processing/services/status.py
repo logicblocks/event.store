@@ -16,7 +16,6 @@ class StatusAwareServiceMixin[T = Any](Service[T], ABC):
         return self._status
 
     async def run(self) -> T:
-        self._status = ProcessStatus.RUNNING
         try:
             result = await super().run()
             self._status = ProcessStatus.STOPPED

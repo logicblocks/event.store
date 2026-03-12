@@ -1,8 +1,14 @@
 import asyncio
+from types import NoneType
 
 from logicblocks.event.types import Event
 
 from ....process import ProcessStatus, determine_multi_process_status
+from ....services import (
+    ErrorHandler,
+    RetryErrorHandler,
+    apply_error_handling,
+)
 from ...base import EventBroker
 from ...types import EventSubscriber
 from .coordinator import EventSubscriptionCoordinator
@@ -16,10 +22,12 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
         event_subscriber_manager: EventSubscriberManager[E],
         event_subscription_coordinator: EventSubscriptionCoordinator,
         event_subscription_observer: EventSubscriptionObserver[E],
+        error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
     ):
         self._event_subscriber_manager = event_subscriber_manager
         self._event_subscription_coordinator = event_subscription_coordinator
         self._event_subscription_observer = event_subscription_observer
+        self._error_handler = error_handler
 
     @property
     def status(self) -> ProcessStatus:
@@ -30,6 +38,9 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
 
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_manager.add(subscriber)
+
+    async def run(self) -> None:
+        return await apply_error_handling(super().run, self._error_handler)
 
     async def execute(self) -> None:
         subscriber_manager = self._event_subscriber_manager

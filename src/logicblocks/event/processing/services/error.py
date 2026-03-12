@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from types import MappingProxyType
@@ -441,30 +441,39 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
         return self.default_error_handler.handle(exception)
 
 
+async def apply_error_handling[T](
+    run: Callable[[], Awaitable[T]],
+    error_handler: ErrorHandler[T],
+) -> T:
+    while True:
+        try:
+            return await run()
+        except BaseException as exception:
+            decision = error_handler.handle(exception)
+            match decision:
+                case RaiseErrorHandlerDecision(exception):
+                    raise exception
+                case ContinueErrorHandlerDecision(value):
+                    return value
+                case ExitErrorHandlerDecision(exit_code):
+                    raise SystemExit(exit_code)
+                case RetryErrorHandlerDecision():
+                    continue
+                case _:
+                    raise ValueError(
+                        f"Unknown error handler decision: {decision}"
+                    )
+
+
 class ErrorHandlingService[T = Any](Service[T]):
     def __init__(self, service: Service[T], error_handler: ErrorHandler[T]):
         self._service = service
         self._error_handler = error_handler
 
     async def execute(self) -> T:
-        while True:
-            try:
-                return await self._service.run()
-            except BaseException as exception:
-                decision = self._error_handler.handle(exception)
-                match decision:
-                    case RaiseErrorHandlerDecision(exception):
-                        raise exception
-                    case ContinueErrorHandlerDecision(value):
-                        return value
-                    case ExitErrorHandlerDecision(exit_code):
-                        raise SystemExit(exit_code)
-                    case RetryErrorHandlerDecision():
-                        continue
-                    case _:
-                        raise ValueError(
-                            f"Unknown error handler decision: {decision}"
-                        )
+        return await apply_error_handling(
+            self._service.run, self._error_handler
+        )
 
     @cached_property
     def name(self) -> str:

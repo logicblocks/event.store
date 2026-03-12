@@ -14,11 +14,9 @@ from logicblocks.event.testsupport import (
 
 from logicblocks.event.processing import (
     ContinueErrorHandler,
-    ErrorHandlingService,
     EventBroker,
     EventSubscriber,
     ProcessStatus,
-    RetryErrorHandler,
 )
 from logicblocks.event.processing.broker.strategies.distributed import (
     DefaultEventSubscriberManager,
@@ -492,11 +490,8 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
         )
-        wrapped = ErrorHandlingService(
-            broker, error_handler=RetryErrorHandler()
-        )
 
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -530,11 +525,8 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
         )
-        wrapped = ErrorHandlingService(
-            broker, error_handler=RetryErrorHandler()
-        )
 
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -566,11 +558,8 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
         )
-        wrapped = ErrorHandlingService(
-            broker, error_handler=RetryErrorHandler()
-        )
 
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(
@@ -603,13 +592,10 @@ class TestDistributedEventBrokerErrorHandling:
             event_subscriber_manager=subscriber_manager,
             event_subscription_coordinator=coordinator,
             event_subscription_observer=observer,
-        )
-        wrapped = ErrorHandlingService(
-            broker,
             error_handler=ContinueErrorHandler(value_factory=lambda _: None),
         )
 
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await asyncio.gather(

@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from types import NoneType
 from typing import NotRequired, TypedDict
 from unittest.mock import Mock
 
@@ -19,9 +20,8 @@ from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.processing import (
     ContinueErrorHandler,
-    ErrorHandlingService,
+    ErrorHandler,
     ProcessStatus,
-    RetryErrorHandler,
 )
 from logicblocks.event.processing.broker.strategies.singleton import (
     SingletonEventBroker,
@@ -66,11 +66,13 @@ class SingletonEventBrokerParams[E: Event](TypedDict):
     node_id: str
     event_subscriber_store: EventSubscriberStore[E]
     event_source_factory: EventSourceFactory[E]
+    error_handler: NotRequired[ErrorHandler[NoneType]]
     logger: NotRequired[FilteringBoundLogger]
     distribution_interval: NotRequired[timedelta]
 
 
 def make_event_broker_with_mocked_dependencies(
+    error_handler: ErrorHandler[NoneType] | None = None,
     distribution_interval: timedelta = timedelta(milliseconds=10),
 ):
     node_id = data.random_node_id()
@@ -86,6 +88,9 @@ def make_event_broker_with_mocked_dependencies(
         "logger": logger,
         "distribution_interval": distribution_interval,
     }
+
+    if error_handler is not None:
+        kwargs["error_handler"] = error_handler
 
     broker = SingletonEventBroker(**kwargs)
 
@@ -439,11 +444,7 @@ class TestSingletonEventBrokerErrorHandling:
 
         event_subscriber_store.list.return_value = []
 
-        wrapped = ErrorHandlingService(
-            broker, error_handler=RetryErrorHandler()
-        )
-
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await status_eventually_equal_to(broker, ProcessStatus.RUNNING)
@@ -469,18 +470,15 @@ class TestSingletonEventBrokerErrorHandling:
             assert call_count_after > call_count_before
 
     async def test_uses_specified_error_handler_when_provided(self):
-        context = make_event_broker_with_mocked_dependencies()
+        context = make_event_broker_with_mocked_dependencies(
+            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
+        )
         broker = context.broker
         event_subscriber_store = context.event_subscriber_store
 
         event_subscriber_store.list.return_value = []
 
-        wrapped = ErrorHandlingService(
-            broker,
-            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
-        )
-
-        task = asyncio.create_task(wrapped.run())
+        task = asyncio.create_task(broker.run())
 
         async with task_shutdown(task):
             await status_eventually_equal_to(broker, ProcessStatus.RUNNING)

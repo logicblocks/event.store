@@ -17,11 +17,9 @@ from logicblocks.event.persistence.postgres import ConnectionSettings
 from logicblocks.event.processing import (
     CallableService,
     DistributedEventBrokerSettings,
-    ErrorHandlingService,
     EventCount,
     PollingService,
     ProjectionEventProcessor,
-    RetryErrorHandler,
     ServiceManager,
     make_postgres_event_broker,
     make_subscriber,
@@ -186,11 +184,7 @@ class TestAsynchronousProjections:
         )
 
         service_manager = ServiceManager()
-        service_manager.register(
-            ErrorHandlingService(
-                event_broker, error_handler=RetryErrorHandler()
-            )
-        )
+        service_manager.register(event_broker)
         service_manager.register(subscriber_service)
 
         try:

@@ -7,7 +7,13 @@ from structlog.types import FilteringBoundLogger
 from logicblocks.event.sources.factory.base import EventSourceFactory
 from logicblocks.event.types import Event
 
-from ....services import StatusAwareServiceMixin
+from ....process import ProcessStatus
+from ....services import (
+    ErrorHandler,
+    RetryErrorHandler,
+    StatusAwareServiceMixin,
+    apply_error_handling,
+)
 from ...base import EventBroker
 from ...logger import default_logger
 from ...subscribers import EventSubscriberStore
@@ -26,6 +32,7 @@ class SingletonEventBroker[E: Event](
         node_id: str,
         event_subscriber_store: EventSubscriberStore[E],
         event_source_factory: EventSourceFactory[E],
+        error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
         logger: FilteringBoundLogger = default_logger,
         distribution_interval: timedelta = timedelta(seconds=30),
     ):
@@ -33,11 +40,15 @@ class SingletonEventBroker[E: Event](
         self._node_id = node_id
         self._event_subscriber_store = event_subscriber_store
         self._event_source_factory = event_source_factory
+        self._error_handler = error_handler
         self._logger = logger.bind(node=node_id)
         self._distribution_interval = distribution_interval
 
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
+
+    async def run(self) -> None:
+        return await apply_error_handling(super().run, self._error_handler)
 
     async def execute(self) -> None:
         distribution_interval_seconds = (
@@ -48,9 +59,11 @@ class SingletonEventBroker[E: Event](
             log_event_name("starting"),
             distribution_interval_seconds=distribution_interval_seconds,
         )
+        self._status = ProcessStatus.STARTING
 
         try:
             await self._logger.ainfo(log_event_name("running"))
+            self._status = ProcessStatus.RUNNING
             while True:
                 subscribers = await self._event_subscriber_store.list()
                 for subscriber in subscribers:

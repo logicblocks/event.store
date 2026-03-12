@@ -9,6 +9,11 @@ from typing import Any, Self, override
 
 import uvloop
 
+from logicblocks.event.processing.process.base import (
+    HasProcessStatus,
+    ProcessStatus,
+)
+
 from .types import Service
 
 
@@ -36,6 +41,14 @@ class ServiceDefinition[T]:
 
     def coroutine(self) -> Coroutine[Any, Any, T]:
         return self.service.execute()
+
+    @property
+    def service_status(self) -> ProcessStatus:
+        return self.service.status if isinstance(self.service, HasProcessStatus) else ProcessStatus.INITIALISED
+
+    @property
+    def service_name(self) -> str:
+        return self.service.name
 
 
 class ServiceExecutor(ABC):

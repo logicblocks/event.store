@@ -48,23 +48,12 @@ class SingletonEventBroker[E: Event](EventBroker[E]):
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
 
-    async def run(self) -> None:
+    async def execute(self) -> None:
         return await apply_error_handling(
-            self._run_with_status, self._error_handler
+            self._run, self._error_handler
         )
 
-    async def _run_with_status(self) -> None:
-        try:
-            await self.execute()
-            self._status = ProcessStatus.STOPPED
-        except asyncio.CancelledError:
-            self._status = ProcessStatus.STOPPED
-            raise
-        except BaseException:
-            self._status = ProcessStatus.ERRORED
-            raise
-
-    async def execute(self) -> None:
+    async def _run(self) -> None:
         distribution_interval_seconds = (
             self._distribution_interval.total_seconds()
         )
@@ -90,7 +79,9 @@ class SingletonEventBroker[E: Event](EventBroker[E]):
 
         except asyncio.CancelledError:
             await self._logger.ainfo(log_event_name("stopped"))
+            self._status = ProcessStatus.STOPPED
             raise
         except BaseException:
             await self._logger.aexception(log_event_name("failed"))
+            self._status = ProcessStatus.ERRORED
             raise

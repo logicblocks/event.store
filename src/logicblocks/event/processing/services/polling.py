@@ -17,7 +17,7 @@ class PollingService(Service[Never]):
 
     async def execute(self) -> Never:
         while True:
-            await self._service.run()
+            await self._service.execute()
             await asyncio.sleep(self._poll_interval.total_seconds())
 
     @cached_property

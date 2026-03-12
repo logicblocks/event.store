@@ -18,7 +18,7 @@ class StatusTrackingService[T = Any](Service[T]):
     async def execute(self) -> T:
         try:
             self._status = ProcessStatus.RUNNING
-            result = await self._service.run()
+            result = await self._service.execute()
             self._status = ProcessStatus.STOPPED
             return result
         except asyncio.CancelledError:

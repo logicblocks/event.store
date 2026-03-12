@@ -191,7 +191,7 @@ class TestSingletonEventBrokerStatuses:
         context = make_event_broker_with_mocked_dependencies()
         broker = context.broker
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.RUNNING)
@@ -207,7 +207,7 @@ class TestSingletonEventBrokerStatuses:
                 if status == ProcessStatus.RUNNING:
                     return
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await wait_until_running()
@@ -229,7 +229,7 @@ class TestSingletonEventBrokerStatuses:
                 if status == ProcessStatus.RUNNING:
                     return
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await wait_until_running()
@@ -252,7 +252,7 @@ class TestSingletonEventBrokerLogging:
         broker = context.broker
         logger = context.logger
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.RUNNING)
@@ -277,7 +277,7 @@ class TestSingletonEventBrokerLogging:
         broker = context.broker
         logger = context.logger
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await assert_log_event_eventually(
@@ -299,7 +299,7 @@ class TestSingletonEventBrokerLogging:
         broker = context.broker
         logger = context.logger
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await assert_log_event_eventually(
@@ -332,7 +332,7 @@ class TestSingletonEventBrokerLogging:
                 if status == ProcessStatus.RUNNING:
                     return
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await wait_until_running()
@@ -382,7 +382,7 @@ class TestSingletonEventBrokerDistribution:
         await broker.register(subscriber_1)
         await broker.register(subscriber_2)
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await assert_status_eventually(broker, ProcessStatus.RUNNING)
@@ -423,7 +423,7 @@ class TestSingletonEventBrokerDistribution:
 
         await broker.register(subscriber)
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
@@ -444,7 +444,7 @@ class TestSingletonEventBrokerErrorHandling:
 
         event_subscriber_store.list.return_value = []
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await status_eventually_equal_to(broker, ProcessStatus.RUNNING)
@@ -478,7 +478,7 @@ class TestSingletonEventBrokerErrorHandling:
 
         event_subscriber_store.list.return_value = []
 
-        task = asyncio.create_task(broker.run())
+        task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
             await status_eventually_equal_to(broker, ProcessStatus.RUNNING)

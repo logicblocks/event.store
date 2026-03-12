@@ -8,9 +8,6 @@ class Service[T = Any](ABC):
     async def execute(self) -> T:
         raise NotImplementedError()
 
-    async def run(self) -> T:
-        return await self.execute()
-
     @cached_property
     def name(self) -> str:
         return self.__class__.__name__.removesuffix("Service")

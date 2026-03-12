@@ -480,7 +480,7 @@ class TestErrorHandlingServiceWithCustomService:
         )
 
         with pytest.raises(TestException):
-            await service.run()
+            await service.execute()
 
         assert call_count == 1
 
@@ -496,7 +496,7 @@ class TestErrorHandlingServiceWithCustomService:
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.run()
+        result = await service.execute()
 
         assert call_count == 1
         assert result == 10
@@ -514,7 +514,7 @@ class TestErrorHandlingServiceWithCustomService:
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.run()
+            await service.execute()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -553,7 +553,7 @@ class TestErrorHandlingServiceWithCustomService:
             error_handler=RetryOrContinueErrorHandler(),
         )
 
-        await service.run()
+        await service.execute()
 
         assert call_count == 3
 
@@ -580,7 +580,7 @@ class TestErrorHandlingServiceWithCallable:
         )
 
         with pytest.raises(TestException):
-            await service.run()
+            await service.execute()
 
         assert call_count == 1
 
@@ -597,7 +597,7 @@ class TestErrorHandlingServiceWithCallable:
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
-        result = await service.run()
+        result = await service.execute()
 
         assert call_count == 1
         assert result == 10
@@ -616,7 +616,7 @@ class TestErrorHandlingServiceWithCallable:
         )
 
         with pytest.raises(SystemExit) as exc_info:
-            await service.run()
+            await service.execute()
 
         assert exc_info.value.code == 42
         assert call_count == 1
@@ -654,6 +654,6 @@ class TestErrorHandlingServiceWithCallable:
             error_handler=RetryOrContinueErrorHandler(),
         )
 
-        await service.run()
+        await service.execute()
 
         assert call_count == 3

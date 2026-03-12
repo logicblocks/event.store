@@ -22,7 +22,7 @@ class TestStatusTrackingService:
             service=CallableService(self._noop),
         )
 
-        await service.run()
+        await service.execute()
 
         assert service.status == ProcessStatus.STOPPED
 
@@ -37,7 +37,7 @@ class TestStatusTrackingService:
             service=CallableService(capture_status),
         )
 
-        await service.run()
+        await service.execute()
 
         assert observed_status == ProcessStatus.RUNNING
 
@@ -49,7 +49,7 @@ class TestStatusTrackingService:
             service=CallableService(block_forever),
         )
 
-        task = asyncio.create_task(service.run())
+        task = asyncio.create_task(service.execute())
         await asyncio.sleep(0)
 
         task.cancel()
@@ -67,7 +67,7 @@ class TestStatusTrackingService:
         )
 
         with pytest.raises(RuntimeError):
-            await service.run()
+            await service.execute()
 
         assert service.status == ProcessStatus.ERRORED
 
@@ -79,7 +79,7 @@ class TestStatusTrackingService:
             service=CallableService(return_value),
         )
 
-        result = await service.run()
+        result = await service.execute()
 
         assert result == 42
 

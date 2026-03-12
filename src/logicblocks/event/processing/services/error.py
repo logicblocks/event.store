@@ -472,7 +472,7 @@ class ErrorHandlingService[T = Any](Service[T]):
 
     async def execute(self) -> T:
         return await apply_error_handling(
-            self._service.run, self._error_handler
+            self._service.execute, self._error_handler
         )
 
     @cached_property

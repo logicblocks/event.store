@@ -17,7 +17,7 @@ class TestPollingService:
             poll_interval=timedelta(milliseconds=20),
         )
 
-        task = asyncio.create_task(service.run())
+        task = asyncio.create_task(service.execute())
 
         await asyncio.sleep(timedelta(milliseconds=50).total_seconds())
 

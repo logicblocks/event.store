@@ -39,10 +39,10 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_manager.add(subscriber)
 
-    async def run(self) -> None:
-        return await apply_error_handling(super().run, self._error_handler)
-
     async def execute(self) -> None:
+        return await apply_error_handling(self._run, self._error_handler)
+
+    async def _run(self) -> None:
         subscriber_manager = self._event_subscriber_manager
         coordinator = self._event_subscription_coordinator
         observer = self._event_subscription_observer

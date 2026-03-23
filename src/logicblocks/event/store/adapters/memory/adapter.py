@@ -13,10 +13,6 @@ from uuid import uuid4
 from aiologic import Lock
 
 from logicblocks.event.sources import constraints
-from logicblocks.event.sources.constraints import (
-    OffsetPagingConstraint,
-    QueryConstraint,
-)
 from logicblocks.event.types import (
     CategoryIdentifier,
     Converter,
@@ -44,6 +40,7 @@ from ..base import (
     Scannable,
 )
 from .converters import (
+    InMemoryQueryApplier,
     TypeRegistryConditionConverter,
     TypeRegistryConstraintConverter,
     WriteConditionEnforcer,
@@ -62,7 +59,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         ] = EventSerialisationGuarantee.LOG,
         constraint_converter: Converter[
             constraints.QueryConstraint,
-            constraints.QueryConstraintCheck[StoredEvent],
+            InMemoryQueryApplier,
         ]
         | None = None,
         condition_converter: Converter[WriteCondition, WriteConditionEnforcer]
@@ -89,7 +86,6 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             log_index=None,
             category_index=None,
             stream_index=None,
-            constraint_converter=self._constraint_converter,
         )
         self._serialisation_guarantee = serialisation_guarantee
 
@@ -333,32 +329,25 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         snapshot = self._db.snapshot()
 
-        paging = None
-        filter_constraints: set[QueryConstraint] = set()
-        for constraint in constraints:
-            if isinstance(constraint, OffsetPagingConstraint):
-                paging = constraint
-            else:
-                filter_constraints.add(constraint)
-
-        matched = 0
-        skipped = 0
-        offset = paging.offset if paging else 0
-        limit = paging.item_count if paging else None
-
-        async_generator = snapshot.scan_events(
-            target, frozenset(filter_constraints)
+        appliers = sorted(
+            (
+                self._constraint_converter.convert(constraint)
+                for constraint in constraints
+            ),
+            key=lambda a: a.order,
         )
+
+        source: AsyncIterator[StoredEvent[str, JsonValue]] = (
+            snapshot.scan_events(target)
+        )
+        for applier in appliers:
+            source = applier.apply(source)
+
+        async_generator = source
         try:
             async for event in async_generator:
                 await asyncio.sleep(0)
-                if skipped < offset:
-                    skipped += 1
-                    continue
                 yield event
-                matched += 1
-                if limit is not None and matched >= limit:
-                    return
         finally:
             if isinstance(async_generator, AsyncGenerator):
                 await async_generator.aclose()

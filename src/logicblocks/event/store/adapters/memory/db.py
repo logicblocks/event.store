@@ -1,12 +1,10 @@
 import copy
 from collections import defaultdict
-from collections.abc import AsyncIterator, Set
+from collections.abc import AsyncIterator
 from typing import Self, cast
 
-from logicblocks.event.sources import constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
-    Converter,
     JsonValue,
     LogIdentifier,
     StoredEvent,
@@ -42,10 +40,6 @@ class InMemoryEventsDB:
         log_index: EventPositionList | None = None,
         category_index: EventIndexDict[CategoryKey] | None = None,
         stream_index: EventIndexDict[StreamKey] | None = None,
-        constraint_converter: Converter[
-            constraints.QueryConstraint,
-            constraints.QueryConstraintCheck[StoredEvent],
-        ],
     ):
         self._events: list[StoredEvent[str, JsonValue] | None] = (
             events if events is not None else []
@@ -63,7 +57,6 @@ class InMemoryEventsDB:
             if stream_index is not None
             else defaultdict(lambda: [])
         )
-        self._constraint_converter = constraint_converter
 
     def snapshot(self) -> Self:
         return self.__class__(
@@ -71,7 +64,6 @@ class InMemoryEventsDB:
             log_index=list(self._log_index),
             category_index=copy.deepcopy(self._category_index),
             stream_index=copy.deepcopy(self._stream_index),
-            constraint_converter=self._constraint_converter,
         )
 
     def transaction(self) -> "InMemoryEventsDBTransaction":
@@ -122,7 +114,6 @@ class InMemoryEventsDB:
     async def scan_events(
         self,
         target: Scannable,
-        constraints: Set[constraints.QueryConstraint] = frozenset(),
     ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
         index = self._select_index(target)
 
@@ -133,11 +124,6 @@ class InMemoryEventsDB:
                     f"Invalid state: event at sequence number {sequence_number} "
                     f"is None"
                 )
-            if not all(
-                self._constraint_converter.convert(constraint)(event)
-                for constraint in constraints
-            ):
-                continue
             yield event
 
     def _select_index(self, target: Scannable) -> EventPositionList:

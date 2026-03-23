@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Sequence, Set
 from typing import Any, cast
 
 from logicblocks.event.types import (
+    Applier,
     Converter,
     Event,
     EventSourceIdentifier,
@@ -11,10 +12,21 @@ from logicblocks.event.types import (
 
 from .base import EventSource
 from .constraints import (
-    OffsetPagingConstraint,
     QueryConstraint,
-    QueryConstraintCheck,
 )
+
+
+class InMemoryEventSourceQueryApplier[E: Event](
+    Applier[AsyncIterator[E]], ABC
+):
+    @property
+    @abstractmethod
+    def order(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply(self, target: AsyncIterator[E]) -> AsyncIterator[E]:
+        raise NotImplementedError
 
 
 class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
@@ -25,7 +37,7 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
         events: Sequence[E],
         identifier: I,
         constraint_converter: Converter[
-            QueryConstraint, QueryConstraintCheck[E]
+            QueryConstraint, InMemoryEventSourceQueryApplier[E]
         ]
         | None = None,
     ):
@@ -38,7 +50,7 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
     @abstractmethod
     def _get_default_constraint_converter(
         self,
-    ) -> Converter[QueryConstraint, QueryConstraintCheck[E]]:
+    ) -> Converter[QueryConstraint, InMemoryEventSourceQueryApplier[E]]:
         raise NotImplementedError
 
     @property
@@ -51,32 +63,25 @@ class InMemoryEventSource[I: EventSourceIdentifier, E: Event](
     async def iterate(
         self, *, constraints: Set[QueryConstraint] = frozenset()
     ) -> AsyncIterator[E]:
-        paging = None
-        filter_constraints = set()
-        for constraint in constraints:
-            if isinstance(constraint, OffsetPagingConstraint):
-                paging = constraint
-            else:
-                filter_constraints.add(constraint)
+        appliers = sorted(
+            (
+                self._constraint_converter.convert(constraint)
+                for constraint in constraints
+            ),
+            key=lambda a: a.order,
+        )
 
-        matched = 0
-        skipped = 0
-        offset = paging.offset if paging else 0
-        limit = paging.item_count if paging else None
-
-        for event in self._events:
-            await asyncio.sleep(0)
-            if all(
-                self._constraint_converter.convert(constraint)(event)
-                for constraint in filter_constraints
-            ):
-                if skipped < offset:
-                    skipped += 1
-                    continue
+        async def base_iterator() -> AsyncIterator[E]:
+            for event in self._events:
+                await asyncio.sleep(0)
                 yield event
-                matched += 1
-                if limit is not None and matched >= limit:
-                    return
+
+        source: AsyncIterator[E] = base_iterator()
+        for applier in appliers:
+            source = applier.apply(source)
+
+        async for event in source:
+            yield event
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, InMemoryEventSource):

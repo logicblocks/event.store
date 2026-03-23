@@ -1,10 +1,16 @@
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 import pytest
 
+from logicblocks.event.sources import constraints
 from logicblocks.event.store.adapters.memory.converters import (
     AndConditionConverter,
+    FilteringQueryApplier,
+    OffsetPagingConstraintConverter,
+    OffsetPagingQueryApplier,
     OrConditionConverter,
+    SequenceNumberAfterConstraintConverter,
     TypeRegistryConditionConverter,
     TypeRegistryConstraintConverter,
     WriteConditionEnforcer,
@@ -119,11 +125,7 @@ def make_test_type_registry_converter() -> TypeRegistryConditionConverter:
 
 
 def make_transaction() -> InMemoryEventsDBTransaction:
-    return InMemoryEventsDBTransaction(
-        db=InMemoryEventsDB(
-            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters()
-        )
-    )
+    return InMemoryEventsDBTransaction(db=InMemoryEventsDB())
 
 
 def make_context(
@@ -354,3 +356,181 @@ class TestWriteConditionsOr:
             enforcer.assert_satisfied(
                 context=make_context(event), transaction=make_transaction()
             )
+
+
+async def _collect[E](iterator: AsyncIterator[E]) -> list[E]:
+    return [item async for item in iterator]
+
+
+async def _async_iter[E](*items: E) -> AsyncIterator[E]:
+    for item in items:
+        yield item
+
+
+class TestFilteringQueryApplier:
+    async def test_yields_events_matching_predicate(self):
+        event_1 = StoredEventBuilder().with_sequence_number(0).build()
+        event_2 = StoredEventBuilder().with_sequence_number(1).build()
+        event_3 = StoredEventBuilder().with_sequence_number(2).build()
+
+        applier = FilteringQueryApplier(check=lambda e: e.sequence_number > 0)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3))
+        )
+
+        assert result == [event_2, event_3]
+
+    async def test_yields_nothing_when_no_events_match(self):
+        event_1 = StoredEventBuilder().with_sequence_number(0).build()
+
+        applier = FilteringQueryApplier(check=lambda e: e.sequence_number > 5)
+        result = await _collect(applier.apply(_async_iter(event_1)))
+
+        assert result == []
+
+    async def test_yields_all_events_when_all_match(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+
+        applier = FilteringQueryApplier(check=lambda e: True)
+        result = await _collect(applier.apply(_async_iter(event_1, event_2)))
+
+        assert result == [event_1, event_2]
+
+    async def test_has_filter_order(self):
+        applier = FilteringQueryApplier(check=lambda e: True)
+
+        assert applier.order == 0
+
+
+class TestOffsetPagingQueryApplier:
+    async def test_yields_first_page(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+
+        applier = OffsetPagingQueryApplier(offset=0, limit=2)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3))
+        )
+
+        assert result == [event_1, event_2]
+
+    async def test_yields_second_page(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+        event_4 = StoredEventBuilder().build()
+
+        applier = OffsetPagingQueryApplier(offset=2, limit=2)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3, event_4))
+        )
+
+        assert result == [event_3, event_4]
+
+    async def test_yields_partial_last_page(self):
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+
+        applier = OffsetPagingQueryApplier(offset=2, limit=2)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3))
+        )
+
+        assert result == [event_3]
+
+    async def test_yields_nothing_when_offset_beyond_events(self):
+        event_1 = StoredEventBuilder().build()
+
+        applier = OffsetPagingQueryApplier(offset=10, limit=2)
+        result = await _collect(applier.apply(_async_iter(event_1)))
+
+        assert result == []
+
+    async def test_has_window_order(self):
+        applier = OffsetPagingQueryApplier(offset=0, limit=10)
+
+        assert applier.order == 1
+
+
+class TestSequenceNumberAfterConstraintConverter:
+    async def test_produces_filtering_applier(self):
+        converter = SequenceNumberAfterConstraintConverter()
+        constraint = constraints.SequenceNumberAfterConstraint(
+            sequence_number=1
+        )
+
+        applier = converter.convert(constraint)
+
+        assert isinstance(applier, FilteringQueryApplier)
+
+    async def test_applier_filters_by_sequence_number(self):
+        converter = SequenceNumberAfterConstraintConverter()
+        constraint = constraints.SequenceNumberAfterConstraint(
+            sequence_number=1
+        )
+
+        event_1 = StoredEventBuilder().with_sequence_number(0).build()
+        event_2 = StoredEventBuilder().with_sequence_number(1).build()
+        event_3 = StoredEventBuilder().with_sequence_number(2).build()
+
+        applier = converter.convert(constraint)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3))
+        )
+
+        assert result == [event_3]
+
+
+class TestOffsetPagingConstraintConverter:
+    async def test_produces_paging_applier(self):
+        converter = OffsetPagingConstraintConverter()
+        constraint = constraints.OffsetPagingConstraint(
+            page_number=2, item_count=3
+        )
+
+        applier = converter.convert(constraint)
+
+        assert isinstance(applier, OffsetPagingQueryApplier)
+
+    async def test_applier_pages_events(self):
+        converter = OffsetPagingConstraintConverter()
+        constraint = constraints.OffsetPagingConstraint(
+            page_number=2, item_count=2
+        )
+
+        event_1 = StoredEventBuilder().build()
+        event_2 = StoredEventBuilder().build()
+        event_3 = StoredEventBuilder().build()
+        event_4 = StoredEventBuilder().build()
+
+        applier = converter.convert(constraint)
+        result = await _collect(
+            applier.apply(_async_iter(event_1, event_2, event_3, event_4))
+        )
+
+        assert result == [event_3, event_4]
+
+
+class TestTypeRegistryConstraintConverterWithAppliers:
+    async def test_converts_sequence_number_constraint(self):
+        converter = TypeRegistryConstraintConverter().with_default_constraint_converters()
+        constraint = constraints.SequenceNumberAfterConstraint(
+            sequence_number=1
+        )
+
+        applier = converter.convert(constraint)
+
+        assert isinstance(applier, FilteringQueryApplier)
+
+    async def test_converts_paging_constraint(self):
+        converter = TypeRegistryConstraintConverter().with_default_constraint_converters()
+        constraint = constraints.OffsetPagingConstraint(
+            page_number=1, item_count=10
+        )
+
+        applier = converter.convert(constraint)
+
+        assert isinstance(applier, OffsetPagingQueryApplier)

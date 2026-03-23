@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
 from logicblocks.event.sources import constraints
+from logicblocks.event.sources.memory import InMemoryEventSourceQueryApplier
 from logicblocks.event.types import (
     Converter,
+    JsonValue,
     StoredEvent,
     StreamIdentifier,
 )
@@ -22,30 +24,84 @@ from ...exceptions import UnmetWriteConditionError
 from .db import InMemoryEventsDBTransaction
 from .types import InMemoryQueryConstraintCheck
 
+FILTER_ORDER = 0
+WINDOW_ORDER = 1
+
+
+class InMemoryQueryApplier(
+    InMemoryEventSourceQueryApplier[StoredEvent[str, JsonValue]], ABC
+):
+    pass
+
+
+class FilteringQueryApplier(InMemoryQueryApplier):
+    def __init__(self, check: InMemoryQueryConstraintCheck):
+        self._check = check
+
+    @property
+    def order(self) -> int:
+        return FILTER_ORDER
+
+    async def apply(
+        self, target: AsyncIterator[StoredEvent[str, JsonValue]]
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+        async for event in target:
+            if self._check(event):
+                yield event
+
+
+class OffsetPagingQueryApplier(InMemoryQueryApplier):
+    def __init__(self, offset: int, limit: int):
+        self._offset = offset
+        self._limit = limit
+
+    @property
+    def order(self) -> int:
+        return WINDOW_ORDER
+
+    async def apply(
+        self, target: AsyncIterator[StoredEvent[str, JsonValue]]
+    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+        skipped = 0
+        matched = 0
+        async for event in target:
+            if skipped < self._offset:
+                skipped += 1
+                continue
+            yield event
+            matched += 1
+            if matched >= self._limit:
+                return
+
 
 class SequenceNumberAfterConstraintConverter(
-    Converter[
-        constraints.SequenceNumberAfterConstraint, InMemoryQueryConstraintCheck
-    ]
+    Converter[constraints.SequenceNumberAfterConstraint, InMemoryQueryApplier]
 ):
     def convert(
         self, item: constraints.SequenceNumberAfterConstraint
-    ) -> InMemoryQueryConstraintCheck:
+    ) -> InMemoryQueryApplier:
         def check(event: StoredEvent) -> bool:
             return event.sequence_number > item.sequence_number
 
-        return check
+        return FilteringQueryApplier(check=check)
+
+
+class OffsetPagingConstraintConverter(
+    Converter[constraints.OffsetPagingConstraint, InMemoryQueryApplier]
+):
+    def convert(
+        self, item: constraints.OffsetPagingConstraint
+    ) -> InMemoryQueryApplier:
+        return OffsetPagingQueryApplier(item.offset, item.item_count)
 
 
 class TypeRegistryConstraintConverter(
-    TypeRegistryConverter[
-        constraints.QueryConstraint, InMemoryQueryConstraintCheck
-    ]
+    TypeRegistryConverter[constraints.QueryConstraint, InMemoryQueryApplier]
 ):
     def register[QC: constraints.QueryConstraint](
         self,
         item_type: type[QC],
-        converter: Converter[QC, InMemoryQueryConstraintCheck],
+        converter: Converter[QC, InMemoryQueryApplier],
     ) -> Self:
         return super()._register(item_type, converter)
 
@@ -53,6 +109,9 @@ class TypeRegistryConstraintConverter(
         return self.register(
             constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
+        ).register(
+            constraints.OffsetPagingConstraint,
+            OffsetPagingConstraintConverter(),
         )
 
 

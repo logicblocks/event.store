@@ -1,24 +1,39 @@
+from collections.abc import AsyncIterator
+
 from logicblocks.event.sources import (
     InMemoryEventSource,
     constraints,
 )
 from logicblocks.event.sources.constraints import (
     QueryConstraint,
-    QueryConstraintCheck,
 )
+from logicblocks.event.sources.memory import InMemoryEventSourceQueryApplier
 from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.store.adapters.memory.converters import (
+    FILTER_ORDER,
     TypeRegistryConstraintConverter,
 )
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import CategoryIdentifier, Converter, StoredEvent
 
 
-class _EmptyConstraintConverter(
-    Converter[QueryConstraint, QueryConstraintCheck[StoredEvent]]
+class _NoOpApplier(InMemoryEventSourceQueryApplier[StoredEvent]):
+    @property
+    def order(self) -> int:
+        return FILTER_ORDER
+
+    async def apply(
+        self, target: AsyncIterator[StoredEvent]
+    ) -> AsyncIterator[StoredEvent]:
+        async for event in target:
+            yield event
+
+
+class _NoOpConstraintConverter(
+    Converter[QueryConstraint, InMemoryEventSourceQueryApplier[StoredEvent]]
 ):
     def convert(self, item):
-        return lambda event: True
+        return _NoOpApplier()
 
 
 class NoConstraintsInMemoryEventSource(
@@ -26,8 +41,10 @@ class NoConstraintsInMemoryEventSource(
 ):
     def _get_default_constraint_converter(
         self,
-    ) -> Converter[QueryConstraint, QueryConstraintCheck[StoredEvent]]:
-        return _EmptyConstraintConverter()
+    ) -> Converter[
+        QueryConstraint, InMemoryEventSourceQueryApplier[StoredEvent]
+    ]:
+        return _NoOpConstraintConverter()
 
 
 class TestInMemoryEventSource:
@@ -171,6 +188,7 @@ class TestInMemoryEventSourcePaging:
         source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3, event_4, event_5],
             identifier=CategoryIdentifier(category="test"),
+            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
         )
 
         constraint = constraints.offset_paging(page_number=1, item_count=2)
@@ -190,6 +208,7 @@ class TestInMemoryEventSourcePaging:
         source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3, event_4, event_5],
             identifier=CategoryIdentifier(category="test"),
+            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
         )
 
         constraint = constraints.offset_paging(page_number=2, item_count=2)
@@ -209,6 +228,7 @@ class TestInMemoryEventSourcePaging:
         source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2, event_3, event_4, event_5],
             identifier=CategoryIdentifier(category="test"),
+            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
         )
 
         constraint = constraints.offset_paging(page_number=3, item_count=2)
@@ -225,6 +245,7 @@ class TestInMemoryEventSourcePaging:
         source = NoConstraintsInMemoryEventSource(
             events=[event_1, event_2],
             identifier=CategoryIdentifier(category="test"),
+            constraint_converter=TypeRegistryConstraintConverter().with_default_constraint_converters(),
         )
 
         constraint = constraints.offset_paging(page_number=5, item_count=2)

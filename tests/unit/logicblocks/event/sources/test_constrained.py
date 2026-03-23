@@ -8,15 +8,16 @@ from logicblocks.event.sources.constraints import (
 )
 from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.store.adapters.memory import (
-    InMemoryQueryConstraintCheck,
+    InMemoryQueryApplier,
     InMemoryTypeRegistryConstraintConverter,
+)
+from logicblocks.event.store.adapters.memory.converters import (
+    FilteringQueryApplier,
 )
 from logicblocks.event.testing import data
 from logicblocks.event.testing.builders import StoredEventBuilder
 from logicblocks.event.types import (
     Converter,
-    JsonValue,
-    StoredEvent,
     StreamIdentifier,
 )
 
@@ -110,23 +111,13 @@ class TestConstrainedEventSource:
             def __init__(self, name: str):
                 self.name = name
 
-            def met_by(self, *, event: StoredEvent) -> bool:
-                return event.name != self.name
-
-        class NotNameConstraintQueryConstraintCheck:
-            def __init__(self, constraint: NotNameConstraint):
-                self.constraint = constraint
-
-            def __call__(self, event: StoredEvent[str, JsonValue]) -> bool:
-                return event.name != self.constraint.name
-
         class NotNameConstraintConverter(
-            Converter[NotNameConstraint, InMemoryQueryConstraintCheck]
+            Converter[NotNameConstraint, InMemoryQueryApplier]
         ):
-            def convert(
-                self, item: NotNameConstraint
-            ) -> InMemoryQueryConstraintCheck:
-                return NotNameConstraintQueryConstraintCheck(item)
+            def convert(self, item: NotNameConstraint) -> InMemoryQueryApplier:
+                return FilteringQueryApplier(
+                    check=lambda event: event.name != item.name
+                )
 
         constraint_converter = (
             InMemoryTypeRegistryConstraintConverter()

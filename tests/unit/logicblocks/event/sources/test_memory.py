@@ -10,7 +10,7 @@ from logicblocks.event.sources.constraints import (
 from logicblocks.event.sources.memory import InMemoryEventSourceQueryApplier
 from logicblocks.event.store import InMemoryStoredEventSource
 from logicblocks.event.store.adapters.memory.converters import (
-    FILTER_ORDER,
+    QueryApplierOrder,
     TypeRegistryConstraintConverter,
 )
 from logicblocks.event.testing.builders import StoredEventBuilder
@@ -20,7 +20,7 @@ from logicblocks.event.types import CategoryIdentifier, Converter, StoredEvent
 class _NoOpApplier(InMemoryEventSourceQueryApplier[StoredEvent]):
     @property
     def order(self) -> int:
-        return FILTER_ORDER
+        return QueryApplierOrder.FILTER
 
     async def apply(
         self, target: AsyncIterator[StoredEvent]

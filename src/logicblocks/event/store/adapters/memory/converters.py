@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Sequence
+from enum import IntEnum
 from typing import Self
 
 from logicblocks.event.persistence import TypeRegistryConverter
@@ -24,8 +25,10 @@ from ...exceptions import UnmetWriteConditionError
 from .db import InMemoryEventsDBTransaction
 from .types import InMemoryQueryConstraintCheck
 
-FILTER_ORDER = 0
-WINDOW_ORDER = 1
+
+class QueryApplierOrder(IntEnum):
+    FILTER = 0
+    WINDOW = 1
 
 
 class InMemoryQueryApplier(
@@ -40,7 +43,7 @@ class FilteringQueryApplier(InMemoryQueryApplier):
 
     @property
     def order(self) -> int:
-        return FILTER_ORDER
+        return QueryApplierOrder.FILTER
 
     async def apply(
         self, target: AsyncIterator[StoredEvent[str, JsonValue]]
@@ -57,7 +60,7 @@ class OffsetPagingQueryApplier(InMemoryQueryApplier):
 
     @property
     def order(self) -> int:
-        return WINDOW_ORDER
+        return QueryApplierOrder.WINDOW
 
     async def apply(
         self, target: AsyncIterator[StoredEvent[str, JsonValue]]

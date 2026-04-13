@@ -16,6 +16,7 @@ dependencies = [
     "structlog>=25.1.0",
     "rich>=14.0.0",
     "aiologic>=0.15.0",
+    "pydantic>=2.0.0",
 ]
 
 [dependency-groups]

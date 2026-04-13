@@ -1,10 +1,11 @@
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from types import NoneType
 from typing import Any, Self
 
 import pytest
+from pydantic import BaseModel, ConfigDict, Field
 
 from logicblocks.event.types import (
     JsonValue,
@@ -1011,3 +1012,189 @@ class TestDeserialise:
         assert deserialise_from_json_value(Thing, value, fallback) == Thing(
             value=10
         )
+
+
+class SimplePydanticModel(BaseModel):
+    name: str
+    count: int
+
+
+class PydanticModelWithAlias(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    from_: str = Field(alias="from")
+    subject: str
+
+
+class PydanticModelWithDatetime(BaseModel):
+    name: str
+    created_at: datetime
+
+
+class NestedPydanticModel(BaseModel):
+    inner: SimplePydanticModel
+    label: str
+
+
+class PydanticModelWithDefaults(BaseModel):
+    name: str
+    optional_field: str | None = None
+    count: int = 0
+
+
+class TestSerialisePydantic:
+    def test_serialises_simple_pydantic_model(self):
+        model = SimplePydanticModel(name="test", count=5)
+        result = serialise_to_json_value(model)
+        assert result == {"name": "test", "count": 5}
+
+    def test_serialises_pydantic_model_with_alias_using_alias(self):
+        model = PydanticModelWithAlias(
+            **{"from": "sender", "subject": "hello"}
+        )
+        result = serialise_to_json_value(model)
+        assert result == {"from": "sender", "subject": "hello"}
+
+    def test_serialises_pydantic_model_with_datetime_to_iso_string(self):
+        dt = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+        model = PydanticModelWithDatetime(name="test", created_at=dt)
+        result = serialise_to_json_value(model)
+        assert result == {
+            "name": "test",
+            "created_at": "2024-01-15T10:30:00Z",
+        }
+
+    def test_serialises_nested_pydantic_model(self):
+        model = NestedPydanticModel(
+            inner=SimplePydanticModel(name="inner", count=1),
+            label="outer",
+        )
+        result = serialise_to_json_value(model)
+        assert result == {
+            "inner": {"name": "inner", "count": 1},
+            "label": "outer",
+        }
+
+    def test_serialises_pydantic_model_with_defaults(self):
+        model = PydanticModelWithDefaults(name="test")
+        result = serialise_to_json_value(model)
+        assert result == {
+            "name": "test",
+            "optional_field": None,
+            "count": 0,
+        }
+
+    def test_serialises_pydantic_model_with_none_field(self):
+        model = PydanticModelWithDefaults(name="test", optional_field=None)
+        result = serialise_to_json_value(model)
+        assert result == {
+            "name": "test",
+            "optional_field": None,
+            "count": 0,
+        }
+
+    def test_json_value_serialisable_takes_priority_over_pydantic(self):
+        class DualModel(BaseModel):
+            name: str
+
+            def serialise(
+                self,
+                fallback: Callable[[object], JsonValue],
+            ) -> JsonValue:
+                return {"custom": True, "name": self.name}
+
+        model = DualModel(name="test")
+        result = serialise_to_json_value(model)
+        assert result == {"custom": True, "name": "test"}
+
+
+class TestDeserialisePydantic:
+    def test_deserialises_dict_to_simple_pydantic_model(self):
+        value = {"name": "test", "count": 5}
+        result = deserialise_from_json_value(SimplePydanticModel, value)
+        assert result == SimplePydanticModel(name="test", count=5)
+
+    def test_deserialises_dict_with_alias_to_pydantic_model(self):
+        value = {"from": "sender", "subject": "hello"}
+        result = deserialise_from_json_value(PydanticModelWithAlias, value)
+        assert result.from_ == "sender"
+        assert result.subject == "hello"
+
+    def test_deserialises_dict_with_field_name_to_pydantic_model(
+        self,
+    ):
+        value = {"from_": "sender", "subject": "hello"}
+        result = deserialise_from_json_value(PydanticModelWithAlias, value)
+        assert result.from_ == "sender"
+        assert result.subject == "hello"
+
+    def test_deserialises_dict_with_datetime_string_to_pydantic_model(
+        self,
+    ):
+        value = {
+            "name": "test",
+            "created_at": "2024-01-15T10:30:00Z",
+        }
+        result = deserialise_from_json_value(PydanticModelWithDatetime, value)
+        assert result.name == "test"
+        assert result.created_at == datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=UTC
+        )
+
+    def test_deserialises_nested_dict_to_nested_pydantic_model(self):
+        value = {
+            "inner": {"name": "inner", "count": 1},
+            "label": "outer",
+        }
+        result = deserialise_from_json_value(NestedPydanticModel, value)
+        assert result == NestedPydanticModel(
+            inner=SimplePydanticModel(name="inner", count=1),
+            label="outer",
+        )
+
+    def test_deserialises_dict_with_defaults_to_pydantic_model(self):
+        value = {"name": "test"}
+        result = deserialise_from_json_value(PydanticModelWithDefaults, value)
+        assert result == PydanticModelWithDefaults(
+            name="test", optional_field=None, count=0
+        )
+
+    def test_deserialises_dict_with_extra_fields_ignored(self):
+        value = {"name": "test", "count": 5, "extra": "ignored"}
+        result = deserialise_from_json_value(SimplePydanticModel, value)
+        assert result == SimplePydanticModel(name="test", count=5)
+
+    def test_deserialises_pydantic_model_instance_unchanged(self):
+        model = SimplePydanticModel(name="test", count=5)
+        result = deserialise_from_json_value(
+            SimplePydanticModel, {"name": "test", "count": 5}
+        )
+        assert result == model
+
+    def test_raises_for_invalid_pydantic_data(self):
+        value = {"name": "test"}
+        with pytest.raises(Exception):
+            deserialise_from_json_value(SimplePydanticModel, value)
+
+    def test_raises_for_non_dict_value_with_pydantic_type(self):
+        with pytest.raises(Exception):
+            deserialise_from_json_value(SimplePydanticModel, "string")
+
+    def test_json_value_deserialisable_takes_priority_over_pydantic(
+        self,
+    ):
+        class DualModel(BaseModel):
+            name: str
+
+            @classmethod
+            def deserialise(
+                cls,
+                value: JsonValue,
+                fallback: Callable[[Any, JsonValue], Any],
+            ) -> "DualModel":
+                if not is_json_object(value) or "name" not in value:
+                    raise ValueError
+                return cls(name=f"custom_{value['name']}")
+
+        value = {"name": "test"}
+        result = deserialise_from_json_value(DualModel, value)
+        assert result.name == "custom_test"

@@ -3,6 +3,8 @@ from inspect import isclass
 from types import NoneType
 from typing import Any, cast, get_args, get_origin
 
+from pydantic import BaseModel as PydanticBaseModel
+
 from .json import (
     JsonValue,
     JsonValueConvertible,
@@ -18,8 +20,8 @@ from .string import (
     StringSerialisable,
 )
 
-type JsonPersistable = JsonValueConvertible | JsonValue
-type JsonLoggable = JsonValueSerialisable | JsonValue
+type JsonPersistable = JsonValueConvertible | JsonValue | PydanticBaseModel
+type JsonLoggable = JsonValueSerialisable | JsonValue | PydanticBaseModel
 
 type StringPersistable = StringConvertible | str
 type StringLoggable = StringSerialisable | str
@@ -47,6 +49,8 @@ def serialise_to_json_value(
 ) -> JsonValue:
     if isinstance(value, JsonValueSerialisable):
         return value.serialise(fallback)
+    if isinstance(value, PydanticBaseModel):
+        return value.model_dump(mode="json", by_alias=True)
     if is_json_value(value):
         return value
     return fallback(value)
@@ -160,6 +164,13 @@ def deserialise_from_json_value[T](
         and issubclass(klass, JsonValueDeserialisable)
     ):
         return klass.deserialise(value, fallback)
+
+    if (
+        value_is_json_object
+        and klass_is_class
+        and issubclass(klass, PydanticBaseModel)
+    ):
+        return klass.model_validate(value)
 
     return fallback(klass_original, value)
 

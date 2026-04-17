@@ -23,6 +23,3 @@ class CallableService[T = Any](Service[T]):
     @cached_property
     def name(self) -> str:
         return self._callable.__name__
-
-
-# Broker -> use __new__ or make function

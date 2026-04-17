@@ -5,10 +5,11 @@ from logicblocks.event.types import Event
 
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
+    CallableService,
     ErrorHandler,
+    ErrorHandlingService,
     RetryErrorHandler,
 )
-from ....services.error import ErrorHandlingService
 from ...base import EventBroker
 from ...types import EventSubscriber
 from .coordinator import EventSubscriptionCoordinator
@@ -27,7 +28,10 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
         self._event_subscriber_manager = event_subscriber_manager
         self._event_subscription_coordinator = event_subscription_coordinator
         self._event_subscription_observer = event_subscription_observer
-        self._error_handler = error_handler
+        self._error_handling_service = ErrorHandlingService(
+            service=CallableService(self._do_execute),
+            error_handler=error_handler,
+        )
 
     @property
     def status(self) -> ProcessStatus:
@@ -40,9 +44,7 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
         await self._event_subscriber_manager.add(subscriber)
 
     async def execute(self) -> None:
-        return await ErrorHandlingService[NoneType].apply_error_handling(
-            self._do_execute, self._error_handler
-        )
+        return await self._error_handling_service.execute()
 
     async def _do_execute(self) -> None:
         subscriber_manager = self._event_subscriber_manager

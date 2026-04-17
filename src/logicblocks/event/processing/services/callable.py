@@ -4,6 +4,14 @@ from typing import Any
 
 from .types import Service
 
+type ServiceLike[T] = Service[T] | Callable[[], Awaitable[T]]
+
+
+def as_callable_service[T](service_like: ServiceLike[T]) -> Service[T]:
+    if isinstance(service_like, Service):
+        return service_like
+    return CallableService(service_like)
+
 
 class CallableService[T = Any](Service[T]):
     def __init__(self, callable: Callable[[], Awaitable[T]]):
@@ -15,3 +23,6 @@ class CallableService[T = Any](Service[T]):
     @cached_property
     def name(self) -> str:
         return self._callable.__name__
+
+
+# Broker -> use __new__ or make function

@@ -90,6 +90,26 @@ class TestStatusTrackingService:
 
         assert service.name == "_noop"
 
+    async def test_accepts_callable_and_auto_wraps(self):
+        async def return_value():
+            return 42
+
+        service = StatusTrackingService(service=return_value)
+
+        result = await service.execute()
+
+        assert result == 42
+
+    async def test_auto_wrapped_callable_tracks_status(self):
+        async def noop():
+            pass
+
+        service = StatusTrackingService(service=noop)
+
+        await service.execute()
+
+        assert service.status == ProcessStatus.STOPPED
+
     @staticmethod
     async def _noop():
         pass

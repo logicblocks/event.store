@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable
 
 import pytest
@@ -657,3 +658,41 @@ class TestErrorHandlingServiceWithCallable:
         await service.execute()
 
         assert call_count == 3
+
+    async def test_accepts_callable_and_auto_wraps(self):
+        async def return_value():
+            return 42
+
+        service = ErrorHandlingService(
+            service=return_value,
+            error_handler=RaiseErrorHandler(),
+        )
+
+        result = await service.execute()
+
+        assert result == 42
+
+    async def test_accepts_callable_kwarg_for_backwards_compatibility(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            service = ErrorHandlingService(
+                callable=callable,
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "service" in str(w[0].message)
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10

@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -5,6 +6,7 @@ from functools import cached_property
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
+from .callable import ServiceLike, as_callable_service
 from .types import Service
 
 
@@ -442,8 +444,23 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
 
 
 class ErrorHandlingService[T = Any](Service[T]):
-    def __init__(self, service: Service[T], error_handler: ErrorHandler[T]):
-        self._service = service
+    def __init__(
+        self,
+        service: ServiceLike[T] | None = None,
+        *,
+        callable: Callable[[], Awaitable[T]] | None = None,
+        error_handler: ErrorHandler[T],
+    ):
+        if callable is not None:
+            warnings.warn(
+                "Use 'service' instead of 'callable'",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            service = service or callable
+        if service is None:
+            raise TypeError("service is required")
+        self._service = as_callable_service(service)
         self._error_handler = error_handler
 
     @classmethod

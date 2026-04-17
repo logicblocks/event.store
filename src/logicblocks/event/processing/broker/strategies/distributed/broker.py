@@ -3,12 +3,12 @@ from types import NoneType
 
 from logicblocks.event.types import Event
 
-from .... import ErrorHandlingService
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
     ErrorHandler,
     RetryErrorHandler,
 )
+from ....services.error import ErrorHandlingService
 from ...base import EventBroker
 from ...types import EventSubscriber
 from .coordinator import EventSubscriptionCoordinator

@@ -3,12 +3,13 @@ from functools import cached_property
 from typing import Any
 
 from ..process.base import ProcessStatus
+from .callable import ServiceLike, as_callable_service
 from .types import Service
 
 
 class StatusTrackingService[T = Any](Service[T]):
-    def __init__(self, service: Service[T]):
-        self._service = service
+    def __init__(self, service: ServiceLike[T]):
+        self._service = as_callable_service(service)
         self._status = ProcessStatus.INITIALISED
 
     @property

@@ -14,6 +14,7 @@ from logicblocks.event.processing.process.base import (
     ProcessStatus,
 )
 
+from .callable import ServiceLike, as_callable_service
 from .types import Service
 
 
@@ -44,7 +45,11 @@ class ServiceDefinition[T]:
 
     @property
     def service_status(self) -> ProcessStatus:
-        return self.service.status if isinstance(self.service, HasProcessStatus) else ProcessStatus.INITIALISED
+        return (
+            self.service.status
+            if isinstance(self.service, HasProcessStatus)
+            else ProcessStatus.INITIALISED
+        )
 
     @property
     def service_name(self) -> str:
@@ -197,13 +202,15 @@ class ServiceManager:
 
     def register(
         self,
-        service: Service,
+        service: ServiceLike,
         *,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
         self._service_definitions.append(
-            ServiceDefinition(service, execution_mode, isolation_mode)
+            ServiceDefinition(
+                as_callable_service(service), execution_mode, isolation_mode
+            )
         )
         return self
 

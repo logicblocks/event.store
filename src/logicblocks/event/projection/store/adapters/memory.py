@@ -120,5 +120,5 @@ class InMemoryProjectionStorageAdapter[
             for projection in (await self._find_raw(search))
         ]
 
-    async def count(self) -> int:
-        return len(self._projections)
+    async def count(self, *, search: CollectionQuery) -> int:
+        return len(await self._find_raw(search))

@@ -947,7 +947,7 @@ class CountCases(Base, ABC):
     async def test_returns_zero_when_no_projections(self):
         adapter = self.construct_storage_adapter()
 
-        total = await adapter.count()
+        total = await adapter.count(search=Search())
 
         assert total == 0
 
@@ -957,7 +957,7 @@ class CountCases(Base, ABC):
         projection = ThingProjectionBuilder().build()
         await adapter.save(projection=projection)
 
-        total = await adapter.count()
+        total = await adapter.count(search=Search())
 
         assert total == 1
 
@@ -972,7 +972,7 @@ class CountCases(Base, ABC):
         await adapter.save(projection=projection_2)
         await adapter.save(projection=projection_3)
 
-        total = await adapter.count()
+        total = await adapter.count(search=Search())
 
         assert total == 3
 
@@ -1000,9 +1000,42 @@ class CountCases(Base, ABC):
         await adapter.save(projection=projection_v1)
         await adapter.save(projection=projection_v2)
 
-        total = await adapter.count()
+        total = await adapter.count(search=Search())
 
         assert total == 1
+
+    async def test_returns_count_of_filtered_projections(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_name("type-a")
+            .with_state(Thing(value_1=1))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_name("type-a")
+            .with_state(Thing(value_1=2))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_name("type-b")
+            .with_state(Thing(value_1=3))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+
+        search = Search(
+            filters=[FilterClause(Operator.EQUAL, Path("name"), "type-a")]
+        )
+        total = await adapter.count(search=search)
+
+        assert total == 2
 
 
 class ProjectionStorageAdapterCases(

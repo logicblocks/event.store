@@ -49,5 +49,5 @@ class ProjectionStorageAdapter[
         raise NotImplementedError()
 
     @abstractmethod
-    async def count(self) -> int:
+    async def count(self, *, search: CollectionQuery) -> int:
         raise NotImplementedError()

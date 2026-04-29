@@ -1,4 +1,4 @@
-from .callable import CallableService, ServiceLike, make_callable_service
+from .callable import CallableService, CallableServiceCallable
 from .error import (
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
@@ -29,8 +29,7 @@ from .types import Service
 
 __all__ = [
     "CallableService",
-    "ServiceLike",
-    "make_callable_service",
+    "CallableServiceCallable",
     "ErrorHandler",
     "ErrorHandlerDecision",
     "ErrorHandlingService",

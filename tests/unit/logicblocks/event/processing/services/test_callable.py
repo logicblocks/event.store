@@ -1,5 +1,6 @@
+from typing import assert_type
+
 from logicblocks.event.processing import CallableService, Service
-from logicblocks.event.processing.services import make_callable_service
 
 
 class TestServiceName:
@@ -51,20 +52,20 @@ class TestCallableServiceName:
         assert service.name == "MyCallable"
 
 
-class TestMakeCallableService:
+class TestCallableServiceFromMaybeCallable:
     async def test_returns_service_unchanged_when_given_service(self):
         async def noop():
             pass
 
         service = CallableService(noop)
 
-        assert make_callable_service(service) is service
+        assert CallableService.from_maybe_callable(service) is service
 
     async def test_wraps_callable_in_callable_service(self):
         async def noop():
             pass
 
-        result = make_callable_service(noop)
+        result = CallableService.from_maybe_callable(noop)
 
         assert isinstance(result, CallableService)
 
@@ -72,7 +73,7 @@ class TestMakeCallableService:
         async def return_value():
             return 42
 
-        service = make_callable_service(return_value)
+        service = CallableService.from_maybe_callable(return_value)
 
         assert await service.execute() == 42
 
@@ -80,6 +81,46 @@ class TestMakeCallableService:
         async def my_function():
             pass
 
-        service = make_callable_service(my_function)
+        service = CallableService.from_maybe_callable(my_function)
 
         assert service.name == "my_function"
+
+
+class TestCallableServiceFromMaybeCallableTypes:
+    async def test_callable_returns_callable_service(self):
+        async def noop():
+            return 1
+
+        result = CallableService.from_maybe_callable(noop)
+
+        assert_type(result, CallableService[int])
+        assert isinstance(result, CallableService)
+
+    async def test_service_returns_same_service_type(self):
+        async def noop():
+            pass
+
+        service = CallableService(noop)
+
+        result = CallableService.from_maybe_callable(service)
+
+        assert_type(result, CallableService[None])
+        assert result is service
+
+    async def test_parameterised_callable_service_preserves_type(self):
+        async def noop():
+            return 1
+
+        result = CallableService[int].from_maybe_callable(noop)
+
+        assert_type(result, CallableService[int])
+        assert isinstance(result, CallableService)
+
+    async def test_parameterised_callable_service_uses_declared_type(self):
+        async def noop() -> str:
+            return "hello"
+
+        result = CallableService[str].from_maybe_callable(noop)
+
+        assert_type(result, CallableService[str])
+        assert isinstance(result, CallableService)

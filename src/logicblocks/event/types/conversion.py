@@ -150,16 +150,12 @@ def deserialise_from_json_value[T](
 
         return cast(T, value)
 
-    value_is_json_value = is_json_value(value)
-    if value_is_json_value and klass is JsonValueType:
-        return cast(T, value)
+    if is_json_value(value):
+        if klass is JsonValueType:
+            return cast(T, value)
 
-    if (
-        value_is_json_value
-        and klass_is_class
-        and issubclass(klass, JsonValueDeserialisable)
-    ):
-        return klass.deserialise(value, fallback)
+        if klass_is_class and issubclass(klass, JsonValueDeserialisable):
+            return cast(T, klass.deserialise(value, fallback))
 
     return fallback(klass_original, value)
 
@@ -172,16 +168,12 @@ def deserialise_from_string[T](
     ] = default_deserialisation_fallback,
 ) -> T:
     klass_is_class = isclass(klass)
-    value_is_string = isinstance(value, str)
 
-    if value_is_string and klass_is_class and issubclass(klass, str):
-        return cast(T, value)
+    if isinstance(value, str):
+        if klass_is_class and issubclass(klass, str):
+            return cast(T, value)
 
-    if (
-        value_is_string
-        and klass_is_class
-        and issubclass(klass, JsonValueDeserialisable)
-    ):
-        return klass.deserialise(value, fallback)
+        if klass_is_class and issubclass(klass, JsonValueDeserialisable):
+            return cast(T, klass.deserialise(value, fallback))
 
     return fallback(klass, value)

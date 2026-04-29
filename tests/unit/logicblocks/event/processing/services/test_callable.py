@@ -116,11 +116,14 @@ class TestCallableServiceFromMaybeCallableTypes:
         assert_type(result, CallableService[int])
         assert isinstance(result, CallableService)
 
-    async def test_parameterised_callable_service_uses_declared_type(self):
+    async def test_parameterised_callable_service_uses_service_type(self):
         async def noop() -> str:
             return "hello"
 
-        result = CallableService[str].from_maybe_callable(noop)
+        service = CallableService(noop)
 
+        result = CallableService[int].from_maybe_callable(service)
+
+        assert_type(service, CallableService[str])
         assert_type(result, CallableService[str])
         assert isinstance(result, CallableService)

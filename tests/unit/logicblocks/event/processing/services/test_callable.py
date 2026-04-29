@@ -1,5 +1,5 @@
 from logicblocks.event.processing import CallableService, Service
-from logicblocks.event.processing.services import as_callable_service
+from logicblocks.event.processing.services import make_callable_service
 
 
 class TestServiceName:
@@ -51,20 +51,20 @@ class TestCallableServiceName:
         assert service.name == "MyCallable"
 
 
-class TestAsCallableService:
+class TestMakeCallableService:
     async def test_returns_service_unchanged_when_given_service(self):
         async def noop():
             pass
 
         service = CallableService(noop)
 
-        assert as_callable_service(service) is service
+        assert make_callable_service(service) is service
 
     async def test_wraps_callable_in_callable_service(self):
         async def noop():
             pass
 
-        result = as_callable_service(noop)
+        result = make_callable_service(noop)
 
         assert isinstance(result, CallableService)
 
@@ -72,7 +72,7 @@ class TestAsCallableService:
         async def return_value():
             return 42
 
-        service = as_callable_service(return_value)
+        service = make_callable_service(return_value)
 
         assert await service.execute() == 42
 
@@ -80,6 +80,6 @@ class TestAsCallableService:
         async def my_function():
             pass
 
-        service = as_callable_service(my_function)
+        service = make_callable_service(my_function)
 
         assert service.name == "my_function"

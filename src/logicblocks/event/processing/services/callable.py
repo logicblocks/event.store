@@ -7,7 +7,7 @@ from .types import Service
 type ServiceLike[T] = Service[T] | Callable[[], Awaitable[T]]
 
 
-def as_callable_service[T](service_like: ServiceLike[T]) -> Service[T]:
+def make_callable_service[T](service_like: ServiceLike[T]) -> Service[T]:
     if isinstance(service_like, Service):
         return service_like
     return CallableService(service_like)

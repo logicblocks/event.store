@@ -1,9 +1,12 @@
+import warnings
 from abc import ABC, abstractmethod
+from builtins import callable as is_callable
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
+from .callable import CallableService, CallableServiceCallable
 from .types import Service
 
 
@@ -448,11 +451,54 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
         self._error_handler = error_handler
 
     async def execute(self) -> T:
+        return await ErrorHandlingService.apply_error_handling(
+            self._do_execute, self._error_handler
+        )
+
+    @abstractmethod
+    async def _do_execute(self) -> T:
+        raise NotImplementedError
+
+
+class ErrorHandlingService[T = Any](Service[T]):
+    def __init__(
+        self,
+        service: Service[T] | CallableServiceCallable[T] | None = None,
+        *,
+        callable: CallableServiceCallable[T] | None = None,
+        error_handler: ErrorHandler[T],
+    ):
+        if callable is not None:
+            warnings.warn(
+                "Use 'service' instead of 'callable'",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            service = service or callable
+        elif is_callable(service):
+            warnings.warn(
+                "Wrap callable in CallableService",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if service is None:
+            raise TypeError("service is required")
+
+        self._service = CallableService.from_maybe_callable(service)
+        self._error_handler = error_handler
+
+    @classmethod
+    async def apply_error_handling(
+        cls,
+        run: Callable[[], Awaitable[T]],
+        error_handler: ErrorHandler[T],
+    ) -> T:
         while True:
             try:
-                return await self._do_execute()
+                return await run()
             except BaseException as exception:
-                decision = self._error_handler.handle(exception)
+                decision = error_handler.handle(exception)
                 match decision:
                     case RaiseErrorHandlerDecision(exception):
                         raise exception
@@ -467,19 +513,11 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
                             f"Unknown error handler decision: {decision}"
                         )
 
-    @abstractmethod
-    async def _do_execute(self) -> T:
-        raise NotImplementedError
+    async def execute(self) -> T:
+        return await self.apply_error_handling(
+            self._service.execute, self._error_handler
+        )
 
-
-class ErrorHandlingService[T = Any](ErrorHandlingServiceMixin[T], Service[T]):
-    def __init__(
-        self,
-        callable: Callable[[], Awaitable[T]],
-        error_handler: ErrorHandler[T],
-    ):
-        super().__init__(error_handler=error_handler)
-        self._callable = callable
-
-    async def _do_execute(self) -> T:
-        return await self._callable()
+    @property
+    def name(self) -> str:
+        return self._service.name

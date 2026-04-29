@@ -2,13 +2,17 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
-from collections.abc import Coroutine, Sequence
+from collections.abc import Coroutine, Mapping, Sequence
 from enum import Enum, auto
 from types import TracebackType
 from typing import Any, Self, override
 
 import uvloop
 
+from ..process import (
+    HasProcessStatus,
+    ProcessStatus,
+)
 from .types import Service
 
 
@@ -30,12 +34,28 @@ class ServiceDefinition[T]:
         execution_mode: ExecutionMode,
         isolation_mode: IsolationMode,
     ):
-        self.service = service
+        self._service = service
         self.execution_mode = execution_mode
         self.isolation_mode = isolation_mode
 
+    @property
+    def service(self):
+        return self._service
+
     def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self.service.execute()
+        return self._service.execute()
+
+    @property
+    def service_status(self) -> ProcessStatus:
+        return (
+            self._service.status
+            if isinstance(self._service, HasProcessStatus)
+            else ProcessStatus.INITIALISED
+        )
+
+    @property
+    def service_name(self) -> str:
+        return self._service.name
 
 
 class ServiceExecutor(ABC):
@@ -178,15 +198,29 @@ class ServiceManager:
         self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
 
-    def register(
+    @property
+    def services(self) -> Sequence[ServiceDefinition[Any]]:
+        return tuple(self._service_definitions)
+
+    def get_status_of_services(self) -> Mapping[str, ProcessStatus]:
+        return {
+            service.service_name: service.service_status
+            for service in self._service_definitions
+        }
+
+    def register[T](
         self,
-        service: Service,
+        service: Service[T],
         *,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
         self._service_definitions.append(
-            ServiceDefinition(service, execution_mode, isolation_mode)
+            ServiceDefinition[T](
+                service=service,
+                execution_mode=execution_mode,
+                isolation_mode=isolation_mode,
+            )
         )
         return self
 

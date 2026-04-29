@@ -12,8 +12,10 @@ import pytest
 from logicblocks.event.processing import (
     ExecutionMode,
     IsolationMode,
+    ProcessStatus,
     Service,
     ServiceManager,
+    StatusTrackingService,
 )
 
 # supervision
@@ -775,6 +777,252 @@ class TestServiceManagerSignalHandling:
                 and services_cancelled["service2"]
                 and services_cancelled["service3"]
             )
+
+
+class TestServiceManagerServices:
+    async def test_returns_empty_tuple_when_no_services_registered(self):
+        manager = ServiceManager()
+
+        assert manager.services == ()
+
+    async def test_returns_all_registered_service_definitions(self):
+        class FirstService(Service):
+            async def execute(self):
+                pass
+
+        class SecondService(Service):
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(FirstService())
+        manager.register(SecondService())
+
+        assert len(manager.services) == 2
+        assert manager.services[0].service_name == "First"
+        assert manager.services[1].service_name == "Second"
+
+    async def test_returns_immutable_sequence(self):
+        manager = ServiceManager()
+
+        services = manager.services
+
+        assert isinstance(services, tuple)
+
+
+class TestServiceDefinitionServiceStatus:
+    async def test_returns_status_when_service_has_process_status(self):
+        class StatusAwareService(Service):
+            @property
+            def status(self) -> ProcessStatus:
+                return ProcessStatus.RUNNING
+
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(StatusAwareService())
+
+        assert manager.services[0].service_status == ProcessStatus.RUNNING
+
+    async def test_returns_initialised_when_service_has_no_process_status(
+        self,
+    ):
+        class PlainService(Service):
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(PlainService())
+
+        assert manager.services[0].service_status == ProcessStatus.INITIALISED
+
+    async def test_reflects_dynamic_status_from_status_tracking_service(self):
+        class StatusCapturingService(Service[None]):
+            def __init__(self):
+                self.observed_status = None
+
+            async def execute(self):
+                self.observed_status = manager.services[0].service_status
+
+        inner_service = StatusCapturingService()
+
+        service = StatusTrackingService(service=inner_service)
+
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.FOREGROUND)
+
+        await manager.start()
+        await manager.stop()
+
+        assert inner_service.observed_status == ProcessStatus.RUNNING
+        assert manager.services[0].service_status == ProcessStatus.STOPPED
+
+
+class TestServiceDefinitionServiceName:
+    async def test_exposes_name_of_registered_service(self):
+        class MyCustomService(Service):
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(MyCustomService())
+
+        assert manager.services[0].service_name == "MyCustom"
+
+
+class TestServiceManagerStatusOfServices:
+    async def test_returns_status_when_service_has_process_status(self):
+        class StatusAwareService(Service[None]):
+            name = "AlwaysRunning"
+
+            @property
+            def status(self) -> ProcessStatus:
+                return ProcessStatus.RUNNING
+
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(StatusAwareService())
+
+        assert manager.get_status_of_services() == {
+            "AlwaysRunning": ProcessStatus.RUNNING
+        }
+
+    async def test_returns_status_of_multiple_services(self):
+        class StatusAwareService1(Service[None]):
+            name = "AlwaysRunning"
+
+            @property
+            def status(self) -> ProcessStatus:
+                return ProcessStatus.RUNNING
+
+            async def execute(self):
+                pass
+
+        class StatusAwareService2(Service[None]):
+            name = "AlwaysStopped"
+
+            @property
+            def status(self) -> ProcessStatus:
+                return ProcessStatus.STOPPED
+
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(StatusAwareService1())
+        manager.register(StatusAwareService2())
+
+        assert manager.get_status_of_services() == {
+            "AlwaysRunning": ProcessStatus.RUNNING,
+            "AlwaysStopped": ProcessStatus.STOPPED,
+        }
+
+    async def test_returns_initialised_when_service_has_no_process_status(
+        self,
+    ):
+        class PlainService(Service[None]):
+            name = "PlainService"
+
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(PlainService())
+
+        assert manager.get_status_of_services() == {
+            "PlainService": ProcessStatus.INITIALISED
+        }
+
+    async def test_reflects_dynamic_status_from_status_tracking_service(self):
+        async_event_on_exec = asyncio.Event()
+        async_event_to_terminate = asyncio.Event()
+
+        class WaitingService(Service[None]):
+            name = "WaitingService"
+
+            async def execute(self):
+                async_event_on_exec.set()
+                await async_event_to_terminate.wait()
+
+        inner_service = WaitingService()
+        service = StatusTrackingService(service=inner_service)
+
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.BACKGROUND)
+
+        async with manager:
+            await async_event_on_exec.wait()
+            assert manager.get_status_of_services() == {
+                "WaitingService": ProcessStatus.RUNNING
+            }
+
+            async_event_to_terminate.set()
+            await asyncio.sleep(0)
+            assert manager.get_status_of_services() == {
+                "WaitingService": ProcessStatus.STOPPED
+            }
+
+    async def test_reflects_dynamic_status_when_manager_stopped(self):
+        async_event_on_exec = asyncio.Event()
+        async_event_to_terminate = asyncio.Event()
+
+        class WaitingService(Service[None]):
+            name = "WaitingService"
+
+            async def execute(self):
+                async_event_on_exec.set()
+                await async_event_to_terminate.wait()
+
+        inner_service = WaitingService()
+        service = StatusTrackingService(service=inner_service)
+
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.BACKGROUND)
+
+        async with manager:
+            await async_event_on_exec.wait()
+            assert manager.get_status_of_services() == {
+                "WaitingService": ProcessStatus.RUNNING
+            }
+
+        assert manager.get_status_of_services() == {
+            "WaitingService": ProcessStatus.STOPPED
+        }
+
+    async def test_reflects_dynamic_status_on_error_in_status_tracking_service(
+        self,
+    ):
+        async_event_on_exec = asyncio.Event()
+        async_event_to_raise = asyncio.Event()
+
+        class WaitingService(Service[None]):
+            name = "WaitingService"
+
+            async def execute(self):
+                async_event_on_exec.set()
+                await async_event_to_raise.wait()
+                raise RuntimeError("Uh oh!")
+
+        inner_service = WaitingService()
+        service = StatusTrackingService(service=inner_service)
+
+        manager = ServiceManager()
+        manager.register(service, execution_mode=ExecutionMode.BACKGROUND)
+
+        async with manager:
+            await async_event_on_exec.wait()
+            assert manager.get_status_of_services() == {
+                "WaitingService": ProcessStatus.RUNNING
+            }
+
+            async_event_to_raise.set()
+            await asyncio.sleep(0)
+            assert manager.get_status_of_services() == {
+                "WaitingService": ProcessStatus.ERRORED
+            }
 
 
 if __name__ == "__main__":

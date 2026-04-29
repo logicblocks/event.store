@@ -1,4 +1,5 @@
 from abc import ABC
+from types import NoneType
 from typing import NotRequired, TypedDict, Unpack, cast, overload
 from warnings import deprecated
 
@@ -11,6 +12,7 @@ from logicblocks.event.store import (
 )
 from logicblocks.event.types import StoredEvent
 
+from ..services import ErrorHandler
 from .base import EventBroker
 from .strategies import (
     DistributedEventBrokerSettings,
@@ -61,6 +63,7 @@ EventBrokerStorageType.Postgres = _PostgresEventBrokerStorageType
 class InMemoryDistributedBrokerParams(TypedDict):
     settings: DistributedEventBrokerSettings
     adapter: EventStorageAdapter
+    error_handler: NotRequired[ErrorHandler[NoneType]]
 
 
 class PostgresDistributedBrokerParams(TypedDict):
@@ -68,11 +71,13 @@ class PostgresDistributedBrokerParams(TypedDict):
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: DistributedEventBrokerSettings
     adapter: NotRequired[EventStorageAdapter | None]
+    error_handler: NotRequired[ErrorHandler[NoneType]]
 
 
 class InMemorySingletonBrokerParams(TypedDict):
     settings: SingletonEventBrokerSettings
     adapter: EventStorageAdapter
+    error_handler: NotRequired[ErrorHandler[NoneType]]
 
 
 class PostgresSingletonBrokerParams(TypedDict):
@@ -80,6 +85,7 @@ class PostgresSingletonBrokerParams(TypedDict):
     connection_pool: AsyncConnectionPool[AsyncConnection]
     settings: SingletonEventBrokerSettings
     adapter: NotRequired[EventStorageAdapter | None]
+    error_handler: NotRequired[ErrorHandler[NoneType]]
 
 
 class CombinedBrokerParams(TypedDict, total=False):
@@ -87,6 +93,7 @@ class CombinedBrokerParams(TypedDict, total=False):
     connection_settings: ConnectionSettings
     connection_pool: AsyncConnectionPool[AsyncConnection]
     adapter: NotRequired[EventStorageAdapter | None]
+    error_handler: NotRequired[ErrorHandler[NoneType]]
 
 
 @overload

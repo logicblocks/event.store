@@ -21,7 +21,6 @@ from structlog.typing import FilteringBoundLogger
 from logicblocks.event.processing import (
     ContinueErrorHandler,
     ErrorHandler,
-    EventBroker,
     ProcessStatus,
 )
 from logicblocks.event.processing.broker.strategies.singleton import (
@@ -49,7 +48,7 @@ from logicblocks.event.types.identifier import EventSourceIdentifier
 @dataclass(frozen=True)
 class MockedContext:
     node_id: str
-    broker: EventBroker
+    broker: SingletonEventBroker
     event_subscriber_store: Mock
     event_source_factory: Mock
     logger: CapturingLogger
@@ -57,7 +56,7 @@ class MockedContext:
 
 @dataclass(frozen=True)
 class RealContext:
-    broker: EventBroker
+    broker: SingletonEventBroker
     event_subscriber_store: EventSubscriberStore
     event_source_factory: EventSourceFactory
     event_storage_adapter: EventStorageAdapter
@@ -142,6 +141,26 @@ async def subscriber_has_sources(
         if subscriber.sources == sources:
             return True
         await asyncio.sleep(0)
+
+
+async def assert_log_event_eventually(
+    logger: CapturingLogger,
+    event_name: str,
+    timeout: timedelta = timedelta(milliseconds=500),
+):
+    async def log_event_exists():
+        while logger.find_event(event_name) is None:
+            await asyncio.sleep(0)
+
+    try:
+        await asyncio.wait_for(
+            log_event_exists(), timeout=timeout.total_seconds()
+        )
+    except asyncio.TimeoutError:
+        pytest.fail(
+            f"Expected log event '{event_name}' to eventually appear "
+            f"but timed out waiting."
+        )
 
 
 async def assert_sources_eventually(
@@ -261,7 +280,9 @@ class TestSingletonEventBrokerLogging:
         task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
-            await assert_status_eventually(broker, ProcessStatus.RUNNING)
+            await assert_log_event_eventually(
+                logger, "event.processing.broker.running"
+            )
 
             running_event = logger.find_event(
                 "event.processing.broker.running"
@@ -278,17 +299,12 @@ class TestSingletonEventBrokerLogging:
         broker = context.broker
         logger = context.logger
 
-        async def wait_until_running():
-            while True:
-                await asyncio.sleep(0)
-                status = broker.status
-                if status == ProcessStatus.RUNNING:
-                    return
-
         task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
-            await wait_until_running()
+            await assert_log_event_eventually(
+                logger, "event.processing.broker.running"
+            )
 
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

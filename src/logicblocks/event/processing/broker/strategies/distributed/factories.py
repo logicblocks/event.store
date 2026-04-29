@@ -1,3 +1,5 @@
+from types import NoneType
+
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
@@ -10,6 +12,7 @@ from logicblocks.event.store import (
 from logicblocks.event.types import StoredEvent
 
 from ....locks import InMemoryLockManager, PostgresLockManager
+from ....services import ErrorHandler, RetryErrorHandler
 from ...base import EventBroker
 from .builder import (
     DistributedEventBrokerBuilder,
@@ -82,11 +85,12 @@ def make_in_memory_distributed_event_broker(
     node_id: str,
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter,
+    error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
     return (
         InMemoryDistributedEventBrokerBuilder(node_id)
         .prepare(adapter)
-        .build(settings)
+        .build(settings, error_handler)
     )
 
 
@@ -96,9 +100,10 @@ def make_postgres_distributed_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter | None = None,
+    error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
     return (
         PostgresDistributedEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool, adapter)
-        .build(settings)
+        .build(settings, error_handler)
     )

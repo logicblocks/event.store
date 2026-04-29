@@ -35,6 +35,7 @@ from .process import (
     determine_multi_process_status,
 )
 from .services import (
+    CallableService,
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     ErrorHandler,
@@ -70,6 +71,7 @@ __all__ = [
     "ErrorHandlerDecision",
     "ErrorHandlingService",
     "ErrorHandlingServiceMixin",
+    "CallableService",
     "EventBroker",
     "EventBrokerType",
     "EventConsumer",

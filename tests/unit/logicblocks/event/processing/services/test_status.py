@@ -91,19 +91,6 @@ class TestStatusTrackingService:
 
         assert result == 42
 
-    async def test_delegates_name_to_inner_service(self):
-        class MyService(Service[None]):
-            name = "WhatAGreatService"
-
-            async def execute(self):
-                pass
-
-        service = StatusTrackingService(
-            service=MyService(),
-        )
-
-        assert service.name == "WhatAGreatService"
-
     async def test_delegates_to_custom_inner_service(self):
         class CallTrackingService(Service[int]):
             def __init__(self):

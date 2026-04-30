@@ -26,7 +26,3 @@ class StatusTrackingService[T = Any](Service[T]):
         except BaseException:
             self._status = ProcessStatus.ERRORED
             raise
-
-    @property
-    def name(self) -> str:
-        return self._service.name

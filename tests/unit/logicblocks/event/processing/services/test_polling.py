@@ -9,27 +9,6 @@ from logicblocks.event.processing import (
 )
 
 
-class TestPollingServiceName:
-    async def test_delegates_name_to_inner_callable(self):
-        async def my_poller():
-            pass
-
-        service = PollingService(service=CallableService(my_poller))
-
-        assert service.name == "my_poller"
-
-    async def test_delegates_name_to_inner_service(self):
-        class MyCustomService(Service):
-            name = "MyGreatService!"
-
-            async def execute(self):
-                pass
-
-        service = PollingService(service=MyCustomService())
-
-        assert service.name == "MyGreatService!"
-
-
 class TestPollingServiceExecute:
     async def test_execute_runs_service_every_interval(self):
         class CallTrackingService(Service[None]):

@@ -42,7 +42,3 @@ class PollingService(Service[Never]):
         while True:
             await self._service.execute()
             await asyncio.sleep(self._poll_interval.total_seconds())
-
-    @property
-    def name(self) -> str:
-        return self._service.name

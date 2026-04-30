@@ -13,3 +13,4 @@
 - Service naming is now a responsibility of `ServiceManager` rather than `Service`
 - `ServiceManager` stores managed service states in a name-keyed dictionary instead of a list
 - `ServiceManager.start` and `ServiceManager.__aenter__` returns a name-keyed Mapping of futures instead of a list of futures
+- Added `ProcessStatus.UNKNOWN` enum

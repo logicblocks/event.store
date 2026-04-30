@@ -54,7 +54,7 @@ class ManagedServiceState[T]:
         return (
             self._service.status
             if isinstance(self._service, HasProcessStatus)
-            else ProcessStatus.INITIALISED
+            else ProcessStatus.UNKNOWN
         )
 
     def coroutine(self) -> Coroutine[Any, Any, T]:

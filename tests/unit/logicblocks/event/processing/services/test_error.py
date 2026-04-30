@@ -806,30 +806,3 @@ class TestErrorHandlingServiceWithCallableBackwardsCompatibility:
 
             assert w is not None
             assert len(w) == 0
-
-
-class TestErrorHandlingServiceName:
-    async def test_delegates_name_to_inner_callable(self):
-        async def my_task():
-            pass
-
-        service = ErrorHandlingService(
-            service=my_task,
-            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
-        )
-
-        assert service.name == "my_task"
-
-    async def test_delegates_name_to_inner_service(self):
-        class MyCustomService(Service):
-            name = "SayMyName"
-
-            async def execute(self):
-                pass
-
-        service = ErrorHandlingService(
-            service=MyCustomService(),
-            error_handler=ContinueErrorHandler(value_factory=lambda _: None),
-        )
-
-        assert service.name == "SayMyName"

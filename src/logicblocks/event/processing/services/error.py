@@ -517,7 +517,3 @@ class ErrorHandlingService[T = Any](Service[T]):
         return await self.apply_error_handling(
             self._service.execute, self._error_handler
         )
-
-    @property
-    def name(self) -> str:
-        return self._service.name

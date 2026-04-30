@@ -1,5 +1,4 @@
 import asyncio
-import itertools
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
@@ -7,6 +6,7 @@ from collections.abc import Coroutine, Mapping, Sequence
 from enum import Enum, auto
 from types import TracebackType
 from typing import Any, Self, override
+from uuid import uuid4
 
 import uvloop
 
@@ -28,7 +28,7 @@ class IsolationMode(Enum):
     DEDICATED_THREAD = auto()
 
 
-class ServiceDefinition[T]:
+class ManagedServiceState[T]:
     def __init__(
         self,
         service: Service[T],
@@ -71,7 +71,7 @@ class ServiceDefinition[T]:
         )
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ServiceDefinition):
+        if not isinstance(other, ManagedServiceState):
             return NotImplemented
 
         return (
@@ -92,7 +92,7 @@ class ServiceExecutor(ABC):
 
     @abstractmethod
     async def schedule[R = Any](
-        self, definition: ServiceDefinition[R]
+        self, definition: ManagedServiceState[R]
     ) -> Future[R]:
         raise NotImplementedError
 
@@ -111,7 +111,7 @@ class MainThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, definition: ServiceDefinition[R]
+        self, definition: ManagedServiceState[R]
     ) -> Future[R]:
         task = asyncio.create_task(definition.coroutine())
 
@@ -141,7 +141,7 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, definition: ServiceDefinition[R]
+        self, definition: ManagedServiceState[R]
     ) -> Future[R]:
         return asyncio.wrap_future(
             asyncio.run_coroutine_threadsafe(
@@ -194,7 +194,7 @@ class IsolationModeAwareServiceExecutor:
         return self
 
     async def schedule[R = Any](
-        self, definition: ServiceDefinition[R]
+        self, definition: ManagedServiceState[R]
     ) -> Future[R]:
         if definition.isolation_mode == IsolationMode.MAIN_THREAD:
             return await self._main_executor.schedule(definition)
@@ -221,33 +221,19 @@ class IsolationModeAwareServiceExecutor:
 
 class ServiceManager:
     def __init__(self):
-        self._service_definitions: dict[str, ServiceDefinition[Any]] = {}
+        self._service_definitions: dict[str, ManagedServiceState[Any]] = {}
         self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
 
     @property
-    def services(self) -> Mapping[str, ServiceDefinition[Any]]:
+    def services(self) -> Mapping[str, ManagedServiceState[Any]]:
         return dict(self._service_definitions)
 
-    def get_status_of_services(self) -> Mapping[str, ProcessStatus]:
-        return {
-            name: definition.service_status
-            for name, definition in self._service_definitions.items()
-        }
+    def get_service_state(self, name: str) -> ManagedServiceState[Any] | None:
+        return self._service_definitions.get(name)
 
     def _generate_default_service_name(self, service: Service[Any]) -> str:
-        return repr(service)
-
-    def _index_service_name(self, name: str) -> str:
-        if name not in self._service_definitions:
-            return name
-
-        for index in itertools.count(1):
-            indexed_name = f"{name}[{index}]"
-            if indexed_name not in self._service_definitions:
-                return indexed_name
-
-        assert False, "unreachable"
+        return uuid4().hex
 
     def register[T](
         self,
@@ -258,9 +244,8 @@ class ServiceManager:
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
         name = name or self._generate_default_service_name(service)
-        name = self._index_service_name(name)
 
-        self._service_definitions[name] = ServiceDefinition[T](
+        self._service_definitions[name] = ManagedServiceState[T](
             service=service,
             name=name,
             execution_mode=execution_mode,

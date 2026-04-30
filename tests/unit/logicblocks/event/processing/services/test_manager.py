@@ -5,8 +5,10 @@ import sys
 import threading
 import time
 from asyncio import CancelledError
+from collections.abc import Mapping
 from contextlib import contextmanager
-from typing import cast
+from typing import Any, cast
+from uuid import UUID
 
 import pytest
 
@@ -18,6 +20,7 @@ from logicblocks.event.processing import (
     ServiceManager,
     StatusTrackingService,
 )
+from logicblocks.event.processing.services.manager import ManagedServiceState
 
 # supervision
 # schedules
@@ -821,7 +824,7 @@ class TestServiceManagerServices:
         assert "Intruder" not in manager.services
 
 
-class TestServiceDefinitionRepr:
+class TestManagedServiceStateRepr:
     async def test_includes_name_service_and_modes(self):
         class MyService(Service):
             def __repr__(self):
@@ -841,7 +844,7 @@ class TestServiceDefinitionRepr:
         result = repr(manager.services["Worker"])
 
         assert result == (
-            "ServiceDefinition("
+            "ManagedServiceState("
             "name=Worker, "
             "service=MyService(), "
             "execution_mode=ExecutionMode.FOREGROUND, "
@@ -849,12 +852,9 @@ class TestServiceDefinitionRepr:
         )
 
 
-class TestServiceDefinitionEquality:
+class TestManagedServiceStateEquality:
     async def test_equal_when_all_fields_match(self):
         class MyService(Service):
-            def __repr__(self):
-                return "MyService()"
-
             def __eq__(self, other):
                 return isinstance(other, MyService)
 
@@ -963,7 +963,7 @@ class TestServiceDefinitionEquality:
         assert manager.services["Worker"] != "not a service definition"
 
 
-class TestServiceDefinitionServiceStatus:
+class TestManagedServiceStateServiceStatus:
     async def test_returns_status_when_service_has_process_status(self):
         class StatusAwareService(Service):
             @property
@@ -1029,135 +1029,143 @@ class TestServiceManagerNaming:
             async def execute(self):
                 pass
 
+        service = MyService()
+
         manager = ServiceManager()
-        manager.register(MyService(), name="CustomName")
+        manager.register(service, name="CustomName")
 
-        assert "CustomName" in manager.services
+        assert manager.services["CustomName"].service == service
+        assert manager.services["CustomName"].name == "CustomName"
 
-    async def test_uses_repr_of_service_when_no_name_provided(self):
+    async def test_uses_uuid_when_no_name_provided(self):
         class MyService(Service):
-            def __repr__(self) -> str:
-                return "MyService()"
-
             async def execute(self):
                 pass
 
         manager = ServiceManager()
         manager.register(MyService())
 
-        assert "MyService()" in manager.services
+        service_state = next(iter(manager.services.values()))
 
-    async def test_indexes_duplicate_explicit_names(self):
+        assert UUID(service_state.name) is not None
+        assert manager.services[service_state.name] == service_state
+
+    async def test_uses_uuid_when_empty_string_name_provided(self):
         class MyService(Service):
-            async def execute(self):
-                pass
-
-        manager = ServiceManager()
-        manager.register(MyService(), name="Worker")
-        manager.register(MyService(), name="Worker")
-
-        assert "Worker" in manager.services
-        assert "Worker[1]" in manager.services
-
-    async def test_indexes_multiple_duplicate_explicit_names(self):
-        class MyService(Service):
-            async def execute(self):
-                pass
-
-        manager = ServiceManager()
-        manager.register(MyService(), name="Worker")
-        manager.register(MyService(), name="Worker")
-        manager.register(MyService(), name="Worker")
-
-        assert "Worker" in manager.services
-        assert "Worker[1]" in manager.services
-        assert "Worker[2]" in manager.services
-
-    async def test_indexes_duplicate_generated_names(self):
-        class MyService(Service):
-            def __repr__(self) -> str:
-                return "MyService()"
-
-            async def execute(self):
-                pass
-
-        manager = ServiceManager()
-        manager.register(MyService())
-        manager.register(MyService())
-
-        assert "MyService()" in manager.services
-        assert "MyService()[1]" in manager.services
-
-    async def test_does_not_index_distinct_names(self):
-        class MyService(Service):
-            async def execute(self):
-                pass
-
-        manager = ServiceManager()
-        manager.register(MyService(), name="First")
-        manager.register(MyService(), name="Second")
-
-        assert "First" in manager.services
-        assert "Second" in manager.services
-
-    async def test_uses_repr_when_empty_string_name_provided(self):
-        class MyService(Service):
-            def __repr__(self) -> str:
-                return "MyService()"
-
             async def execute(self):
                 pass
 
         manager = ServiceManager()
         manager.register(MyService(), name="")
 
-        assert "MyService()" in manager.services
+        service_state = next(iter(manager.services.values()))
 
-    async def test_indexed_name_is_reflected_in_service_definition(self):
+        assert UUID(service_state.name) is not None
+        assert manager.services[service_state.name] == service_state
+
+    async def test_overwrites_duplicate_names(self):
         class MyService(Service):
             async def execute(self):
                 pass
 
+        service1 = MyService()
+        service2 = MyService()
+
         manager = ServiceManager()
-        manager.register(MyService(), name="Worker")
-        manager.register(MyService(), name="Worker")
+        manager.register(service1, name="Worker")
+        manager.register(service2, name="Worker")
 
-        assert manager.services["Worker"].name == "Worker"
-        assert manager.services["Worker[1]"].name == "Worker[1]"
+        assert len(manager.services) == 1
+        assert manager.services["Worker"].service == service2
 
-    async def test_default_repr_produces_unique_names_per_instance(self):
+    async def test_multiple_service_names(self):
         class MyService(Service):
             async def execute(self):
                 pass
 
+        service1 = MyService()
+        service2 = MyService()
+
         manager = ServiceManager()
-        manager.register(MyService())
-        manager.register(MyService())
+        manager.register(service1, name="First")
+        manager.register(service2, name="Second")
+
+        assert manager.services["First"].service == service1
+        assert manager.services["Second"].service == service2
+
+    async def test_multiple_services_without_names(self):
+        class MyService(Service):
+            async def execute(self):
+                pass
+
+        service1 = MyService()
+        service2 = MyService()
+
+        manager = ServiceManager()
+        manager.register(service1)
+        manager.register(service2)
+
+        services_states = list(manager.services.values())
 
         assert len(manager.services) == 2
-        names = list(manager.services.keys())
-        assert "[1]" not in names[0]
-        assert "[1]" not in names[1]
+        assert services_states[0].name != services_states[1].name
 
-    async def test_indexes_when_explicit_name_collides_with_generated_name(
+    async def test_same_instance_can_be_added_with_different_names(self):
+        class MyService(Service):
+            async def execute(self):
+                pass
+
+        service = MyService()
+
+        manager = ServiceManager()
+        manager.register(service, name="First")
+        manager.register(service, name="Second")
+
+        assert len(manager.services) == 2
+        assert manager.services["First"].service == service
+        assert manager.services["Second"].service == service
+
+    async def test_same_instance_can_be_added_generates_different_names(self):
+        class MyService(Service):
+            async def execute(self):
+                pass
+
+        service = MyService()
+
+        manager = ServiceManager()
+        manager.register(service)
+        manager.register(service)
+
+        services_states = list(manager.services.values())
+
+        assert len(manager.services) == 2
+        assert services_states[0].name != services_states[1].name
+        assert (
+            services_states[1].service == services_states[0].service == service
+        )
+
+    async def test_overwrites_generated_uuid_name(
         self,
     ):
         class MyService(Service):
-            def __repr__(self) -> str:
-                return "MyService()"
-
             async def execute(self):
                 pass
 
+        service1 = MyService()
+        service2 = MyService()
+
         manager = ServiceManager()
-        manager.register(MyService(), name="MyService()")
-        manager.register(MyService())
+        manager.register(service1)
 
-        assert "MyService()" in manager.services
-        assert "MyService()[1]" in manager.services
+        service_state = next(iter(manager.services.values()))
+
+        manager.register(service2, name=service_state.name)
+
+        assert len(manager.services) == 1
+        assert manager.services[service_state.name].service == service2
 
 
-class TestServiceDefinitionServiceName:
+class TestManagedServiceStateServiceName:
     async def test_exposes_name_of_registered_service(self):
         class MyCustomService(Service):
             async def execute(self):
@@ -1167,6 +1175,10 @@ class TestServiceDefinitionServiceName:
         manager.register(MyCustomService(), name="Custom")
 
         assert manager.services["Custom"].name == "Custom"
+
+
+def _map_states_to_statuses(services: Mapping[str, ManagedServiceState[Any]]):
+    return {name: service.service_status for name, service in services.items()}
 
 
 class TestServiceManagerStatusOfServices:
@@ -1182,7 +1194,7 @@ class TestServiceManagerStatusOfServices:
         manager = ServiceManager()
         manager.register(StatusAwareService(), name="AlwaysRunning")
 
-        assert manager.get_status_of_services() == {
+        assert _map_states_to_statuses(manager.services) == {
             "AlwaysRunning": ProcessStatus.RUNNING
         }
 
@@ -1207,7 +1219,7 @@ class TestServiceManagerStatusOfServices:
         manager.register(AlwaysRunningService(), name="AlwaysRunning")
         manager.register(AlwaysStoppedService(), name="AlwaysStopped")
 
-        assert manager.get_status_of_services() == {
+        assert _map_states_to_statuses(manager.services) == {
             "AlwaysRunning": ProcessStatus.RUNNING,
             "AlwaysStopped": ProcessStatus.STOPPED,
         }
@@ -1234,38 +1246,9 @@ class TestServiceManagerStatusOfServices:
             StaticStatusService(ProcessStatus.STOPPED), name="AlwaysStopped"
         )
 
-        assert manager.get_status_of_services() == {
+        assert _map_states_to_statuses(manager.services) == {
             "AlwaysRunning": ProcessStatus.RUNNING,
             "AlwaysStopped": ProcessStatus.STOPPED,
-        }
-
-    async def test_returns_status_of_multiple_instances_of_the_same_service_with_same_name_indexed(
-        self,
-    ):
-        class StaticStatusService(Service[None]):
-            name = "StaticStatus"
-
-            def __init__(self, status: ProcessStatus):
-                self._status = status
-
-            @property
-            def status(self) -> ProcessStatus:
-                return self._status
-
-            async def execute(self):
-                pass
-
-        manager = ServiceManager()
-        manager.register(
-            StaticStatusService(ProcessStatus.RUNNING), name="StaticStatus"
-        )
-        manager.register(
-            StaticStatusService(ProcessStatus.STOPPED), name="StaticStatus"
-        )
-
-        assert manager.get_status_of_services() == {
-            "StaticStatus": ProcessStatus.RUNNING,
-            "StaticStatus[1]": ProcessStatus.STOPPED,
         }
 
     async def test_returns_initialised_when_service_has_no_process_status(
@@ -1279,7 +1262,7 @@ class TestServiceManagerStatusOfServices:
 
         manager.register(PlainService(), name="PlainService")
 
-        assert manager.get_status_of_services() == {
+        assert _map_states_to_statuses(manager.services) == {
             "PlainService": ProcessStatus.INITIALISED
         }
 
@@ -1304,13 +1287,13 @@ class TestServiceManagerStatusOfServices:
 
         async with manager:
             await async_event_on_exec.wait()
-            assert manager.get_status_of_services() == {
+            assert _map_states_to_statuses(manager.services) == {
                 "WaitingService": ProcessStatus.RUNNING
             }
 
             async_event_to_terminate.set()
             await asyncio.sleep(0)
-            assert manager.get_status_of_services() == {
+            assert _map_states_to_statuses(manager.services) == {
                 "WaitingService": ProcessStatus.STOPPED
             }
 
@@ -1335,11 +1318,11 @@ class TestServiceManagerStatusOfServices:
 
         async with manager:
             await async_event_on_exec.wait()
-            assert manager.get_status_of_services() == {
+            assert _map_states_to_statuses(manager.services) == {
                 "WaitingService": ProcessStatus.RUNNING
             }
 
-        assert manager.get_status_of_services() == {
+        assert _map_states_to_statuses(manager.services) == {
             "WaitingService": ProcessStatus.STOPPED
         }
 
@@ -1367,13 +1350,13 @@ class TestServiceManagerStatusOfServices:
 
         async with manager:
             await async_event_on_exec.wait()
-            assert manager.get_status_of_services() == {
+            assert _map_states_to_statuses(manager.services) == {
                 "WaitingService": ProcessStatus.RUNNING
             }
 
             async_event_to_raise.set()
             await asyncio.sleep(0)
-            assert manager.get_status_of_services() == {
+            assert _map_states_to_statuses(manager.services) == {
                 "WaitingService": ProcessStatus.ERRORED
             }
 

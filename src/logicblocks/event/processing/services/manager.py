@@ -273,7 +273,7 @@ class ServiceManager:
         self._stop_on_signals = [*self._stop_on_signals, *signals]
         return self
 
-    async def __aenter__(self) -> list[Future[Any]]:
+    async def __aenter__(self) -> Mapping[str, Future[Any]]:
         return await self.start()
 
     async def __aexit__(
@@ -285,7 +285,7 @@ class ServiceManager:
         await self.stop()
         return False
 
-    async def start(self) -> list[Future[Any]]:
+    async def start(self) -> Mapping[str, Future[Any]]:
         loop = asyncio.get_event_loop()
         for sig in self._stop_on_signals:
             loop.add_signal_handler(
@@ -294,17 +294,17 @@ class ServiceManager:
 
         await self._service_executor.start()
 
-        all_futures = [
-            await self._service_executor.schedule(service_definition)
-            for service_definition in self._service_definitions.values()
-        ]
-        blocking_futures = [
+        all_futures = {
+            name: await self._service_executor.schedule(service_definition)
+            for name, service_definition in self._service_definitions.items()
+        }
+
+        blocking_futures = (
             future
-            for future, definition in zip(
-                all_futures, self._service_definitions.values()
-            )
-            if definition.execution_mode == ExecutionMode.FOREGROUND
-        ]
+            for name, future in all_futures.items()
+            if self._service_definitions[name].execution_mode
+            == ExecutionMode.FOREGROUND
+        )
 
         await asyncio.gather(*blocking_futures, return_exceptions=True)
 

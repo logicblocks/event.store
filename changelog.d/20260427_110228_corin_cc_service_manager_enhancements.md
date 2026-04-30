@@ -11,3 +11,4 @@
 
 - Service naming is now a responsibility of `ServiceManager` rather than `Service`
 - `ServiceManager` stores service definitions in a name-keyed dictionary instead of a list
+- `ServiceManager.start` and `ServiceManager.__aenter__` returns a name-keyed Mapping of futures instead of a list of futures

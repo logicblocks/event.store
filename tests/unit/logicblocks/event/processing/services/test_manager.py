@@ -68,7 +68,7 @@ class TestServiceManagerExecutionModes:
         times["after"] = time.monotonic_ns()
         control.set()
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks.values())
         await manager.stop()
 
         assert times["during"] > times["before"]
@@ -149,7 +149,7 @@ class TestServiceManagerIsolationModes:
         thread_ids["main"] = threading.get_ident()
         tasks = await manager.start()
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks.values())
         await manager.stop()
 
         assert thread_ids["main"] == thread_ids["service1:execute"]
@@ -182,7 +182,7 @@ class TestServiceManagerIsolationModes:
         thread_ids["main"] = threading.get_ident()
         tasks = await manager.start()
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks.values())
         await manager.stop()
 
         assert thread_ids["main"] != thread_ids["service1:execute"]
@@ -216,7 +216,7 @@ class TestServiceManagerIsolationModes:
         thread_ids["main"] = threading.get_ident()
         tasks = await manager.start()
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks.values())
         await manager.stop()
 
         assert thread_ids["main"] != thread_ids["service1:execute"]
@@ -246,6 +246,7 @@ class TestServiceManagerExceptionHandling:
         )
 
         futures = await manager.start()
+        futures = list(futures.values())
 
         await asyncio.gather(*futures, return_exceptions=True)
 
@@ -275,6 +276,7 @@ class TestServiceManagerExceptionHandling:
         )
 
         futures = await manager.start()
+        futures = list(futures.values())
 
         await manager.stop()
 
@@ -302,6 +304,7 @@ class TestServiceManagerExceptionHandling:
         )
 
         futures = await manager.start()
+        futures = list(futures.values())
 
         await asyncio.gather(*futures, return_exceptions=True)
         await manager.stop()
@@ -330,6 +333,7 @@ class TestServiceManagerExceptionHandling:
         )
 
         futures = await manager.start()
+        futures = list(futures.values())
 
         await asyncio.gather(*futures, return_exceptions=True)
         await manager.stop()
@@ -763,7 +767,7 @@ class TestServiceManagerSignalHandling:
 
             os.kill(os.getpid(), sig)
 
-            await asyncio.gather(*futures, return_exceptions=True)
+            await asyncio.gather(*futures.values(), return_exceptions=True)
 
             tasks = [
                 task

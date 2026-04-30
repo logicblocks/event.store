@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
@@ -31,19 +32,22 @@ class ServiceDefinition[T]:
     def __init__(
         self,
         service: Service[T],
+        name: str,
         execution_mode: ExecutionMode,
         isolation_mode: IsolationMode,
     ):
         self._service = service
+        self._name = name
         self.execution_mode = execution_mode
         self.isolation_mode = isolation_mode
 
     @property
-    def service(self):
+    def service(self) -> Service[T]:
         return self._service
 
-    def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self._service.execute()
+    @property
+    def name(self) -> str:
+        return self._name
 
     @property
     def service_status(self) -> ProcessStatus:
@@ -53,9 +57,32 @@ class ServiceDefinition[T]:
             else ProcessStatus.INITIALISED
         )
 
-    @property
-    def service_name(self) -> str:
-        return self._service.name
+    def coroutine(self) -> Coroutine[Any, Any, T]:
+        return self._service.execute()
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"name={self.name}, "
+            f"service={self._service!r}, "
+            f"execution_mode={self.execution_mode}, "
+            f"isolation_mode={self.isolation_mode}"
+            ")"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ServiceDefinition):
+            return NotImplemented
+
+        return (
+            self.name == other.name
+            and self._service == other.service
+            and self.execution_mode == other.execution_mode
+            and self.isolation_mode == other.isolation_mode
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.execution_mode, self.isolation_mode))
 
 
 class ServiceExecutor(ABC):
@@ -194,34 +221,52 @@ class IsolationModeAwareServiceExecutor:
 
 class ServiceManager:
     def __init__(self):
-        self._service_definitions: list[ServiceDefinition[Any]] = []
+        self._service_definitions: dict[str, ServiceDefinition[Any]] = {}
         self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
 
     @property
-    def services(self) -> Sequence[ServiceDefinition[Any]]:
-        return tuple(self._service_definitions)
+    def services(self) -> Mapping[str, ServiceDefinition[Any]]:
+        return dict(self._service_definitions)
 
     def get_status_of_services(self) -> Mapping[str, ProcessStatus]:
         return {
-            service.service_name: service.service_status
-            for service in self._service_definitions
+            name: definition.service_status
+            for name, definition in self._service_definitions.items()
         }
+
+    def _generate_default_service_name(self, service: Service[Any]) -> str:
+        return repr(service)
+
+    def _index_service_name(self, name: str) -> str:
+        if name not in self._service_definitions:
+            return name
+
+        for index in itertools.count(1):
+            indexed_name = f"{name}[{index}]"
+            if indexed_name not in self._service_definitions:
+                return indexed_name
+
+        assert False, "unreachable"
 
     def register[T](
         self,
         service: Service[T],
         *,
+        name: str | None = None,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
-        self._service_definitions.append(
-            ServiceDefinition[T](
-                service=service,
-                execution_mode=execution_mode,
-                isolation_mode=isolation_mode,
-            )
+        name = name or self._generate_default_service_name(service)
+        name = self._index_service_name(name)
+
+        self._service_definitions[name] = ServiceDefinition[T](
+            service=service,
+            name=name,
+            execution_mode=execution_mode,
+            isolation_mode=isolation_mode,
         )
+
         return self
 
     def stop_on(self, signals: Sequence[int]) -> Self:
@@ -251,12 +296,12 @@ class ServiceManager:
 
         all_futures = [
             await self._service_executor.schedule(service_definition)
-            for service_definition in self._service_definitions
+            for service_definition in self._service_definitions.values()
         ]
         blocking_futures = [
             future
             for future, definition in zip(
-                all_futures, self._service_definitions
+                all_futures, self._service_definitions.values()
             )
             if definition.execution_mode == ExecutionMode.FOREGROUND
         ]

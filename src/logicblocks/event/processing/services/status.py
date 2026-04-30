@@ -26,3 +26,6 @@ class StatusTrackingService[T = Any](Service[T]):
         except BaseException:
             self._status = ProcessStatus.ERRORED
             raise
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._service!r})"

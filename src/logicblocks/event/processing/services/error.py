@@ -518,3 +518,6 @@ class ErrorHandlingService[T = Any](Service[T]):
         return await self.apply_error_handling(
             self._service.execute, self._error_handler
         )
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._callable!r})"

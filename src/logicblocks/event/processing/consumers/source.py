@@ -5,9 +5,11 @@ from typing import overload
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSource
+from logicblocks.event.store.tracing import start_tracing
 from logicblocks.event.types import (
     Event,
     EventSourceIdentifier,
+    TraceableEvent,
     str_serialisation_fallback,
 )
 
@@ -65,12 +67,15 @@ async def base_event_iterator[E: Event](
     logger: FilteringBoundLogger,
 ) -> EventIterator[E]:
     async for event in source_iterator:
-        await logger.adebug(
-            log_event_name("consuming-event"),
-            envelope=event.summarise(),
-        )
-        yield event
-        processor_manager.increment_consumed()
+        with start_tracing(
+            event_id=event.id if isinstance(event, TraceableEvent) else None
+        ):
+            await logger.adebug(
+                log_event_name("consuming-event"),
+                envelope=event.summarise(),
+            )
+            yield event
+            processor_manager.increment_consumed()
 
 
 async def auto_commit_event_iterator[E: Event](

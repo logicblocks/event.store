@@ -1,6 +1,5 @@
 from collections.abc import Callable, Mapping, Sequence
 from inspect import isclass
-from types import NoneType
 from typing import Any, cast, get_args, get_origin
 
 from .json import (
@@ -75,7 +74,7 @@ def deserialise_from_json_value[T](
     klass_origin = get_origin(klass)
     klass_origin_is_class = isclass(klass_origin)
 
-    if value is None and klass is NoneType:
+    if value is None and klass is type(None):
         return cast(T, value)
     for primitive_type in (str, int, float, bool):
         if (

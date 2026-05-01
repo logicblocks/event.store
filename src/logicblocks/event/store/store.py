@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
+from dataclasses import asdict
 from typing import Any
 
 import structlog
@@ -9,17 +10,20 @@ from logicblocks.event.sources import EventSource, constraints
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
+    JsonValue,
     LogIdentifier,
     NewEvent,
     StoredEvent,
     StreamIdentifier,
     StringPersistable,
+    serialise_to_json_value,
     str_serialisation_fallback,
 )
 
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError
+from .tracing import get_tracing_metadata
 from .types import StreamPublishDefinition
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
@@ -74,6 +78,20 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
             ],
             conditions=condition,
         )
+
+        events = [
+            NewEvent[Name, Payload, JsonValue](
+                name=event.name,
+                payload=event.payload,
+                observed_at=event.observed_at,
+                occurred_at=event.occurred_at,
+                metadata={
+                    **serialise_to_json_value(event),
+                    "tracing": asdict(get_tracing_metadata()),
+                },
+            )
+            for event in events
+        ]
 
         try:
             stored_events = await self._adapter.save(
@@ -214,8 +232,30 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         """Publish events to multiple streams in the category atomically."""
+
+        # streams = {
+        #     stream: StreamPublishDefinition[Name, Payload, JsonValue](
+        #         **definition,
+        #         events=[
+        #             NewEvent[Name, Payload, JsonValue](
+        #                 name=event.name,
+        #                 payload=event.payload,
+        #                 observed_at=event.observed_at,
+        #                 occurred_at=event.occurred_at,
+        #                 metadata={
+        #                     **serialise_to_json_value(event),
+        #                     "tracing": asdict(get_tracing_metadata()),
+        #                 },
+        #             )
+        #             for event in definition["events"]
+        #         ],
+        #     )
+        #     for stream, definition in streams.items()
+        # }
+
         return await self._adapter.save(
-            target=self._identifier, streams=streams
+            target=self._identifier,
+            streams=streams,
         )
 
     def __eq__(self, other: Any) -> bool:

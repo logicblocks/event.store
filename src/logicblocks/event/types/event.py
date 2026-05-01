@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable, Protocol
+from typing import Callable, Protocol, runtime_checkable
 
 from logicblocks.event.utils.clock import Clock, SystemClock
 
@@ -12,6 +12,12 @@ from .json import JsonValue, JsonValueSerialisable
 class Event(Protocol):
     def summarise(self) -> JsonValue:
         raise NotImplementedError
+
+
+@runtime_checkable
+class TraceableEvent(Protocol):
+    @property
+    def id(self) -> str: ...
 
 
 @dataclass(frozen=True)

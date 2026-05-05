@@ -1,13 +1,14 @@
+import warnings
 from collections.abc import Callable
 
 import pytest
 
 from logicblocks.event.processing import (
+    CallableService,
     ContinueErrorHandler,
     ErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
-    ErrorHandlingServiceMixin,
     ExitErrorHandler,
     RaiseErrorHandler,
     RaiseErrorHandlerDecision,
@@ -448,23 +449,18 @@ class TestTypeMappingErrorHandler:
         assert callback_invoked == {"called": True, "exception": exception}
 
 
-class TestService(ErrorHandlingServiceMixin[int], Service[int]):
+class ExceptionThrowingService(Service[int]):
     __test__ = False
 
-    def __init__(
-        self,
-        error_handler: ErrorHandler[int],
-        call_callback: Callable[[], None],
-    ):
-        super().__init__(error_handler=error_handler)
+    def __init__(self, call_callback: Callable[[], None]):
         self._call_callback = call_callback
 
-    async def _do_execute(self) -> int:
+    async def execute(self) -> int:
         self._call_callback()
         raise RuntimeError("Something went wrong.")
 
 
-class TestErrorHandlingServiceMixin:
+class TestErrorHandlingServiceWithCustomService:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0
 
@@ -475,8 +471,8 @@ class TestErrorHandlingServiceMixin:
         class TestException(Exception):
             pass
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=RaiseErrorHandler(
                 exception_factory=lambda ex: TestException(
                     "Unhandleable exception occurred."
@@ -496,8 +492,8 @@ class TestErrorHandlingServiceMixin:
             nonlocal call_count
             call_count += 1
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
@@ -513,8 +509,8 @@ class TestErrorHandlingServiceMixin:
             nonlocal call_count
             call_count += 1
 
-        service = TestService(
-            call_callback=call_callback,
+        service = ErrorHandlingService(
+            service=ExceptionThrowingService(call_callback=call_callback),
             error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
@@ -533,11 +529,8 @@ class TestErrorHandlingServiceMixin:
         class RetryTestException(Exception):
             pass
 
-        class TestService(ErrorHandlingServiceMixin[int], Service[int]):
-            def __init__(self, error_handler: ErrorHandler[int]):
-                super().__init__(error_handler=error_handler)
-
-            async def _do_execute(self) -> int:
+        class ConditionallyFailingService(Service[int]):
+            async def execute(self) -> int:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 3:
@@ -556,14 +549,17 @@ class TestErrorHandlingServiceMixin:
                 else:
                     return ErrorHandlerDecision.raise_exception(exception)
 
-        service = TestService(error_handler=RetryOrContinueErrorHandler())
+        service = ErrorHandlingService(
+            service=ConditionallyFailingService(),
+            error_handler=RetryOrContinueErrorHandler(),
+        )
 
         await service.execute()
 
         assert call_count == 3
 
 
-class TestErrorHandlingService:
+class TestErrorHandlingServiceWithCallable:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0
 
@@ -576,7 +572,7 @@ class TestErrorHandlingService:
             pass
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=RaiseErrorHandler(
                 exception_factory=lambda ex: TestException(
                     "Unhandleable exception occurred."
@@ -592,13 +588,13 @@ class TestErrorHandlingService:
     async def test_returns_value_when_continue_error_handler_decision(self):
         call_count = 0
 
-        async def callable():
+        async def callable() -> int:
             nonlocal call_count
             call_count += 1
             raise RuntimeError("Something went wrong.")
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
         )
 
@@ -616,7 +612,7 @@ class TestErrorHandlingService:
             raise RuntimeError("Something went wrong.")
 
         service = ErrorHandlingService(
-            callable=callable,
+            service=CallableService(callable),
             error_handler=ExitErrorHandler(exit_code_factory=lambda _: 42),
         )
 
@@ -655,9 +651,158 @@ class TestErrorHandlingService:
                     return ErrorHandlerDecision.raise_exception(exception)
 
         service = ErrorHandlingService(
-            callable=callable, error_handler=RetryOrContinueErrorHandler()
+            service=CallableService(callable),
+            error_handler=RetryOrContinueErrorHandler(),
         )
 
         await service.execute()
 
         assert call_count == 3
+
+
+class TestErrorHandlingServiceWithCallableBackwardsCompatibility:
+    async def test_accepts_callable_and_auto_wraps(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        service = ErrorHandlingService(
+            service=callable,
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
+        )
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10
+
+    async def test_writes_deprecation_warning_when_callable_is_used(self):
+        async def callable():
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            ErrorHandlingService(
+                service=callable,
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+
+            assert w is not None
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert str(w[0].message) == "Wrap callable in CallableService"
+
+    async def test_accepts_callable_kwarg_for_backwards_compatibility(self):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        service = ErrorHandlingService(
+            callable=callable,
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
+        )
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10
+
+    async def test_writes_deprecation_warning_when_callable_kwarg_is_used(
+        self,
+    ):
+        async def callable():
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            ErrorHandlingService(
+                callable=callable,
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+
+            assert w is not None
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert str(w[0].message) == "Use 'service' instead of 'callable'"
+
+    async def test_accepts_callable_positional_arg_for_backwards_compatibility(
+        self,
+    ):
+        call_count = 0
+
+        async def callable():
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("Something went wrong.")
+
+        service = ErrorHandlingService(
+            callable,
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: 10),
+        )
+
+        result = await service.execute()
+
+        assert call_count == 1
+        assert result == 10
+
+    async def test_writes_deprecation_warning_when_callable_positional_arg_is_used(
+        self,
+    ):
+        async def callable():
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            ErrorHandlingService(
+                callable,
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+
+            assert w is not None
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert str(w[0].message) == "Wrap callable in CallableService"
+
+    async def test_writes_no_warnings_when_service_is_used(self):
+        async def callable():
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            ErrorHandlingService[int](
+                service=CallableService(callable),
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+
+            assert w is not None
+            assert len(w) == 0
+
+    async def test_writes_no_warnings_when_service_is_used_positionally(self):
+        async def callable():
+            raise RuntimeError("Something went wrong.")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            ErrorHandlingService[int](
+                CallableService(callable),
+                error_handler=ContinueErrorHandler(
+                    value_factory=lambda ex: 10
+                ),
+            )
+
+            assert w is not None
+            assert len(w) == 0

@@ -30,6 +30,7 @@ from .consumers import (
 )
 from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
 from .process import (
+    HasProcessStatus,
     Process,
     ProcessStatus,
     determine_multi_process_status,
@@ -53,6 +54,7 @@ from .services import (
     RetryErrorHandlerDecision,
     Service,
     ServiceManager,
+    StatusTrackingService,
     TypeMappingErrorHandler,
     continue_execution_type_mapping,
     error_handler_type_mappings,
@@ -97,6 +99,7 @@ __all__ = [
     "PostgresLockManager",
     "Process",
     "ProcessStatus",
+    "HasProcessStatus",
     "ProjectionEventProcessor",
     "RaiseErrorHandler",
     "RaiseErrorHandlerDecision",
@@ -104,6 +107,7 @@ __all__ = [
     "RetryErrorHandlerDecision",
     "Service",
     "ServiceManager",
+    "StatusTrackingService",
     "SingletonEventBroker",
     "SingletonEventBrokerSettings",
     "SingletonEventBrokerTypeType",

@@ -1,5 +1,4 @@
 from collections.abc import Awaitable, Callable
-from functools import cached_property
 from typing import Any, Self, overload
 
 from .types import Service
@@ -31,9 +30,3 @@ class CallableService[T = Any](Service[T]):
 
     async def execute(self) -> T:
         return await self._callable()
-
-    @cached_property
-    def name(self) -> str:
-        return getattr(
-            self._callable, "__name__", type(self._callable).__name__
-        )

@@ -25,6 +25,7 @@ from .manager import (
     ServiceManager,
 )
 from .polling import PollingService
+from .status import StatusTrackingService
 from .types import Service
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "ContinueErrorHandlerDecision",
     "ServiceManager",
     "Service",
+    "StatusTrackingService",
     "TypeMappingErrorHandler",
     "error_handler_type_mappings",
     "exit_fatally_type_mapping",

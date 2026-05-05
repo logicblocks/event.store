@@ -2,6 +2,6 @@
 
 - `SingletonEventBroker` and `DistributedEventBroker` now compose `ErrorHandlingService` instead of inheriting from `ErrorHandlingServiceMixin`
 
-### Removed
+### Deprecated
 
-- `ErrorHandlingServiceMixin` has been removed in favour of `ErrorHandlingService` composition
+- `ErrorHandlingServiceMixin` has been deprecated in favour of `ErrorHandlingService` composition

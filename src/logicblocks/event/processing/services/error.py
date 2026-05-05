@@ -520,4 +520,4 @@ class ErrorHandlingService[T = Any](Service[T]):
         )
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._callable!r})"
+        return f"{self.__class__.__name__}({self._service!r})"

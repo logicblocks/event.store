@@ -44,4 +44,4 @@ class PollingService(Service[Never]):
             await asyncio.sleep(self._poll_interval.total_seconds())
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self._callable!r})"
+        return f"{self.__class__.__name__}({self._service!r})"

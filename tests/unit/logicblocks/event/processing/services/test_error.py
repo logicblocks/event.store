@@ -569,7 +569,10 @@ class TestErrorHandlingServiceRepr:
             error_handler=ContinueErrorHandler(value_factory=lambda ex: None),
         )
 
-        assert repr(service) == f"ErrorHandlingService({my_handler!r})"
+        assert (
+            repr(service)
+            == f"ErrorHandlingService(CallableService(callable={my_handler.__qualname__}))"
+        )
 
 
 class TestErrorHandlingServiceWithCallable:

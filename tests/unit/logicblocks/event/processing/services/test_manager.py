@@ -991,8 +991,7 @@ class TestManagedServiceStateServiceStatus:
         manager.register(PlainService(), name="Custom")
 
         assert (
-            manager.services["Custom"].service_status
-            == ProcessStatus.INITIALISED
+            manager.services["Custom"].service_status == ProcessStatus.UNKNOWN
         )
 
     async def test_reflects_dynamic_status_from_status_tracking_service(self):
@@ -1263,7 +1262,7 @@ class TestServiceManagerStatusOfServices:
         manager.register(PlainService(), name="PlainService")
 
         assert _map_states_to_statuses(manager.services) == {
-            "PlainService": ProcessStatus.INITIALISED
+            "PlainService": ProcessStatus.UNKNOWN
         }
 
     async def test_reflects_dynamic_status_from_status_tracking_service(self):

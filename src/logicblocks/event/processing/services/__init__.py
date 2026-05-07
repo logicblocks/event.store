@@ -22,6 +22,7 @@ from .error import (
 from .manager import (
     ExecutionMode,
     IsolationMode,
+    ManagedServiceState,
     ServiceManager,
 )
 from .polling import PollingService
@@ -47,6 +48,7 @@ __all__ = [
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",
     "ServiceManager",
+    "ManagedServiceState",
     "Service",
     "StatusTrackingService",
     "TypeMappingErrorHandler",

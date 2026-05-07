@@ -1103,20 +1103,16 @@ class TestServiceManagerNaming:
         assert UUID(service_state.name) is not None
         assert manager.services[service_state.name] == service_state
 
-    async def test_overwrites_duplicate_names(self):
+    async def test_raises_when_duplicate_name_registered(self):
         class MyService(Service):
             async def execute(self):
                 pass
 
-        service1 = MyService()
-        service2 = MyService()
-
         manager = ServiceManager()
-        manager.register(service1, name="Worker")
-        manager.register(service2, name="Worker")
+        manager.register(MyService(), name="Worker")
 
-        assert len(manager.services) == 1
-        assert manager.services["Worker"].service == service2
+        with pytest.raises(ValueError, match="already registered"):
+            manager.register(MyService(), name="Worker")
 
     async def test_multiple_service_names(self):
         class MyService(Service):
@@ -1184,25 +1180,20 @@ class TestServiceManagerNaming:
             services_states[1].service == services_states[0].service == service
         )
 
-    async def test_overwrites_generated_uuid_name(
+    async def test_raises_when_registering_with_existing_generated_uuid_name(
         self,
     ):
         class MyService(Service):
             async def execute(self):
                 pass
 
-        service1 = MyService()
-        service2 = MyService()
-
         manager = ServiceManager()
-        manager.register(service1)
+        manager.register(MyService())
 
         service_state = next(iter(manager.services.values()))
 
-        manager.register(service2, name=service_state.name)
-
-        assert len(manager.services) == 1
-        assert manager.services[service_state.name].service == service2
+        with pytest.raises(ValueError, match="already registered"):
+            manager.register(MyService(), name=service_state.name)
 
 
 class TestManagedServiceStateServiceName:

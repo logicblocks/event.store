@@ -245,6 +245,11 @@ class ServiceManager:
     ) -> Self:
         name = name or self._generate_default_service_name(service)
 
+        if name in self._service_definitions:
+            raise ValueError(
+                f"Service with name '{name}' is already registered."
+            )
+
         self._service_definitions[name] = ManagedServiceState[T](
             service=service,
             name=name,

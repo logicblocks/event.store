@@ -25,6 +25,6 @@ def tag_version(context: Context):
 def push_version_bump(context: Context):
     """Push version bump commit to remote repository."""
     version = project.get_version(context)
-    context.run("git add pyproject.toml")
+    context.run("git add pyproject.toml uv.lock")
     context.run(f"git commit -m 'Bump version to {version} [skip ci]'")
     context.run(f"git push origin HEAD")

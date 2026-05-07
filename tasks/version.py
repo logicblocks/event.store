@@ -20,6 +20,7 @@ def bump(context: Context, type: Sequence[str] = ("alpha",)):
     bump_list = [t.strip() for t in type]
     bump_args = " ".join(f"--bump {t}" for t in bump_list)
     context.run(f"uv version {bump_args}")
+    context.run(f"uv lock")
 
 @task(iterable=['type'], help={'type': type_help_description})
 def bump_and_push(context: Context, type: Sequence[str] = ("alpha",)):

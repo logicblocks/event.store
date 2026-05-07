@@ -5,8 +5,9 @@ from logicblocks.event.types import Event
 
 from ....process import ProcessStatus, determine_multi_process_status
 from ....services import (
+    CallableService,
     ErrorHandler,
-    ErrorHandlingServiceMixin,
+    ErrorHandlingService,
     RetryErrorHandler,
 )
 from ...base import EventBroker
@@ -16,9 +17,7 @@ from .observer import EventSubscriptionObserver
 from .subscribers import EventSubscriberManager
 
 
-class DistributedEventBroker[E: Event](
-    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
-):
+class DistributedEventBroker[E: Event](EventBroker[E]):
     def __init__(
         self,
         event_subscriber_manager: EventSubscriberManager[E],
@@ -26,10 +25,13 @@ class DistributedEventBroker[E: Event](
         event_subscription_observer: EventSubscriptionObserver[E],
         error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
     ):
-        super().__init__(error_handler)
         self._event_subscriber_manager = event_subscriber_manager
         self._event_subscription_coordinator = event_subscription_coordinator
         self._event_subscription_observer = event_subscription_observer
+        self._error_handling_service = ErrorHandlingService(
+            service=CallableService(self._do_execute),
+            error_handler=error_handler,
+        )
 
     @property
     def status(self) -> ProcessStatus:
@@ -40,6 +42,9 @@ class DistributedEventBroker[E: Event](
 
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_manager.add(subscriber)
+
+    async def execute(self) -> None:
+        return await self._error_handling_service.execute()
 
     async def _do_execute(self) -> None:
         subscriber_manager = self._event_subscriber_manager

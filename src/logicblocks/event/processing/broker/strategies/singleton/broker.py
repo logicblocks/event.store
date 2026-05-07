@@ -9,8 +9,9 @@ from logicblocks.event.types import Event
 
 from ....process import ProcessStatus
 from ....services import (
+    CallableService,
     ErrorHandler,
-    ErrorHandlingServiceMixin,
+    ErrorHandlingService,
     RetryErrorHandler,
 )
 from ...base import EventBroker
@@ -23,9 +24,7 @@ def log_event_name(event: str) -> str:
     return f"event.processing.broker.{event}"
 
 
-class SingletonEventBroker[E: Event](
-    EventBroker[E], ErrorHandlingServiceMixin[NoneType]
-):
+class SingletonEventBroker[E: Event](EventBroker[E]):
     def __init__(
         self,
         node_id: str,
@@ -35,13 +34,16 @@ class SingletonEventBroker[E: Event](
         logger: FilteringBoundLogger = default_logger,
         distribution_interval: timedelta = timedelta(seconds=30),
     ):
-        super().__init__(error_handler)
         self._node_id = node_id
         self._event_subscriber_store = event_subscriber_store
         self._event_source_factory = event_source_factory
         self._logger = logger.bind(node=node_id)
         self._distribution_interval = distribution_interval
         self._status = ProcessStatus.INITIALISED
+        self._error_handling_service = ErrorHandlingService(
+            service=CallableService(self._do_execute),
+            error_handler=error_handler,
+        )
 
     @property
     def status(self) -> ProcessStatus:
@@ -49,6 +51,9 @@ class SingletonEventBroker[E: Event](
 
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         await self._event_subscriber_store.add(subscriber)
+
+    async def execute(self) -> None:
+        return await self._error_handling_service.execute()
 
     async def _do_execute(self) -> None:
         distribution_interval_seconds = (
@@ -75,10 +80,10 @@ class SingletonEventBroker[E: Event](
                 await asyncio.sleep(distribution_interval_seconds)
 
         except asyncio.CancelledError:
-            self._status = ProcessStatus.STOPPED
             await self._logger.ainfo(log_event_name("stopped"))
+            self._status = ProcessStatus.STOPPED
             raise
         except BaseException:
-            self._status = ProcessStatus.ERRORED
             await self._logger.aexception(log_event_name("failed"))
+            self._status = ProcessStatus.ERRORED
             raise

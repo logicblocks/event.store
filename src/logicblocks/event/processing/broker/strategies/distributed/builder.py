@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
+from types import NoneType
 from typing import Self, TypedDict
 
 from logicblocks.event.store import EventStoreEventSourceFactory
 from logicblocks.event.types import StoredEvent
 
 from ....locks import LockManager
+from ....services import ErrorHandler, RetryErrorHandler
 from ...base import EventBroker
 from ...subscribers import InMemoryEventSubscriberStore
 from .broker import DistributedEventBroker
@@ -73,6 +75,7 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
     def build(
         self,
         settings: DistributedEventBrokerSettings,
+        error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
     ) -> EventBroker[StoredEvent]:
         event_subscriber_store = InMemoryEventSubscriberStore[StoredEvent]()
 
@@ -108,4 +111,5 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
             event_subscriber_manager=event_subscriber_manager,
             event_subscription_coordinator=event_subscription_coordinator,
             event_subscription_observer=event_subscription_observer,
+            error_handler=error_handler,
         )

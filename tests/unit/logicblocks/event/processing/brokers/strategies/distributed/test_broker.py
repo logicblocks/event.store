@@ -13,6 +13,7 @@ from logicblocks.event.testsupport import (
 )
 
 from logicblocks.event.processing import (
+    ContinueErrorHandler,
     EventBroker,
     EventSubscriber,
     ProcessStatus,
@@ -23,9 +24,6 @@ from logicblocks.event.processing.broker.strategies.distributed import (
     EventSubscriberManager,
     EventSubscriptionCoordinator,
     EventSubscriptionObserver,
-)
-from logicblocks.event.processing.services.error import (
-    ContinueErrorHandler,
 )
 
 

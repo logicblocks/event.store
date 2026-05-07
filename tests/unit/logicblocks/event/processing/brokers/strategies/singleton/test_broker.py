@@ -21,7 +21,6 @@ from structlog.typing import FilteringBoundLogger
 from logicblocks.event.processing import (
     ContinueErrorHandler,
     ErrorHandler,
-    EventBroker,
     ProcessStatus,
 )
 from logicblocks.event.processing.broker.strategies.singleton import (
@@ -49,7 +48,7 @@ from logicblocks.event.types.identifier import EventSourceIdentifier
 @dataclass(frozen=True)
 class MockedContext:
     node_id: str
-    broker: EventBroker
+    broker: SingletonEventBroker
     event_subscriber_store: Mock
     event_source_factory: Mock
     logger: CapturingLogger
@@ -57,7 +56,7 @@ class MockedContext:
 
 @dataclass(frozen=True)
 class RealContext:
-    broker: EventBroker
+    broker: SingletonEventBroker
     event_subscriber_store: EventSubscriberStore
     event_source_factory: EventSourceFactory
     event_storage_adapter: EventStorageAdapter

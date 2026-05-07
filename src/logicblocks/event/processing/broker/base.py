@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from types import NoneType
 
 from logicblocks.event.types import Event
@@ -8,7 +8,7 @@ from ..services import Service
 from .types import EventSubscriber
 
 
-class EventBroker[E: Event](Service[NoneType], Process):
+class EventBroker[E: Event](Service[NoneType], Process, ABC):
     @abstractmethod
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         raise NotImplementedError

@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
+from types import NoneType
 from typing import Self, TypedDict
 
 from logicblocks.event.store import EventStoreEventSourceFactory
 from logicblocks.event.types import StoredEvent
 
+from ....services import ErrorHandler, RetryErrorHandler
 from ...base import EventBroker
 from ...subscribers import (
     InMemoryEventSubscriberStore,
@@ -44,6 +46,7 @@ class SingletonEventBrokerBuilder[**P = ...](ABC):
     def build(
         self,
         settings: SingletonEventBrokerSettings,
+        error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
     ) -> EventBroker[StoredEvent]:
         event_subscriber_store = InMemoryEventSubscriberStore[StoredEvent]()
 
@@ -51,5 +54,6 @@ class SingletonEventBrokerBuilder[**P = ...](ABC):
             node_id=self.node_id,
             event_subscriber_store=event_subscriber_store,
             event_source_factory=self.event_source_factory,
+            error_handler=error_handler,
             distribution_interval=settings.distribution_interval,
         )

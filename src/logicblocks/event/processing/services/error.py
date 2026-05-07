@@ -443,6 +443,7 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
         return self.default_error_handler.handle(exception)
 
 
+@warnings.deprecated("Use composition with ErrorHandlingService instead")
 class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
     def __init__(
         self,

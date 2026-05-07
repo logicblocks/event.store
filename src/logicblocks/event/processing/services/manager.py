@@ -38,8 +38,8 @@ class ManagedServiceState[T]:
     ):
         self._service = service
         self._name = name
-        self.execution_mode = execution_mode
-        self.isolation_mode = isolation_mode
+        self._execution_mode = execution_mode
+        self._isolation_mode = isolation_mode
 
     @property
     def service(self) -> Service[T]:
@@ -48,6 +48,14 @@ class ManagedServiceState[T]:
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        return self._execution_mode
+
+    @property
+    def isolation_mode(self) -> IsolationMode:
+        return self._isolation_mode
 
     @property
     def service_status(self) -> ProcessStatus:

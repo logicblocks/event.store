@@ -143,26 +143,6 @@ async def subscriber_has_sources(
         await asyncio.sleep(0)
 
 
-async def assert_log_event_eventually(
-    logger: CapturingLogger,
-    event_name: str,
-    timeout: timedelta = timedelta(milliseconds=500),
-):
-    async def log_event_exists():
-        while logger.find_event(event_name) is None:
-            await asyncio.sleep(0)
-
-    try:
-        await asyncio.wait_for(
-            log_event_exists(), timeout=timeout.total_seconds()
-        )
-    except asyncio.TimeoutError:
-        pytest.fail(
-            f"Expected log event '{event_name}' to eventually appear "
-            f"but timed out waiting."
-        )
-
-
 async def assert_sources_eventually(
     subscriber: CapturingEventSubscriber,
     sources: Sequence[EventSource[EventSourceIdentifier, Event]],
@@ -280,9 +260,7 @@ class TestSingletonEventBrokerLogging:
         task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
-            await assert_log_event_eventually(
-                logger, "event.processing.broker.running"
-            )
+            await assert_status_eventually(broker, ProcessStatus.RUNNING)
 
             running_event = logger.find_event(
                 "event.processing.broker.running"
@@ -299,12 +277,17 @@ class TestSingletonEventBrokerLogging:
         broker = context.broker
         logger = context.logger
 
+        async def wait_until_running():
+            while True:
+                await asyncio.sleep(0)
+                status = broker.status
+                if status == ProcessStatus.RUNNING:
+                    return
+
         task = asyncio.create_task(broker.execute())
 
         async with task_shutdown(task):
-            await assert_log_event_eventually(
-                logger, "event.processing.broker.running"
-            )
+            await wait_until_running()
 
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

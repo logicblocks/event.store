@@ -824,6 +824,47 @@ class TestServiceManagerServices:
         assert "Intruder" not in manager.services
 
 
+class TestServiceManagerGetServiceState:
+    async def test_returns_none_when_name_not_registered(self):
+        manager = ServiceManager()
+
+        assert manager.get_service_state("nonexistent") is None
+
+    async def test_returns_state_for_registered_service(self):
+        class MyService(Service):
+            async def execute(self):
+                pass
+
+        service = MyService()
+
+        manager = ServiceManager()
+        manager.register(
+            service,
+            name="Worker",
+            execution_mode=ExecutionMode.FOREGROUND,
+            isolation_mode=IsolationMode.SHARED_THREAD,
+        )
+
+        state = manager.get_service_state("Worker")
+
+        assert state == ManagedServiceState(
+            service=service,
+            name="Worker",
+            execution_mode=ExecutionMode.FOREGROUND,
+            isolation_mode=IsolationMode.SHARED_THREAD,
+        )
+
+    async def test_returns_none_after_querying_different_name(self):
+        class MyService(Service):
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(MyService(), name="Worker")
+
+        assert manager.get_service_state("Other") is None
+
+
 class TestManagedServiceStateRepr:
     async def test_includes_name_service_and_modes(self):
         class MyService(Service):

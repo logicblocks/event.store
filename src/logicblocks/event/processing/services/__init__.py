@@ -20,6 +20,7 @@ from .error import (
     retry_execution_type_mapping,
 )
 from .manager import (
+    DeferredFuture,
     ExecutionMode,
     IsolationMode,
     ManagedServiceState,
@@ -32,6 +33,7 @@ from .types import Service
 __all__ = [
     "CallableService",
     "CallableServiceCallable",
+    "DeferredFuture",
     "ErrorHandler",
     "ErrorHandlerDecision",
     "ErrorHandlingService",

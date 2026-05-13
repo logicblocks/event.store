@@ -20,7 +20,10 @@ from logicblocks.event.processing import (
     ServiceManager,
     StatusTrackingService,
 )
-from logicblocks.event.processing.services.manager import ManagedServiceState
+from logicblocks.event.processing.services.manager import (
+    ExecutableManagedServiceState,
+    ManagedServiceState,
+)
 
 # supervision
 # schedules
@@ -51,6 +54,45 @@ class TestServiceManagerExecutionModes:
         assert times["during"] > times["before"]
         assert times["during"] < times["after"]
 
+    async def test_future_is_available_before_start(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        state = manager.get_service_state("svc")
+        assert state is not None
+        assert state.future is not None
+
+        await manager.start()
+        await manager.stop()
+
+        assert state.future.result() == 42
+
+    async def test_future_awaited_before_start_raises(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        state = manager.get_service_state("svc")
+        assert state is not None
+
+        with pytest.raises(RuntimeError, match="has not been scheduled"):
+            await state.future
+
     async def test_background_execution_mode_continues_before_completion(self):
         times = {}
         control = asyncio.Event()
@@ -63,19 +105,141 @@ class TestServiceManagerExecutionModes:
         manager = ServiceManager()
         manager.register(
             TimeCapturingService(),
+            name="bg",
             execution_mode=ExecutionMode.BACKGROUND,
         )
 
         times["before"] = time.monotonic_ns()
-        tasks = await manager.start()
+        await manager.start()
         times["after"] = time.monotonic_ns()
         control.set()
 
-        await asyncio.gather(*tasks.values())
+        await manager.services["bg"].future
         await manager.stop()
 
         assert times["during"] > times["before"]
         assert times["during"] > times["after"]
+
+
+class TestDeferredFuture:
+    async def test_result_before_scheduling_raises(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(SimpleService(), name="svc")
+
+        with pytest.raises(RuntimeError, match="has not been scheduled"):
+            manager.services["svc"].future.result()
+
+    async def test_exception_before_scheduling_raises(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(SimpleService(), name="svc")
+
+        with pytest.raises(RuntimeError, match="has not been scheduled"):
+            manager.services["svc"].future.exception()
+
+    async def test_done_returns_false_before_scheduling(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(SimpleService(), name="svc")
+
+        assert manager.services["svc"].future.done() is False
+
+    async def test_done_returns_true_after_service_completes(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        await manager.start()
+        await manager.stop()
+
+        assert manager.services["svc"].future.done() is True
+
+    async def test_result_returns_value_after_service_completes(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        await manager.start()
+        await manager.stop()
+
+        assert manager.services["svc"].future.result() == 42
+
+    async def test_exception_returns_none_after_successful_completion(self):
+        class SimpleService(Service[int]):
+            async def execute(self) -> int:
+                return 42
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        await manager.start()
+        await manager.stop()
+
+        assert manager.services["svc"].future.exception() is None
+
+    async def test_exception_returns_error_after_failed_service(self):
+        class FailingService(Service[int]):
+            async def execute(self) -> int:
+                raise ValueError("something broke")
+
+        manager = ServiceManager()
+        manager.register(
+            FailingService(),
+            name="svc",
+            execution_mode=ExecutionMode.FOREGROUND,
+        )
+
+        await manager.start()
+        await manager.stop()
+
+        exc = manager.services["svc"].future.exception()
+        assert isinstance(exc, ValueError)
+        assert str(exc) == "something broke"
+
+
+class TestServiceManagerStart:
+    async def test_start_returns_self(self):
+        class SimpleService(Service):
+            async def execute(self):
+                pass
+
+        manager = ServiceManager()
+        manager.register(
+            SimpleService(), execution_mode=ExecutionMode.FOREGROUND
+        )
+
+        result = await manager.start()
+        await manager.stop()
+
+        assert result is manager
 
 
 class TestServiceManagerContextManager:
@@ -142,17 +306,22 @@ class TestServiceManagerIsolationModes:
         manager = ServiceManager()
         manager.register(
             ThreadCapturingService("service1"),
+            name="service1",
             isolation_mode=IsolationMode.MAIN_THREAD,
         )
         manager.register(
             ThreadCapturingService("service2"),
+            name="service2",
             isolation_mode=IsolationMode.MAIN_THREAD,
         )
 
         thread_ids["main"] = threading.get_ident()
-        tasks = await manager.start()
+        await manager.start()
 
-        await asyncio.gather(*tasks.values())
+        await asyncio.gather(
+            manager.services["service1"].future,
+            manager.services["service2"].future,
+        )
         await manager.stop()
 
         assert thread_ids["main"] == thread_ids["service1:execute"]
@@ -175,17 +344,22 @@ class TestServiceManagerIsolationModes:
         manager = ServiceManager()
         manager.register(
             ThreadCapturingService("service1"),
+            name="service1",
             isolation_mode=IsolationMode.SHARED_THREAD,
         )
         manager.register(
             ThreadCapturingService("service2"),
+            name="service2",
             isolation_mode=IsolationMode.SHARED_THREAD,
         )
 
         thread_ids["main"] = threading.get_ident()
-        tasks = await manager.start()
+        await manager.start()
 
-        await asyncio.gather(*tasks.values())
+        await asyncio.gather(
+            manager.services["service1"].future,
+            manager.services["service2"].future,
+        )
         await manager.stop()
 
         assert thread_ids["main"] != thread_ids["service1:execute"]
@@ -209,17 +383,22 @@ class TestServiceManagerIsolationModes:
         manager = ServiceManager()
         manager.register(
             ThreadCapturingService("service1"),
+            name="service1",
             isolation_mode=IsolationMode.DEDICATED_THREAD,
         )
         manager.register(
             ThreadCapturingService("service2"),
+            name="service2",
             isolation_mode=IsolationMode.DEDICATED_THREAD,
         )
 
         thread_ids["main"] = threading.get_ident()
-        tasks = await manager.start()
+        await manager.start()
 
-        await asyncio.gather(*tasks.values())
+        await asyncio.gather(
+            manager.services["service1"].future,
+            manager.services["service2"].future,
+        )
         await manager.stop()
 
         assert thread_ids["main"] != thread_ids["service1:execute"]
@@ -242,21 +421,29 @@ class TestServiceManagerExceptionHandling:
 
         manager = ServiceManager()
         manager.register(
-            ExceptionalService(), execution_mode=ExecutionMode.BACKGROUND
+            ExceptionalService(),
+            name="exceptional",
+            execution_mode=ExecutionMode.BACKGROUND,
         )
         manager.register(
-            WorkingService(), execution_mode=ExecutionMode.BACKGROUND
+            WorkingService(),
+            name="working",
+            execution_mode=ExecutionMode.BACKGROUND,
         )
 
-        futures = await manager.start()
-        futures = list(futures.values())
+        await manager.start()
 
-        await asyncio.gather(*futures, return_exceptions=True)
+        exceptional_future = manager.services["exceptional"].future
+        working_future = manager.services["working"].future
+
+        await asyncio.gather(
+            exceptional_future, working_future, return_exceptions=True
+        )
 
         await manager.stop()
 
-        assert futures[0].exception() is not None
-        assert futures[1].result() == 10
+        assert exceptional_future.exception() is not None
+        assert working_future.result() == 10
 
     async def test_exception_in_foreground_service_allows_other_services_to_execute(
         self,
@@ -272,19 +459,25 @@ class TestServiceManagerExceptionHandling:
 
         manager = ServiceManager()
         manager.register(
-            ExceptionalService(), execution_mode=ExecutionMode.FOREGROUND
+            ExceptionalService(),
+            name="exceptional",
+            execution_mode=ExecutionMode.FOREGROUND,
         )
         manager.register(
-            WorkingService(), execution_mode=ExecutionMode.FOREGROUND
+            WorkingService(),
+            name="working",
+            execution_mode=ExecutionMode.FOREGROUND,
         )
 
-        futures = await manager.start()
-        futures = list(futures.values())
+        await manager.start()
+
+        exceptional_future = manager.services["exceptional"].future
+        working_future = manager.services["working"].future
 
         await manager.stop()
 
-        assert futures[0].exception() is not None
-        assert futures[1].result() == 10
+        assert exceptional_future.exception() is not None
+        assert working_future.result() == 10
 
     async def test_exception_in_shared_thread_service_allows_other_services_to_execute(
         self,
@@ -300,20 +493,28 @@ class TestServiceManagerExceptionHandling:
 
         manager = ServiceManager()
         manager.register(
-            ExceptionalService(), isolation_mode=IsolationMode.SHARED_THREAD
+            ExceptionalService(),
+            name="exceptional",
+            isolation_mode=IsolationMode.SHARED_THREAD,
         )
         manager.register(
-            WorkingService(), isolation_mode=IsolationMode.SHARED_THREAD
+            WorkingService(),
+            name="working",
+            isolation_mode=IsolationMode.SHARED_THREAD,
         )
 
-        futures = await manager.start()
-        futures = list(futures.values())
+        await manager.start()
 
-        await asyncio.gather(*futures, return_exceptions=True)
+        exceptional_future = manager.services["exceptional"].future
+        working_future = manager.services["working"].future
+
+        await asyncio.gather(
+            exceptional_future, working_future, return_exceptions=True
+        )
         await manager.stop()
 
-        assert futures[0].exception() is not None
-        assert futures[1].result() == 10
+        assert exceptional_future.exception() is not None
+        assert working_future.result() == 10
 
     async def test_exception_in_dedicated_thread_service_allows_other_services_to_execute(
         self,
@@ -329,20 +530,28 @@ class TestServiceManagerExceptionHandling:
 
         manager = ServiceManager()
         manager.register(
-            ExceptionalService(), isolation_mode=IsolationMode.DEDICATED_THREAD
+            ExceptionalService(),
+            name="exceptional",
+            isolation_mode=IsolationMode.DEDICATED_THREAD,
         )
         manager.register(
-            WorkingService(), isolation_mode=IsolationMode.DEDICATED_THREAD
+            WorkingService(),
+            name="working",
+            isolation_mode=IsolationMode.DEDICATED_THREAD,
         )
 
-        futures = await manager.start()
-        futures = list(futures.values())
+        await manager.start()
 
-        await asyncio.gather(*futures, return_exceptions=True)
+        exceptional_future = manager.services["exceptional"].future
+        working_future = manager.services["working"].future
+
+        await asyncio.gather(
+            exceptional_future, working_future, return_exceptions=True
+        )
         await manager.stop()
 
-        assert futures[0].exception() is not None
-        assert futures[1].result() == 10
+        assert exceptional_future.exception() is not None
+        assert working_future.result() == 10
 
 
 class TestServiceManagerLongRunningServices:
@@ -745,18 +954,21 @@ class TestServiceManagerSignalHandling:
             manager.stop_on([signal.SIGINT, signal.SIGTERM])
             manager.register(
                 CancelCapturingService("service1"),
+                name="service1",
                 isolation_mode=IsolationMode.MAIN_THREAD,
             )
             manager.register(
                 CancelCapturingService("service2"),
+                name="service2",
                 isolation_mode=IsolationMode.SHARED_THREAD,
             )
             manager.register(
                 CancelCapturingService("service3"),
+                name="service3",
                 isolation_mode=IsolationMode.DEDICATED_THREAD,
             )
 
-            futures = await manager.start()
+            await manager.start()
 
             async def services_have_started():
                 while (
@@ -770,7 +982,12 @@ class TestServiceManagerSignalHandling:
 
             os.kill(os.getpid(), sig)
 
-            await asyncio.gather(*futures.values(), return_exceptions=True)
+            await asyncio.gather(
+                manager.services["service1"].future,
+                manager.services["service2"].future,
+                manager.services["service3"].future,
+                return_exceptions=True,
+            )
 
             tasks = [
                 task
@@ -847,7 +1064,7 @@ class TestServiceManagerGetServiceState:
 
         state = manager.get_service_state("Worker")
 
-        assert state == ManagedServiceState(
+        assert state == ExecutableManagedServiceState(
             service=service,
             name="Worker",
             execution_mode=ExecutionMode.FOREGROUND,
@@ -885,7 +1102,7 @@ class TestManagedServiceStateRepr:
         result = repr(manager.services["Worker"])
 
         assert result == (
-            "ManagedServiceState("
+            "ExecutableManagedServiceState("
             "name=Worker, "
             "service=MyService(), "
             "execution_mode=ExecutionMode.FOREGROUND, "

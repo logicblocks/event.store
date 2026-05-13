@@ -65,21 +65,27 @@ class IsolationMode(Enum):
 
 class ManagedServiceState[T](ABC):
     @property
+    @abstractmethod
     def service(self) -> Service[T]: ...
 
     @property
+    @abstractmethod
     def name(self) -> str: ...
 
     @property
+    @abstractmethod
     def execution_mode(self) -> ExecutionMode: ...
 
     @property
+    @abstractmethod
     def isolation_mode(self) -> IsolationMode: ...
 
     @property
+    @abstractmethod
     def service_status(self) -> ProcessStatus: ...
 
     @property
+    @abstractmethod
     def future(self) -> DeferredFuture[T]: ...
 
 

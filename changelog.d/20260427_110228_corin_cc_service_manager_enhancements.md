@@ -5,7 +5,7 @@
 - Automatic UUID-based service name generation in `ServiceManager` when no name is provided
 - `ManagedServiceState` class for accessing the current state of a service that has been registered in `ServiceManager`
 - `ServiceManager.services` property exposing registered service states as a name-keyed mapping
-- `ServiceManager.get_service_state` method for retrieving a single service's state by name
+- `ServiceManager.service` method for retrieving a single service's state by name
 - `DeferredFuture` class providing a stable awaitable handle that delegates to the real future once resolved, raising `RuntimeError` if awaited before scheduling. Returned by `ManagedServiceState.future`
 
 ### Changed

@@ -314,7 +314,7 @@ class ServiceManager:
     def services(self) -> Mapping[str, ManagedServiceState[Any]]:
         return dict(self._service_states)
 
-    def get_service_state(self, name: str) -> ManagedServiceState[Any] | None:
+    def service(self, name: str) -> ManagedServiceState[Any] | None:
         return self._service_states.get(name)
 
     def _generate_default_service_name(self, service: Service[Any]) -> str:

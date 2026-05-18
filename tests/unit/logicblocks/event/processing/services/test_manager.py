@@ -66,7 +66,7 @@ class TestServiceManagerExecutionModes:
             execution_mode=ExecutionMode.FOREGROUND,
         )
 
-        state = manager.get_service_state("svc")
+        state = manager.service("svc")
         assert state is not None
         assert state.future is not None
 
@@ -87,7 +87,7 @@ class TestServiceManagerExecutionModes:
             execution_mode=ExecutionMode.FOREGROUND,
         )
 
-        state = manager.get_service_state("svc")
+        state = manager.service("svc")
         assert state is not None
 
         with pytest.raises(RuntimeError, match="has not been scheduled"):
@@ -1045,7 +1045,7 @@ class TestServiceManagerGetServiceState:
     async def test_returns_none_when_name_not_registered(self):
         manager = ServiceManager()
 
-        assert manager.get_service_state("nonexistent") is None
+        assert manager.service("nonexistent") is None
 
     async def test_returns_state_for_registered_service(self):
         class MyService(Service):
@@ -1062,7 +1062,7 @@ class TestServiceManagerGetServiceState:
             isolation_mode=IsolationMode.SHARED_THREAD,
         )
 
-        state = manager.get_service_state("Worker")
+        state = manager.service("Worker")
 
         assert state == ExecutableManagedServiceState(
             service=service,
@@ -1079,7 +1079,7 @@ class TestServiceManagerGetServiceState:
         manager = ServiceManager()
         manager.register(MyService(), name="Worker")
 
-        assert manager.get_service_state("Other") is None
+        assert manager.service("Other") is None
 
 
 class TestManagedServiceStateRepr:

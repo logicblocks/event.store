@@ -22,7 +22,7 @@ class DeferredFuture[T]:
         self._name = name
         self._inner: Future[T] | None = None
 
-    def resolve(self, future: Future[T]) -> None:
+    def _resolve(self, future: Future[T]) -> None:
         self._inner = future
 
     def result(self) -> T:
@@ -135,7 +135,7 @@ class ExecutableManagedServiceState[T](ManagedServiceState[T]):
         self, fn: Callable[[Coroutine[Any, Any, T]], Awaitable[Future[T]]]
     ) -> Future[T]:
         fut = await fn(self._service.execute())
-        self._future.resolve(fut)
+        self._future._resolve(fut)
         return fut
 
     def __repr__(self):

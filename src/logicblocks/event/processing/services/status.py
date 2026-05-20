@@ -1,7 +1,8 @@
 import asyncio
+from abc import ABC
 from typing import Any
 
-from ..process.base import ProcessStatus
+from ..process import HasProcessStatus, ProcessStatus
 from .types import Service
 
 
@@ -29,3 +30,14 @@ class StatusTrackingService[T = Any](Service[T]):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self._service!r})"
+
+
+class DelegateServiceStatusTrackingMixin(ABC):
+    _service: Service
+
+    @property
+    def status(self) -> ProcessStatus:
+        if isinstance(self._service, HasProcessStatus):
+            return self._service.status
+        else:
+            return ProcessStatus.UNKNOWN

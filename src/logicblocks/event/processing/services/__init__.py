@@ -24,7 +24,7 @@ from .manager import (
     ServiceManager,
 )
 from .polling import PollingService
-from .status import StatusTrackingService
+from .status import DelegateServiceStatusTrackingMixin, StatusTrackingService
 from .types import ExecutionMode, IsolationMode, ManagedServiceState, Service
 
 __all__ = [
@@ -50,6 +50,7 @@ __all__ = [
     "ManagedServiceState",
     "Service",
     "StatusTrackingService",
+    "DelegateServiceStatusTrackingMixin",
     "TypeMappingErrorHandler",
     "error_handler_type_mappings",
     "exit_fatally_type_mapping",

@@ -13,16 +13,18 @@ from uuid import UUID
 import pytest
 
 from logicblocks.event.processing import (
-    ExecutionMode,
-    IsolationMode,
     ProcessStatus,
     Service,
     ServiceManager,
     StatusTrackingService,
 )
+from logicblocks.event.processing.services import (
+    ExecutionMode,
+    IsolationMode,
+    ManagedServiceState,
+)
 from logicblocks.event.processing.services.manager import (
     ExecutableManagedServiceState,
-    ManagedServiceState,
 )
 
 # supervision

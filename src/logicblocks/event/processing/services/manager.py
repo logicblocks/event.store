@@ -2,8 +2,7 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
-from collections.abc import Coroutine, Mapping, Sequence
-from enum import Enum, auto
+from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Any, Self, override
 from uuid import uuid4
@@ -14,96 +13,14 @@ from ..process import (
     HasProcessStatus,
     ProcessStatus,
 )
-from .types import Service
-
-
-class DeferredFuture[T]:
-    def __init__(self, name: str):
-        self._name = name
-        self._inner: Future[T] | None = None
-
-    def _resolve(self, future: Future[T]) -> None:
-        self._inner = future
-
-    def result(self) -> T:
-        if self._inner is None:
-            raise RuntimeError(
-                f"Service '{self._name}' has not been scheduled yet."
-            )
-        return self._inner.result()
-
-    def exception(self) -> BaseException | None:
-        if self._inner is None:
-            raise RuntimeError(
-                f"Service '{self._name}' has not been scheduled yet."
-            )
-        return self._inner.exception()
-
-    def done(self) -> bool:
-        if self._inner is None:
-            return False
-        return self._inner.done()
-
-    def __await__(self):
-        if self._inner is None:
-            raise RuntimeError(
-                f"Service '{self._name}' has not been scheduled yet."
-            )
-        return self._inner.__await__()
-
-
-class ExecutionMode(Enum):
-    FOREGROUND = auto()
-    BACKGROUND = auto()
-
-
-class IsolationMode(Enum):
-    MAIN_THREAD = auto()
-    SHARED_THREAD = auto()
-    DEDICATED_THREAD = auto()
-
-
-class ManagedServiceState[T](ABC):
-    @property
-    @abstractmethod
-    def service(self) -> Service[T]: ...
-
-    @property
-    @abstractmethod
-    def name(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def execution_mode(self) -> ExecutionMode: ...
-
-    @property
-    @abstractmethod
-    def isolation_mode(self) -> IsolationMode: ...
-
-    @property
-    @abstractmethod
-    def service_status(self) -> ProcessStatus: ...
-
-    @property
-    @abstractmethod
-    def future(self) -> DeferredFuture[T]: ...
-
-
-class ServiceDefinition[T](ABC):
-    @property
-    @abstractmethod
-    def name(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def execution_mode(self) -> ExecutionMode: ...
-
-    @property
-    @abstractmethod
-    def isolation_mode(self) -> IsolationMode: ...
-
-    @abstractmethod
-    def coroutine(self) -> Coroutine[Any, Any, T]: ...
+from .deferred_future import DeferredFuture
+from .types import (
+    ExecutionMode,
+    IsolationMode,
+    ManagedServiceState,
+    Service,
+    ServiceDefinition,
+)
 
 
 class ExecutableManagedServiceState[T](

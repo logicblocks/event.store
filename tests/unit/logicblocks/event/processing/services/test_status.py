@@ -11,6 +11,30 @@ from logicblocks.event.processing import (
 )
 
 
+class TestStatusTrackingServiceRepr:
+    async def test_includes_class_name_and_inner_service_repr(self):
+        class InnerService(Service):
+            def __repr__(self):
+                return "InnerService()"
+
+            async def execute(self):
+                pass
+
+        inner = InnerService()
+        service = StatusTrackingService(service=inner)
+
+        assert repr(service) == "StatusTrackingService(InnerService())"
+
+    async def test_delegates_to_inner_service_repr(self):
+        async def noop():
+            pass
+
+        inner = CallableService(noop)
+        service = StatusTrackingService(service=inner)
+
+        assert repr(service) == f"StatusTrackingService({inner!r})"
+
+
 class TestStatusTrackingService:
     async def test_has_initialised_status_before_running(self):
         async def noop():

@@ -11,6 +11,7 @@ class ProcessStatus(StrEnum):
     STOPPING = "stopping"
     STOPPED = "stopped"
     ERRORED = "errored"
+    UNKNOWN = "unknown"
 
 
 @runtime_checkable

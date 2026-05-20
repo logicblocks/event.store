@@ -1,4 +1,5 @@
 from .callable import CallableService, CallableServiceCallable
+from .deferred_future import DeferredFuture
 from .error import (
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
@@ -20,17 +21,16 @@ from .error import (
     retry_execution_type_mapping,
 )
 from .manager import (
-    ExecutionMode,
-    IsolationMode,
     ServiceManager,
 )
 from .polling import PollingService
 from .status import StatusTrackingService
-from .types import Service
+from .types import ExecutionMode, IsolationMode, ManagedServiceState, Service
 
 __all__ = [
     "CallableService",
     "CallableServiceCallable",
+    "DeferredFuture",
     "ErrorHandler",
     "ErrorHandlerDecision",
     "ErrorHandlingService",
@@ -47,6 +47,7 @@ __all__ = [
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",
     "ServiceManager",
+    "ManagedServiceState",
     "Service",
     "StatusTrackingService",
     "TypeMappingErrorHandler",

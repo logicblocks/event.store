@@ -2,40 +2,100 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
-from collections.abc import Coroutine, Sequence
-from enum import Enum, auto
+from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Any, Self, override
+from uuid import uuid4
 
 import uvloop
 
-from .types import Service
+from ..process import (
+    HasProcessStatus,
+    ProcessStatus,
+)
+from .deferred_future import DeferredFuture
+from .types import (
+    ExecutionMode,
+    IsolationMode,
+    ManagedServiceState,
+    Service,
+    ServiceDefinition,
+)
 
 
-class ExecutionMode(Enum):
-    FOREGROUND = auto()
-    BACKGROUND = auto()
-
-
-class IsolationMode(Enum):
-    MAIN_THREAD = auto()
-    SHARED_THREAD = auto()
-    DEDICATED_THREAD = auto()
-
-
-class ServiceDefinition[T]:
+class ExecutableManagedServiceState[T](
+    ManagedServiceState[T], ServiceDefinition[T]
+):
     def __init__(
         self,
         service: Service[T],
+        name: str,
         execution_mode: ExecutionMode,
         isolation_mode: IsolationMode,
     ):
-        self.service = service
-        self.execution_mode = execution_mode
-        self.isolation_mode = isolation_mode
+        self._service = service
+        self._name = name
+        self._execution_mode = execution_mode
+        self._isolation_mode = isolation_mode
+        self._future: DeferredFuture[T] = DeferredFuture(name)
 
-    def coroutine(self) -> Coroutine[Any, Any, T]:
-        return self.service.execute()
+    @property
+    def service(self) -> Service[T]:
+        return self._service
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        return self._execution_mode
+
+    @property
+    def isolation_mode(self) -> IsolationMode:
+        return self._isolation_mode
+
+    @property
+    def service_status(self) -> ProcessStatus:
+        return (
+            self._service.status
+            if isinstance(self._service, HasProcessStatus)
+            else ProcessStatus.UNKNOWN
+        )
+
+    @property
+    def future(self) -> DeferredFuture[T]:
+        return self._future
+
+    def coroutine(self):
+        return self._service.execute()
+
+    def register_future(self, fut: Future[T]):
+        self._future._resolve(fut)
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"name={self.name}, "
+            f"service={self._service!r}, "
+            f"execution_mode={self.execution_mode}, "
+            f"isolation_mode={self.isolation_mode}"
+            ")"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ManagedServiceState):
+            return NotImplemented
+
+        return (
+            self.name == other.name
+            and self._service == other.service
+            and self.execution_mode == other.execution_mode
+            and self.isolation_mode == other.isolation_mode
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.execution_mode, self.isolation_mode))
 
 
 class ServiceExecutor(ABC):
@@ -131,7 +191,7 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
         await asyncio.gather(*service_tasks, return_exceptions=True)
 
 
-class IsolationModeAwareServiceExecutor:
+class IsolationModeAwareServiceExecutor(ServiceExecutor):
     def __init__(self):
         self._main_executor = MainThreadServiceExecutor()
         self._shared_executor = IsolatedThreadServiceExecutor()
@@ -149,13 +209,14 @@ class IsolationModeAwareServiceExecutor:
     async def schedule[R = Any](
         self, definition: ServiceDefinition[R]
     ) -> Future[R]:
-        if definition.isolation_mode == IsolationMode.MAIN_THREAD:
-            return await self._main_executor.schedule(definition)
-        if definition.isolation_mode == IsolationMode.SHARED_THREAD:
-            return await self._shared_executor.schedule(definition)
-
-        dedicated_executor = await self._prepare_dedicated_executor()
-        return await dedicated_executor.schedule(definition)
+        match definition.isolation_mode:
+            case IsolationMode.MAIN_THREAD:
+                return await self._main_executor.schedule(definition)
+            case IsolationMode.SHARED_THREAD:
+                return await self._shared_executor.schedule(definition)
+            case IsolationMode.DEDICATED_THREAD:
+                dedicated_executor = await self._prepare_dedicated_executor()
+                return await dedicated_executor.schedule(definition)
 
     async def stop(self) -> Self:
         await asyncio.gather(
@@ -174,27 +235,51 @@ class IsolationModeAwareServiceExecutor:
 
 class ServiceManager:
     def __init__(self):
-        self._service_definitions: list[ServiceDefinition[Any]] = []
+        self._service_states: dict[
+            str, ExecutableManagedServiceState[Any]
+        ] = {}
         self._stop_on_signals: list[int] = []
         self._service_executor = IsolationModeAwareServiceExecutor()
 
-    def register(
+    @property
+    def services(self) -> Mapping[str, ManagedServiceState[Any]]:
+        return dict(self._service_states)
+
+    def service(self, name: str) -> ManagedServiceState[Any] | None:
+        return self._service_states.get(name)
+
+    def _generate_default_service_name(self, service: Service[Any]) -> str:
+        return uuid4().hex
+
+    def register[T](
         self,
-        service: Service,
+        service: Service[T],
         *,
+        name: str | None = None,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
-        self._service_definitions.append(
-            ServiceDefinition(service, execution_mode, isolation_mode)
+        name = name or self._generate_default_service_name(service)
+
+        if name in self._service_states:
+            raise ValueError(
+                f"Service with name '{name}' is already registered."
+            )
+
+        self._service_states[name] = ExecutableManagedServiceState[T](
+            service=service,
+            name=name,
+            execution_mode=execution_mode,
+            isolation_mode=isolation_mode,
         )
+
         return self
 
     def stop_on(self, signals: Sequence[int]) -> Self:
         self._stop_on_signals = [*self._stop_on_signals, *signals]
         return self
 
-    async def __aenter__(self) -> list[Future[Any]]:
+    async def __aenter__(self) -> Self:
         return await self.start()
 
     async def __aexit__(
@@ -206,7 +291,14 @@ class ServiceManager:
         await self.stop()
         return False
 
-    async def start(self) -> list[Future[Any]]:
+    async def _execute_service(
+        self, state: ExecutableManagedServiceState[Any]
+    ):
+        fut = await self._service_executor.schedule(state)
+        state.register_future(fut)
+        return fut
+
+    async def start(self) -> Self:
         loop = asyncio.get_event_loop()
         for sig in self._stop_on_signals:
             loop.add_signal_handler(
@@ -215,23 +307,22 @@ class ServiceManager:
 
         await self._service_executor.start()
 
-        all_futures = [
-            await self._service_executor.schedule(service_definition)
-            for service_definition in self._service_definitions
-        ]
-        blocking_futures = [
+        all_futures = {
+            name: await self._execute_service(service_state)
+            for name, service_state in self._service_states.items()
+        }
+
+        blocking_futures = (
             future
-            for future, definition in zip(
-                all_futures, self._service_definitions
-            )
-            if definition.execution_mode == ExecutionMode.FOREGROUND
-        ]
+            for name, future in all_futures.items()
+            if self._service_states[name].execution_mode
+            == ExecutionMode.FOREGROUND
+        )
 
         await asyncio.gather(*blocking_futures, return_exceptions=True)
 
-        return all_futures
+        return self
 
     async def stop(self) -> Self:
         await self._service_executor.stop()
-
         return self

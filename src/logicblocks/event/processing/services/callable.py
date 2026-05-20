@@ -30,3 +30,12 @@ class CallableService[T = Any](Service[T]):
 
     async def execute(self) -> T:
         return await self._callable()
+
+    def __repr__(self):
+        callable_name = getattr(
+            self._callable,
+            "__qualname__",
+            getattr(self._callable, "__name__", repr(self._callable)),
+        )
+
+        return f"{self.__class__.__name__}(callable={callable_name})"

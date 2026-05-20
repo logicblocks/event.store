@@ -559,6 +559,22 @@ class TestErrorHandlingServiceWithCustomService:
         assert call_count == 3
 
 
+class TestErrorHandlingServiceRepr:
+    async def test_includes_class_name_and_callable_repr(self):
+        async def my_handler():
+            pass
+
+        service = ErrorHandlingService(
+            callable=my_handler,
+            error_handler=ContinueErrorHandler(value_factory=lambda ex: None),
+        )
+
+        assert (
+            repr(service)
+            == f"ErrorHandlingService(CallableService(callable={my_handler.__qualname__}))"
+        )
+
+
 class TestErrorHandlingServiceWithCallable:
     async def test_raises_exception_when_raise_error_handler_decision(self):
         call_count = 0

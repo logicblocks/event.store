@@ -1,6 +1,62 @@
+import asyncio
 from typing import assert_type
 
 from logicblocks.event.processing import CallableService
+
+
+class TestCallableServiceRepr:
+    async def test_uses_qualname_of_named_function(self):
+        async def my_function():
+            return 42
+
+        service = CallableService(my_function)
+
+        assert repr(service) == (
+            f"CallableService(callable={my_function.__qualname__})"
+        )
+
+    async def test_uses_qualname_of_lambda(self):
+        fn = lambda: asyncio.sleep(0)  # noqa: E731
+
+        service = CallableService(fn)
+
+        assert repr(service) == (
+            f"CallableService(callable={fn.__qualname__})"
+        )
+
+    async def test_uses_name_when_qualname_not_available(self):
+        class MyCallable:
+            __name__ = "my_callable"
+
+            async def __call__(self):
+                return 42
+
+        service = CallableService(MyCallable())
+
+        assert repr(service) == "CallableService(callable=my_callable)"
+
+    async def test_uses_repr_for_callable_object_without_name(self):
+        class MyCallable:
+            async def __call__(self):
+                return 42
+
+            def __repr__(self):
+                return "MyCallable()"
+
+        service = CallableService(MyCallable())
+
+        assert repr(service) == "CallableService(callable=MyCallable())"
+
+    async def test_uses_default_repr_for_callable_object_without_name(self):
+        class MyCallable:
+            async def __call__(self):
+                return 42
+
+        my_callable = MyCallable()
+
+        service = CallableService(my_callable)
+
+        assert repr(service) == f"CallableService(callable={my_callable!r})"
 
 
 class TestCallableServiceExecute:

@@ -64,6 +64,21 @@ class TestPollingServiceExecute:
         assert counter == 3
 
 
+class TestPollingServiceRepr:
+    async def test_includes_class_name_and_callable_repr(self):
+        async def my_poller():
+            pass
+
+        service = PollingService(
+            callable=my_poller, poll_interval=timedelta(milliseconds=100)
+        )
+
+        assert (
+            repr(service)
+            == f"PollingService(CallableService(callable={my_poller.__qualname__}))"
+        )
+
+
 class TestPollingServiceWithCallableBackwardsCompatibility:
     async def test_accepts_callable_and_auto_wraps(self):
         counter = 0

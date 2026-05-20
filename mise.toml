@@ -16,6 +16,9 @@ watchexec = "2.3.2"
 [tasks."dependencies:install"]
 run = "invoke deps.install"
 
+[tasks."dependencies:lock"]
+run = "invoke deps.lock"
+
 [tasks.build]
 depends = ["dependencies:install"]
 sources = ["src/**/*"]

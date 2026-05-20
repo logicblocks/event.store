@@ -2,7 +2,7 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
-from collections.abc import Mapping, Sequence
+from collections.abc import Coroutine, Mapping, Sequence
 from enum import Enum, auto
 from types import TracebackType
 from typing import Any, Self, override
@@ -89,7 +89,26 @@ class ManagedServiceState[T](ABC):
     def future(self) -> DeferredFuture[T]: ...
 
 
-class ExecutableManagedServiceState[T](ManagedServiceState[T]):
+class ServiceDefinition[T](ABC):
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @property
+    @abstractmethod
+    def execution_mode(self) -> ExecutionMode: ...
+
+    @property
+    @abstractmethod
+    def isolation_mode(self) -> IsolationMode: ...
+
+    @abstractmethod
+    def coroutine(self) -> Coroutine[Any, Any, T]: ...
+
+
+class ExecutableManagedServiceState[T](
+    ManagedServiceState[T], ServiceDefinition[T]
+):
     def __init__(
         self,
         service: Service[T],
@@ -120,10 +139,6 @@ class ExecutableManagedServiceState[T](ManagedServiceState[T]):
         return self._isolation_mode
 
     @property
-    def future(self) -> DeferredFuture[T]:
-        return self._future
-
-    @property
     def service_status(self) -> ProcessStatus:
         return (
             self._service.status
@@ -131,10 +146,14 @@ class ExecutableManagedServiceState[T](ManagedServiceState[T]):
             else ProcessStatus.UNKNOWN
         )
 
-    def _coroutine(self):
+    @property
+    def future(self) -> DeferredFuture[T]:
+        return self._future
+
+    def coroutine(self):
         return self._service.execute()
 
-    def _register_future(self, fut: Future[T]):
+    def register_future(self, fut: Future[T]):
         self._future._resolve(fut)
 
     def __repr__(self):
@@ -169,7 +188,7 @@ class ServiceExecutor(ABC):
 
     @abstractmethod
     async def schedule[R = Any](
-        self, definition: ExecutableManagedServiceState[R]
+        self, definition: ServiceDefinition[R]
     ) -> Future[R]:
         raise NotImplementedError
 
@@ -188,10 +207,9 @@ class MainThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, definition: ExecutableManagedServiceState[R]
+        self, definition: ServiceDefinition[R]
     ) -> Future[R]:
-        task = asyncio.create_task(definition._coroutine())
-        definition._register_future(task)
+        task = asyncio.create_task(definition.coroutine())
 
         self.service_tasks.add(task)
 
@@ -219,15 +237,13 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, definition: ExecutableManagedServiceState[R]
+        self, definition: ServiceDefinition[R]
     ) -> Future[R]:
-        fut = asyncio.wrap_future(
+        return asyncio.wrap_future(
             asyncio.run_coroutine_threadsafe(
-                definition._coroutine(), self._loop
+                definition.coroutine(), self._loop
             )
         )
-        definition._register_future(fut)
-        return fut
 
     @override
     async def stop(self) -> Self:
@@ -258,7 +274,7 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
         await asyncio.gather(*service_tasks, return_exceptions=True)
 
 
-class IsolationModeAwareServiceExecutor:
+class IsolationModeAwareServiceExecutor(ServiceExecutor):
     def __init__(self):
         self._main_executor = MainThreadServiceExecutor()
         self._shared_executor = IsolatedThreadServiceExecutor()
@@ -274,7 +290,7 @@ class IsolationModeAwareServiceExecutor:
         return self
 
     async def schedule[R = Any](
-        self, definition: ExecutableManagedServiceState[R]
+        self, definition: ServiceDefinition[R]
     ) -> Future[R]:
         match definition.isolation_mode:
             case IsolationMode.MAIN_THREAD:
@@ -358,6 +374,13 @@ class ServiceManager:
         await self.stop()
         return False
 
+    async def _execute_service(
+        self, state: ExecutableManagedServiceState[Any]
+    ):
+        fut = await self._service_executor.schedule(state)
+        state.register_future(fut)
+        return fut
+
     async def start(self) -> Self:
         loop = asyncio.get_event_loop()
         for sig in self._stop_on_signals:
@@ -368,7 +391,7 @@ class ServiceManager:
         await self._service_executor.start()
 
         all_futures = {
-            name: await self._service_executor.schedule(service_state)
+            name: await self._execute_service(service_state)
             for name, service_state in self._service_states.items()
         }
 

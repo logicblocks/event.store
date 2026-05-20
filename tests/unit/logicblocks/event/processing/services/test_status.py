@@ -4,6 +4,7 @@ import pytest
 
 from logicblocks.event.processing import (
     CallableService,
+    DelegateServiceStatusTrackingMixin,
     HasProcessStatus,
     ProcessStatus,
     Service,
@@ -178,3 +179,100 @@ class TestStatusTrackingService:
             await service.execute()
 
         assert service.status == ProcessStatus.ERRORED
+
+
+class TestDelegateServiceStatusTrackingMixin:
+    @pytest.mark.parametrize("expected_status", list(ProcessStatus))
+    async def test_delegates_status_to_service(self, expected_status):
+        class FakeService(Service):
+            status = expected_status
+
+            async def execute(self):
+                pass
+
+        class Subject(DelegateServiceStatusTrackingMixin):
+            _service = FakeService()
+
+        subject = Subject()
+
+        assert subject.status == expected_status
+
+    async def test_reflects_dynamic_status_changes(self):
+        class FakeService(Service):
+            def __init__(self):
+                self.status = ProcessStatus.INITIALISED
+
+            async def execute(self):
+                pass
+
+        fake_service = FakeService()
+
+        class Subject(DelegateServiceStatusTrackingMixin):
+            _service = fake_service
+
+        subject = Subject()
+
+        assert subject.status == ProcessStatus.INITIALISED
+
+        fake_service.status = ProcessStatus.RUNNING
+        assert subject.status == ProcessStatus.RUNNING
+
+        fake_service.status = ProcessStatus.STOPPED
+        assert subject.status == ProcessStatus.STOPPED
+
+    async def test_satisfies_has_process_status_protocol(self):
+        class FakeService(Service):
+            def __init__(self):
+                self.status = ProcessStatus.INITIALISED
+
+            async def execute(self):
+                pass
+
+        class Subject(DelegateServiceStatusTrackingMixin):
+            _service = FakeService()
+
+        subject = Subject()
+
+        assert isinstance(subject, HasProcessStatus)
+
+    async def test_works_with_status_tracking_service(self):
+        async def noop():
+            pass
+
+        status_tracking_service = StatusTrackingService(
+            service=CallableService(noop),
+        )
+
+        class Subject(DelegateServiceStatusTrackingMixin):
+            _service = status_tracking_service
+
+        subject = Subject()
+
+        assert subject.status == ProcessStatus.INITIALISED
+
+        await status_tracking_service.execute()
+
+        assert subject.status == ProcessStatus.STOPPED
+
+    async def test_works_with_nested_status_tracking_service(self):
+        class MyCoolService(Service, DelegateServiceStatusTrackingMixin):
+            def __init__(self, service: Service):
+                self._service = service
+
+            async def execute(self):
+                pass
+
+        async def noop():
+            pass
+
+        status_tracking_service = StatusTrackingService(
+            service=CallableService(noop),
+        )
+
+        subject = MyCoolService(status_tracking_service)
+
+        assert subject.status == ProcessStatus.INITIALISED
+
+        await status_tracking_service.execute()
+
+        assert subject.status == ProcessStatus.STOPPED

@@ -2,7 +2,7 @@ import asyncio
 import threading
 from abc import ABC, abstractmethod
 from asyncio import Future, Task
-from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from enum import Enum, auto
 from types import TracebackType
 from typing import Any, Self, override
@@ -131,12 +131,11 @@ class ExecutableManagedServiceState[T](ManagedServiceState[T]):
             else ProcessStatus.UNKNOWN
         )
 
-    async def schedule_with_coroutine(
-        self, fn: Callable[[Coroutine[Any, Any, T]], Awaitable[Future[T]]]
-    ) -> Future[T]:
-        fut = await fn(self._service.execute())
+    def _coroutine(self):
+        return self._service.execute()
+
+    def _register_future(self, fut: Future[T]):
         self._future._resolve(fut)
-        return fut
 
     def __repr__(self):
         return (
@@ -170,7 +169,7 @@ class ServiceExecutor(ABC):
 
     @abstractmethod
     async def schedule[R = Any](
-        self, coro: Coroutine[Any, Any, R]
+        self, definition: ExecutableManagedServiceState[R]
     ) -> Future[R]:
         raise NotImplementedError
 
@@ -189,9 +188,10 @@ class MainThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, coro: Coroutine[Any, Any, R]
+        self, definition: ExecutableManagedServiceState[R]
     ) -> Future[R]:
-        task = asyncio.create_task(coro)
+        task = asyncio.create_task(definition._coroutine())
+        definition._register_future(task)
 
         self.service_tasks.add(task)
 
@@ -219,11 +219,15 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
 
     @override
     async def schedule[R = Any](
-        self, coro: Coroutine[Any, Any, R]
+        self, definition: ExecutableManagedServiceState[R]
     ) -> Future[R]:
-        return asyncio.wrap_future(
-            asyncio.run_coroutine_threadsafe(coro, self._loop)
+        fut = asyncio.wrap_future(
+            asyncio.run_coroutine_threadsafe(
+                definition._coroutine(), self._loop
+            )
         )
+        definition._register_future(fut)
+        return fut
 
     @override
     async def stop(self) -> Self:
@@ -274,18 +278,12 @@ class IsolationModeAwareServiceExecutor:
     ) -> Future[R]:
         match definition.isolation_mode:
             case IsolationMode.MAIN_THREAD:
-                return await definition.schedule_with_coroutine(
-                    self._main_executor.schedule
-                )
+                return await self._main_executor.schedule(definition)
             case IsolationMode.SHARED_THREAD:
-                return await definition.schedule_with_coroutine(
-                    self._shared_executor.schedule
-                )
+                return await self._shared_executor.schedule(definition)
             case IsolationMode.DEDICATED_THREAD:
                 dedicated_executor = await self._prepare_dedicated_executor()
-                return await definition.schedule_with_coroutine(
-                    dedicated_executor.schedule
-                )
+                return await dedicated_executor.schedule(definition)
 
     async def stop(self) -> Self:
         await asyncio.gather(

@@ -1,5 +1,6 @@
 import warnings
 from collections.abc import Callable
+from datetime import timedelta
 
 import pytest
 
@@ -20,6 +21,7 @@ from logicblocks.event.processing import (
     raise_exception_type_mapping,
     retry_execution_type_mapping,
 )
+from logicblocks.event.processing.services import ConstantWaitStrategy
 from logicblocks.event.processing.services.error import (
     exit_fatally_type_mapping,
 )
@@ -141,6 +143,29 @@ class TestRetryErrorHandler:
         assert error_handler.handle(
             exception
         ) == ErrorHandlerDecision.raise_exception(exception)
+
+    def test_requests_retry_with_wait_time_from_wait_strategy(self):
+        class HandleableTestException(Exception):
+            pass
+
+        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=5))
+        error_handler = RetryErrorHandler(wait_strategy=wait_strategy)
+
+        assert error_handler.handle(
+            HandleableTestException()
+        ) == ErrorHandlerDecision.retry_execution(
+            wait_before_retry=timedelta(seconds=5)
+        )
+
+    def test_requests_retry_with_no_wait_time_when_no_wait_strategy(self):
+        class HandleableTestException(Exception):
+            pass
+
+        error_handler = RetryErrorHandler()
+
+        assert error_handler.handle(
+            HandleableTestException()
+        ) == ErrorHandlerDecision.retry_execution(wait_before_retry=None)
 
 
 class TestTypeMappingErrorHandler:
@@ -423,6 +448,38 @@ class TestTypeMappingErrorHandler:
             sub_exception
         ) == ErrorHandlerDecision.continue_execution(value=None)
 
+    def test_requests_retry_with_wait_time_for_specified_exception_types(self):
+        class TestException1(Exception):
+            pass
+
+        class TestException2(Exception):
+            pass
+
+        exception1 = TestException1()
+        exception2 = TestException2()
+
+        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=2))
+
+        handler = TypeMappingErrorHandler(
+            type_mappings=error_handler_type_mappings(
+                retry_execution=retry_execution_type_mapping(
+                    types=[TestException1, TestException2],
+                    wait_strategy=wait_strategy,
+                )
+            )
+        )
+
+        assert handler.handle(
+            exception1
+        ) == ErrorHandlerDecision.retry_execution(
+            wait_before_retry=timedelta(seconds=2)
+        )
+        assert handler.handle(
+            exception2
+        ) == ErrorHandlerDecision.retry_execution(
+            wait_before_retry=timedelta(seconds=2)
+        )
+
     def test_calls_callback_when_specified(self):
         class TestException(Exception):
             pass
@@ -559,6 +616,93 @@ class TestErrorHandlingServiceWithCustomService:
         assert call_count == 3
 
 
+class TestErrorHandlingServiceWaitBeforeRetry:
+    async def test_sleeps_for_wait_time_before_retrying(self):
+        call_count = 0
+        sleep_calls: list[float] = []
+
+        async def fake_sleep(seconds: float):
+            sleep_calls.append(seconds)
+
+        class RetryThenSucceedService(Service[int]):
+            async def execute(self) -> int:
+                nonlocal call_count
+                call_count += 1
+                if call_count < 3:
+                    raise RuntimeError("Not yet.")
+                return 42
+
+        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=5))
+
+        service = ErrorHandlingService(
+            service=RetryThenSucceedService(),
+            error_handler=RetryErrorHandler(wait_strategy=wait_strategy),
+            sleep=fake_sleep,
+        )
+
+        result = await service.execute()
+
+        assert result == 42
+        assert call_count == 3
+        assert sleep_calls == [5.0, 5.0]
+
+    async def test_does_not_sleep_when_wait_before_retry_is_none(self):
+        call_count = 0
+        sleep_calls: list[float] = []
+
+        async def fake_sleep(seconds: float):
+            sleep_calls.append(seconds)
+
+        class RetryThenSucceedService(Service[int]):
+            async def execute(self) -> int:
+                nonlocal call_count
+                call_count += 1
+                if call_count < 2:
+                    raise RuntimeError("Not yet.")
+                return 42
+
+        service = ErrorHandlingService(
+            service=RetryThenSucceedService(),
+            error_handler=RetryErrorHandler(),
+            sleep=fake_sleep,
+        )
+
+        result = await service.execute()
+
+        assert result == 42
+        assert call_count == 2
+        assert sleep_calls == []
+
+    async def test_does_not_sleep_when_wait_before_retry_is_zero(self):
+        call_count = 0
+        sleep_calls: list[float] = []
+
+        async def fake_sleep(seconds: float):
+            sleep_calls.append(seconds)
+
+        class RetryThenSucceedService(Service[int]):
+            async def execute(self) -> int:
+                nonlocal call_count
+                call_count += 1
+                if call_count < 2:
+                    raise RuntimeError("Not yet.")
+                return 42
+
+        wait_strategy = ConstantWaitStrategy(time=timedelta())
+
+        service = ErrorHandlingService(
+            service=RetryThenSucceedService(),
+            error_handler=RetryErrorHandler(wait_strategy=wait_strategy),
+            sleep=fake_sleep,
+        )
+
+        result = await service.execute()
+
+        assert result == 42
+        assert call_count == 2
+        assert sleep_calls == []
+
+
 class TestErrorHandlingServiceRepr:
     async def test_includes_class_name_and_callable_repr(self):
         async def my_handler():
@@ -571,7 +715,7 @@ class TestErrorHandlingServiceRepr:
 
         assert (
             repr(service)
-            == f"ErrorHandlingService(CallableService(callable={my_handler.__qualname__}))"
+            == f"ErrorHandlingService(CallableService({my_handler.__qualname__}))"
         )
 
 

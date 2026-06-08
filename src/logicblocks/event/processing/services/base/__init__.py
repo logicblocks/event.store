@@ -6,6 +6,12 @@ from .types import (
     Service,
     ServiceDefinition,
 )
+from .wait_strategy import (
+    ConstantWaitStrategy,
+    ExcludeExceptionsWaitStrategy,
+    IncludeExceptionsWaitStrategy,
+    WaitStrategy,
+)
 
 __all__ = [
     "Service",
@@ -14,4 +20,8 @@ __all__ = [
     "ManagedServiceState",
     "ServiceDefinition",
     "DeferredFuture",
+    "WaitStrategy",
+    "ConstantWaitStrategy",
+    "IncludeExceptionsWaitStrategy",
+    "ExcludeExceptionsWaitStrategy",
 ]

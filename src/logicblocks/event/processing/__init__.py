@@ -38,6 +38,7 @@ from .process import (
 )
 from .services import (
     CallableService,
+    ConstantWaitStrategy,
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     DeferredFuture,
@@ -46,9 +47,11 @@ from .services import (
     ErrorHandlerDecision,
     ErrorHandlingService,
     ErrorHandlingServiceMixin,
+    ExcludeExceptionsWaitStrategy,
     ExecutionMode,
     ExitErrorHandler,
     ExitErrorHandlerDecision,
+    IncludeExceptionsWaitStrategy,
     IsolationMode,
     ManagedServiceState,
     PollingService,
@@ -60,6 +63,7 @@ from .services import (
     ServiceManager,
     StatusTrackingService,
     TypeMappingErrorHandler,
+    WaitStrategy,
     continue_execution_type_mapping,
     error_handler_type_mappings,
     exit_fatally_type_mapping,
@@ -131,4 +135,8 @@ __all__ = [
     "make_in_memory_event_broker",
     "make_postgres_event_broker",
     "make_subscriber",
+    "WaitStrategy",
+    "ConstantWaitStrategy",
+    "IncludeExceptionsWaitStrategy",
+    "ExcludeExceptionsWaitStrategy",
 ]

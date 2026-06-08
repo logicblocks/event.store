@@ -12,7 +12,7 @@ class TestCallableServiceRepr:
         service = CallableService(my_function)
 
         assert repr(service) == (
-            f"CallableService(callable={my_function.__qualname__})"
+            f"CallableService({my_function.__qualname__})"
         )
 
     async def test_uses_qualname_of_lambda(self):
@@ -20,9 +20,7 @@ class TestCallableServiceRepr:
 
         service = CallableService(fn)
 
-        assert repr(service) == (
-            f"CallableService(callable={fn.__qualname__})"
-        )
+        assert repr(service) == (f"CallableService({fn.__qualname__})")
 
     async def test_uses_name_when_qualname_not_available(self):
         class MyCallable:
@@ -33,7 +31,7 @@ class TestCallableServiceRepr:
 
         service = CallableService(MyCallable())
 
-        assert repr(service) == "CallableService(callable=my_callable)"
+        assert repr(service) == "CallableService(my_callable)"
 
     async def test_uses_repr_for_callable_object_without_name(self):
         class MyCallable:
@@ -45,7 +43,7 @@ class TestCallableServiceRepr:
 
         service = CallableService(MyCallable())
 
-        assert repr(service) == "CallableService(callable=MyCallable())"
+        assert repr(service) == "CallableService(MyCallable())"
 
     async def test_uses_default_repr_for_callable_object_without_name(self):
         class MyCallable:
@@ -56,7 +54,7 @@ class TestCallableServiceRepr:
 
         service = CallableService(my_callable)
 
-        assert repr(service) == f"CallableService(callable={my_callable!r})"
+        assert repr(service) == f"CallableService({my_callable!r})"
 
 
 class TestCallableServiceExecute:

@@ -1,12 +1,15 @@
+import asyncio
 import warnings
 from abc import ABC, abstractmethod
 from builtins import callable as is_callable
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
 from .base import Service
+from .base.wait_strategy import WaitStrategy
 from .callable import CallableService, CallableServiceCallable
 
 
@@ -28,8 +31,11 @@ class ErrorHandlerDecision[T]:
         return ContinueErrorHandlerDecision[R](value=value)
 
     @staticmethod
-    def retry_execution() -> "RetryErrorHandlerDecision":
-        return RetryErrorHandlerDecision()
+    def retry_execution(
+        *,
+        wait_before_retry: timedelta | None = None,
+    ) -> "RetryErrorHandlerDecision":
+        return RetryErrorHandlerDecision(wait_before_retry=wait_before_retry)
 
 
 @dataclass(frozen=True)
@@ -49,7 +55,7 @@ class ContinueErrorHandlerDecision[T](ErrorHandlerDecision[T]):
 
 @dataclass(frozen=True)
 class RetryErrorHandlerDecision(ErrorHandlerDecision[Any]):
-    pass
+    wait_before_retry: timedelta | None = None
 
 
 class ErrorHandler[T](ABC):
@@ -115,9 +121,19 @@ class ContinueErrorHandler[T](ErrorHandler[T]):
 
 
 class RetryErrorHandler(ErrorHandler[Any]):
+    def __init__(self, wait_strategy: WaitStrategy | None = None):
+        self._wait_strategy = wait_strategy
+
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[Any]:
         if isinstance(exception, Exception):
-            return ErrorHandlerDecision.retry_execution()
+            wait_before_retry = (
+                self._wait_strategy.wait_time(exception)
+                if self._wait_strategy
+                else None
+            )
+            return ErrorHandlerDecision.retry_execution(
+                wait_before_retry=wait_before_retry
+            )
         else:
             return ErrorHandlerDecision.raise_exception(exception)
 
@@ -153,7 +169,7 @@ class ContinueExecutionTypeMappingDict[T](TypeMappingDict):
 
 
 class RetryExecutionTypeMappingDict(TypeMappingDict):
-    pass
+    wait_strategy: NotRequired[WaitStrategy | None]
 
 
 type ExitFatallyTypeMappingValue = (
@@ -194,6 +210,16 @@ def resolve_callback(
     if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
         return lambda _: None
     return type_mapping_value["callback"]
+
+
+def resolve_wait_strategy(
+    type_mapping_value: Sequence[type[BaseException]]
+    | RetryExecutionTypeMappingDict
+    | None,
+) -> WaitStrategy | None:
+    if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
+        return None
+    return type_mapping_value.get("wait_strategy")
 
 
 def resolve_exit_fatally_type_mapping_dict(
@@ -272,6 +298,7 @@ def resolve_retry_execution_type_mapping_dict(
     return RetryExecutionTypeMappingDict(
         types=resolve_exception_types(type_mapping_value),
         callback=resolve_callback(type_mapping_value),
+        wait_strategy=resolve_wait_strategy(type_mapping_value),
     )
 
 
@@ -350,7 +377,9 @@ def resolve_retry_execution_type_mappings(
 
     return {
         exception_type: ErrorHandlingDefinition[None](
-            handler=RetryErrorHandler(),
+            handler=RetryErrorHandler(
+                wait_strategy=type_mapping_dict.get("wait_strategy")
+            ),
             callback=type_mapping_dict["callback"],
         )
         for exception_type in type_mapping_dict["types"]
@@ -413,10 +442,12 @@ def continue_execution_type_mapping[T](
 def retry_execution_type_mapping(
     types: Sequence[type[BaseException]],
     callback: Callable[[BaseException], None] | None = None,
+    wait_strategy: WaitStrategy | None = None,
 ) -> RetryExecutionTypeMappingDict:
     return RetryExecutionTypeMappingDict(
         types=types,
         callback=callback if callback is not None else lambda _: None,
+        wait_strategy=wait_strategy,
     )
 
 
@@ -468,6 +499,7 @@ class ErrorHandlingService[T = Any](Service[T]):
         *,
         callable: CallableServiceCallable[T] | None = None,
         error_handler: ErrorHandler[T],
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         if callable is not None:
             warnings.warn(
@@ -488,12 +520,15 @@ class ErrorHandlingService[T = Any](Service[T]):
 
         self._service = CallableService.from_maybe_callable(service)
         self._error_handler = error_handler
+        self._sleep = sleep
 
     @classmethod
     async def apply_error_handling(
         cls,
         run: Callable[[], Awaitable[T]],
         error_handler: ErrorHandler[T],
+        *,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> T:
         while True:
             try:
@@ -507,7 +542,13 @@ class ErrorHandlingService[T = Any](Service[T]):
                         return value
                     case ExitErrorHandlerDecision(exit_code):
                         raise SystemExit(exit_code)
-                    case RetryErrorHandlerDecision():
+                    case RetryErrorHandlerDecision(wait_before_retry):
+                        if (
+                            wait_before_retry is not None
+                            and wait_before_retry > timedelta()
+                        ):
+                            await sleep(wait_before_retry.total_seconds())
+
                         continue
                     case _:
                         raise ValueError(
@@ -516,7 +557,9 @@ class ErrorHandlingService[T = Any](Service[T]):
 
     async def execute(self) -> T:
         return await self.apply_error_handling(
-            self._service.execute, self._error_handler
+            self._service.execute,
+            self._error_handler,
+            sleep=self._sleep,
         )
 
     def __repr__(self):

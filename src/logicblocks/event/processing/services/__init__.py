@@ -1,5 +1,11 @@
+from .base import (
+    DeferredFuture,
+    ExecutionMode,
+    IsolationMode,
+    ManagedServiceState,
+    Service,
+)
 from .callable import CallableService, CallableServiceCallable
-from .deferred_future import DeferredFuture
 from .error import (
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
@@ -25,7 +31,6 @@ from .manager import (
 )
 from .polling import PollingService
 from .status import DelegateServiceStatusTrackingMixin, StatusTrackingService
-from .types import ExecutionMode, IsolationMode, ManagedServiceState, Service
 
 __all__ = [
     "CallableService",

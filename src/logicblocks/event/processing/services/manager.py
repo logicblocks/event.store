@@ -13,8 +13,8 @@ from ..process import (
     HasProcessStatus,
     ProcessStatus,
 )
-from .deferred_future import DeferredFuture
-from .types import (
+from .base import (
+    DeferredFuture,
     ExecutionMode,
     IsolationMode,
     ManagedServiceState,

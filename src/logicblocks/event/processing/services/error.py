@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
+from .base import Service
 from .callable import CallableService, CallableServiceCallable
-from .types import Service
 
 
 class ErrorHandlerDecision[T]:

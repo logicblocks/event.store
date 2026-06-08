@@ -4,8 +4,8 @@ from builtins import callable as is_callable
 from datetime import timedelta
 from typing import Any, Never
 
+from .base import Service
 from .callable import CallableService, CallableServiceCallable
-from .types import Service
 
 
 class PollingService(Service[Never]):

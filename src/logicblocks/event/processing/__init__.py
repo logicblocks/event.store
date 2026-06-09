@@ -26,6 +26,7 @@ from .consumers import (
     EventSourceConsumer,
     EventSubscriptionConsumer,
     ProjectionEventProcessor,
+    make_event_store_subscriber,
     make_subscriber,
 )
 from .locks import InMemoryLockManager, Lock, LockManager, PostgresLockManager
@@ -114,6 +115,7 @@ __all__ = [
     "retry_execution_type_mapping",
     "error_handler_type_mappings",
     "make_event_broker",
+    "make_event_store_subscriber",
     "make_in_memory_event_broker",
     "make_postgres_event_broker",
     "make_subscriber",

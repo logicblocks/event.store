@@ -7,7 +7,11 @@ from .state import (
     EventCount,
     StoredEventEventConsumerStateConverter,
 )
-from .subscription import EventSubscriptionConsumer, make_subscriber
+from .subscription import (
+    EventSubscriptionConsumer,
+    make_event_store_subscriber,
+    make_subscriber,
+)
 from .types import (
     AutoCommitEventIteratorProcessor,
     EventConsumer,
@@ -29,6 +33,7 @@ __all__ = [
     "EventProcessorManager",
     "EventSourceConsumer",
     "EventSubscriptionConsumer",
+    "make_event_store_subscriber",
     "make_subscriber",
     "ManagedEventIteratorProcessor",
     "ProjectionEventProcessor",

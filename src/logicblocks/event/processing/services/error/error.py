@@ -59,7 +59,7 @@ class ContinueExecutionTypeMappingDict[T](TypeMappingDict):
 
 
 class RetryExecutionTypeMappingDict(TypeMappingDict):
-    wait_strategy: NotRequired[RetryStrategy | None]
+    retry_strategy: NotRequired[RetryStrategy | None]
 
 
 type ExitFatallyTypeMappingValue = (
@@ -102,14 +102,14 @@ def resolve_callback(
     return type_mapping_value["callback"]
 
 
-def resolve_wait_strategy(
+def resolve_retry_strategy(
     type_mapping_value: Sequence[type[BaseException]]
     | RetryExecutionTypeMappingDict
     | None,
 ) -> RetryStrategy | None:
     if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
         return None
-    return type_mapping_value.get("wait_strategy")
+    return type_mapping_value.get("retry_strategy")
 
 
 def resolve_exit_fatally_type_mapping_dict(
@@ -188,7 +188,7 @@ def resolve_retry_execution_type_mapping_dict(
     return RetryExecutionTypeMappingDict(
         types=resolve_exception_types(type_mapping_value),
         callback=resolve_callback(type_mapping_value),
-        wait_strategy=resolve_wait_strategy(type_mapping_value),
+        retry_strategy=resolve_retry_strategy(type_mapping_value),
     )
 
 
@@ -268,7 +268,7 @@ def resolve_retry_execution_type_mappings(
     return {
         exception_type: ErrorHandlingDefinition[None](
             handler=RetryErrorHandler(
-                wait_strategy=type_mapping_dict.get("wait_strategy")
+                retry_strategy=type_mapping_dict.get("retry_strategy")
             ),
             callback=type_mapping_dict["callback"],
         )
@@ -332,12 +332,12 @@ def continue_execution_type_mapping[T](
 def retry_execution_type_mapping(
     types: Sequence[type[BaseException]],
     callback: Callable[[BaseException], None] | None = None,
-    wait_strategy: RetryStrategy | None = None,
+    retry_strategy: RetryStrategy | None = None,
 ) -> RetryExecutionTypeMappingDict:
     return RetryExecutionTypeMappingDict(
         types=types,
         callback=callback if callback is not None else lambda _: None,
-        wait_strategy=wait_strategy,
+        retry_strategy=retry_strategy,
     )
 
 

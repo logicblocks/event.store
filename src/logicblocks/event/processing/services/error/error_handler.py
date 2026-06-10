@@ -68,14 +68,14 @@ class ContinueErrorHandler[T](ErrorHandler[T]):
 
 
 class RetryErrorHandler(ErrorHandler[Any]):
-    def __init__(self, wait_strategy: RetryStrategy | None = None):
-        self._wait_strategy = wait_strategy
+    def __init__(self, retry_strategy: RetryStrategy | None = None):
+        self._retry_strategy = retry_strategy
 
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[Any]:
         if isinstance(exception, Exception):
             result = (
-                self._wait_strategy.calculate(exception)
-                if self._wait_strategy
+                self._retry_strategy.calculate(exception)
+                if self._retry_strategy
                 else None
             )
             if isinstance(result, ErrorHandlerDecision):

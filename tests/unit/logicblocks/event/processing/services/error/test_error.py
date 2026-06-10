@@ -142,12 +142,12 @@ class TestRetryErrorHandler:
             exception
         ) == ErrorHandlerDecision.raise_exception(exception)
 
-    def test_requests_retry_with_wait_time_from_wait_strategy(self):
+    def test_requests_retry_with_wait_time_from_retry_strategy(self):
         class HandleableTestException(Exception):
             pass
 
-        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
-        error_handler = RetryErrorHandler(wait_strategy=wait_strategy)
+        retry_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
+        error_handler = RetryErrorHandler(retry_strategy=retry_strategy)
 
         assert error_handler.handle(
             HandleableTestException()
@@ -155,7 +155,7 @@ class TestRetryErrorHandler:
             wait_before_retry=timedelta(seconds=5)
         )
 
-    def test_requests_retry_with_no_wait_time_when_no_wait_strategy(self):
+    def test_requests_retry_with_no_wait_time_when_no_retry_strategy(self):
         class HandleableTestException(Exception):
             pass
 
@@ -456,13 +456,13 @@ class TestTypeMappingErrorHandler:
         exception1 = TestException1()
         exception2 = TestException2()
 
-        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=2))
+        retry_strategy = ConstantRetryStrategy(time=timedelta(seconds=2))
 
         handler = TypeMappingErrorHandler(
             type_mappings=error_handler_type_mappings(
                 retry_execution=retry_execution_type_mapping(
                     types=[TestException1, TestException2],
-                    wait_strategy=wait_strategy,
+                    retry_strategy=retry_strategy,
                 )
             )
         )
@@ -630,11 +630,11 @@ class TestErrorHandlingServiceWaitBeforeRetry:
                     raise RuntimeError("Not yet.")
                 return 42
 
-        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
+        retry_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
 
         service = ErrorHandlingService(
             service=RetryThenSucceedService(),
-            error_handler=RetryErrorHandler(wait_strategy=wait_strategy),
+            error_handler=RetryErrorHandler(retry_strategy=retry_strategy),
             sleep=fake_sleep,
         )
 
@@ -686,11 +686,11 @@ class TestErrorHandlingServiceWaitBeforeRetry:
                     raise RuntimeError("Not yet.")
                 return 42
 
-        wait_strategy = ConstantRetryStrategy(time=timedelta())
+        retry_strategy = ConstantRetryStrategy(time=timedelta())
 
         service = ErrorHandlingService(
             service=RetryThenSucceedService(),
-            error_handler=RetryErrorHandler(wait_strategy=wait_strategy),
+            error_handler=RetryErrorHandler(retry_strategy=retry_strategy),
             sleep=fake_sleep,
         )
 

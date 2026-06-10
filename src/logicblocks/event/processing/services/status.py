@@ -3,7 +3,7 @@ from abc import ABC
 from typing import Any
 
 from ..process import HasProcessStatus, ProcessStatus
-from .base import Service
+from .types import Service
 
 
 class StatusTrackingService[T = Any](Service[T]):

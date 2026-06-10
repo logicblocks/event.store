@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 from typing import Any, Self, overload
 
-from .base import Service
+from .types import Service
 
 type CallableServiceCallable[T] = Callable[[], Awaitable[T]]
 

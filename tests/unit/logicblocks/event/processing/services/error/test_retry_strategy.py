@@ -2,12 +2,12 @@ from datetime import timedelta
 
 from logicblocks.event.processing.services import (
     ConstantRetryStrategy,
-    ExcludeExceptionsWaitStrategy,
-    IncludeExceptionsWaitStrategy,
+    ExcludeExceptionsRetryStrategy,
+    IncludeExceptionsRetryStrategy,
 )
 
 
-class TestConstantWaitStrategy:
+class TestConstantRetryStrategy:
     def test_returns_configured_time_for_any_exception(self):
         strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
 
@@ -22,13 +22,13 @@ class TestConstantWaitStrategy:
         assert strategy.wait_time(IOError("io")) == timedelta(milliseconds=500)
 
 
-class TestIncludeExceptionsWaitStrategy:
+class TestIncludeExceptionsRetryStrategy:
     def test_delegates_to_inner_strategy_for_included_exception_type(self):
         class IncludedException(Exception):
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=3))
-        strategy = IncludeExceptionsWaitStrategy(
+        strategy = IncludeExceptionsRetryStrategy(
             delegate=delegate, include_list=[IncludedException]
         )
 
@@ -42,7 +42,7 @@ class TestIncludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=3))
-        strategy = IncludeExceptionsWaitStrategy(
+        strategy = IncludeExceptionsRetryStrategy(
             delegate=delegate, include_list=[IncludedException]
         )
 
@@ -56,7 +56,7 @@ class TestIncludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=3))
-        strategy = IncludeExceptionsWaitStrategy(
+        strategy = IncludeExceptionsRetryStrategy(
             delegate=delegate, include_list=[IncludedException]
         )
 
@@ -73,7 +73,7 @@ class TestIncludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=2))
-        strategy = IncludeExceptionsWaitStrategy(
+        strategy = IncludeExceptionsRetryStrategy(
             delegate=delegate, include_list=[ExceptionA, ExceptionB]
         )
 
@@ -82,7 +82,7 @@ class TestIncludeExceptionsWaitStrategy:
         assert strategy.wait_time(ExceptionC()) == timedelta()
 
 
-class TestExcludeExceptionsWaitStrategy:
+class TestExcludeExceptionsRetryStrategy:
     def test_delegates_to_inner_strategy_for_non_excluded_exception_type(self):
         class ExcludedException(Exception):
             pass
@@ -91,7 +91,7 @@ class TestExcludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=4))
-        strategy = ExcludeExceptionsWaitStrategy(
+        strategy = ExcludeExceptionsRetryStrategy(
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
@@ -102,7 +102,7 @@ class TestExcludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=4))
-        strategy = ExcludeExceptionsWaitStrategy(
+        strategy = ExcludeExceptionsRetryStrategy(
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
@@ -118,7 +118,7 @@ class TestExcludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=4))
-        strategy = ExcludeExceptionsWaitStrategy(
+        strategy = ExcludeExceptionsRetryStrategy(
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
@@ -135,7 +135,7 @@ class TestExcludeExceptionsWaitStrategy:
             pass
 
         delegate = ConstantRetryStrategy(time=timedelta(seconds=2))
-        strategy = ExcludeExceptionsWaitStrategy(
+        strategy = ExcludeExceptionsRetryStrategy(
             delegate=delegate, exclude_list=[ExceptionA, ExceptionB]
         )
 

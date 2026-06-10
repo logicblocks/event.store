@@ -17,7 +17,7 @@ class ConstantRetryStrategy(RetryStrategy):
         return self.time
 
 
-class IncludeExceptionsWaitStrategy(RetryStrategy):
+class IncludeExceptionsRetryStrategy(RetryStrategy):
     def __init__(
         self, delegate: RetryStrategy, include_list: Sequence[type[Exception]]
     ):
@@ -34,7 +34,7 @@ class IncludeExceptionsWaitStrategy(RetryStrategy):
         return f"{type(self).__name__}(delegate={self._delegate!r}, include_list={self._include_list})"
 
 
-class ExcludeExceptionsWaitStrategy(RetryStrategy):
+class ExcludeExceptionsRetryStrategy(RetryStrategy):
     def __init__(
         self, delegate: RetryStrategy, exclude_list: Sequence[type[Exception]]
     ):

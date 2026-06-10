@@ -8,8 +8,9 @@ from datetime import timedelta
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
-from .base import RetryStrategy, Service
-from .callable import CallableService, CallableServiceCallable
+from ..callable import CallableService, CallableServiceCallable
+from ..types import Service
+from .retry_strategy import RetryStrategy
 
 
 class ErrorHandlerDecision[T]:

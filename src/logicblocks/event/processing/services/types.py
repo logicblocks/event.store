@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Any, Coroutine
 
-from ...process import ProcessStatus
+from ..process import ProcessStatus
 from .deferred_future import DeferredFuture
 
 

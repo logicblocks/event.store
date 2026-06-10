@@ -3,49 +3,53 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 
+from .error_handler_decision import ErrorHandlerDecision
 
-class RetryStrategy(ABC):
+type RetryStrategyResult[T] = timedelta | ErrorHandlerDecision[T] | None
+
+
+class RetryStrategy[T](ABC):
     @abstractmethod
-    def wait_time(self, exception: Exception) -> timedelta: ...
+    def calculate(self, exception: Exception) -> RetryStrategyResult[T]: ...
 
 
 @dataclass(frozen=True)
-class ConstantRetryStrategy(RetryStrategy):
+class ConstantRetryStrategy[T](RetryStrategy[T]):
     time: timedelta
 
-    def wait_time(self, exception: Exception) -> timedelta:
+    def calculate(self, exception: Exception) -> RetryStrategyResult[T]:
         return self.time
 
 
-class IncludeExceptionsRetryStrategy(RetryStrategy):
+class IncludeExceptionsRetryStrategy[T](RetryStrategy[T]):
     def __init__(
         self, delegate: RetryStrategy, include_list: Sequence[type[Exception]]
     ):
         self._delegate = delegate
         self._include_list = tuple(include_list)
 
-    def wait_time(self, exception: Exception) -> timedelta:
+    def calculate(self, exception: Exception) -> RetryStrategyResult[T]:
         if not isinstance(exception, self._include_list):
             return timedelta()
 
-        return self._delegate.wait_time(exception)
+        return self._delegate.calculate(exception)
 
     def __repr__(self):
         return f"{type(self).__name__}(delegate={self._delegate!r}, include_list={self._include_list})"
 
 
-class ExcludeExceptionsRetryStrategy(RetryStrategy):
+class ExcludeExceptionsRetryStrategy[T](RetryStrategy[T]):
     def __init__(
         self, delegate: RetryStrategy, exclude_list: Sequence[type[Exception]]
     ):
         self._delegate = delegate
         self._exclude_list = tuple(exclude_list)
 
-    def wait_time(self, exception: Exception) -> timedelta:
+    def calculate(self, exception: Exception) -> RetryStrategyResult[T]:
         if isinstance(exception, self._exclude_list):
             return timedelta()
 
-        return self._delegate.wait_time(exception)
+        return self._delegate.calculate(exception)
 
     def __repr__(self):
         return f"{type(self).__name__}(delegate={self._delegate!r}, exclude_list={self._exclude_list})"

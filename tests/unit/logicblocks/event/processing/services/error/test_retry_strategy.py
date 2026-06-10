@@ -11,15 +11,15 @@ class TestConstantRetryStrategy:
     def test_returns_configured_time_for_any_exception(self):
         strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
 
-        assert strategy.wait_time(RuntimeError("oops")) == timedelta(seconds=5)
+        assert strategy.calculate(RuntimeError("oops")) == timedelta(seconds=5)
 
     def test_returns_configured_time_regardless_of_exception_type(self):
         strategy = ConstantRetryStrategy(time=timedelta(milliseconds=500))
 
-        assert strategy.wait_time(ValueError("bad")) == timedelta(
+        assert strategy.calculate(ValueError("bad")) == timedelta(
             milliseconds=500
         )
-        assert strategy.wait_time(IOError("io")) == timedelta(milliseconds=500)
+        assert strategy.calculate(IOError("io")) == timedelta(milliseconds=500)
 
 
 class TestIncludeExceptionsRetryStrategy:
@@ -32,7 +32,7 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.wait_time(IncludedException()) == timedelta(seconds=3)
+        assert strategy.calculate(IncludedException()) == timedelta(seconds=3)
 
     def test_returns_zero_timedelta_for_non_included_exception_type(self):
         class IncludedException(Exception):
@@ -46,7 +46,7 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.wait_time(OtherException()) == timedelta()
+        assert strategy.calculate(OtherException()) == timedelta()
 
     def test_delegates_for_subclass_of_included_exception_type(self):
         class IncludedException(Exception):
@@ -60,7 +60,7 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.wait_time(SubException()) == timedelta(seconds=3)
+        assert strategy.calculate(SubException()) == timedelta(seconds=3)
 
     def test_supports_multiple_included_exception_types(self):
         class ExceptionA(Exception):
@@ -77,9 +77,9 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[ExceptionA, ExceptionB]
         )
 
-        assert strategy.wait_time(ExceptionA()) == timedelta(seconds=2)
-        assert strategy.wait_time(ExceptionB()) == timedelta(seconds=2)
-        assert strategy.wait_time(ExceptionC()) == timedelta()
+        assert strategy.calculate(ExceptionA()) == timedelta(seconds=2)
+        assert strategy.calculate(ExceptionB()) == timedelta(seconds=2)
+        assert strategy.calculate(ExceptionC()) == timedelta()
 
 
 class TestExcludeExceptionsRetryStrategy:
@@ -95,7 +95,7 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.wait_time(OtherException()) == timedelta(seconds=4)
+        assert strategy.calculate(OtherException()) == timedelta(seconds=4)
 
     def test_returns_zero_timedelta_for_excluded_exception_type(self):
         class ExcludedException(Exception):
@@ -106,7 +106,7 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.wait_time(ExcludedException()) == timedelta()
+        assert strategy.calculate(ExcludedException()) == timedelta()
 
     def test_returns_zero_timedelta_for_subclass_of_excluded_exception_type(
         self,
@@ -122,7 +122,7 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.wait_time(SubException()) == timedelta()
+        assert strategy.calculate(SubException()) == timedelta()
 
     def test_supports_multiple_excluded_exception_types(self):
         class ExceptionA(Exception):
@@ -139,6 +139,6 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExceptionA, ExceptionB]
         )
 
-        assert strategy.wait_time(ExceptionA()) == timedelta()
-        assert strategy.wait_time(ExceptionB()) == timedelta()
-        assert strategy.wait_time(ExceptionC()) == timedelta(seconds=2)
+        assert strategy.calculate(ExceptionA()) == timedelta()
+        assert strategy.calculate(ExceptionB()) == timedelta()
+        assert strategy.calculate(ExceptionC()) == timedelta(seconds=2)

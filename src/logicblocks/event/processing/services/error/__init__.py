@@ -10,14 +10,16 @@ from .error import (
 )
 from .error_handler import (
     ContinueErrorHandler,
-    ContinueErrorHandlerDecision,
     ErrorHandler,
-    ErrorHandlerDecision,
     ExitErrorHandler,
-    ExitErrorHandlerDecision,
     RaiseErrorHandler,
-    RaiseErrorHandlerDecision,
     RetryErrorHandler,
+)
+from .error_handler_decision import (
+    ContinueErrorHandlerDecision,
+    ErrorHandlerDecision,
+    ExitErrorHandlerDecision,
+    RaiseErrorHandlerDecision,
     RetryErrorHandlerDecision,
 )
 from .retry_strategy import (

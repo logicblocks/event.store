@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from logicblocks.event.processing import RaiseErrorHandlerDecision
 from logicblocks.event.processing.services import (
     ConstantRetryStrategy,
     ErrorHandlerDecision,
@@ -7,21 +8,29 @@ from logicblocks.event.processing.services import (
     IncludeExceptionsRetryStrategy,
     RetryStrategy,
 )
+from logicblocks.event.processing.services.error import (
+    OverrideRetryStrategyDecision,
+    RetryStrategyDecision,
+)
 
 
 class TestConstantRetryStrategy:
-    def test_returns_configured_time_for_any_exception(self):
+    def test_returns_wait_decision_with_configured_time(self):
         strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
 
-        assert strategy.calculate(RuntimeError("oops")) == timedelta(seconds=5)
+        assert strategy.calculate(
+            RuntimeError("oops")
+        ) == RetryStrategyDecision.wait(timedelta(seconds=5))
 
-    def test_returns_configured_time_regardless_of_exception_type(self):
+    def test_returns_wait_decision_regardless_of_exception_type(self):
         strategy = ConstantRetryStrategy(time=timedelta(milliseconds=500))
 
-        assert strategy.calculate(ValueError("bad")) == timedelta(
-            milliseconds=500
+        assert strategy.calculate(
+            ValueError("bad")
+        ) == RetryStrategyDecision.wait(timedelta(milliseconds=500))
+        assert strategy.calculate(IOError("io")) == RetryStrategyDecision.wait(
+            timedelta(milliseconds=500)
         )
-        assert strategy.calculate(IOError("io")) == timedelta(milliseconds=500)
 
 
 class TestIncludeExceptionsRetryStrategy:
@@ -34,9 +43,11 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.calculate(IncludedException()) == timedelta(seconds=3)
+        assert strategy.calculate(
+            IncludedException()
+        ) == RetryStrategyDecision.wait(timedelta(seconds=3))
 
-    def test_returns_zero_timedelta_for_non_included_exception_type(self):
+    def test_retries_immediately_for_non_included_exception_type(self):
         class IncludedException(Exception):
             pass
 
@@ -48,7 +59,10 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.calculate(OtherException()) == timedelta()
+        assert (
+            strategy.calculate(OtherException())
+            == RetryStrategyDecision.retry_immediately()
+        )
 
     def test_delegates_for_subclass_of_included_exception_type(self):
         class IncludedException(Exception):
@@ -62,7 +76,9 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[IncludedException]
         )
 
-        assert strategy.calculate(SubException()) == timedelta(seconds=3)
+        assert strategy.calculate(
+            SubException()
+        ) == RetryStrategyDecision.wait(timedelta(seconds=3))
 
     def test_supports_multiple_included_exception_types(self):
         class ExceptionA(Exception):
@@ -79,9 +95,16 @@ class TestIncludeExceptionsRetryStrategy:
             delegate=delegate, include_list=[ExceptionA, ExceptionB]
         )
 
-        assert strategy.calculate(ExceptionA()) == timedelta(seconds=2)
-        assert strategy.calculate(ExceptionB()) == timedelta(seconds=2)
-        assert strategy.calculate(ExceptionC()) == timedelta()
+        assert strategy.calculate(ExceptionA()) == RetryStrategyDecision.wait(
+            timedelta(seconds=2)
+        )
+        assert strategy.calculate(ExceptionB()) == RetryStrategyDecision.wait(
+            timedelta(seconds=2)
+        )
+        assert (
+            strategy.calculate(ExceptionC())
+            == RetryStrategyDecision.retry_immediately()
+        )
 
 
 class TestExcludeExceptionsRetryStrategy:
@@ -97,9 +120,11 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.calculate(OtherException()) == timedelta(seconds=4)
+        assert strategy.calculate(
+            OtherException()
+        ) == RetryStrategyDecision.wait(timedelta(seconds=4))
 
-    def test_returns_zero_timedelta_for_excluded_exception_type(self):
+    def test_retries_immediately_for_excluded_exception_type(self):
         class ExcludedException(Exception):
             pass
 
@@ -108,9 +133,12 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.calculate(ExcludedException()) == timedelta()
+        assert (
+            strategy.calculate(ExcludedException())
+            == RetryStrategyDecision.retry_immediately()
+        )
 
-    def test_returns_zero_timedelta_for_subclass_of_excluded_exception_type(
+    def test_retries_immediately_for_subclass_of_excluded_exception_type(
         self,
     ):
         class ExcludedException(Exception):
@@ -124,7 +152,10 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExcludedException]
         )
 
-        assert strategy.calculate(SubException()) == timedelta()
+        assert (
+            strategy.calculate(SubException())
+            == RetryStrategyDecision.retry_immediately()
+        )
 
     def test_supports_multiple_excluded_exception_types(self):
         class ExceptionA(Exception):
@@ -141,60 +172,77 @@ class TestExcludeExceptionsRetryStrategy:
             delegate=delegate, exclude_list=[ExceptionA, ExceptionB]
         )
 
-        assert strategy.calculate(ExceptionA()) == timedelta()
-        assert strategy.calculate(ExceptionB()) == timedelta()
-        assert strategy.calculate(ExceptionC()) == timedelta(seconds=2)
+        assert (
+            strategy.calculate(ExceptionA())
+            == RetryStrategyDecision.retry_immediately()
+        )
+        assert (
+            strategy.calculate(ExceptionB())
+            == RetryStrategyDecision.retry_immediately()
+        )
+        assert strategy.calculate(ExceptionC()) == RetryStrategyDecision.wait(
+            timedelta(seconds=2)
+        )
 
 
-class TestRetryStrategyReturningAlternativeDecision:
-    def test_retry_strategy_can_return_continue_decision(self):
+class TestRetryStrategyReturningOverrideDecision:
+    def test_retry_strategy_can_return_override_with_continue(self):
         class ContinueAfterErrorStrategy(RetryStrategy[str]):
             def calculate(self, exception):
-                return ErrorHandlerDecision.continue_execution(
-                    value="fallback"
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.continue_execution(value="fallback")
                 )
 
         strategy = ContinueAfterErrorStrategy()
 
         assert strategy.calculate(
             RuntimeError("oops")
-        ) == ErrorHandlerDecision.continue_execution(value="fallback")
+        ) == RetryStrategyDecision.override(
+            ErrorHandlerDecision.continue_execution(value="fallback")
+        )
 
-    def test_retry_strategy_can_return_raise_decision(self):
+    def test_retry_strategy_can_return_override_with_raise(self):
         class RaiseWrappedStrategy(RetryStrategy):
             def calculate(self, exception):
                 wrapped = ValueError(f"Wrapped: {exception}")
-                return ErrorHandlerDecision.raise_exception(wrapped)
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.raise_exception(wrapped)
+                )
 
         strategy = RaiseWrappedStrategy()
         result = strategy.calculate(RuntimeError("oops"))
 
+        assert isinstance(result, OverrideRetryStrategyDecision)
         assert isinstance(
-            result, type(ErrorHandlerDecision.raise_exception(RuntimeError()))
+            result.error_handler_decision, RaiseErrorHandlerDecision
         )
-        assert str(result.exception) == "Wrapped: oops"
+        assert str(result.error_handler_decision.exception) == "Wrapped: oops"
 
-    def test_retry_strategy_can_return_exit_decision(self):
+    def test_retry_strategy_can_return_override_with_exit(self):
         class FatalStrategy(RetryStrategy):
             def calculate(self, exception):
-                return ErrorHandlerDecision.exit_fatally(exit_code=99)
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.exit_fatally(exit_code=99)
+                )
 
         strategy = FatalStrategy()
 
         assert strategy.calculate(
             RuntimeError("fatal")
-        ) == ErrorHandlerDecision.exit_fatally(exit_code=99)
+        ) == RetryStrategyDecision.override(
+            ErrorHandlerDecision.exit_fatally(exit_code=99)
+        )
 
 
-class TestIncludeExceptionsRetryStrategyWithAlternativeDecision:
-    def test_passes_through_alternative_decision_from_delegate(self):
+class TestIncludeExceptionsRetryStrategyWithOverrideDecision:
+    def test_passes_through_override_decision_from_delegate(self):
         class IncludedException(Exception):
             pass
 
         class ContinueStrategy(RetryStrategy[str]):
             def calculate(self, exception):
-                return ErrorHandlerDecision.continue_execution(
-                    value="recovered"
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.continue_execution(value="recovered")
                 )
 
         strategy = IncludeExceptionsRetryStrategy(
@@ -204,9 +252,11 @@ class TestIncludeExceptionsRetryStrategyWithAlternativeDecision:
 
         assert strategy.calculate(
             IncludedException()
-        ) == ErrorHandlerDecision.continue_execution(value="recovered")
+        ) == RetryStrategyDecision.override(
+            ErrorHandlerDecision.continue_execution(value="recovered")
+        )
 
-    def test_returns_zero_timedelta_for_non_included_even_when_delegate_returns_decision(
+    def test_retries_immediately_for_non_included_even_when_delegate_returns_override(
         self,
     ):
         class IncludedException(Exception):
@@ -217,8 +267,8 @@ class TestIncludeExceptionsRetryStrategyWithAlternativeDecision:
 
         class ContinueStrategy(RetryStrategy[str]):
             def calculate(self, exception):
-                return ErrorHandlerDecision.continue_execution(
-                    value="recovered"
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.continue_execution(value="recovered")
                 )
 
         strategy = IncludeExceptionsRetryStrategy(
@@ -226,11 +276,14 @@ class TestIncludeExceptionsRetryStrategyWithAlternativeDecision:
             include_list=[IncludedException],
         )
 
-        assert strategy.calculate(OtherException()) == timedelta()
+        assert (
+            strategy.calculate(OtherException())
+            == RetryStrategyDecision.retry_immediately()
+        )
 
 
-class TestExcludeExceptionsRetryStrategyWithAlternativeDecision:
-    def test_passes_through_alternative_decision_from_delegate(self):
+class TestExcludeExceptionsRetryStrategyWithOverrideDecision:
+    def test_passes_through_override_decision_from_delegate(self):
         class ExcludedException(Exception):
             pass
 
@@ -239,7 +292,9 @@ class TestExcludeExceptionsRetryStrategyWithAlternativeDecision:
 
         class ExitStrategy(RetryStrategy):
             def calculate(self, exception):
-                return ErrorHandlerDecision.exit_fatally(exit_code=2)
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.exit_fatally(exit_code=2)
+                )
 
         strategy = ExcludeExceptionsRetryStrategy(
             delegate=ExitStrategy(),
@@ -248,9 +303,11 @@ class TestExcludeExceptionsRetryStrategyWithAlternativeDecision:
 
         assert strategy.calculate(
             OtherException()
-        ) == ErrorHandlerDecision.exit_fatally(exit_code=2)
+        ) == RetryStrategyDecision.override(
+            ErrorHandlerDecision.exit_fatally(exit_code=2)
+        )
 
-    def test_returns_zero_timedelta_for_excluded_even_when_delegate_returns_decision(
+    def test_retries_immediately_for_excluded_even_when_delegate_returns_override(
         self,
     ):
         class ExcludedException(Exception):
@@ -258,11 +315,16 @@ class TestExcludeExceptionsRetryStrategyWithAlternativeDecision:
 
         class ExitStrategy(RetryStrategy):
             def calculate(self, exception):
-                return ErrorHandlerDecision.exit_fatally(exit_code=2)
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.exit_fatally(exit_code=2)
+                )
 
         strategy = ExcludeExceptionsRetryStrategy(
             delegate=ExitStrategy(),
             exclude_list=[ExcludedException],
         )
 
-        assert strategy.calculate(ExcludedException()) == timedelta()
+        assert (
+            strategy.calculate(ExcludedException())
+            == RetryStrategyDecision.retry_immediately()
+        )

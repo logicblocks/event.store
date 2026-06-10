@@ -3,6 +3,10 @@ from typing import Any, Callable
 
 from .error_handler_decision import ErrorHandlerDecision
 from .retry_strategy import RetryStrategy
+from .retry_strategy_decision import (
+    OverrideRetryStrategyDecision,
+    WaitRetryStrategyDecision,
+)
 
 
 def default_exit_code_factory(_: BaseException) -> int:
@@ -71,18 +75,24 @@ class RetryErrorHandler(ErrorHandler[Any]):
     def __init__(self, retry_strategy: RetryStrategy | None = None):
         self._retry_strategy = retry_strategy
 
+    def _apply_retry_strategy(
+        self, retry_strategy: RetryStrategy, exception: Exception
+    ):
+        match retry_strategy.calculate(exception):
+            case OverrideRetryStrategyDecision(error_handler_decision):
+                return error_handler_decision
+            case WaitRetryStrategyDecision(duration):
+                return ErrorHandlerDecision.retry_execution(
+                    wait_before_retry=duration
+                )
+            case _:
+                return ErrorHandlerDecision.retry_execution()
+
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[Any]:
         if isinstance(exception, Exception):
-            result = (
-                self._retry_strategy.calculate(exception)
-                if self._retry_strategy
-                else None
-            )
-            if isinstance(result, ErrorHandlerDecision):
-                return result
+            if self._retry_strategy is None:
+                return ErrorHandlerDecision.retry_execution()
 
-            return ErrorHandlerDecision.retry_execution(
-                wait_before_retry=result
-            )
+            return self._apply_retry_strategy(self._retry_strategy, exception)
         else:
             return ErrorHandlerDecision.raise_exception(exception)

@@ -24,6 +24,9 @@ from logicblocks.event.processing import (
     raise_exception_type_mapping,
     retry_execution_type_mapping,
 )
+from logicblocks.event.processing.services.error import (
+    RetryStrategyDecision,
+)
 
 
 class TestExitErrorHandler:
@@ -166,14 +169,16 @@ class TestRetryErrorHandler:
             HandleableTestException()
         ) == ErrorHandlerDecision.retry_execution(wait_before_retry=None)
 
-    def test_returns_continue_decision_when_strategy_returns_continue(self):
+    def test_returns_override_decision_when_strategy_returns_override_with_continue(
+        self,
+    ):
         class HandleableTestException(Exception):
             pass
 
         class ContinueStrategy(RetryStrategy[str]):
             def calculate(self, exception):
-                return ErrorHandlerDecision.continue_execution(
-                    value="fallback"
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.continue_execution(value="fallback")
                 )
 
         error_handler = RetryErrorHandler(retry_strategy=ContinueStrategy())
@@ -182,13 +187,17 @@ class TestRetryErrorHandler:
             HandleableTestException()
         ) == ErrorHandlerDecision.continue_execution(value="fallback")
 
-    def test_returns_exit_decision_when_strategy_returns_exit(self):
+    def test_returns_override_decision_when_strategy_returns_override_with_exit(
+        self,
+    ):
         class HandleableTestException(Exception):
             pass
 
         class ExitStrategy(RetryStrategy):
             def calculate(self, exception):
-                return ErrorHandlerDecision.exit_fatally(exit_code=5)
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.exit_fatally(exit_code=5)
+                )
 
         error_handler = RetryErrorHandler(retry_strategy=ExitStrategy())
 
@@ -196,14 +205,16 @@ class TestRetryErrorHandler:
             HandleableTestException()
         ) == ErrorHandlerDecision.exit_fatally(exit_code=5)
 
-    def test_returns_raise_decision_when_strategy_returns_raise(self):
+    def test_returns_override_decision_when_strategy_returns_override_with_raise(
+        self,
+    ):
         class HandleableTestException(Exception):
             pass
 
         class RaiseStrategy(RetryStrategy):
             def calculate(self, exception):
-                return ErrorHandlerDecision.raise_exception(
-                    ValueError("wrapped")
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.raise_exception(ValueError("wrapped"))
                 )
 
         error_handler = RetryErrorHandler(retry_strategy=RaiseStrategy())
@@ -214,14 +225,30 @@ class TestRetryErrorHandler:
         assert isinstance(decision.exception, ValueError)
         assert str(decision.exception) == "wrapped"
 
+    def test_retries_immediately_when_strategy_returns_retry_immediately(self):
+        class HandleableTestException(Exception):
+            pass
+
+        class RetryImmediatelyStrategy(RetryStrategy):
+            def calculate(self, exception):
+                return RetryStrategyDecision.retry_immediately()
+
+        error_handler = RetryErrorHandler(
+            retry_strategy=RetryImmediatelyStrategy()
+        )
+
+        assert error_handler.handle(
+            HandleableTestException()
+        ) == ErrorHandlerDecision.retry_execution(wait_before_retry=None)
+
     def test_still_raises_for_base_exception_even_when_strategy_provided(self):
         class FatalTestException(BaseException):
             pass
 
         class ContinueStrategy(RetryStrategy[str]):
             def calculate(self, exception):
-                return ErrorHandlerDecision.continue_execution(
-                    value="fallback"
+                return RetryStrategyDecision.override(
+                    ErrorHandlerDecision.continue_execution(value="fallback")
                 )
 
         exception = FatalTestException()
@@ -768,7 +795,9 @@ class TestErrorHandlingServiceWaitBeforeRetry:
 
 
 class TestErrorHandlingServiceWithAlternativeRetryDecision:
-    async def test_returns_value_when_strategy_returns_continue_decision(self):
+    async def test_returns_value_when_strategy_returns_override_with_continue(
+        self,
+    ):
         call_count = 0
 
         class AlwaysFailingService(Service[str]):
@@ -784,10 +813,12 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
             def calculate(self, exception):
                 self._attempts += 1
                 if self._attempts >= 2:
-                    return ErrorHandlerDecision.continue_execution(
-                        value="gave up"
+                    return RetryStrategyDecision.override(
+                        ErrorHandlerDecision.continue_execution(
+                            value="gave up"
+                        )
                     )
-                return timedelta()
+                return RetryStrategyDecision.retry_immediately()
 
         service = ErrorHandlingService(
             service=AlwaysFailingService(),
@@ -801,7 +832,7 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
         assert result == "gave up"
         assert call_count == 2
 
-    async def test_raises_system_exit_when_strategy_returns_exit_decision(
+    async def test_raises_system_exit_when_strategy_returns_override_with_exit(
         self,
     ):
         call_count = 0
@@ -819,8 +850,10 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
             def calculate(self, exception):
                 self._attempts += 1
                 if self._attempts >= 3:
-                    return ErrorHandlerDecision.exit_fatally(exit_code=7)
-                return timedelta()
+                    return RetryStrategyDecision.override(
+                        ErrorHandlerDecision.exit_fatally(exit_code=7)
+                    )
+                return RetryStrategyDecision.retry_immediately()
 
         service = ErrorHandlingService(
             service=AlwaysFailingService(),
@@ -835,7 +868,9 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
         assert exc_info.value.code == 7
         assert call_count == 3
 
-    async def test_raises_exception_when_strategy_returns_raise_decision(self):
+    async def test_raises_exception_when_strategy_returns_override_with_raise(
+        self,
+    ):
         call_count = 0
 
         class AlwaysFailingService(Service[int]):
@@ -851,10 +886,12 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
             def calculate(self, exception):
                 self._attempts += 1
                 if self._attempts >= 2:
-                    return ErrorHandlerDecision.raise_exception(
-                        ValueError("too many retries")
+                    return RetryStrategyDecision.override(
+                        ErrorHandlerDecision.raise_exception(
+                            ValueError("too many retries")
+                        )
                     )
-                return timedelta()
+                return RetryStrategyDecision.retry_immediately()
 
         service = ErrorHandlingService(
             service=AlwaysFailingService(),
@@ -868,7 +905,7 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
 
         assert call_count == 2
 
-    async def test_retries_normally_before_strategy_returns_alternative(self):
+    async def test_retries_with_wait_before_strategy_returns_override(self):
         call_count = 0
         sleep_calls: list[float] = []
 
@@ -888,10 +925,10 @@ class TestErrorHandlingServiceWithAlternativeRetryDecision:
             def calculate(self, exception):
                 self._attempts += 1
                 if self._attempts >= 3:
-                    return ErrorHandlerDecision.continue_execution(
-                        value="done"
+                    return RetryStrategyDecision.override(
+                        ErrorHandlerDecision.continue_execution(value="done")
                     )
-                return timedelta(seconds=1)
+                return RetryStrategyDecision.wait(timedelta(seconds=1))
 
         service = ErrorHandlingService(
             service=AlwaysFailingService(),

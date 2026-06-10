@@ -1,16 +1,16 @@
 from .deferred_future import DeferredFuture
+from .retry_strategy import (
+    ConstantRetryStrategy,
+    ExcludeExceptionsWaitStrategy,
+    IncludeExceptionsWaitStrategy,
+    RetryStrategy,
+)
 from .types import (
     ExecutionMode,
     IsolationMode,
     ManagedServiceState,
     Service,
     ServiceDefinition,
-)
-from .wait_strategy import (
-    ConstantWaitStrategy,
-    ExcludeExceptionsWaitStrategy,
-    IncludeExceptionsWaitStrategy,
-    WaitStrategy,
 )
 
 __all__ = [
@@ -20,8 +20,8 @@ __all__ = [
     "ManagedServiceState",
     "ServiceDefinition",
     "DeferredFuture",
-    "WaitStrategy",
-    "ConstantWaitStrategy",
+    "RetryStrategy",
+    "ConstantRetryStrategy",
     "IncludeExceptionsWaitStrategy",
     "ExcludeExceptionsWaitStrategy",
 ]

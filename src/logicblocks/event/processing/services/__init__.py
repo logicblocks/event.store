@@ -1,13 +1,13 @@
 from .base import (
-    ConstantWaitStrategy,
+    ConstantRetryStrategy,
     DeferredFuture,
     ExcludeExceptionsWaitStrategy,
     ExecutionMode,
     IncludeExceptionsWaitStrategy,
     IsolationMode,
     ManagedServiceState,
+    RetryStrategy,
     Service,
-    WaitStrategy,
 )
 from .callable import CallableService, CallableServiceCallable
 from .error import (
@@ -66,8 +66,8 @@ __all__ = [
     "raise_exception_type_mapping",
     "continue_execution_type_mapping",
     "retry_execution_type_mapping",
-    "WaitStrategy",
-    "ConstantWaitStrategy",
+    "RetryStrategy",
+    "ConstantRetryStrategy",
     "IncludeExceptionsWaitStrategy",
     "ExcludeExceptionsWaitStrategy",
 ]

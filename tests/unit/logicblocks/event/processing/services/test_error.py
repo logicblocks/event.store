@@ -21,7 +21,7 @@ from logicblocks.event.processing import (
     raise_exception_type_mapping,
     retry_execution_type_mapping,
 )
-from logicblocks.event.processing.services import ConstantWaitStrategy
+from logicblocks.event.processing.services import ConstantRetryStrategy
 from logicblocks.event.processing.services.error import (
     exit_fatally_type_mapping,
 )
@@ -148,7 +148,7 @@ class TestRetryErrorHandler:
         class HandleableTestException(Exception):
             pass
 
-        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=5))
+        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
         error_handler = RetryErrorHandler(wait_strategy=wait_strategy)
 
         assert error_handler.handle(
@@ -458,7 +458,7 @@ class TestTypeMappingErrorHandler:
         exception1 = TestException1()
         exception2 = TestException2()
 
-        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=2))
+        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=2))
 
         handler = TypeMappingErrorHandler(
             type_mappings=error_handler_type_mappings(
@@ -632,7 +632,7 @@ class TestErrorHandlingServiceWaitBeforeRetry:
                     raise RuntimeError("Not yet.")
                 return 42
 
-        wait_strategy = ConstantWaitStrategy(time=timedelta(seconds=5))
+        wait_strategy = ConstantRetryStrategy(time=timedelta(seconds=5))
 
         service = ErrorHandlingService(
             service=RetryThenSucceedService(),
@@ -688,7 +688,7 @@ class TestErrorHandlingServiceWaitBeforeRetry:
                     raise RuntimeError("Not yet.")
                 return 42
 
-        wait_strategy = ConstantWaitStrategy(time=timedelta())
+        wait_strategy = ConstantRetryStrategy(time=timedelta())
 
         service = ErrorHandlingService(
             service=RetryThenSucceedService(),

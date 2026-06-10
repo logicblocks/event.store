@@ -38,7 +38,7 @@ from .process import (
 )
 from .services import (
     CallableService,
-    ConstantWaitStrategy,
+    ConstantRetryStrategy,
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     DeferredFuture,
@@ -59,11 +59,11 @@ from .services import (
     RaiseErrorHandlerDecision,
     RetryErrorHandler,
     RetryErrorHandlerDecision,
+    RetryStrategy,
     Service,
     ServiceManager,
     StatusTrackingService,
     TypeMappingErrorHandler,
-    WaitStrategy,
     continue_execution_type_mapping,
     error_handler_type_mappings,
     exit_fatally_type_mapping,
@@ -135,8 +135,8 @@ __all__ = [
     "make_in_memory_event_broker",
     "make_postgres_event_broker",
     "make_subscriber",
-    "WaitStrategy",
-    "ConstantWaitStrategy",
+    "RetryStrategy",
+    "ConstantRetryStrategy",
     "IncludeExceptionsWaitStrategy",
     "ExcludeExceptionsWaitStrategy",
 ]

@@ -8,8 +8,7 @@ from datetime import timedelta
 from types import MappingProxyType
 from typing import Any, NotRequired, TypedDict
 
-from .base import Service
-from .base.wait_strategy import WaitStrategy
+from .base import RetryStrategy, Service
 from .callable import CallableService, CallableServiceCallable
 
 
@@ -121,7 +120,7 @@ class ContinueErrorHandler[T](ErrorHandler[T]):
 
 
 class RetryErrorHandler(ErrorHandler[Any]):
-    def __init__(self, wait_strategy: WaitStrategy | None = None):
+    def __init__(self, wait_strategy: RetryStrategy | None = None):
         self._wait_strategy = wait_strategy
 
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[Any]:
@@ -169,7 +168,7 @@ class ContinueExecutionTypeMappingDict[T](TypeMappingDict):
 
 
 class RetryExecutionTypeMappingDict(TypeMappingDict):
-    wait_strategy: NotRequired[WaitStrategy | None]
+    wait_strategy: NotRequired[RetryStrategy | None]
 
 
 type ExitFatallyTypeMappingValue = (
@@ -216,7 +215,7 @@ def resolve_wait_strategy(
     type_mapping_value: Sequence[type[BaseException]]
     | RetryExecutionTypeMappingDict
     | None,
-) -> WaitStrategy | None:
+) -> RetryStrategy | None:
     if isinstance(type_mapping_value, Sequence) or type_mapping_value is None:
         return None
     return type_mapping_value.get("wait_strategy")
@@ -442,7 +441,7 @@ def continue_execution_type_mapping[T](
 def retry_execution_type_mapping(
     types: Sequence[type[BaseException]],
     callback: Callable[[BaseException], None] | None = None,
-    wait_strategy: WaitStrategy | None = None,
+    wait_strategy: RetryStrategy | None = None,
 ) -> RetryExecutionTypeMappingDict:
     return RetryExecutionTypeMappingDict(
         types=types,

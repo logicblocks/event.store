@@ -4,22 +4,22 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 
-class WaitStrategy(ABC):
+class RetryStrategy(ABC):
     @abstractmethod
     def wait_time(self, exception: Exception) -> timedelta: ...
 
 
 @dataclass(frozen=True)
-class ConstantWaitStrategy(WaitStrategy):
+class ConstantRetryStrategy(RetryStrategy):
     time: timedelta
 
     def wait_time(self, exception: Exception) -> timedelta:
         return self.time
 
 
-class IncludeExceptionsWaitStrategy(WaitStrategy):
+class IncludeExceptionsWaitStrategy(RetryStrategy):
     def __init__(
-        self, delegate: WaitStrategy, include_list: Sequence[type[Exception]]
+        self, delegate: RetryStrategy, include_list: Sequence[type[Exception]]
     ):
         self._delegate = delegate
         self._include_list = tuple(include_list)
@@ -34,9 +34,9 @@ class IncludeExceptionsWaitStrategy(WaitStrategy):
         return f"{type(self).__name__}(delegate={self._delegate!r}, include_list={self._include_list})"
 
 
-class ExcludeExceptionsWaitStrategy(WaitStrategy):
+class ExcludeExceptionsWaitStrategy(RetryStrategy):
     def __init__(
-        self, delegate: WaitStrategy, exclude_list: Sequence[type[Exception]]
+        self, delegate: RetryStrategy, exclude_list: Sequence[type[Exception]]
     ):
         self._delegate = delegate
         self._exclude_list = tuple(exclude_list)

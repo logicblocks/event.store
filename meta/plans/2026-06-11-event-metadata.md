@@ -2,252 +2,186 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an optional, generically-typed `metadata` field to events, folded into the existing `payload` JSONB column as a reserved `__metadata` sibling key — no schema migration, non-breaking for events that carry no metadata.
+**Goal:** Add an optional, generically-typed `metadata` field to events, persisted in a dedicated `metadata JSONB NOT NULL` column on the `events` table (mirroring `projections.metadata`). This is a breaking schema change shipped as a DDL update plus a changelog migration note.
 
-**Architecture:** A third generic parameter `Metadata` is added to `NewEvent` and `StoredEvent` (mirroring `Projection[State, Metadata]`). Pure wrap/unwrap/guard helper functions live in the types layer. Both storage adapters (memory + Postgres) call those helpers: on write they fold non-empty metadata into the payload object as `__metadata`; on read they split it back out. New no-metadata rows and legacy pre-feature rows are byte-identical, so a single detect-on-read path covers both.
+**Architecture:** A third generic parameter `Metadata` is added to `NewEvent` and `StoredEvent` (mirroring `Projection[State, Metadata]`), defaulting to an empty mapping. Both storage adapters persist and read `metadata` as a plain field in its own column — no fold/split, no reserved key, no custom row factory, no write guards. The `payload` column is untouched.
+
+**Baseline:** Implement **clean from `main`**. Any uncommitted fold-into-payload work in the working tree must be discarded first (Task 0). Do not adapt it.
 
 **Tech Stack:** Python 3.13, `psycopg`/`psycopg_pool` (Postgres adapter), `pytest`/`pytest-asyncio`, `mise` task runner.
 
 ---
 
+## Test Runner Reference
+
+The `mise run test:unit[ClassName]` parametrised syntax works in an interactive
+shell but NOT from a non-interactive subshell. From scripts/subshells use:
+
+- Unit (no DB): `mise exec -- invoke test.unit` ; targeted:
+  `mise exec -- invoke test.unit -t "-k '<expr>'"` (wrap `-k` value in single
+  quotes when it contains spaces/`or`).
+- Integration (needs Postgres): `DB_PORT=<port> mise exec -- invoke test.integration`.
+  The `database:test:provision` mise task starts the test DB on host port 5432
+  via docker-compose. If 5432 is occupied, start a Postgres 16.3 container
+  (`POSTGRES_DB=some-database POSTGRES_USER=admin POSTGRES_PASSWORD=super-secret`)
+  on an alternate host port and pass `DB_PORT=<port>` — the integration tests
+  read `DB_HOST`/`DB_PORT` env vars (default `localhost:5432`).
+- Type check: `mise exec -- invoke types.check`
+- Lint: `mise exec -- invoke lint.fix` ; Format: `mise exec -- invoke format.fix`
+- Full build: `mise run` (lint, types, format, build, all tests).
+
+**Commits:** Do NOT commit. Leave all changes uncommitted; the human commits.
+
+---
+
 ## Storage Shape Reference
 
-| Case | Stored `payload` JSONB | Read result |
-|---|---|---|
-| No metadata (default) | `{prop1, prop2}` (unchanged from today) | `payload={prop1,prop2}`, `metadata={}` |
-| Metadata present | `{"__metadata": {...}, prop1, prop2}` | `payload={prop1,prop2}`, `metadata={...}` |
-| Legacy row (pre-feature) | `{prop1, prop2}` | `payload={prop1,prop2}`, `metadata={}` |
+The `events` table gains a `metadata JSONB NOT NULL` column. `payload` is
+unchanged in all cases.
 
-**Write guards (raise only when metadata is supplied):**
-1. Non-object payload + metadata → raise.
-2. Payload already contains `__metadata` key + metadata → raise.
+| Case | Stored `payload` | Stored `metadata` | Read result |
+|---|---|---|---|
+| No metadata (default) | `{prop1, prop2}` | `{}` | `payload={prop1,prop2}`, `metadata={}` |
+| Metadata present | `{prop1, prop2}` | `{"actor": "u1"}` | `payload={prop1,prop2}`, `metadata={"actor": "u1"}` |
+
+No reserved key, no fold/split, no guards. Any payload shape coexists with
+metadata.
 
 ---
 
 ## File Structure
 
-**New files:**
-- `src/logicblocks/event/types/metadata.py` — pure helpers (`RESERVED_METADATA_KEY`, `fold_metadata_into_payload`, `split_metadata_from_payload`) + `InvalidEventMetadataError` exception.
-
 **Modified files:**
-- `src/logicblocks/event/types/event.py` — add `Metadata` generic + `metadata` field to `NewEvent` and `StoredEvent`; update `serialise`, `summarise`, `__repr__`, `serialise_stored_event`.
-- `src/logicblocks/event/types/__init__.py` — export new symbols.
-- `src/logicblocks/event/store/adapters/memory/adapter.py` — fold metadata on save, split on the serialised-event construction.
-- `src/logicblocks/event/store/adapters/postgres/adapter.py` — fold metadata into the insert payload value; custom row factory to split metadata on read; carry metadata through the `RETURNING *` mapping.
-- `src/logicblocks/event/testing/builders.py` — add `metadata` to `NewEventBuilder` and `StoredEventBuilder`.
+- `sql/create_events_table.sql` — add the `metadata JSONB NOT NULL` column.
+- `src/logicblocks/event/types/event.py` — add `Metadata` generic + `metadata`
+  field to `NewEvent` and `StoredEvent`; update `serialise`, `summarise`,
+  `__repr__`, `serialise_stored_event`.
+- `src/logicblocks/event/testing/builders.py` — add `metadata` to
+  `NewEventBuilder` and `StoredEventBuilder`.
+- `src/logicblocks/event/store/adapters/memory/adapter.py` — store + return
+  `metadata` as a plain field on both event constructions.
+- `src/logicblocks/event/store/adapters/postgres/adapter.py` — add `metadata`
+  to the INSERT column list + bound values; carry `metadata` through the
+  RETURNING mapping. (Reads map automatically via `class_row`.)
+
+**No new source files.** There is NO `metadata.py`, NO fold/split helpers, NO
+`RESERVED_METADATA_KEY`, NO `InvalidEventMetadataError`, NO custom row factory.
 
 **Test files:**
-- `tests/unit/logicblocks/event/types/test_metadata.py` — helper + guard unit tests (new).
-- `tests/unit/logicblocks/event/types/test_event.py` — event field/serialise tests (modify).
-- `tests/unit/logicblocks/event/testing/test_builders.py` — builder tests (modify).
-- `tests/shared/logicblocks/event/testcases/store/adapters.py` — shared adapter behaviour (modify; runs against both memory + Postgres).
+- `tests/unit/logicblocks/event/types/test_event.py` — event field/serialise
+  tests (modify).
+- `tests/unit/logicblocks/event/testing/test_builders.py` — builder tests
+  (modify).
+- `tests/shared/logicblocks/event/testcases/store/adapters.py` — shared adapter
+  round-trip behaviour (modify; runs against both memory + Postgres).
+
+**Changelog:**
+- A fragment under `changelog.d/` describing the addition and the required
+  migration.
 
 ---
 
-## Task 1: Metadata helper module + exception
+## Task 0: Reset working tree to clean baseline
+
+**Files:** working tree (no specific file)
+
+- [ ] **Step 1: Confirm what is uncommitted**
+
+Run: `git status --short` and `git stash list`
+Expected: a set of modified/untracked files from the prior fold-based attempt
+(e.g. `src/logicblocks/event/types/metadata.py`, modified `event.py`, adapters,
+tests). The `meta/specs/...` and `meta/plans/...` docs are the only changes to
+KEEP.
+
+- [ ] **Step 2: Preserve the design docs, discard the fold-based code**
+
+The spec and plan under `meta/` are the source of truth and must be kept. The
+implementation changes must be discarded. Do this precisely:
+
+```bash
+# Discard tracked-file modifications EXCEPT the meta/ docs
+git restore --staged --worktree \
+  src/logicblocks/event/types/event.py \
+  src/logicblocks/event/types/__init__.py \
+  src/logicblocks/event/store/adapters/memory/adapter.py \
+  src/logicblocks/event/store/adapters/postgres/adapter.py \
+  src/logicblocks/event/store/adapters/postgres/__init__.py \
+  src/logicblocks/event/testing/builders.py \
+  tests/integration/logicblocks/event/store/adapters/test_postgres.py \
+  tests/shared/logicblocks/event/testcases/store/adapters.py \
+  tests/unit/logicblocks/event/testing/test_builders.py \
+  tests/unit/logicblocks/event/types/test_event.py
+
+# Remove untracked fold-based files (NOT the meta/ docs, NOT the changelog if you want to keep it — but the old changelog fragment was fold-specific, so remove it and recreate in Task 8)
+rm -f src/logicblocks/event/types/metadata.py \
+      tests/unit/logicblocks/event/types/test_metadata.py \
+      changelog.d/20260612_000000_bivav_event_metadata.md
+```
+
+- [ ] **Step 3: Verify clean baseline**
+
+Run: `git status --short`
+Expected: ONLY `meta/specs/2026-06-11-event-metadata-design.md` and
+`meta/plans/2026-06-11-event-metadata.md` appear as changes (one tracked-modified,
+one already committed/modified). No `src/` or `tests/` changes remain.
+
+Run: `mise exec -- invoke test.unit` → all pass (baseline green).
+Run: `mise exec -- invoke types.check` → 0 errors.
+
+---
+
+## Task 1: Add the `metadata` column to the events DDL
 
 **Files:**
-- Create: `src/logicblocks/event/types/metadata.py`
-- Test: `tests/unit/logicblocks/event/types/test_metadata.py`
+- Modify: `sql/create_events_table.sql`
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add the column**
 
-Create `tests/unit/logicblocks/event/types/test_metadata.py`:
-
-```python
-import pytest
-
-from logicblocks.event.types.metadata import (
-    RESERVED_METADATA_KEY,
-    InvalidEventMetadataError,
-    fold_metadata_into_payload,
-    split_metadata_from_payload,
-)
-
-
-class TestFoldMetadataIntoPayload:
-    def test_returns_payload_unchanged_when_metadata_empty(self):
-        payload = {"amount": 100, "currency": "USD"}
-
-        result = fold_metadata_into_payload(payload, {})
-
-        assert result == {"amount": 100, "currency": "USD"}
-
-    def test_injects_metadata_as_sibling_key_when_present(self):
-        payload = {"amount": 100, "currency": "USD"}
-
-        result = fold_metadata_into_payload(payload, {"actor": "user-123"})
-
-        assert result == {
-            "amount": 100,
-            "currency": "USD",
-            RESERVED_METADATA_KEY: {"actor": "user-123"},
-        }
-
-    def test_does_not_mutate_input_payload(self):
-        payload = {"amount": 100}
-
-        fold_metadata_into_payload(payload, {"actor": "user-123"})
-
-        assert payload == {"amount": 100}
-
-    def test_raises_when_metadata_supplied_for_non_object_payload(self):
-        with pytest.raises(InvalidEventMetadataError):
-            fold_metadata_into_payload([1, 2, 3], {"actor": "user-123"})
-
-    def test_raises_when_payload_already_contains_reserved_key(self):
-        payload = {"amount": 100, RESERVED_METADATA_KEY: {"x": 1}}
-
-        with pytest.raises(InvalidEventMetadataError):
-            fold_metadata_into_payload(payload, {"actor": "user-123"})
-
-    def test_allows_non_object_payload_when_metadata_empty(self):
-        result = fold_metadata_into_payload([1, 2, 3], {})
-
-        assert result == [1, 2, 3]
-
-
-class TestSplitMetadataFromPayload:
-    def test_returns_empty_metadata_when_no_reserved_key(self):
-        stored = {"amount": 100, "currency": "USD"}
-
-        payload, metadata = split_metadata_from_payload(stored)
-
-        assert payload == {"amount": 100, "currency": "USD"}
-        assert metadata == {}
-
-    def test_extracts_metadata_when_reserved_key_present(self):
-        stored = {
-            "amount": 100,
-            "currency": "USD",
-            RESERVED_METADATA_KEY: {"actor": "user-123"},
-        }
-
-        payload, metadata = split_metadata_from_payload(stored)
-
-        assert payload == {"amount": 100, "currency": "USD"}
-        assert metadata == {"actor": "user-123"}
-
-    def test_returns_empty_metadata_for_non_object_payload(self):
-        payload, metadata = split_metadata_from_payload([1, 2, 3])
-
-        assert payload == [1, 2, 3]
-        assert metadata == {}
-
-    def test_does_not_mutate_input(self):
-        stored = {
-            "amount": 100,
-            RESERVED_METADATA_KEY: {"actor": "user-123"},
-        }
-
-        split_metadata_from_payload(stored)
-
-        assert RESERVED_METADATA_KEY in stored
+Current file:
+```sql
+CREATE TABLE events (
+    id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    stream TEXT NOT NULL,
+    category TEXT NOT NULL,
+    position INT NOT NULL,
+    payload JSONB NOT NULL,
+    sequence_number BIGSERIAL NOT NULL,
+    observed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (id)
+);
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `mise run test:unit[TestFoldMetadataIntoPayload]`
-Expected: FAIL with `ModuleNotFoundError: No module named 'logicblocks.event.types.metadata'`
-
-- [ ] **Step 3: Write the implementation**
-
-Create `src/logicblocks/event/types/metadata.py`:
-
-```python
-from collections.abc import Mapping
-
-from .json import JsonValue, is_json_object
-
-RESERVED_METADATA_KEY = "__metadata"
-
-
-class InvalidEventMetadataError(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
-        self.message = message
-
-    def __repr__(self) -> str:
-        return f"InvalidEventMetadataError({self.message})"
-
-
-def fold_metadata_into_payload(
-    payload: JsonValue, metadata: Mapping[str, JsonValue]
-) -> JsonValue:
-    if not metadata:
-        return payload
-
-    if not is_json_object(payload):
-        raise InvalidEventMetadataError(
-            "metadata can only be attached to object payloads"
-        )
-
-    if RESERVED_METADATA_KEY in payload:
-        raise InvalidEventMetadataError(
-            f"payload must not contain reserved key '{RESERVED_METADATA_KEY}'"
-        )
-
-    return {**payload, RESERVED_METADATA_KEY: dict(metadata)}
-
-
-def split_metadata_from_payload(
-    stored: JsonValue,
-) -> tuple[JsonValue, JsonValue]:
-    if not is_json_object(stored) or RESERVED_METADATA_KEY not in stored:
-        return stored, {}
-
-    payload = {
-        key: value
-        for key, value in stored.items()
-        if key != RESERVED_METADATA_KEY
-    }
-    metadata = stored[RESERVED_METADATA_KEY]
-
-    return payload, metadata
+Add `metadata JSONB NOT NULL` directly after `payload`:
+```sql
+CREATE TABLE events (
+    id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    stream TEXT NOT NULL,
+    category TEXT NOT NULL,
+    position INT NOT NULL,
+    payload JSONB NOT NULL,
+    metadata JSONB NOT NULL,
+    sequence_number BIGSERIAL NOT NULL,
+    observed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (id)
+);
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 2: Verify**
 
-Run: `mise run test:unit[TestFoldMetadataIntoPayload]` then `mise run test:unit[TestSplitMetadataFromPayload]`
-Expected: PASS (all tests)
+This DDL is exercised by the integration test fixtures (`create_table(pool,
+"events")` reads this file). No standalone run here — Task 6/7 integration tests
+will confirm the column works end-to-end. Confirm the file parses by eye
+(matches the `projections.metadata` style in `sql/create_projections_table.sql`).
 
 ---
 
-## Task 2: Export metadata symbols from types package
-
-**Files:**
-- Modify: `src/logicblocks/event/types/__init__.py`
-
-- [ ] **Step 1: Add imports and exports**
-
-In `src/logicblocks/event/types/__init__.py`, after the `from .json import (...)` block add:
-
-```python
-from .metadata import (
-    RESERVED_METADATA_KEY,
-    InvalidEventMetadataError,
-    fold_metadata_into_payload,
-    split_metadata_from_payload,
-)
-```
-
-And add these four names to the `__all__` list (keep alphabetical grouping consistent with the file's existing ordering):
-
-```python
-    "InvalidEventMetadataError",
-    "RESERVED_METADATA_KEY",
-    "fold_metadata_into_payload",
-    "split_metadata_from_payload",
-```
-
-- [ ] **Step 2: Verify the package imports cleanly**
-
-Run: `mise run test:unit[TestFoldMetadataIntoPayload]`
-Expected: PASS (imports resolve via package root too)
-
----
-
-## Task 3: Add `metadata` to `NewEvent`
+## Task 2: Add `metadata` to `NewEvent`
 
 **Files:**
 - Modify: `src/logicblocks/event/types/event.py`
@@ -255,7 +189,9 @@ Expected: PASS (imports resolve via package root too)
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to the `TestNewEvent` class in `tests/unit/logicblocks/event/types/test_event.py`:
+Append to the EXISTING `TestNewEvent` class in
+`tests/unit/logicblocks/event/types/test_event.py` (`NewEvent`, `datetime`,
+`UTC` are already imported):
 
 ```python
     def test_defaults_metadata_to_empty_mapping(self):
@@ -291,14 +227,23 @@ Append to the `TestNewEvent` class in `tests/unit/logicblocks/event/types/test_e
         }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+Also update any EXISTING `TestNewEvent` tests that assert the FULL
+`serialise()` / `summarise()` / `__repr__()` output to include the new
+`metadata` entry (the no-metadata default is `{}` / `metadata={}`). Find them
+by running the suite in Step 4 and adding `"metadata": {}` (dict) or
+`metadata={}` (repr) to each broken expected value.
 
-Run: `mise run test:unit[TestNewEvent]`
-Expected: FAIL — `TypeError: __init__() got an unexpected keyword argument 'metadata'` / `AttributeError: ... has no attribute 'metadata'`
+- [ ] **Step 2: Run to verify failure**
+
+Run: `mise exec -- invoke test.unit -t "-k TestNewEvent"`
+Expected: FAIL — `__init__() got an unexpected keyword argument 'metadata'` /
+`AttributeError: ... 'metadata'`.
 
 - [ ] **Step 3: Update `NewEvent`**
 
-In `src/logicblocks/event/types/event.py`, change the `NewEvent` class declaration, fields, `__init__`, `serialise`, `summarise`, and `__repr__`:
+`NewEvent` has a custom `__init__`. Add the `Metadata` generic, the field, the
+optional kwarg defaulting to `{}`, and include metadata in serialise/summarise/
+repr:
 
 ```python
 @dataclass(frozen=True)
@@ -370,27 +315,38 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
         return hash(repr(self))
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Run to verify pass**
 
-Run: `mise run test:unit[TestNewEvent]`
-Expected: PASS (new and existing tests)
+Run: `mise exec -- invoke test.unit -t "-k TestNewEvent"` → pass (new + updated
+existing).
+Run: `mise exec -- invoke types.check` → 0 errors.
 
 ---
 
-## Task 4: Add `metadata` to `StoredEvent`
+## Task 3: Add `metadata` to `StoredEvent`
 
 **Files:**
 - Modify: `src/logicblocks/event/types/event.py`
 - Test: `tests/unit/logicblocks/event/types/test_event.py`
 
-- [ ] **Step 1: Write the failing tests**
+`StoredEvent` uses a dataclass-generated `__init__` (no custom init) and is
+constructed by keyword in the adapters. The `metadata` field MUST be added LAST
+with a default so existing constructions keep working.
 
-Add a `TestStoredEvent` class to `tests/unit/logicblocks/event/types/test_event.py` (place after `TestNewEvent`):
+IMPORTANT (type soundness): a plain `field(default_factory=dict)` FAILS the type
+checker with `dict[Unknown, Unknown] is not assignable to Metadata`. Use a cast:
+`field(default_factory=cast(Callable[[], Metadata], lambda: {}))`. Add `field`
+to the `dataclasses` import and `cast` + `Callable` to typing imports as needed.
+
+- [ ] **Step 1: Write failing tests**
+
+Add a `TestStoredEvent` class (after `TestNewEvent`) using full-equality
+assertions consistent with the file's existing StoredEvent tests:
 
 ```python
 class TestStoredEvent:
-    def _event(self, **overrides):
-        defaults = dict(
+    def test_defaults_metadata_to_empty_mapping(self):
+        event = StoredEvent(
             id="event-1",
             name="something-happened",
             stream="stream-1",
@@ -401,42 +357,94 @@ class TestStoredEvent:
             observed_at=datetime(2024, 1, 1, tzinfo=UTC),
             occurred_at=datetime(2024, 1, 1, tzinfo=UTC),
         )
-        defaults.update(overrides)
-        return StoredEvent(**defaults)
-
-    def test_defaults_metadata_to_empty_mapping(self):
-        event = self._event()
 
         assert event.metadata == {}
 
     def test_uses_metadata_when_provided(self):
-        event = self._event(metadata={"actor": "user-123"})
+        event = StoredEvent(
+            id="event-1",
+            name="something-happened",
+            stream="stream-1",
+            category="category-1",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            observed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            occurred_at=datetime(2024, 1, 1, tzinfo=UTC),
+            metadata={"actor": "user-123"},
+        )
 
         assert event.metadata == {"actor": "user-123"}
 
     def test_serialise_includes_metadata(self):
-        event = self._event(metadata={"actor": "user-123"})
+        event = StoredEvent(
+            id="event-1",
+            name="something-happened",
+            stream="stream-1",
+            category="category-1",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            observed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            occurred_at=datetime(2024, 1, 1, tzinfo=UTC),
+            metadata={"actor": "user-123"},
+        )
 
-        assert event.serialise()["metadata"] == {"actor": "user-123"}
+        assert event.serialise() == {
+            "id": "event-1",
+            "name": "something-happened",
+            "stream": "stream-1",
+            "category": "category-1",
+            "position": 0,
+            "sequence_number": 0,
+            "payload": {"foo": "bar"},
+            "metadata": {"actor": "user-123"},
+            "observed_at": datetime(2024, 1, 1, tzinfo=UTC).isoformat(),
+            "occurred_at": datetime(2024, 1, 1, tzinfo=UTC).isoformat(),
+        }
 
     def test_summarise_includes_metadata(self):
-        event = self._event(metadata={"actor": "user-123"})
+        event = StoredEvent(
+            id="event-1",
+            name="something-happened",
+            stream="stream-1",
+            category="category-1",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            observed_at=datetime(2024, 1, 1, tzinfo=UTC),
+            occurred_at=datetime(2024, 1, 1, tzinfo=UTC),
+            metadata={"actor": "user-123"},
+        )
 
-        assert event.summarise()["metadata"] == {"actor": "user-123"}
+        assert event.summarise() == {
+            "id": "event-1",
+            "name": "something-happened",
+            "stream": "stream-1",
+            "category": "category-1",
+            "position": 0,
+            "sequence_number": 0,
+            "metadata": {"actor": "user-123"},
+            "observed_at": datetime(2024, 1, 1, tzinfo=UTC).isoformat(),
+            "occurred_at": datetime(2024, 1, 1, tzinfo=UTC).isoformat(),
+        }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: Run to verify failure**
 
-Run: `mise run test:unit[TestStoredEvent]`
-Expected: FAIL — `TypeError` / `KeyError: 'metadata'`
+Run: `mise exec -- invoke test.unit -t "-k TestStoredEvent"`
+Expected: FAIL — unexpected kwarg / KeyError 'metadata'.
 
 - [ ] **Step 3: Update `StoredEvent`**
 
-In `src/logicblocks/event/types/event.py`, replace the `StoredEvent` class. Add the `Metadata` generic, a `metadata` field with a default of an empty dict, plus `metadata` in `serialise`, `summarise`, and `__repr__`. Because the dataclass is frozen and uses field defaults (not a custom `__init__`), give `metadata` a `field(default_factory=dict)` default so existing positional/keyword construction keeps working:
-
+Change the import line:
 ```python
 from dataclasses import dataclass, field
+from typing import Callable, Protocol, cast
 ```
+
+Update the class — add the generic, the LAST field with the cast default, and
+metadata in serialise/summarise/repr:
 
 ```python
 @dataclass(frozen=True)
@@ -452,7 +460,9 @@ class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
     payload: Payload
     observed_at: datetime
     occurred_at: datetime
-    metadata: Metadata = field(default_factory=dict)
+    metadata: Metadata = field(
+        default_factory=cast(Callable[[], Metadata], lambda: {})
+    )
 
     def serialise(
         self,
@@ -505,18 +515,16 @@ class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
         return hash(repr(self))
 ```
 
-Note: the field is placed last with a `default_factory` so all existing call sites that pass the other nine fields by keyword (memory/postgres adapters, builders) continue to work without supplying `metadata`.
-
 - [ ] **Step 4: Update `serialise_stored_event`**
 
-In the same file, update `serialise_stored_event` to carry metadata through (add the param to its signature type and pass it):
+Carry metadata through and thread the third generic:
 
 ```python
 def serialise_stored_event(
-    event: StoredEvent[JsonPersistable, JsonPersistable],
+    event: StoredEvent[JsonPersistable, JsonPersistable, JsonPersistable],
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
-) -> StoredEvent[JsonValue, JsonValue]:
-    return StoredEvent[JsonValue, JsonValue](
+) -> StoredEvent[JsonValue, JsonValue, JsonValue]:
+    return StoredEvent[JsonValue, JsonValue, JsonValue](
         id=event.id,
         name=serialise_to_json_value(event.name, fallback),
         stream=event.stream,
@@ -530,27 +538,28 @@ def serialise_stored_event(
     )
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [ ] **Step 5: Run + fix existing full-equality tests**
 
-Run: `mise run test:unit[TestStoredEvent]` then `mise run test:unit[TestNewEvent]`
-Expected: PASS
+Run: `mise exec -- invoke test.unit` (full suite).
+Some EXISTING tests across the suite assert full `StoredEvent` serialise/
+summarise/repr — add `"metadata": {}` / `metadata={}` to each broken expected
+value (default-empty). Only update expected values; do not change behaviour.
+Run: `mise exec -- invoke types.check` → 0 errors.
 
 ---
 
-## Task 5: Add `metadata` to test builders
+## Task 4: Add `metadata` to the test builders
 
 **Files:**
 - Modify: `src/logicblocks/event/testing/builders.py`
 - Test: `tests/unit/logicblocks/event/testing/test_builders.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write failing tests**
 
-Add to `tests/unit/logicblocks/event/testing/test_builders.py` (match the file's existing test-class style; if it uses bare functions, mirror that instead):
+Add to `tests/unit/logicblocks/event/testing/test_builders.py` (confirm
+`NewEventBuilder`, `StoredEventBuilder` imports):
 
 ```python
-from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder
-
-
 class TestNewEventBuilderMetadata:
     def test_defaults_metadata_to_empty_mapping(self):
         event = NewEventBuilder().build()
@@ -573,126 +582,44 @@ class TestStoredEventBuilderMetadata:
         event = StoredEventBuilder().with_metadata({"actor": "user-1"}).build()
 
         assert event.metadata == {"actor": "user-1"}
+
+    def test_from_new_event_propagates_metadata(self):
+        new_event = NewEventBuilder().with_metadata({"actor": "user-1"}).build()
+        event = StoredEventBuilder().from_new_event(new_event).build()
+
+        assert event.metadata == {"actor": "user-1"}
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 2: Run to verify failure**
 
-Run: `mise run test:unit[TestNewEventBuilderMetadata]`
-Expected: FAIL — `AttributeError: 'NewEventBuilder' object has no attribute 'with_metadata'`
+Run: `mise exec -- invoke test.unit -t "-k 'Metadata and Builder'"`
+Expected: FAIL — `with_metadata` does not exist.
 
 - [ ] **Step 3: Update `NewEventBuilder`**
 
-In `src/logicblocks/event/testing/builders.py`, update `NewEventBuilderParams` and `NewEventBuilder`:
-
-Add to `NewEventBuilderParams` (after `payload`):
-
-```python
-    metadata: Metadata
-```
-
-Change `NewEventBuilder` to carry `metadata` (note the third generic). Update the class generics to `[Name = str, Payload = JsonValue, Metadata = JsonValue]`, add the field, the `__init__` param + assignment, `_clone`, a `with_metadata`, and pass it in `build`:
+Add `metadata: Metadata` to `NewEventBuilderParams`. Update generics to
+`[Name = str, Payload = JsonValue, Metadata = JsonValue]`, add the field, the
+`__init__` param + `object.__setattr__(self, "metadata", metadata if metadata
+is not None else {})`, thread through `_clone`, add `with_metadata`, and pass
+`metadata=self.metadata` in `build()` (constructing `NewEvent[Name, Payload,
+Metadata]`).
 
 ```python
-@dataclass(frozen=True)
-class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
-    name: Name
-    payload: Payload
-    metadata: Metadata
-    occurred_at: datetime | None
-    observed_at: datetime | None
-
-    def __init__(
-        self,
-        *,
-        name: Name | None = None,
-        payload: Payload | None = None,
-        metadata: Metadata | None = None,
-        occurred_at: datetime | None = None,
-        observed_at: datetime | None = None,
-    ):
-        object.__setattr__(self, "name", name or random_event_name())
-        object.__setattr__(self, "payload", payload or random_event_payload())
-        object.__setattr__(
-            self, "metadata", metadata if metadata is not None else {}
-        )
-        object.__setattr__(self, "occurred_at", occurred_at)
-        object.__setattr__(self, "observed_at", observed_at)
-
-    def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Name, Payload]]):
-        name = kwargs.get("name", self.name)
-        payload = kwargs.get("payload", self.payload)
-        metadata = kwargs.get("metadata", self.metadata)
-        occurred_at = kwargs.get("occurred_at", self.occurred_at)
-        observed_at = kwargs.get("observed_at", self.observed_at)
-
-        return NewEventBuilder(
-            name=name,
-            payload=payload,
-            metadata=metadata,
-            occurred_at=occurred_at,
-            observed_at=observed_at,
-        )
-
-    def with_name(self, name: Name):
-        return self._clone(name=name)
-
-    def with_payload(self, payload: Payload):
-        return self._clone(payload=payload)
-
     def with_metadata(self, metadata: Metadata):
         return self._clone(metadata=metadata)
-
-    def with_occurred_at(self, occurred_at: datetime | None):
-        return self._clone(occurred_at=occurred_at)
-
-    def with_observed_at(self, observed_at: datetime | None):
-        return self._clone(observed_at=observed_at)
-
-    def build(self):
-        return NewEvent[Name, Payload](
-            name=self.name,
-            payload=self.payload,
-            metadata=self.metadata,
-            occurred_at=self.occurred_at,
-            observed_at=self.observed_at,
-        )
 ```
 
 - [ ] **Step 4: Update `StoredEventBuilder`**
 
-Add `metadata: Metadata` to `StoredEventBuilderParams`. Update `StoredEventBuilder` generics to `[Name = str, Payload = JsonValue, Metadata = JsonValue]`, add a `metadata` field, an `__init__` assignment defaulting to `{}`, the `_clone` line, a `with_metadata`, and pass it in `build`:
-
-In `__init__`, after the `payload` assignment, add:
-
-```python
-        object.__setattr__(
-            self, "metadata", metadata if metadata is not None else {}
-        )
-```
-
-and add `metadata: Metadata | None = None` to the `__init__` signature.
-
-In `_clone`, add:
+Same pattern: add `metadata: Metadata` to `StoredEventBuilderParams`, update
+generics, add field, `__init__` default `{}`, `_clone` threading,
+`with_metadata`, and `metadata=self.metadata` in `build()` (constructing
+`StoredEvent[Name, Payload, Metadata]`). Also update `from_new_event` to carry
+`metadata=event.metadata` and thread the `Metadata` generic on its `NewEvent`
+parameter type:
 
 ```python
-        metadata = kwargs.get("metadata", self.metadata)
-```
-
-and pass `metadata=metadata` to the `StoredEventBuilder(...)` constructor call.
-
-Add the method:
-
-```python
-    def with_metadata(self, metadata: Metadata):
-        return self._clone(metadata=metadata)
-```
-
-In `build`, add `metadata=self.metadata` to the `StoredEvent[Name, Payload](...)` call.
-
-Also update `from_new_event` to carry metadata across:
-
-```python
-    def from_new_event(self, event: NewEvent[Name, Payload]):
+    def from_new_event(self, event: NewEvent[Name, Payload, Metadata]):
         return self._clone(
             name=event.name,
             payload=event.payload,
@@ -702,31 +629,109 @@ Also update `from_new_event` to carry metadata across:
         )
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+Do NOT touch the `ProjectionBuilder` family (they already have their own
+metadata).
 
-Run: `mise run test:unit[TestNewEventBuilderMetadata]` then `mise run test:unit[TestStoredEventBuilderMetadata]`
-Expected: PASS
+- [ ] **Step 5: Run to verify pass + types**
+
+Run: `mise exec -- invoke test.unit -t "-k 'Metadata and Builder'"` → pass.
+Run: `mise exec -- invoke test.unit` (full) → pass.
+Run: `mise exec -- invoke types.check` → 0 errors.
 
 ---
 
-## Task 6: Memory adapter — fold + split metadata
+## Task 5: Memory adapter — store + return metadata
 
 **Files:**
 - Modify: `src/logicblocks/event/store/adapters/memory/adapter.py`
+
+The memory adapter builds two events per save in `_save_to_stream` AND
+`_save_to_category`: the caller-returned `StoredEvent[Name, Payload]` and the
+serialised `StoredEvent[str, JsonValue]` stored internally. Both need metadata.
+Because `metadata` is a real field that `class_row`/scan returns directly, there
+is NO split needed on read — `latest`/`scan` already return the stored events
+whole. (The memory `scan`/`latest` on `main` return snapshot events directly.)
+
+- [ ] **Step 1: Confirm shared tests exist (they're added in Task 6)**
+
+Task 6 adds the shared round-trip tests that exercise BOTH adapters. If doing
+Task 5 before Task 6, you can temporarily assert via a quick local check, but
+the intended flow is: Task 6 writes the shared tests (they fail for memory
+under unit), then this task makes memory pass. If you prefer, do Task 6 Step 1
+first to have failing tests, then return here.
+
+- [ ] **Step 2: Update both save paths**
+
+In `_save_to_stream` (≈ lines 199-224) and `_save_to_category` (≈ lines
+282-303):
+- Add `metadata=new_event.metadata` to the caller-returned
+  `StoredEvent[Name, Payload](...)`.
+- Add `metadata=serialise_to_json_value(new_stored_event.metadata)` to the
+  serialised `StoredEvent[str, JsonValue](...)`.
+
+Example for the stream path:
+```python
+                new_stored_event = StoredEvent[Name, Payload](
+                    id=uuid4().hex,
+                    name=new_event.name,
+                    stream=target.stream,
+                    category=target.category,
+                    position=last_stream_position + count + 1,
+                    sequence_number=next(self._sequence),
+                    payload=new_event.payload,
+                    observed_at=new_event.observed_at,
+                    occurred_at=new_event.occurred_at,
+                    metadata=new_event.metadata,
+                )
+                serialised_stored_event = StoredEvent[str, JsonValue](
+                    id=new_stored_event.id,
+                    name=serialise_to_string(new_stored_event.name),
+                    stream=new_stored_event.stream,
+                    category=new_stored_event.category,
+                    position=new_stored_event.position,
+                    sequence_number=new_stored_event.sequence_number,
+                    payload=serialise_to_json_value(new_stored_event.payload),
+                    observed_at=new_stored_event.observed_at,
+                    occurred_at=new_stored_event.occurred_at,
+                    metadata=serialise_to_json_value(
+                        new_stored_event.metadata
+                    ),
+                )
+```
+
+`latest` and `scan` need NO change — they return the stored events (which now
+carry metadata) directly.
+
+- [ ] **Step 3: Run**
+
+Run the memory shared tests (after Task 6 adds them):
+`mise exec -- invoke test.unit -t "-k 'event_metadata'"` → pass.
+Run: `mise exec -- invoke test.unit` (full) → pass.
+Run: `mise exec -- invoke types.check` → 0 errors.
+
+---
+
+## Task 6: Postgres adapter — persist + read metadata column
+
+**Files:**
+- Modify: `src/logicblocks/event/store/adapters/postgres/adapter.py`
 - Test: `tests/shared/logicblocks/event/testcases/store/adapters.py`
 
-The memory adapter stores a *serialised* `StoredEvent[str, JsonValue]` in its transaction (the `serialised_stored_event` built at lines ~212-222 and ~293-301) and returns the un-serialised `StoredEvent` to the caller. To make memory behave like Postgres (which round-trips through a stored payload blob), the serialised event's `payload` must be the folded value, and the returned event's `payload`/`metadata` must come from splitting that folded value back out.
+- [ ] **Step 1: Write the failing shared round-trip tests**
 
-- [ ] **Step 1: Write the failing shared adapter tests**
-
-Add to the shared adapter test base class in `tests/shared/logicblocks/event/testcases/store/adapters.py` (place near `test_stores_single_event_for_later_retrieval`). These run against BOTH memory and Postgres:
+Add to the shared stream-save test class `StreamSaveCases` in
+`tests/shared/logicblocks/event/testcases/store/adapters.py`. Conventions
+(verify by reading the file): build with `NewEventBuilder()`, names via
+`random_event_category_name()` / `random_event_stream_name()`, target via
+`identifier.StreamIdentifier(...)`, retrieve via
+`await self.retrieve_events(adapter=adapter)`.
 
 ```python
-    async def test_stores_and_retrieves_event_metadata(self):
+    async def test_save_returns_event_with_metadata(self):
         adapter = self.construct_storage_adapter()
 
-        category = data.random_event_category_name()
-        stream = data.random_event_stream_name()
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
 
         new_event = (
             NewEventBuilder()
@@ -736,12 +741,33 @@ Add to the shared adapter test base class in `tests/shared/logicblocks/event/tes
         )
 
         stored_events = await adapter.save(
-            target=StreamIdentifier(category=category, stream=stream),
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
             events=[new_event],
         )
 
-        assert stored_events[0].payload == {"amount": 100}
         assert stored_events[0].metadata == {"actor": "user-123"}
+
+    async def test_stores_and_retrieves_event_metadata(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        new_event = (
+            NewEventBuilder()
+            .with_payload({"amount": 100})
+            .with_metadata({"actor": "user-123"})
+            .build()
+        )
+
+        await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[new_event],
+        )
 
         retrieved = await self.retrieve_events(adapter=adapter)
         assert retrieved[0].payload == {"amount": 100}
@@ -750,13 +776,15 @@ Add to the shared adapter test base class in `tests/shared/logicblocks/event/tes
     async def test_defaults_metadata_to_empty_mapping_on_retrieval(self):
         adapter = self.construct_storage_adapter()
 
-        category = data.random_event_category_name()
-        stream = data.random_event_stream_name()
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
 
         new_event = NewEventBuilder().with_payload({"amount": 100}).build()
 
         await adapter.save(
-            target=StreamIdentifier(category=category, stream=stream),
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
             events=[new_event],
         )
 
@@ -765,131 +793,45 @@ Add to the shared adapter test base class in `tests/shared/logicblocks/event/tes
         assert retrieved[0].metadata == {}
 ```
 
-(Confirm `NewEventBuilder`, `StreamIdentifier`, and `data` are already imported at the top of this file — `NewEventBuilder` and `data` are; add `StreamIdentifier` to the existing `from logicblocks.event.types import (...)` import if not already present.)
+- [ ] **Step 2: Run to verify failure for postgres**
 
-- [ ] **Step 2: Run tests to verify they fail for memory**
+Find the postgres test class: `grep -n "class .*Cases\|class Test"
+tests/integration/logicblocks/event/store/adapters/test_postgres.py`.
+Run: `DB_PORT=<port> mise exec -- invoke test.integration -t "-k 'event_metadata'"`
+Expected: FAIL — the `metadata` column doesn't exist yet in the INSERT, or the
+inserted row is missing metadata. (Memory may also fail until Task 5; that's
+fine — these are shared tests.)
 
-Run: `mise run test:unit[InMemoryEventStorageAdapterTestCase]`
+- [ ] **Step 3: Add metadata to the INSERT**
 
-(Use the actual memory test-case class name in `tests/unit/logicblocks/event/store/adapters/test_memory.py` — find it with `grep -n "class .*TestCase\|class Test" tests/unit/logicblocks/event/store/adapters/test_memory.py`.)
-Expected: FAIL — `retrieved[0].metadata` is `{}` instead of `{"actor": "user-123"}` (metadata not persisted yet).
-
-- [ ] **Step 3: Update the memory adapter save paths**
-
-In `src/logicblocks/event/store/adapters/memory/adapter.py`, add to the types import block:
-
-```python
-from logicblocks.event.types import (
-    ...
-    fold_metadata_into_payload,
-)
-```
-
-In `_save_to_stream` (the block around lines 199-224), change the `serialised_stored_event` construction so its `payload` is the folded value:
-
-```python
-                serialised_stored_event = StoredEvent[str, JsonValue](
-                    id=new_stored_event.id,
-                    name=serialise_to_string(new_stored_event.name),
-                    stream=new_stored_event.stream,
-                    category=new_stored_event.category,
-                    position=new_stored_event.position,
-                    sequence_number=new_stored_event.sequence_number,
-                    payload=fold_metadata_into_payload(
-                        serialise_to_json_value(new_stored_event.payload),
-                        serialise_to_json_value(new_event.metadata),
-                    ),
-                    observed_at=new_stored_event.observed_at,
-                    occurred_at=new_stored_event.occurred_at,
-                )
-```
-
-Also set `metadata` on the returned `new_stored_event` so callers get it (add `metadata=new_event.metadata` to the `StoredEvent[Name, Payload](...)` constructed at line ~201).
-
-Apply the identical change to the category save path (`_save_to_category`, around lines 282-301): same `fold_metadata_into_payload` on the serialised event's payload, and `metadata=new_event.metadata` on the returned `StoredEvent`.
-
-- [ ] **Step 4: Update the memory adapter read paths to split**
-
-The memory adapter's `scan` and `latest` (around lines 316-329) return the stored `StoredEvent[str, JsonValue]` whose `payload` is the folded value. Wrap each returned stored event so the folded payload is split back into `payload` + `metadata`.
-
-Add to the import block:
-
-```python
-    split_metadata_from_payload,
-```
-
-Add a private helper method to the adapter class:
-
-```python
-    def _split_stored_event(
-        self, event: StoredEvent[str, JsonValue]
-    ) -> StoredEvent[str, JsonValue]:
-        payload, metadata = split_metadata_from_payload(event.payload)
-        return StoredEvent[str, JsonValue](
-            id=event.id,
-            name=event.name,
-            stream=event.stream,
-            category=event.category,
-            position=event.position,
-            sequence_number=event.sequence_number,
-            payload=payload,
-            observed_at=event.observed_at,
-            occurred_at=event.occurred_at,
-            metadata=metadata,
-        )
-```
-
-In `latest`, return `self._split_stored_event(event)` (or `None`). In `scan`, yield `self._split_stored_event(event)` for each event. Locate the exact yield/return sites with `grep -n "yield\|return await\|return None\|return self._db" src/logicblocks/event/store/adapters/memory/adapter.py` within `scan`/`latest`.
-
-- [ ] **Step 5: Run tests to verify they pass for memory**
-
-Run: `mise run test:unit[<MemoryTestCaseClassName>]`
-Expected: PASS (including the two new metadata tests)
-
----
-
-## Task 7: Postgres adapter — fold metadata on write
-
-**Files:**
-- Modify: `src/logicblocks/event/store/adapters/postgres/adapter.py`
-
-- [ ] **Step 1: Confirm the failing test for Postgres**
-
-The shared metadata tests from Task 6 also run against Postgres. Run them now to see the write side fail:
-
-Run: `mise run test:integration[<PostgresTestCaseClassName>]`
-
-(Find the class name with `grep -n "class .*TestCase\|class Test" tests/integration/logicblocks/event/store/adapters/test_postgres.py`.)
-Expected: FAIL on the metadata tests.
-
-- [ ] **Step 2: Fold metadata into the inserted payload value**
-
-In `src/logicblocks/event/store/adapters/postgres/adapter.py`, add to the types import block (line ~31-42):
-
-```python
-    fold_metadata_into_payload,
-```
-
-In `insert_batch_query` (the value list built around line 419-430), replace the payload value line:
-
-```python
+In `insert_batch_query` (≈ lines 407-462):
+- Change the row placeholder from 8 to 9 columns:
+  `rows.append(sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s, %s)"))`
+- Add the metadata value right after the payload value in the `values.extend([...])`:
+  ```python
                     Jsonb(serialise_to_json_value(event.payload)),
-```
+                    Jsonb(serialise_to_json_value(event.metadata)),
+                    event.observed_at,
+                    event.occurred_at,
+  ```
+- Add `metadata` to the INSERT column list (after `payload`):
+  ```python
+                INSERT INTO {0} (id,
+                                 name,
+                                 stream,
+                                 category,
+                                 position,
+                                 payload,
+                                 metadata,
+                                 observed_at,
+                                 occurred_at)
+  ```
 
-with:
+- [ ] **Step 4: Carry metadata through the RETURNING mapping**
 
-```python
-                    Jsonb(
-                        fold_metadata_into_payload(
-                            serialise_to_json_value(event.payload),
-                            serialise_to_json_value(event.metadata),
-                        )
-                    ),
-```
-
-- [ ] **Step 3: Carry metadata through the `RETURNING *` mapping**
-
-In the function that maps returned rows back to `StoredEvent[Name, Payload]` (around lines 581-595), the returned events use the *original* `event.payload`/`event.metadata` (not the DB row's folded payload). Add `metadata=event.metadata` to the `StoredEvent[Name, Payload](...)` constructor:
+In the function that maps inserted rows back to caller-facing
+`StoredEvent[Name, Payload]` (≈ lines 575-600), add `metadata=event.metadata`
+(from the ORIGINAL event, mirroring how `payload=event.payload` is used):
 
 ```python
                 StoredEvent[Name, Payload](
@@ -906,184 +848,101 @@ In the function that maps returned rows back to `StoredEvent[Name, Payload]` (ar
                 )
 ```
 
-Note: `stored_event` here is the folded DB row; we deliberately use the caller's original `event.payload`/`event.metadata` for the return value, which is already separated. This matches the memory adapter's behaviour of returning the un-folded event to the caller of `save`.
+- [ ] **Step 5: Reads need no change**
 
-- [ ] **Step 4: Run write-path tests**
+The read paths use `class_row(StoredEvent[str, JsonValue])`. Once the
+`metadata` column exists and `StoredEvent` has a `metadata` field, psycopg maps
+the column to the field automatically. Do NOT add a custom row factory. (If a
+read maps `metadata` to a JSON string rather than a dict, confirm the column is
+`JSONB` — psycopg returns JSONB as parsed Python objects.)
 
-Run: `mise run test:integration[<PostgresTestCaseClassName>] -- -k test_stores_and_retrieves_event_metadata`
+- [ ] **Step 6: Run to verify pass**
 
-(If the test runner doesn't support `-k` passthrough, run the full class.)
-Expected: The `save` return value now has correct metadata, but `retrieve_events` (a read) still fails until Task 8 — the `test_defaults_metadata_to_empty_mapping_on_retrieval` and the retrieval half of `test_stores_and_retrieves_event_metadata` will still fail. That's expected; the read split comes next.
+Run: `DB_PORT=<port> mise exec -- invoke test.integration -t "-k 'event_metadata'"`
+→ all metadata tests pass.
+Run: `DB_PORT=<port> mise exec -- invoke test.integration` (full) → all pass.
+Run: `mise exec -- invoke test.unit` (full) → all pass (memory shared tests too,
+assuming Task 5 done).
+Run: `mise exec -- invoke types.check` → 0 errors.
 
 ---
 
-## Task 8: Postgres adapter — split metadata on read via custom row factory
+## Task 7: Changelog fragment
 
 **Files:**
-- Modify: `src/logicblocks/event/store/adapters/postgres/adapter.py`
+- Create: a fragment under `changelog.d/`
 
-The Postgres read paths (`latest`, `scan`, and the read used inside save for locking/last-event) construct `StoredEvent` directly from DB columns via `class_row(StoredEvent[str, JsonValue])`. The `payload` column holds the folded value. We need a custom row factory that splits the folded payload into `payload` + `metadata` after `class_row` builds the event.
+- [ ] **Step 1: Create the fragment**
 
-- [ ] **Step 1: Confirm failing read tests**
+Match the existing naming convention `YYYYMMDD_HHMMSS_author_slug.md` (see
+existing files in `changelog.d/`). Create
+`changelog.d/<timestamp>_<author>_event_metadata.md` with both an `### Added`
+section and a migration note:
 
-Run: `mise run test:integration[<PostgresTestCaseClassName>]`
-Expected: FAIL on `test_defaults_metadata_to_empty_mapping_on_retrieval` and the retrieval assertions of `test_stores_and_retrieves_event_metadata`.
+```markdown
+### Added
 
-- [ ] **Step 2: Add a metadata-splitting row factory**
+- Events now support an optional `metadata` field for recording cross-cutting
+  context (such as the actor responsible for an event). `NewEvent` and
+  `StoredEvent` gain a third generic parameter, `Metadata`, defaulting to an
+  empty mapping when omitted. Metadata is persisted in a dedicated
+  `metadata JSONB NOT NULL` column on the `events` table, mirroring the existing
+  `projections.metadata` column.
 
-In `src/logicblocks/event/store/adapters/postgres/adapter.py`, add to the types import block:
+### Changed
 
-```python
-    split_metadata_from_payload,
+- The `events` table has a new `metadata JSONB NOT NULL` column. This requires
+  a migration for existing deployments:
+
+  ```sql
+  ALTER TABLE events ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}';
+  ALTER TABLE events ALTER COLUMN metadata DROP DEFAULT;
+  ```
+
+  The transient default backfills existing rows, then is dropped so the column
+  matches the canonical schema in `sql/create_events_table.sql`.
 ```
 
-Add a module-level row factory near the other query/row helpers (after the imports, before the adapter class):
+- [ ] **Step 2: Verify it assembles (optional)**
 
-```python
-def stored_event_row_factory(cursor: AsyncCursor):
-    base_factory = class_row(StoredEvent[str, JsonValue])(cursor)
-
-    def make_row(values):
-        event = base_factory(values)
-        payload, metadata = split_metadata_from_payload(event.payload)
-        return StoredEvent[str, JsonValue](
-            id=event.id,
-            name=event.name,
-            stream=event.stream,
-            category=event.category,
-            position=event.position,
-            sequence_number=event.sequence_number,
-            payload=payload,
-            observed_at=event.observed_at,
-            occurred_at=event.occurred_at,
-            metadata=metadata,
-        )
-
-    return make_row
-```
-
-(If the `cursor` parameter needs a precise type, use the existing `AsyncCursor[StoredEvent[str, JsonValue]]` annotation pattern already imported in this file.)
-
-- [ ] **Step 3: Use the custom row factory in read paths**
-
-Replace every `row_factory=class_row(StoredEvent[str, JsonValue])` used for **reading events back** with `row_factory=stored_event_row_factory`. These are at approximately:
-- `latest` (line ~859)
-- `scan` (line ~877)
-- the save-path read cursors that fetch existing events (lines ~718 and ~773) — verify each of these is reading events (not just inserting). The insert cursor that uses `RETURNING *` (around the `insert_events` call) returns folded rows but those return values are NOT used for the caller-facing payload (Task 7 uses the original `event.payload`), so leaving its factory as-is is fine; however, if any latest-event read for write conditions uses `class_row`, switch it to `stored_event_row_factory` so write-condition logic sees split payloads.
-
-Find all occurrences:
-
-```bash
-grep -n "class_row(StoredEvent" src/logicblocks/event/store/adapters/postgres/adapter.py
-```
-
-For each occurrence used to read events for return or for condition checks, replace with `stored_event_row_factory`.
-
-- [ ] **Step 4: Run the full Postgres adapter test class**
-
-Run: `mise run test:integration[<PostgresTestCaseClassName>]`
-Expected: PASS (all tests, including both metadata tests and all pre-existing tests).
+If convenient: `mise run changelog:assemble` (or inspect existing fragments to
+confirm format). Otherwise eyeball against a sibling fragment.
 
 ---
 
-## Task 9: Legacy-row and guard coverage in shared adapter tests
-
-**Files:**
-- Modify: `tests/shared/logicblocks/event/testcases/store/adapters.py`
-
-- [ ] **Step 1: Write the guard + legacy tests**
-
-Add to the shared adapter test base class:
-
-```python
-    async def test_raises_when_metadata_attached_to_non_object_payload(self):
-        adapter = self.construct_storage_adapter()
-        category = data.random_event_category_name()
-        stream = data.random_event_stream_name()
-
-        new_event = (
-            NewEventBuilder()
-            .with_payload([1, 2, 3])
-            .with_metadata({"actor": "user-1"})
-            .build()
-        )
-
-        with pytest.raises(InvalidEventMetadataError):
-            await adapter.save(
-                target=StreamIdentifier(category=category, stream=stream),
-                events=[new_event],
-            )
-
-    async def test_raises_when_payload_contains_reserved_metadata_key(self):
-        adapter = self.construct_storage_adapter()
-        category = data.random_event_category_name()
-        stream = data.random_event_stream_name()
-
-        new_event = (
-            NewEventBuilder()
-            .with_payload({"__metadata": {"x": 1}})
-            .with_metadata({"actor": "user-1"})
-            .build()
-        )
-
-        with pytest.raises(InvalidEventMetadataError):
-            await adapter.save(
-                target=StreamIdentifier(category=category, stream=stream),
-                events=[new_event],
-            )
-```
-
-Add the imports at the top of the file if missing:
-
-```python
-import pytest
-from logicblocks.event.types import InvalidEventMetadataError
-```
-
-- [ ] **Step 2: Run for both adapters**
-
-Run: `mise run test:unit[<MemoryTestCaseClassName>]` then `mise run test:integration[<PostgresTestCaseClassName>]`
-Expected: PASS (the guards already exist via `fold_metadata_into_payload` from Task 1; these tests confirm both adapters surface them).
-
-If the Postgres adapter batches the fold inside query construction such that the exception is raised at query-build time, confirm it propagates out of `save` (it should, since `insert_batch_query` is called synchronously within `save`). If a guard does NOT raise for one adapter, fix that adapter's save path to call `fold_metadata_into_payload` before persisting.
-
----
-
-## Task 10: Changelog fragment
-
-**Files:**
-- Create: a changelog fragment under `changelog.d/`
-
-- [ ] **Step 1: Generate the fragment**
-
-Run: `mise run changelog:fragment:create`
-
-Follow the prompt (type/category) to create a fragment describing the addition. If the task is non-interactive, inspect existing files in `changelog.d/` for the naming convention (e.g. `<id>.added.md`) and create one matching it with content:
-
-```
-Add optional `metadata` field to events for recording cross-cutting context
-such as the actor responsible for an event. Metadata is folded into the event
-payload under a reserved key and is fully optional; events without metadata are
-unaffected.
-```
-
----
-
-## Task 11: Full build verification
+## Task 8: Full build verification
 
 - [ ] **Step 1: Run the full build**
 
-Run: `mise run`
-Expected: PASS — linting, type checking, formatting, build, and all tests (unit, integration, component) green.
+Run: `DB_PORT=<port> mise run`
+Expected: PASS — lint, types, format, build, and all tests (unit, integration,
+component) green.
 
-- [ ] **Step 2: Fix any type/lint issues**
+- [ ] **Step 2: Fix any lint/type/format issues**
 
-If `mise run type:check` flags the new `Metadata` generic anywhere it's threaded through (`publish`, adapter signatures), add the third generic param consistently. If `mise run lint:fix` / `mise run format:fix` make changes, include them.
+If `mise exec -- invoke lint.fix` / `format.fix` make changes, keep them. If
+`types.check` flags the `Metadata` generic anywhere it's threaded (publish,
+adapter signatures), add the third generic consistently.
 
 ---
 
 ## Self-Review Notes
 
-- **Spec coverage:** generic `Metadata` param (Tasks 3-4), default `{}` (Tasks 3-4), fold-on-write/split-on-read sibling-key model (Tasks 1, 6-8), both guards (Tasks 1, 9), legacy detect-on-read (Task 1 `split` + Task 9 test), serialise/summarise include metadata (Tasks 3-4), changelog fragment (Task 10), shared adapter coverage for memory + Postgres (Tasks 6-9). All spec sections map to tasks.
-- **Type consistency:** helper names `fold_metadata_into_payload` / `split_metadata_from_payload` / `RESERVED_METADATA_KEY` / `InvalidEventMetadataError` are used identically across all tasks.
-- **Open verification points flagged for the implementer:** exact test-case class names (memory/postgres) and the precise set of `class_row(StoredEvent...)` read sites must be confirmed via the provided `grep` commands before editing — they are environment-stable but named explicitly to avoid guesswork.
+- **Spec coverage:** column DDL (Task 1), `metadata` generic + field + default
+  on NewEvent/StoredEvent (Tasks 2-3), serialise/summarise/repr +
+  serialise_stored_event (Tasks 2-3), builders (Task 4), memory persist/return
+  (Task 5), postgres INSERT + RETURNING + automatic read (Task 6), shared
+  round-trip tests for both adapters (Task 6), migration + changelog (Task 7),
+  full build (Task 8). All spec sections map to tasks.
+- **No fold/split, no guards, no reserved key, no custom row factory, no
+  `metadata.py`** — explicitly removed in Task 0 and absent from all tasks.
+- **Type soundness:** the `cast(Callable[[], Metadata], lambda: {})` default on
+  StoredEvent and the `metadata if metadata is not None else {}` defaults on
+  NewEvent/builders are the established patterns; `serialise_stored_event` and
+  `from_new_event` thread the third generic.
+- **Clean baseline:** Task 0 discards all prior fold-based work and verifies a
+  green starting point before any new code.
+- **Verification points flagged for the implementer:** exact postgres/memory
+  test-class names and the precise line numbers of the INSERT and RETURNING
+  sites must be confirmed via `grep` before editing (line numbers above are
+  approximate, against `main`).

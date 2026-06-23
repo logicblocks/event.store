@@ -25,7 +25,9 @@ from .types import StreamPublishDefinition
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
 
-class EventStream(EventSource[StreamIdentifier, StoredEvent]):
+class EventStream[Category: str = str](
+    EventSource[StreamIdentifier[Category], StoredEvent]
+):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
@@ -36,7 +38,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
     def __init__(
         self,
         adapter: EventStorageAdapter,
-        stream: StreamIdentifier,
+        stream: StreamIdentifier[Category],
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
@@ -46,7 +48,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         self._identifier = stream
 
     @property
-    def identifier(self) -> StreamIdentifier:
+    def identifier(self) -> StreamIdentifier[Category]:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
@@ -129,11 +131,13 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
             return NotImplemented
         return (
             self._adapter == other._adapter
-            and self._identifier == other._identifier
+            and self._identifier == other._identifier  # pyright: ignore [reportUnknownMemberType]
         )
 
 
-class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
+class EventCategory[Category: str = str](
+    EventSource[CategoryIdentifier[Category], StoredEvent]
+):
     """A class for interacting with a specific category of events.
 
     Since a category consists of zero or more streams, the category
@@ -146,7 +150,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
     def __init__(
         self,
         adapter: EventStorageAdapter,
-        category: CategoryIdentifier,
+        category: CategoryIdentifier[Category],
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
@@ -154,14 +158,14 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         self._identifier = category
 
     @property
-    def identifier(self) -> CategoryIdentifier:
+    def identifier(self) -> CategoryIdentifier[Category]:
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
-    def stream(self, *, stream: str) -> EventStream:
+    def stream(self, *, stream: str) -> EventStream[Category]:
         """Get a stream of events in the category.
 
         Args:
@@ -213,7 +217,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             return NotImplemented
         return (
             self._adapter == other._adapter
-            and self._identifier == other._identifier
+            and self._identifier == other._identifier  # pyright: ignore [reportUnknownMemberType]
         )
 
 
@@ -296,7 +300,9 @@ class EventStore:
         self._adapter = adapter
         self._logger = logger
 
-    def stream(self, *, category: str, stream: str) -> EventStream:
+    def stream[Category: str](
+        self, *, category: Category, stream: str
+    ) -> EventStream[Category]:
         """Get a stream of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped
@@ -320,7 +326,9 @@ class EventStore:
             stream=StreamIdentifier(category=category, stream=stream),
         )
 
-    def category(self, *, category: str) -> EventCategory:
+    def category[Category: str = str](
+        self, *, category: Category
+    ) -> EventCategory[Category]:
         """Get a category of events from the store.
 
         This method alone doesn't result in any IO, it instead returns a scoped

@@ -116,10 +116,27 @@ shared adapter test proves metadata round-trips identically in both adapters.
   `[Name, Payload]`. Metadata still round-trips end-to-end as a plain field;
   only the static generic parameterisation of the returned `StoredEvent` is
   narrower than full propagation. This matches the deleted plan's deliberate
-  scope. If `type:check` flags the third generic anywhere it is reactively
-  required, add it there only — do not pre-emptively thread it everywhere.
+  scope. If `mise run types:check` flags the third generic anywhere it is
+  reactively required, add it there only — don't pre-emptively thread it.
 - **Verification via `mise run`.** Per project `CLAUDE.md`, all automated
-  criteria use `mise run ...` targets, not `make`.
+  criteria use `mise run ...` targets, not `make`. Targeted runs use the
+  `--test-args` switch: `mise run test:unit --test-args='-k <expr>'` (and the
+  same for `test:integration`). Do **not** use `mise exec -- invoke ...` — it
+  bypasses the task-dependency chain (e.g. DB provisioning). The build brings up
+  the test database itself; never pass `DB_PORT`.
+- **`summarise()` excludes metadata** *(deviation from spec, per reviewer
+  feedback on PR #116)*. `summarise()` output is used in log statements, and
+  metadata may carry sensitive context (e.g. actor identifiers). To avoid
+  leaking it into logs, metadata is **omitted** from `summarise()`. It is still
+  included in `serialise()` for full round-trip. The spec said to include it in
+  both; this narrows that to `serialise()` only.
+- **`StoredEvent.metadata` has no default** *(deviation from spec, per reviewer
+  feedback on PR #116)*. The spec proposed adding the field last with a
+  `default_factory` of `{}`. That is type-unsound: if `Metadata` is, say,
+  `list[str]`, `{}` is not a valid default. Instead, `metadata` is a **required**
+  field on `StoredEvent`, and every construction site passes it explicitly.
+  `NewEvent.metadata` keeps its `{}` default because `NewEvent` has a custom
+  `__init__` where the default is a deliberate convenience for callers.
 
 ## What We're NOT Doing
 
@@ -133,6 +150,10 @@ shared adapter test proves metadata round-trips identically in both adapters.
 - No migration framework. Raw `sql/` DDL + changelog fragment only.
 - No DB-level default on the column — the application always supplies at least
   `{}`.
+- No metadata-specific adapter tests where an existing full-field test can be
+  extended instead (per reviewer feedback — see Phase 7).
+- Do **not** commit the assembled `CHANGELOG.md`; only the fragment under
+  `changelog.d/` is committed (the human/CI assembles).
 
 ## Implementation Approach
 
@@ -150,7 +171,7 @@ objects and asserted by equality (the codebase's preferred style).
 
 ### Overview
 
-Add the `Metadata` generic, field, default, and serialisation to `NewEvent` and
+Add the `Metadata` generic, field, and serialisation to `NewEvent` and
 `StoredEvent`, and carry it through `serialise_stored_event`. This is the
 foundation; all later phases depend on it.
 
@@ -161,7 +182,8 @@ foundation; all later phases depend on it.
 **File**: `src/logicblocks/event/types/event.py`
 **Changes**: Add `Metadata = JsonValue` generic and `metadata: Metadata` field.
 Default `metadata` to `{}` in `__init__` (mirroring how `observed_at` defaults).
-Include `metadata` in `serialise()`, `summarise()`, and `__repr__`.
+Include `metadata` in `serialise()` and `__repr__`. Do **not** add it to
+`summarise()` (see Decisions — summarise feeds logs).
 
 ```python
 @dataclass(frozen=True)
@@ -191,15 +213,21 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
 ```
 
 `serialise()` gains `"metadata": serialise_to_json_value(self.metadata, fallback)`;
-`summarise()` gains `"metadata": self.metadata`; `__repr__` gains
-`metadata={repr(self.metadata)}`.
+`__repr__` gains `metadata={repr(self.metadata)}`. `summarise()` is left
+unchanged (no metadata).
 
 #### 2. `StoredEvent`
 
 **File**: `src/logicblocks/event/types/event.py`
-**Changes**: Add `Metadata = JsonValue` generic and `metadata: Metadata` field.
-Include `metadata` in `serialise()`, `summarise()`, and `__repr__`. Per the
-spec, add the field **last** so existing keyword construction keeps working.
+**Changes**: Add `Metadata = JsonValue` generic and a **required** `metadata:
+Metadata` field (no default — see Decisions; a `{}` default factory is
+type-unsound for non-mapping `Metadata`). Include `metadata` in `serialise()`
+and `__repr__`; leave `summarise()` unchanged. Because the field is required,
+**every** `StoredEvent(...)` construction site must pass `metadata` — these are
+enumerated in Phases 4–5 and the builder in Phase 2. (Construction sites:
+`serialise_stored_event` here, both adapters, the `StoredEventBuilder.build`,
+plus any in `store.py` / `projector.py` / adapter `db.py` surfaced by
+`mise run types:check`.)
 
 #### 3. `serialise_stored_event`
 
@@ -211,17 +239,17 @@ through, mirroring `payload`.
 
 #### Automated Verification:
 
-- [ ] New type unit tests pass: `mise run test:unit[NewEventTestCase]` and the
-      `StoredEvent` test class
+- [ ] New type unit tests pass: `mise run test:unit --test-args='-k "NewEvent or StoredEvent"'`
 - [ ] All unit tests pass: `mise run test:unit`
-- [ ] Type checking passes: `mise run type:check`
+- [ ] Type checking passes: `mise run types:check`
 - [ ] Linting passes: `mise run lint:fix`
 - [ ] Formatting passes: `mise run format:fix`
 
 #### Manual Verification:
 
 - [ ] `NewEvent(name=..., payload=...)` with no metadata reports `metadata == {}`
-- [ ] `serialise()` / `summarise()` / `repr()` of an event with metadata show it
+- [ ] `serialise()` / `repr()` of an event with metadata show it; `summarise()`
+      does **not** contain metadata
 
 ---
 
@@ -229,18 +257,39 @@ through, mirroring `payload`.
 
 ### Overview
 
-Extend `NewEventBuilder` and `StoredEventBuilder` to mirror how
-`BaseProjectionBuilder` handles metadata.
+Extend `NewEventBuilder` and `StoredEventBuilder` to mirror how the builders
+already handle `payload` — **including a random populated default** (per reviewer
+feedback: the builders generate a random `payload`, so metadata should be
+random-populated too, not `{}`).
 
 ### Changes Required
 
-#### 1. `NewEventBuilder` and `StoredEventBuilder`
+#### 1. Random metadata data helper
+
+**File**: `src/logicblocks/event/testing/data.py`
+**Changes**: Add `random_event_metadata()` mirroring `random_event_payload()`
+(line 73) / `random_projection_metadata()` (line 99) — a random mapping of
+string keys to string values.
+
+```python
+def random_event_metadata() -> Mapping[str, Any]:
+    return {
+        random_lowercase_ascii_alphabetics_string(
+            length=10
+        ): random_ascii_alphanumerics_string(length=20)
+        for _ in range(random_int(1, 10))
+    }
+```
+
+#### 2. `NewEventBuilder` and `StoredEventBuilder`
 
 **File**: `src/logicblocks/event/testing/builders.py`
 **Changes**: Add `Metadata = JsonValue` generic to each builder and its
-`*Params` TypedDict. Add a `metadata` field defaulting to `{}` in `__init__`,
-thread it through `_clone`, add a `with_metadata(...)` method, and pass it to the
-`build()` constructor. `StoredEventBuilder.from_new_event` propagates
+`*Params` TypedDict. Add a `metadata` field that defaults to
+`random_event_metadata()` in `__init__` (mirroring how `payload` defaults to
+`random_event_payload()` via `payload or random_event_payload()`), thread it
+through `_clone`, add a `with_metadata(...)` method, and pass it to the `build()`
+constructor. `StoredEventBuilder.from_new_event` propagates
 `metadata=event.metadata`.
 
 ```python
@@ -248,19 +297,21 @@ def with_metadata(self, metadata: Metadata):
     return self._clone(metadata=metadata)
 ```
 
+Do **not** touch the `ProjectionBuilder` family — it already has its own
+metadata handling.
+
 ### Success Criteria
 
 #### Automated Verification:
 
-- [ ] Builder unit tests pass: `mise run test:unit[NewEventBuilderTestCase]` and
-      the `StoredEventBuilder` test class (names per existing
-      `tests/unit/logicblocks/event/testing/test_builders.py`)
+- [ ] Builder unit tests pass: `mise run test:unit --test-args='-k "Builder and Metadata"'`
 - [ ] All unit tests pass: `mise run test:unit`
-- [ ] Type checking passes: `mise run type:check`
+- [ ] Type checking passes: `mise run types:check`
 
 #### Manual Verification:
 
-- [ ] `NewEventBuilder().build().metadata == {}` by default
+- [ ] `NewEventBuilder().build().metadata` is a random non-empty mapping by
+      default (parity with `payload`)
 - [ ] `with_metadata({"actor": "user-123"})` sets it; `from_new_event`
       propagates it
 
@@ -341,16 +392,17 @@ original event, same treatment as `payload=event.payload`).
 
 The `StreamInsertDefinition`, `insert_batch_query`, `insert_batch`,
 `_save_to_stream`, `_save_to_category`, and `save` signatures stay at
-`[Name, Payload]`. Do **not** add a third generic here. `StoredEvent` defaults
-its `Metadata` parameter, so `StoredEvent[Name, Payload]` remains valid and
-metadata still flows through as a field value.
+`[Name, Payload]`. Do **not** add a third generic here. `StoredEvent`'s
+`Metadata` *type parameter* still defaults to `JsonValue`, so the
+`StoredEvent[Name, Payload]` parameterisation remains valid; only the `metadata`
+*constructor argument* is now required (passed in step 2).
 
 ### Success Criteria
 
 #### Automated Verification:
 
 - [ ] Integration tests pass: `mise run test:integration`
-- [ ] Type checking passes: `mise run type:check`
+- [ ] Type checking passes: `mise run types:check`
 - [ ] Linting passes: `mise run lint:fix`
 
 #### Manual Verification:
@@ -390,10 +442,9 @@ generic here (public-surface-only scope).
 
 #### Automated Verification:
 
-- [ ] Memory adapter unit tests pass: `mise run test:unit[InMemoryEventStorageAdapter...]`
-      (the existing memory adapter test classes)
+- [ ] Memory adapter shared tests pass: `mise run test:unit --test-args='-k "Memory"'`
 - [ ] All unit tests pass: `mise run test:unit`
-- [ ] Type checking passes: `mise run type:check`
+- [ ] Type checking passes: `mise run types:check`
 
 #### Manual Verification:
 
@@ -423,45 +474,68 @@ ALTER TABLE events ALTER COLUMN metadata DROP DEFAULT;
 The transient `DEFAULT '{}'` backfills existing rows during the add, then is
 dropped so the column's final state matches the no-default canonical DDL.
 
+**Important:** commit only the new fragment under `changelog.d/`. Do **not** run
+`changelog:assemble` and commit the resulting `CHANGELOG.md` — assembly is the
+human's/CI's job (per reviewer feedback).
+
 ### Success Criteria
 
 #### Automated Verification:
 
-- [ ] Changelog assembles cleanly: `mise run changelog:assemble` (or the project's
-      changelog lint step within `mise run`)
+- [ ] Fragment file exists under `changelog.d/` with the expected
+      `YYYYMMDD_HHMMSS_<author>_<slug>.md` naming (matching sibling fragments)
 
 #### Manual Verification:
 
 - [ ] Fragment clearly states the migration is required and is a breaking change
+- [ ] No assembled `CHANGELOG.md` change is staged for commit
 
 ---
 
-## Phase 7: Shared Adapter Round-Trip Tests
+## Phase 7: Shared Adapter Round-Trip Coverage
 
 ### Overview
 
-Prove, via the shared adapter test cases, that metadata round-trips identically
-in both memory and Postgres. (Written test-first per phase in TDD; this phase
-ensures the cross-adapter equality coverage the spec calls for exists.)
+Prove metadata round-trips identically in both memory and Postgres. Per reviewer
+feedback, **extend the existing full-field equality tests** rather than adding
+metadata-specific ones. Because `NewEventBuilder` now produces random metadata by
+default (Phase 2), the existing tests' expected `StoredEvent` objects must gain a
+`metadata=new_event.metadata` field, and they then assert metadata round-trips
+for free.
 
 ### Changes Required
 
-#### 1. Shared adapter cases
+#### 1. Extend existing shared cases
 
 **File**: `tests/shared/logicblocks/event/testcases/store/adapters.py`
-**Changes**: Add cases that (a) save an event with
-`metadata={"actor": "user-123"}` and assert the retrieved `StoredEvent` equals a
-fully-built expected `StoredEvent` (including metadata), and (b) save an event
-with no metadata and assert it round-trips as `metadata={}`. Use
-`NewEventBuilder().with_metadata(...)` and build the complete expected
-`StoredEvent` for equality assertion.
+**Changes**: In `test_stores_single_event_for_later_retrieval` (line 77) and the
+sibling full-field equality tests (e.g. `test_stores_multiple_events_in_same_stream`),
+add `metadata=new_event.metadata` to each expected `StoredEvent(...)`. Since the
+builder default is now a random populated map, this asserts metadata is persisted
+and retrieved unchanged — no separate metadata test needed.
+
+#### 2. Returned-event assertion
+
+**File**: `tests/shared/logicblocks/event/testcases/store/adapters.py`
+**Changes**: Where a test asserts on the `save()` *return value* (the
+caller-facing `StoredEvent`), assert **all** fields including `metadata`
+(mirroring the full-field style of the retrieval test) rather than asserting on
+`metadata` alone. Per reviewer feedback, a returned-event test should validate
+the whole event, not be metadata-specific.
+
+#### 3. No empty-default-on-retrieval test
+
+Do **not** add a test asserting retrieval defaults metadata to `{}` — the
+reviewer rejected that as not-the-intended-behaviour. The `{}` default belongs to
+`NewEvent` construction (Phase 1), and is covered by unit tests there; the
+adapter layer simply round-trips whatever was provided.
 
 ### Success Criteria
 
 #### Automated Verification:
 
-- [ ] New shared cases pass against memory: `mise run test:unit`
-- [ ] New shared cases pass against Postgres: `mise run test:integration`
+- [ ] Extended shared cases pass against memory: `mise run test:unit`
+- [ ] Extended shared cases pass against Postgres: `mise run test:integration`
 - [ ] Component tests pass: `mise run test:component`
 - [ ] Full build is green: `mise run`
 
@@ -477,22 +551,18 @@ Following the spec's TDD ordering (one failing test at a time, red-green-refacto
 
 ### Unit Tests
 
-- `NewEvent` / `StoredEvent` default `metadata` to `{}` when omitted.
-- `serialise()` / `summarise()` / `__repr__` include metadata.
+- `NewEvent` defaults `metadata` to `{}` when omitted; `StoredEvent` requires it.
+- `serialise()` and `__repr__` include metadata; `summarise()` does **not**.
 - `serialise_stored_event()` carries metadata through.
-- Builders: `with_metadata` sets it; default is `{}`; `from_new_event`
-  propagates it.
+- Builders: `with_metadata` sets it; default is a random populated map (parity
+  with `payload`); `from_new_event` propagates it.
 
-### Integration Tests
+### Integration / Shared (memory + Postgres)
 
-- Postgres adapter: event with metadata round-trips through save and retrieval;
-  default `{}` round-trips. Built as full-equality assertions against an expected
-  `StoredEvent`.
-
-### Shared (memory + Postgres)
-
-- The above round-trip cases live in the shared adapter test cases so both
-  adapters receive identical coverage.
+- The existing full-field equality tests in the shared adapter cases are
+  extended to include `metadata` (random by builder default), so both adapters
+  assert metadata is persisted and retrieved unchanged. No metadata-specific
+  adapter test and no empty-default-on-retrieval test (per reviewer feedback).
 
 No guard tests and no legacy-row tests — a dedicated column removes both
 concerns.
@@ -502,7 +572,8 @@ concerns.
 1. Save an event with `metadata={"actor": "user-123"}` via the Postgres adapter;
    confirm retrieval returns it unchanged and `payload` is byte-identical to
    today.
-2. Save an event with no metadata; confirm it reads back as `metadata={}`.
+2. Save an event built with `NewEventBuilder()` (random metadata) and confirm it
+   round-trips unchanged.
 3. Repeat (1)–(2) against the memory adapter and confirm parity.
 
 ## Performance Considerations
@@ -521,6 +592,18 @@ backfill, then drop the default). No migration framework is introduced.
 ## References
 
 - Design spec: `meta/specs/2026-06-11-event-metadata-design.md`
+- Prior-plan review feedback incorporated here: PR #116
+  (https://github.com/logicblocks/event.store/pull/116) — reviewer `tobyclemson`.
+  Key points folded in: `mise run` task forms (not `mise exec`/`DB_PORT`),
+  exclude metadata from `summarise()`, no default on `StoredEvent.metadata`,
+  random builder metadata, extend existing full-field adapter tests, commit only
+  the changelog fragment.
+- Builder random-data helpers to mirror: `random_event_payload()`
+  (`src/logicblocks/event/testing/data.py:73`),
+  `random_projection_metadata()` (`...data.py:99`)
+- Existing full-field adapter test to extend:
+  `tests/shared/logicblocks/event/testcases/store/adapters.py:77`
+  (`test_stores_single_event_for_later_retrieval`)
 - Pattern to mirror — `Projection[State, Metadata]`:
   `src/logicblocks/event/types/projection.py:18`
 - Projection metadata column: `sql/create_projections_table.sql`

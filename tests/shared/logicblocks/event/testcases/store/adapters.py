@@ -101,6 +101,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event.payload,
                 observed_at=new_event.observed_at,
+                metadata=new_event.metadata,
                 occurred_at=new_event.occurred_at,
             )
         ]
@@ -136,6 +137,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -147,6 +149,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
@@ -189,6 +192,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -200,6 +204,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
@@ -254,6 +259,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_1_events[0].payload,
                     position=0,
                     sequence_number=stream_1_stored[0].sequence_number,
+                    metadata=stream_1_events[0].metadata,
                     occurred_at=stream_1_events[0].occurred_at,
                     observed_at=stream_1_events[0].observed_at,
                 ),
@@ -265,6 +271,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_1_events[1].payload,
                     position=1,
                     sequence_number=stream_1_stored[1].sequence_number,
+                    metadata=stream_1_events[1].metadata,
                     occurred_at=stream_1_events[1].occurred_at,
                     observed_at=stream_1_events[1].observed_at,
                 ),
@@ -278,6 +285,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[0].payload,
                     position=0,
                     sequence_number=stream_2_stored[0].sequence_number,
+                    metadata=stream_2_events[0].metadata,
                     occurred_at=stream_2_events[0].occurred_at,
                     observed_at=stream_2_events[0].observed_at,
                 ),
@@ -289,6 +297,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[1].payload,
                     position=1,
                     sequence_number=stream_2_stored[1].sequence_number,
+                    metadata=stream_2_events[1].metadata,
                     occurred_at=stream_2_events[1].occurred_at,
                     observed_at=stream_2_events[1].observed_at,
                 ),
@@ -300,6 +309,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[2].payload,
                     position=2,
                     sequence_number=stream_2_stored[2].sequence_number,
+                    metadata=stream_2_events[2].metadata,
                     occurred_at=stream_2_events[2].occurred_at,
                     observed_at=stream_2_events[2].observed_at,
                 ),
@@ -379,6 +389,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event.payload,
                 observed_at=new_event.observed_at,
+                metadata=new_event.metadata,
                 occurred_at=new_event.occurred_at,
             )
         ]
@@ -426,6 +437,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             )
         ]
@@ -474,6 +486,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             )
         ]
@@ -544,6 +557,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -555,6 +569,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
@@ -679,6 +694,7 @@ class WriteConditionCases(Base, ABC):
                         sequence_number=stored_event.sequence_number,
                         payload=stored_event.payload,
                         observed_at=stored_event.observed_at,
+                        metadata=stored_event.metadata,
                         occurred_at=stored_event.occurred_at,
                     )
                 )

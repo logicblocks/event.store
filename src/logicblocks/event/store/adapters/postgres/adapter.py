@@ -66,8 +66,9 @@ from .converters import (
 class StreamInsertDefinition[
     Name: StringPersistable,
     Payload: JsonPersistable,
+    Metadata: JsonPersistable,
 ](TypedDict):
-    events: Sequence[NewEvent[Name, Payload]]
+    events: Sequence[NewEvent[Name, Payload, Metadata]]
     position: int
 
 
@@ -401,9 +402,13 @@ def read_last_category_batch_query(
     return query, params
 
 
-def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
+def insert_batch_query[
+    Name: StringPersistable,
+    Payload: JsonPersistable,
+    Metadata: JsonPersistable,
+](
     definitions: Mapping[
-        StreamIdentifier, StreamInsertDefinition[Name, Payload]
+        StreamIdentifier, StreamInsertDefinition[Name, Payload, Metadata]
     ],
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
@@ -415,7 +420,7 @@ def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
         start_position = definition["position"]
 
         for i, event in enumerate(events):
-            rows.append(sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s)"))
+            rows.append(sql.SQL("(%s, %s, %s, %s, %s, %s, %s, %s, %s)"))
             values.extend(
                 [
                     uuid4().hex,
@@ -424,6 +429,7 @@ def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
                     identifier.category,
                     start_position + i,
                     Jsonb(serialise_to_json_value(event.payload)),
+                    Jsonb(serialise_to_json_value(event.metadata)),
                     event.observed_at,
                     event.occurred_at,
                 ]
@@ -439,6 +445,7 @@ def insert_batch_query[Name: StringPersistable, Payload: JsonPersistable](
                                  category,
                                  position,
                                  payload,
+                                 metadata,
                                  observed_at,
                                  occurred_at)
                 VALUES
@@ -549,14 +556,18 @@ async def read_last_category_batch(
     return {result.stream: result for result in results}
 
 
-async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
+async def insert_batch[
+    Name: StringPersistable,
+    Payload: JsonPersistable,
+    Metadata: JsonPersistable,
+](
     cursor: AsyncCursor[StoredEvent[str, JsonValue]],
     *,
     definitions: Mapping[
-        StreamIdentifier, StreamInsertDefinition[Name, Payload]
+        StreamIdentifier, StreamInsertDefinition[Name, Payload, Metadata]
     ],
     table_settings: TableSettings,
-) -> Mapping[StreamIdentifier, Sequence[StoredEvent[Name, Payload]]]:
+) -> Mapping[StreamIdentifier, Sequence[StoredEvent[Name, Payload, Metadata]]]:
     if not definitions:
         return {}
 
@@ -571,17 +582,19 @@ async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
             f"Batch insert failed: expected {expected_event_count} rows, got {len(stored_events)}"
         )
 
-    results: dict[StreamIdentifier, list[StoredEvent[Name, Payload]]] = {}
+    results: dict[
+        StreamIdentifier, list[StoredEvent[Name, Payload, Metadata]]
+    ] = {}
     event_index = 0
 
     for identifier, definition in definitions.items():
         events = definition["events"]
-        stream_stored_events: list[StoredEvent[Name, Payload]] = []
+        stream_stored_events: list[StoredEvent[Name, Payload, Metadata]] = []
 
         for event in events:
             stored_event = stored_events[event_index]
             stream_stored_events.append(
-                StoredEvent[Name, Payload](
+                StoredEvent[Name, Payload, Metadata](
                     id=stored_event.id,
                     name=event.name,
                     stream=stored_event.stream,
@@ -589,6 +602,7 @@ async def insert_batch[Name: StringPersistable, Payload: JsonPersistable](
                     position=stored_event.position,
                     sequence_number=stored_event.sequence_number,
                     payload=event.payload,
+                    metadata=event.metadata,
                     observed_at=stored_event.observed_at,
                     occurred_at=stored_event.occurred_at,
                 )
@@ -653,33 +667,45 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
             await self.connection_pool.close()
 
     @overload
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: StreamIdentifier,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]: ...
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]: ...
 
     @overload
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: CategoryIdentifier,
         streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]: ...
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]: ...
 
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent[Name, Payload]] | None = None,
+        events: Sequence[NewEvent[Name, Payload, Metadata]] | None = None,
         condition: WriteCondition = NoCondition(),
         streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
         | None = None,
     ) -> (
-        Sequence[StoredEvent[Name, Payload]]
-        | Mapping[str, Sequence[StoredEvent[Name, Payload]]]
+        Sequence[StoredEvent[Name, Payload, Metadata]]
+        | Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]
     ):
         match target:
             case StreamIdentifier():
@@ -706,13 +732,14 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     async def _save_to_stream[
         Name: StringPersistable,
         Payload: JsonPersistable,
+        Metadata: JsonPersistable,
     ](
         self,
         *,
         target: StreamIdentifier,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]:
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[str, JsonValue])
@@ -746,7 +773,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                 )
 
                 definitions = {
-                    target: StreamInsertDefinition[Name, Payload](
+                    target: StreamInsertDefinition[Name, Payload, Metadata](
                         events=events, position=current_position
                     )
                 }
@@ -762,12 +789,13 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     async def _save_to_category[
         Name: StringPersistable,
         Payload: JsonPersistable,
+        Metadata: JsonPersistable,
     ](
         self,
         *,
         target: CategoryIdentifier,
         streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
                 row_factory=class_row(StoredEvent[str, JsonValue])
@@ -796,7 +824,8 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     )
 
                 definitions: dict[
-                    StreamIdentifier, StreamInsertDefinition[Name, Payload]
+                    StreamIdentifier,
+                    StreamInsertDefinition[Name, Payload, Metadata],
                 ] = {}
 
                 latest_events = await read_last_category_batch(
@@ -813,7 +842,10 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     )
 
                     condition = stream_request.get("condition", NoCondition())
-                    events = stream_request["events"]
+                    events = cast(
+                        Sequence[NewEvent[Name, Payload, Metadata]],
+                        stream_request["events"],
+                    )
 
                     latest_event = latest_events.get(stream_name, None)
 
@@ -833,7 +865,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     )
 
                     definitions[identifier] = StreamInsertDefinition[
-                        Name, Payload
+                        Name, Payload, Metadata
                     ](events=events, position=current_position)
 
                 batch_results = await insert_batch(
@@ -842,7 +874,9 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     table_settings=self.table_settings,
                 )
 
-                results: dict[str, Sequence[StoredEvent[Name, Payload]]] = {}
+                results: dict[
+                    str, Sequence[StoredEvent[Name, Payload, Metadata]]
+                ] = {}
                 for stream_name in streams.keys():
                     identifier = StreamIdentifier(
                         category=target.category, stream=stream_name

@@ -146,10 +146,10 @@ class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
 
 
 def serialise_stored_event(
-    event: StoredEvent[JsonPersistable, JsonPersistable],
+    event: StoredEvent[JsonPersistable, JsonPersistable, JsonPersistable],
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
-) -> StoredEvent[JsonValue, JsonValue]:
-    return StoredEvent[JsonValue, JsonValue](
+) -> StoredEvent[JsonValue, JsonValue, JsonValue]:
+    return StoredEvent[JsonValue, JsonValue, JsonValue](
         id=event.id,
         name=serialise_to_json_value(event.name, fallback),
         stream=event.stream,

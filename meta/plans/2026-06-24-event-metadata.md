@@ -28,9 +28,8 @@ to `{}`); consumers who need cross-cutting context (e.g. "who was the actor")
 place a convention inside the bag. The `payload` column stays byte-identical to
 today.
 
-The design is specified and approved in
-`meta/specs/2026-06-11-event-metadata-design.md`. This plan operationalises that
-spec, grounded in the current code, and is implemented **clean from `main`** —
+The design was specified and approved separately. This plan operationalises that
+design, grounded in the current code, and is implemented **clean from `main`** —
 any earlier fold-into-payload work is discarded, not adapted.
 
 ## Current State Analysis
@@ -123,7 +122,7 @@ shared adapter test proves metadata round-trips identically in both adapters.
   exactly: wherever you see a `Payload` type parameter or `[Name, Payload]`
   parameterisation, add `Metadata` alongside it.
 - **No class-level field default; omitted metadata is `None`.** A generic field
-  cannot carry a default (the spec's proposed `default_factory={}` is
+  cannot carry a default (a `default_factory={}` is
   type-unsound — `{}` is not valid when `Metadata` is e.g. `list[str]`). So
   `metadata: Metadata` has no `= ...` on either type. `StoredEvent.metadata` is
   a **required** constructor argument — every construction site passes it
@@ -140,8 +139,8 @@ shared adapter test proves metadata round-trips identically in both adapters.
 - **`summarise()` excludes metadata.** `summarise()` output is used in log
   statements, and metadata may carry sensitive context (e.g. actor identifiers).
   To avoid leaking it into logs, metadata is **omitted** from `summarise()`. It
-  is still included in `serialise()` for full round-trip. (The spec proposed
-  including it in both; this narrows that to `serialise()` only.)
+  is still included in `serialise()` for full round-trip (narrowed from
+  including it in both `serialise()` and `summarise()`).
 
 ## What We're NOT Doing
 
@@ -162,8 +161,8 @@ shared adapter test proves metadata round-trips identically in both adapters.
 
 ## Implementation Approach
 
-Strict TDD (red-green-refactor), one test at a time, following the spec's test
-ordering. Build inner-out: types first (the foundation every other layer
+Strict TDD (red-green-refactor), one test at a time, following the test
+ordering below. Build inner-out: types first (the foundation every other layer
 depends on), then builders (used by the adapter tests), then the canonical SQL
 and adapters, then the store-API generic propagation, then the changelog
 fragment, and finally the shared cross-adapter round-trip coverage. Shared
@@ -601,7 +600,7 @@ simply round-trips whatever was provided (a mapping, or JSON `null`).
 
 ## Testing Strategy
 
-Following the spec's TDD ordering (one failing test at a time, red-green-refactor):
+Following a strict TDD ordering (one failing test at a time, red-green-refactor):
 
 ### Unit Tests
 
@@ -645,7 +644,6 @@ backfill, then drop the default). No migration framework is introduced.
 
 ## References
 
-- Design spec: `meta/specs/2026-06-11-event-metadata-design.md`
 - PR: https://github.com/logicblocks/event.store/pull/116
 - Builder random-data helpers to mirror: `random_event_payload()`
   (`src/logicblocks/event/testing/data.py:73`),

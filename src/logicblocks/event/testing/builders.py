@@ -17,6 +17,7 @@ from logicblocks.event.utils.clock import Clock, SystemClock
 from .data import (
     random_event_category_name,
     random_event_id,
+    random_event_metadata,
     random_event_name,
     random_event_payload,
     random_event_position,
@@ -29,19 +30,23 @@ from .data import (
 )
 
 
-class NewEventBuilderParams[Name = str, Payload = JsonValue](
-    TypedDict, total=False
-):
+class NewEventBuilderParams[
+    Name = str,
+    Payload = JsonValue,
+    Metadata = JsonValue,
+](TypedDict, total=False):
     name: Name
     payload: Payload
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
 
 @dataclass(frozen=True)
-class NewEventBuilder[Name = str, Payload = JsonValue]:
+class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
     name: Name
     payload: Payload
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -50,23 +55,32 @@ class NewEventBuilder[Name = str, Payload = JsonValue]:
         *,
         name: Name | None = None,
         payload: Payload | None = None,
+        metadata: Metadata | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
     ):
         object.__setattr__(self, "name", name or random_event_name())
         object.__setattr__(self, "payload", payload or random_event_payload())
+        object.__setattr__(
+            self, "metadata", metadata or random_event_metadata()
+        )
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
-    def _clone(self, **kwargs: Unpack[NewEventBuilderParams[Name, Payload]]):
+    def _clone(
+        self,
+        **kwargs: Unpack[NewEventBuilderParams[Name, Payload, Metadata]],
+    ):
         name = kwargs.get("name", self.name)
         payload = kwargs.get("payload", self.payload)
+        metadata = kwargs.get("metadata", self.metadata)
         occurred_at = kwargs.get("occurred_at", self.occurred_at)
         observed_at = kwargs.get("observed_at", self.observed_at)
 
         return NewEventBuilder(
             name=name,
             payload=payload,
+            metadata=metadata,
             occurred_at=occurred_at,
             observed_at=observed_at,
         )
@@ -77,6 +91,9 @@ class NewEventBuilder[Name = str, Payload = JsonValue]:
     def with_payload(self, payload: Payload):
         return self._clone(payload=payload)
 
+    def with_metadata(self, metadata: Metadata):
+        return self._clone(metadata=metadata)
+
     def with_occurred_at(self, occurred_at: datetime | None):
         return self._clone(occurred_at=occurred_at)
 
@@ -84,17 +101,20 @@ class NewEventBuilder[Name = str, Payload = JsonValue]:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return NewEvent[Name, Payload](
+        return NewEvent[Name, Payload, Metadata](
             name=self.name,
             payload=self.payload,
+            metadata=self.metadata,
             occurred_at=self.occurred_at,
             observed_at=self.observed_at,
         )
 
 
-class StoredEventBuilderParams[Name = str, Payload = JsonValue](
-    TypedDict, total=False
-):
+class StoredEventBuilderParams[
+    Name = str,
+    Payload = JsonValue,
+    Metadata = JsonValue,
+](TypedDict, total=False):
     id: str
     name: Name
     stream: str
@@ -102,12 +122,17 @@ class StoredEventBuilderParams[Name = str, Payload = JsonValue](
     position: int
     sequence_number: int
     payload: Payload
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
 
 @dataclass(frozen=True)
-class StoredEventBuilder[Name = str, Payload = JsonValue]:
+class StoredEventBuilder[
+    Name = str,
+    Payload = JsonValue,
+    Metadata = JsonValue,
+]:
     id: str
     name: Name
     stream: str
@@ -115,6 +140,7 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
     position: int
     sequence_number: int
     payload: Payload
+    metadata: Metadata
     occurred_at: datetime
     observed_at: datetime
 
@@ -128,6 +154,7 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
         position: int | None = None,
         sequence_number: int | None = None,
         payload: Payload | None = None,
+        metadata: Metadata | None = None,
         occurred_at: datetime | None = None,
         observed_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -158,11 +185,15 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
             else random_event_sequence_number(),
         )
         object.__setattr__(self, "payload", payload or random_event_payload())
+        object.__setattr__(
+            self, "metadata", metadata or random_event_metadata()
+        )
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
 
     def _clone(
-        self, **kwargs: Unpack[StoredEventBuilderParams[Name, Payload]]
+        self,
+        **kwargs: Unpack[StoredEventBuilderParams[Name, Payload, Metadata]],
     ):
         id = kwargs.get("id", self.id)
         name = kwargs.get("name", self.name)
@@ -171,6 +202,7 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
         position = kwargs.get("position", self.position)
         sequence_number = kwargs.get("sequence_number", self.sequence_number)
         payload = kwargs.get("payload", self.payload)
+        metadata = kwargs.get("metadata", self.metadata)
         occurred_at = kwargs.get("occurred_at", self.occurred_at)
         observed_at = kwargs.get("observed_at", self.observed_at)
 
@@ -182,14 +214,16 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
             position=position,
             sequence_number=sequence_number,
             payload=payload,
+            metadata=metadata,
             occurred_at=occurred_at,
             observed_at=observed_at,
         )
 
-    def from_new_event(self, event: NewEvent[Name, Payload]):
+    def from_new_event(self, event: NewEvent[Name, Payload, Metadata]):
         return self._clone(
             name=event.name,
             payload=event.payload,
+            metadata=event.metadata,
             occurred_at=event.occurred_at,
             observed_at=event.observed_at,
         )
@@ -215,6 +249,9 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
     def with_payload(self, payload: Payload):
         return self._clone(payload=payload)
 
+    def with_metadata(self, metadata: Metadata):
+        return self._clone(metadata=metadata)
+
     def with_occurred_at(self, occurred_at: datetime | None):
         return self._clone(occurred_at=occurred_at)
 
@@ -222,7 +259,7 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
         return self._clone(observed_at=observed_at)
 
     def build(self):
-        return StoredEvent[Name, Payload](
+        return StoredEvent[Name, Payload, Metadata](
             id=self.id,
             name=self.name,
             stream=self.stream,
@@ -230,6 +267,7 @@ class StoredEventBuilder[Name = str, Payload = JsonValue]:
             position=self.position,
             sequence_number=self.sequence_number,
             payload=self.payload,
+            metadata=self.metadata,
             occurred_at=self.occurred_at,
             observed_at=self.observed_at,
         )

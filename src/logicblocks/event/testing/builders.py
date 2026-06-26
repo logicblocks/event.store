@@ -37,7 +37,7 @@ class NewEventBuilderParams[
 ](TypedDict, total=False):
     name: Name
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -46,7 +46,7 @@ class NewEventBuilderParams[
 class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
     name: Name
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -60,9 +60,15 @@ class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
         observed_at: datetime | None = None,
     ):
         object.__setattr__(self, "name", name or random_event_name())
-        object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(
-            self, "metadata", metadata or random_event_metadata()
+            self,
+            "payload",
+            payload if payload is not None else random_event_payload(),
+        )
+        object.__setattr__(
+            self,
+            "metadata",
+            metadata if metadata is not None else random_event_metadata(),
         )
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)
@@ -122,7 +128,7 @@ class StoredEventBuilderParams[
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -140,7 +146,7 @@ class StoredEventBuilder[
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     occurred_at: datetime
     observed_at: datetime
 
@@ -184,9 +190,15 @@ class StoredEventBuilder[
             if sequence_number is not None
             else random_event_sequence_number(),
         )
-        object.__setattr__(self, "payload", payload or random_event_payload())
         object.__setattr__(
-            self, "metadata", metadata or random_event_metadata()
+            self,
+            "payload",
+            payload if payload is not None else random_event_payload(),
+        )
+        object.__setattr__(
+            self,
+            "metadata",
+            metadata if metadata is not None else random_event_metadata(),
         )
         object.__setattr__(self, "occurred_at", occurred_at)
         object.__setattr__(self, "observed_at", observed_at)

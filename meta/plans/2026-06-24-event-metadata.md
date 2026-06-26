@@ -24,13 +24,15 @@ Add an optional, domain-agnostic `metadata` bag to events, persisted in a
 dedicated `metadata JSONB NOT NULL` column on the `events` table. This mirrors
 the existing `projections.metadata` column and the `Projection[State, Metadata]`
 generic. Consumers who supply no metadata see no behavioural change (it defaults
-to `{}`); consumers who need cross-cutting context (e.g. "who was the actor")
-place a convention inside the bag. The `payload` column stays byte-identical to
-today.
+to `None` / JSON `null`, not `{}`); consumers who need cross-cutting context
+(e.g. "who was the actor") place a convention inside the bag. The `payload`
+column stays byte-identical to today.
 
-The design was specified and approved separately. This plan operationalises that
-design, grounded in the current code, and is implemented **clean from `main`** —
-any earlier fold-into-payload work is discarded, not adapted.
+This plan captures the full design inline, grounded in the current code, and is
+implemented **clean from `main`** — any earlier fold-into-payload work is
+discarded, not adapted. The design mirrors the existing
+`Projection[State, Metadata]` type and `projections.metadata` column (see
+References) rather than introducing a new pattern.
 
 ## Current State Analysis
 

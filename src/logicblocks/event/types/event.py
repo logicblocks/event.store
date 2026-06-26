@@ -20,7 +20,7 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
 ):
     name: Name
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     observed_at: datetime
     occurred_at: datetime
 
@@ -91,7 +91,7 @@ class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata
+    metadata: Metadata | None
     observed_at: datetime
     occurred_at: datetime
 

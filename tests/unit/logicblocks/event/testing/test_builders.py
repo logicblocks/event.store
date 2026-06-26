@@ -57,6 +57,13 @@ class TestNewEventBuilder:
 
         assert event.payload == {"key": "value"}
 
+    def test_builds_new_event_with_specified_empty_payload(self):
+        builder = NewEventBuilder().with_payload({})
+
+        event = builder.build()
+
+        assert event.payload == {}
+
     def test_randomises_event_metadata(self):
         metadata_keys = [
             tuple(
@@ -77,6 +84,13 @@ class TestNewEventBuilder:
         event = builder.build()
 
         assert event.metadata == {"actor": "user-123"}
+
+    def test_builds_new_event_with_specified_empty_metadata(self):
+        builder = NewEventBuilder().with_metadata({})
+
+        event = builder.build()
+
+        assert event.metadata == {}
 
     def test_builds_new_event_with_specified_occurred_at(self):
         occurred_at = datetime.now(UTC)
@@ -186,6 +200,13 @@ class TestStoredEventBuilder:
 
         assert event.payload == {"key": "value"}
 
+    def test_builds_stored_event_with_specified_empty_payload(self):
+        builder = StoredEventBuilder().with_payload({})
+
+        event = builder.build()
+
+        assert event.payload == {}
+
     def test_randomises_event_metadata(self):
         metadata_keys = [
             tuple(
@@ -207,6 +228,13 @@ class TestStoredEventBuilder:
         event = builder.build()
 
         assert event.metadata == {"actor": "user-123"}
+
+    def test_builds_stored_event_with_specified_empty_metadata(self):
+        builder = StoredEventBuilder().with_metadata({})
+
+        event = builder.build()
+
+        assert event.metadata == {}
 
     def test_builds_stored_event_with_specified_occurred_at(self):
         occurred_at = datetime.now(UTC)

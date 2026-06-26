@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from psycopg import AsyncConnection, sql
-from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from logicblocks.event.persistence.postgres import (
@@ -256,12 +255,14 @@ class TestBatchInsert:
             NewEventBuilder(
                 name="event1",
                 payload={"data": "value1"},
+                metadata={"meta": "meta1"},
                 occurred_at=fixed_timestamp,
                 observed_at=fixed_timestamp,
             ).build(),
             NewEventBuilder(
                 name="event2",
                 payload={"data": "value2"},
+                metadata={"meta": "meta2"},
                 occurred_at=fixed_timestamp,
                 observed_at=fixed_timestamp,
             ).build(),
@@ -298,7 +299,7 @@ class TestBatchInsert:
         assert params[3] == "test-category"
         assert params[4] == 10
         assert params[5].obj == {"data": "value1"}
-        assert isinstance(params[6], Jsonb)  # metadata serialised as Jsonb
+        assert params[6].obj == {"meta": "meta1"}
         assert params[7] == fixed_timestamp
         assert params[8] == fixed_timestamp
 
@@ -308,7 +309,7 @@ class TestBatchInsert:
         assert params[12] == "test-category"
         assert params[13] == 11
         assert params[14].obj == {"data": "value2"}
-        assert isinstance(params[15], Jsonb)  # metadata serialised as Jsonb
+        assert params[15].obj == {"meta": "meta2"}
         assert params[16] == fixed_timestamp
         assert params[17] == fixed_timestamp
 

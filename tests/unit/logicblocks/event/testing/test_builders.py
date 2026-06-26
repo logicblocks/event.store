@@ -59,11 +59,12 @@ class TestNewEventBuilder:
 
     def test_randomises_event_metadata(self):
         metadata_keys = [
-            map(
-                str,
-                cast(
-                    Mapping[str, Any], NewEventBuilder().build().metadata
-                ).keys(),
+            tuple(
+                sorted(
+                    cast(
+                        Mapping[str, Any], NewEventBuilder().build().metadata
+                    ).keys()
+                )
             )
             for _ in range(100)
         ]
@@ -187,11 +188,13 @@ class TestStoredEventBuilder:
 
     def test_randomises_event_metadata(self):
         metadata_keys = [
-            map(
-                str,
-                cast(
-                    Mapping[str, Any], StoredEventBuilder().build().metadata
-                ).keys(),
+            tuple(
+                sorted(
+                    cast(
+                        Mapping[str, Any],
+                        StoredEventBuilder().build().metadata,
+                    ).keys()
+                )
             )
             for _ in range(100)
         ]

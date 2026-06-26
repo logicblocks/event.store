@@ -7,7 +7,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from typing import cast, overload
+from typing import overload
 from uuid import uuid4
 
 from aiologic import Lock
@@ -101,7 +101,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     ](
         self,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> list[str]:
         match self._serialisation_guarantee:
             case EventSerialisationGuarantee.STREAM:
@@ -138,7 +140,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]: ...
 
     async def save[
@@ -151,7 +155,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload, Metadata]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload, Metadata]]
         | None = None,
     ) -> (
         Sequence[StoredEvent[Name, Payload, Metadata]]
@@ -254,7 +258,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would
@@ -278,10 +284,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                 )
 
                 condition = stream_request.get("condition", NoCondition())
-                events = cast(
-                    Sequence[NewEvent[Name, Payload, Metadata]],
-                    stream_request["events"],
-                )
+                events = stream_request["events"]
 
                 last_stream_event = transaction.last_stream_event(
                     stream_target

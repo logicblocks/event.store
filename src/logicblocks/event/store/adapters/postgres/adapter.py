@@ -688,7 +688,9 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]: ...
 
     async def save[
@@ -701,7 +703,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         target: Saveable,
         events: Sequence[NewEvent[Name, Payload, Metadata]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload, Metadata]]
         | None = None,
     ) -> (
         Sequence[StoredEvent[Name, Payload, Metadata]]
@@ -794,7 +796,9 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
@@ -842,10 +846,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
                     )
 
                     condition = stream_request.get("condition", NoCondition())
-                    events = cast(
-                        Sequence[NewEvent[Name, Payload, Metadata]],
-                        stream_request["events"],
-                    )
+                    events = stream_request["events"]
 
                     latest_event = latest_events.get(stream_name, None)
 

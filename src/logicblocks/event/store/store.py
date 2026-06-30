@@ -63,14 +63,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
-        """Publish a sequence of events into the stream.
-
-        Each event may carry an arbitrary JSON-serialisable ``metadata`` bag
-        for cross-cutting context (e.g. actor or correlation identifiers).
-        Metadata is optional: an event published without it retains
-        ``metadata`` of ``None`` (stored as JSON ``null``), it is not coerced
-        to an empty mapping.
-        """
+        """Publish a sequence of events into the stream."""
         await self._logger.adebug(
             "event.stream.publishing",
             category=self._identifier.category,
@@ -220,14 +213,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             str, StreamPublishDefinition[Name, Payload, Metadata]
         ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
-        """Publish events to multiple streams in the category atomically.
-
-        Each event may carry an arbitrary JSON-serialisable ``metadata`` bag
-        for cross-cutting context (e.g. actor or correlation identifiers).
-        Metadata is optional: an event published without it retains
-        ``metadata`` of ``None`` (stored as JSON ``null``), it is not coerced
-        to an empty mapping.
-        """
+        """Publish events to multiple streams in the category atomically."""
         return await self._adapter.save(
             target=self._identifier, streams=streams
         )

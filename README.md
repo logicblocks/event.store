@@ -68,6 +68,7 @@ async def main():
     stream = store.stream(category="profiles", stream="joe.bloggs")
     profile_created_event = NewEvent(name="profile-created",
                                      payload={"name": "Joe Bloggs", "email": "joe.bloggs@example.com"})
+    # metadata is optional; omit it and the event is stored with metadata of None
     date_of_birth_set_event = NewEvent(name="date-of-birth-set", payload={"dob": "1992-07-10"},
                                        metadata={"actor": "user-123"})
 

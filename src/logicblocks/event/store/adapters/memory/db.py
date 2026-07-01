@@ -38,7 +38,8 @@ class InMemoryEventsDB:
     def __init__(
         self,
         *,
-        events: list[StoredEvent[str, JsonValue] | None] | None = None,
+        events: list[StoredEvent[str, JsonValue, JsonValue] | None]
+        | None = None,
         log_index: EventPositionList | None = None,
         category_index: EventIndexDict[CategoryKey] | None = None,
         stream_index: EventIndexDict[StreamKey] | None = None,
@@ -47,7 +48,7 @@ class InMemoryEventsDB:
             constraints.QueryConstraintCheck[StoredEvent],
         ],
     ):
-        self._events: list[StoredEvent[str, JsonValue] | None] = (
+        self._events: list[StoredEvent[str, JsonValue, JsonValue] | None] = (
             events if events is not None else []
         )
         self._log_index: EventPositionList = (
@@ -79,7 +80,7 @@ class InMemoryEventsDB:
 
     def stream_events(
         self, target: StreamIdentifier
-    ) -> list[StoredEvent[str, JsonValue]]:
+    ) -> list[StoredEvent[str, JsonValue, JsonValue]]:
         stream_key = (target.category, target.stream)
         events = [self._events[i] for i in self._stream_index[stream_key]]
         if any(event is None for event in events):
@@ -88,11 +89,11 @@ class InMemoryEventsDB:
                 f"contains None values."
             )
 
-        return cast(list[StoredEvent[str, JsonValue]], events)
+        return cast(list[StoredEvent[str, JsonValue, JsonValue]], events)
 
     def last_stream_event(
         self, target: StreamIdentifier
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         stream_events = self.stream_events(target)
         return stream_events[-1] if stream_events else None
 
@@ -100,7 +101,7 @@ class InMemoryEventsDB:
         last_stream_event = self.last_stream_event(target)
         return -1 if last_stream_event is None else last_stream_event.position
 
-    def add(self, event: StoredEvent[str, JsonValue]) -> None:
+    def add(self, event: StoredEvent[str, JsonValue, JsonValue]) -> None:
         category_key = event.category
         stream_key = (event.category, event.stream)
         if len(self._events) <= event.sequence_number:
@@ -114,7 +115,7 @@ class InMemoryEventsDB:
 
     def last_event(
         self, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         index = self._select_index(target)
 
         return self._events[index[-1]] if index else None
@@ -123,7 +124,7 @@ class InMemoryEventsDB:
         self,
         target: Scannable,
         constraints: Set[constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         index = self._select_index(target)
 
         for sequence_number in index:
@@ -155,9 +156,9 @@ class InMemoryEventsDB:
 class InMemoryEventsDBTransaction:
     def __init__(self, db: InMemoryEventsDB):
         self._db = db
-        self._added_events: list[StoredEvent[str, JsonValue]] = []
+        self._added_events: list[StoredEvent[str, JsonValue, JsonValue]] = []
 
-    def add(self, event: StoredEvent[str, JsonValue]) -> None:
+    def add(self, event: StoredEvent[str, JsonValue, JsonValue]) -> None:
         self._added_events.append(event)
 
     def commit(self) -> None:
@@ -166,7 +167,7 @@ class InMemoryEventsDBTransaction:
 
     def last_stream_event(
         self, target: StreamIdentifier
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         return self._db.last_stream_event(target)
 
     def last_stream_position(self, target: StreamIdentifier) -> int:

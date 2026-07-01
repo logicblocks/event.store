@@ -228,7 +228,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                     observed_at=new_event.observed_at,
                     occurred_at=new_event.occurred_at,
                 )
-                serialised_stored_event = StoredEvent[str, JsonValue](
+                serialised_stored_event = StoredEvent[
+                    str, JsonValue, JsonValue
+                ](
                     id=new_stored_event.id,
                     name=serialise_to_string(new_stored_event.name),
                     stream=new_stored_event.stream,
@@ -320,7 +322,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                         observed_at=new_event.observed_at,
                         occurred_at=new_event.occurred_at,
                     )
-                    serialised_stored_event = StoredEvent[str, JsonValue](
+                    serialised_stored_event = StoredEvent[
+                        str, JsonValue, JsonValue
+                    ](
                         id=new_stored_event.id,
                         name=serialise_to_string(new_stored_event.name),
                         stream=new_stored_event.stream,
@@ -348,7 +352,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
 
     async def latest(
         self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         snapshot = self._db.snapshot()
         await asyncio.sleep(0)
 
@@ -359,7 +363,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         snapshot = self._db.snapshot()
 
         async_generator = snapshot.scan_events(target, constraints)

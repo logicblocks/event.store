@@ -130,7 +130,7 @@ class EventStorageAdapter(ABC):
     @abstractmethod
     async def latest(
         self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -139,5 +139,5 @@ class EventStorageAdapter(ABC):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         raise NotImplementedError()

@@ -460,7 +460,7 @@ def insert_batch_query[
 
 @overload
 async def obtain_write_locks(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     targets: StreamIdentifier,
     serialisation_guarantee: AnyEventSerialisationGuarantee,
     table_settings: TableSettings,
@@ -469,7 +469,7 @@ async def obtain_write_locks(
 
 @overload
 async def obtain_write_locks(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     targets: CategoryIdentifier,
     serialisation_guarantee: CategoryEventSerialisationGuarantee,
     table_settings: TableSettings,
@@ -478,7 +478,7 @@ async def obtain_write_locks(
 
 @overload
 async def obtain_write_locks(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     targets: CategoryIdentifier,
     serialisation_guarantee: LogEventSerialisationGuarantee,
     table_settings: TableSettings,
@@ -487,7 +487,7 @@ async def obtain_write_locks(
 
 @overload
 async def obtain_write_locks(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     targets: Sequence[StreamIdentifier],
     serialisation_guarantee: StreamEventSerialisationGuarantee,
     table_settings: TableSettings,
@@ -495,7 +495,7 @@ async def obtain_write_locks(
 
 
 async def obtain_write_locks(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     targets: StreamIdentifier
     | CategoryIdentifier
     | Sequence[StreamIdentifier],
@@ -533,7 +533,7 @@ async def obtain_write_locks(
 
 
 async def read_last(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     *,
     parameters: LatestQueryParameters,
     table_settings: TableSettings,
@@ -543,7 +543,7 @@ async def read_last(
 
 
 async def read_last_category_batch(
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     *,
     parameters: CategoryStreamsLatestQueryParameters,
     table_settings: TableSettings,
@@ -561,7 +561,7 @@ async def insert_batch[
     Payload: JsonPersistable,
     Metadata: JsonPersistable,
 ](
-    cursor: AsyncCursor[StoredEvent[str, JsonValue]],
+    cursor: AsyncCursor[StoredEvent[str, JsonValue, JsonValue]],
     *,
     definitions: Mapping[
         StreamIdentifier, StreamInsertDefinition[Name, Payload, Metadata]
@@ -744,7 +744,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[str, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue, JsonValue])
             ) as cursor:
                 await obtain_write_locks(
                     cursor,
@@ -802,7 +802,7 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[str, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue, JsonValue])
             ) as cursor:
                 if isinstance(
                     self.serialisation_guarantee,
@@ -888,10 +888,10 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
 
     async def latest(
         self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[str, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue, JsonValue])
             ) as cursor:
                 await cursor.execute(
                     *read_last_query(
@@ -906,10 +906,10 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[source_constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         async with self.connection_pool.connection() as connection:
             async with connection.cursor(
-                row_factory=class_row(StoredEvent[str, JsonValue])
+                row_factory=class_row(StoredEvent[str, JsonValue, JsonValue])
             ) as cursor:
                 page_size = self.query_settings.scan_query_page_size
                 last_sequence_number: int | None = None

@@ -20,7 +20,7 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
 ):
     name: Name
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     observed_at: datetime
     occurred_at: datetime
 
@@ -29,7 +29,7 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
         *,
         name: Name,
         payload: Payload,
-        metadata: Metadata | None = None,
+        metadata: Metadata,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -91,7 +91,7 @@ class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     observed_at: datetime
     occurred_at: datetime
 

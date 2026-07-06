@@ -29,6 +29,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             occurred_at=occurred_at,
         )
 
@@ -39,6 +40,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=observed_at,
         )
 
@@ -49,6 +51,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=observed_at,
         )
 
@@ -58,7 +61,10 @@ class TestNewEvent:
         now = datetime.now(UTC)
         clock = VerifyingStaticClock(now).expect_timezone(UTC)
         event = NewEvent(
-            name="something-happened", payload={"foo": "bar"}, clock=clock
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+            clock=clock,
         )
 
         assert event.observed_at == now
@@ -67,7 +73,10 @@ class TestNewEvent:
         now = datetime.now(UTC)
         clock = VerifyingStaticClock(now).expect_timezone(UTC)
         event = NewEvent(
-            name="something-happened", payload={"foo": "bar"}, clock=clock
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+            clock=clock,
         )
 
         assert event.observed_at == now and event.occurred_at == now
@@ -77,6 +86,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -94,6 +104,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -112,12 +123,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -129,12 +142,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="first-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="another-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -146,12 +161,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -164,12 +181,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -182,12 +201,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -199,6 +220,7 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -222,12 +244,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": {"bar": "baz"}},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": {"bar": "baz"}},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -239,12 +263,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="first-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="another-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -256,12 +282,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -274,12 +302,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -292,12 +322,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -311,6 +343,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -898,6 +931,7 @@ class TestNewEventMetadata:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
         )
 
         assert event.metadata is None
@@ -934,6 +968,7 @@ class TestNewEventMetadata:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )

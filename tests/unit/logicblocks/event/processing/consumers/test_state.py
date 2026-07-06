@@ -465,6 +465,7 @@ class TestEventConsumerStateStoreSave:
                             "last_sequence_number": 1,
                         }
                     },
+                    metadata=None,
                 )
             ]
         )
@@ -619,6 +620,7 @@ class TestEventConsumerStateStoreSave:
                             "last_sequence_number": 1,
                         }
                     },
+                    metadata=None,
                 )
             ]
         )
@@ -631,6 +633,7 @@ class TestEventConsumerStateStoreSave:
                             "last_sequence_number": 2,
                         }
                     },
+                    metadata=None,
                 )
             ]
         )
@@ -815,6 +818,7 @@ class TestEventConsumerStateStoreSave:
                             "last_sequence_number": 1,
                         }
                     },
+                    metadata=None,
                 )
             ]
         )

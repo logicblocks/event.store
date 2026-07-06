@@ -84,6 +84,7 @@ class TestStreamBasics:
                 NewEvent(
                     name=event_name,
                     payload=payload,
+                    metadata=None,
                     observed_at=now,
                     occurred_at=now,
                 )

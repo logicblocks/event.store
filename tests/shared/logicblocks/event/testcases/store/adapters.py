@@ -219,7 +219,7 @@ class StreamSaveCases(Base, ABC):
         event_stream = random_event_stream_name()
 
         new_event = NewEvent(
-            name=random_event_name(), payload={"key": "value"}
+            name=random_event_name(), payload={"key": "value"}, metadata=None
         )
 
         await adapter.save(

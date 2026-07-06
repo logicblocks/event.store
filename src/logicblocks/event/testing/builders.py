@@ -37,7 +37,7 @@ class NewEventBuilderParams[
 ](TypedDict, total=False):
     name: Name
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -46,7 +46,7 @@ class NewEventBuilderParams[
 class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
     name: Name
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -128,7 +128,7 @@ class StoredEventBuilderParams[
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     occurred_at: datetime | None
     observed_at: datetime | None
 
@@ -146,7 +146,7 @@ class StoredEventBuilder[
     position: int
     sequence_number: int
     payload: Payload
-    metadata: Metadata | None
+    metadata: Metadata
     occurred_at: datetime
     observed_at: datetime
 

@@ -117,7 +117,9 @@ class TestConstrainedEventSource:
             def __init__(self, constraint: NotNameConstraint):
                 self.constraint = constraint
 
-            def __call__(self, event: StoredEvent[str, JsonValue]) -> bool:
+            def __call__(
+                self, event: StoredEvent[str, JsonValue, JsonValue]
+            ) -> bool:
                 return event.name != self.constraint.name
 
         class NotNameConstraintConverter(

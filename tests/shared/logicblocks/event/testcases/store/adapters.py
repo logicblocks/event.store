@@ -902,14 +902,16 @@ class StorageAdapterStreamSaveTask:
         *,
         adapter: EventStorageAdapter,
         target: identifier.StreamIdentifier,
-        events: Sequence[NewEvent[str, JsonValue]],
+        events: Sequence[NewEvent[str, JsonValue, JsonValue]],
         condition: writeconditions.WriteCondition = NoCondition(),
     ):
         self.adapter = adapter
         self.target = target
         self.events = events
         self.condition = condition
-        self.result: Sequence[StoredEvent[str, JsonValue]] | None = None
+        self.result: (
+            Sequence[StoredEvent[str, JsonValue, JsonValue]] | None
+        ) = None
         self.exception: BaseException | None = None
 
     async def execute(
@@ -938,7 +940,8 @@ class StorageAdapterCategorySaveTask:
         self.target = target
         self.streams = streams
         self.result: (
-            Mapping[str, Sequence[StoredEvent[str, JsonValue]]] | None
+            Mapping[str, Sequence[StoredEvent[str, JsonValue, JsonValue]]]
+            | None
         ) = None
         self.exception: BaseException | None = None
 

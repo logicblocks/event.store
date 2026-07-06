@@ -65,7 +65,9 @@ class CapturingEventProcessor(EventProcessor):
     def __init__(self):
         self.events = []
 
-    async def process_event(self, event: StoredEvent[str, JsonValue]) -> None:
+    async def process_event(
+        self, event: StoredEvent[str, JsonValue, JsonValue]
+    ) -> None:
         self.events.append(event)
 
 

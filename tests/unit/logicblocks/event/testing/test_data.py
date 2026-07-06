@@ -303,5 +303,23 @@ def test_generates_random_projection_states():
     assert len(all_vals) == len(unique_vals)
 
 
+def test_generates_random_event_metadata():
+    metadatas = [data.random_event_metadata() for _ in range(100)]
+
+    assert all(isinstance(m, dict) for m in metadatas)
+
+    key_lists = [list(map(str, metadata.keys())) for metadata in metadatas]
+    val_lists = [list(map(str, metadata.values())) for metadata in metadatas]
+
+    all_keys = list(key for key_list in key_lists for key in key_list)
+    all_vals = list(val for val_list in val_lists for val in val_list)
+    unique_keys = set(key for key_list in key_lists for key in key_list)
+    unique_vals = set(val for val_list in val_lists for val in val_list)
+
+    assert all(1 <= len(key_list) <= 10 for key_list in key_lists)
+    assert len(all_keys) == len(unique_keys)
+    assert len(all_vals) == len(unique_vals)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))

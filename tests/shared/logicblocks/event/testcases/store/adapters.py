@@ -26,6 +26,7 @@ from logicblocks.event.store.types import (
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.testing.data import (
     random_event_category_name,
+    random_event_name,
     random_event_stream_name,
 )
 from logicblocks.event.types import (
@@ -101,6 +102,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event.payload,
                 observed_at=new_event.observed_at,
+                metadata=new_event.metadata,
                 occurred_at=new_event.occurred_at,
             )
         ]
@@ -136,6 +138,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -147,6 +150,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
@@ -189,6 +193,7 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -200,11 +205,52 @@ class StreamSaveCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
 
         assert actual_events == expected_events
+
+    async def test_stores_event_with_omitted_metadata_as_none(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        new_event = NewEvent(
+            name=random_event_name(), payload={"key": "value"}, metadata=None
+        )
+
+        await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[new_event],
+        )
+
+        actual_events = await self.retrieve_events(adapter=adapter)
+
+        assert actual_events[0].metadata is None
+
+    async def test_stores_event_with_empty_metadata(self):
+        adapter = self.construct_storage_adapter()
+
+        event_category = random_event_category_name()
+        event_stream = random_event_stream_name()
+
+        new_event = NewEventBuilder().with_metadata({}).build()
+
+        await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=event_category, stream=event_stream
+            ),
+            events=[new_event],
+        )
+
+        actual_events = await self.retrieve_events(adapter=adapter)
+
+        assert actual_events[0].metadata == {}
 
 
 class CategorySaveCases(Base, ABC):
@@ -254,6 +300,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_1_events[0].payload,
                     position=0,
                     sequence_number=stream_1_stored[0].sequence_number,
+                    metadata=stream_1_events[0].metadata,
                     occurred_at=stream_1_events[0].occurred_at,
                     observed_at=stream_1_events[0].observed_at,
                 ),
@@ -265,6 +312,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_1_events[1].payload,
                     position=1,
                     sequence_number=stream_1_stored[1].sequence_number,
+                    metadata=stream_1_events[1].metadata,
                     occurred_at=stream_1_events[1].occurred_at,
                     observed_at=stream_1_events[1].observed_at,
                 ),
@@ -278,6 +326,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[0].payload,
                     position=0,
                     sequence_number=stream_2_stored[0].sequence_number,
+                    metadata=stream_2_events[0].metadata,
                     occurred_at=stream_2_events[0].occurred_at,
                     observed_at=stream_2_events[0].observed_at,
                 ),
@@ -289,6 +338,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[1].payload,
                     position=1,
                     sequence_number=stream_2_stored[1].sequence_number,
+                    metadata=stream_2_events[1].metadata,
                     occurred_at=stream_2_events[1].occurred_at,
                     observed_at=stream_2_events[1].observed_at,
                 ),
@@ -300,6 +350,7 @@ class CategorySaveCases(Base, ABC):
                     payload=stream_2_events[2].payload,
                     position=2,
                     sequence_number=stream_2_stored[2].sequence_number,
+                    metadata=stream_2_events[2].metadata,
                     occurred_at=stream_2_events[2].occurred_at,
                     observed_at=stream_2_events[2].observed_at,
                 ),
@@ -379,6 +430,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event.payload,
                 observed_at=new_event.observed_at,
+                metadata=new_event.metadata,
                 occurred_at=new_event.occurred_at,
             )
         ]
@@ -426,6 +478,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             )
         ]
@@ -474,6 +527,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             )
         ]
@@ -544,6 +598,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event_1.sequence_number,
                 payload=new_event_1.payload,
                 observed_at=new_event_1.observed_at,
+                metadata=new_event_1.metadata,
                 occurred_at=new_event_1.occurred_at,
             ),
             StoredEvent(
@@ -555,6 +610,7 @@ class WriteConditionCases(Base, ABC):
                 sequence_number=stored_event_2.sequence_number,
                 payload=new_event_2.payload,
                 observed_at=new_event_2.observed_at,
+                metadata=new_event_2.metadata,
                 occurred_at=new_event_2.occurred_at,
             ),
         ]
@@ -679,6 +735,7 @@ class WriteConditionCases(Base, ABC):
                         sequence_number=stored_event.sequence_number,
                         payload=stored_event.payload,
                         observed_at=stored_event.observed_at,
+                        metadata=stored_event.metadata,
                         occurred_at=stored_event.occurred_at,
                     )
                 )
@@ -845,14 +902,16 @@ class StorageAdapterStreamSaveTask:
         *,
         adapter: EventStorageAdapter,
         target: identifier.StreamIdentifier,
-        events: Sequence[NewEvent[str, JsonValue]],
+        events: Sequence[NewEvent[str, JsonValue, JsonValue]],
         condition: writeconditions.WriteCondition = NoCondition(),
     ):
         self.adapter = adapter
         self.target = target
         self.events = events
         self.condition = condition
-        self.result: Sequence[StoredEvent[str, JsonValue]] | None = None
+        self.result: (
+            Sequence[StoredEvent[str, JsonValue, JsonValue]] | None
+        ) = None
         self.exception: BaseException | None = None
 
     async def execute(
@@ -881,7 +940,8 @@ class StorageAdapterCategorySaveTask:
         self.target = target
         self.streams = streams
         self.result: (
-            Mapping[str, Sequence[StoredEvent[str, JsonValue]]] | None
+            Mapping[str, Sequence[StoredEvent[str, JsonValue, JsonValue]]]
+            | None
         ) = None
         self.exception: BaseException | None = None
 

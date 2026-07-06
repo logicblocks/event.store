@@ -255,12 +255,14 @@ class TestBatchInsert:
             NewEventBuilder(
                 name="event1",
                 payload={"data": "value1"},
+                metadata={"meta": "meta1"},
                 occurred_at=fixed_timestamp,
                 observed_at=fixed_timestamp,
             ).build(),
             NewEventBuilder(
                 name="event2",
                 payload={"data": "value2"},
+                metadata={"meta": "meta2"},
                 occurred_at=fixed_timestamp,
                 observed_at=fixed_timestamp,
             ).build(),
@@ -276,11 +278,11 @@ class TestBatchInsert:
         query_str = query.as_string(None)
 
         expected_query_str = """
-        INSERT INTO "test_events" 
-        (id, name, stream, category, position, 
-         payload, observed_at, occurred_at)
+        INSERT INTO "test_events"
+        (id, name, stream, category, position,
+         payload, metadata, observed_at, occurred_at)
         VALUES
-          (%s, %s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s, %s)
+          (%s, %s, %s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s, %s, %s)
           RETURNING *;
         """
         assert normalize_whitespace(query_str) == normalize_whitespace(
@@ -288,26 +290,28 @@ class TestBatchInsert:
         )
 
         # Make sure it has a placeholder for each event
-        assert query_str.count("(%s, %s, %s, %s, %s, %s, %s, %s)") == 2
+        assert query_str.count("(%s, %s, %s, %s, %s, %s, %s, %s, %s)") == 2
 
-        assert len(params) == 16
+        assert len(params) == 18
         assert len(params[0]) == 32  # id is a UUID
         assert params[1] == "event1"
         assert params[2] == "test-stream"
         assert params[3] == "test-category"
         assert params[4] == 10
         assert params[5].obj == {"data": "value1"}
-        assert params[6] == fixed_timestamp
+        assert params[6].obj == {"meta": "meta1"}
         assert params[7] == fixed_timestamp
+        assert params[8] == fixed_timestamp
 
-        assert len(params[8]) == 32  # id is a UUID
-        assert params[9] == "event2"
-        assert params[10] == "test-stream"
-        assert params[11] == "test-category"
-        assert params[12] == 11
-        assert params[13].obj == {"data": "value2"}
-        assert params[14] == fixed_timestamp
-        assert params[15] == fixed_timestamp
+        assert len(params[9]) == 32  # id is a UUID
+        assert params[10] == "event2"
+        assert params[11] == "test-stream"
+        assert params[12] == "test-category"
+        assert params[13] == 11
+        assert params[14].obj == {"data": "value2"}
+        assert params[15].obj == {"meta": "meta2"}
+        assert params[16] == fixed_timestamp
+        assert params[17] == fixed_timestamp
 
 
 if __name__ == "__main__":

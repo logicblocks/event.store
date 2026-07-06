@@ -5,6 +5,7 @@ CREATE TABLE events (
     category TEXT NOT NULL,
     position INT NOT NULL,
     payload JSONB NOT NULL,
+    metadata JSONB NOT NULL,
     sequence_number BIGSERIAL NOT NULL,
     observed_at TIMESTAMP WITH TIME ZONE NOT NULL,
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,

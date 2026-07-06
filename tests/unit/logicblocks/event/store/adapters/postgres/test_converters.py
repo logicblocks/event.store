@@ -120,7 +120,7 @@ def make_connection() -> AsyncConnection:
 
 
 def make_context(
-    event: StoredEvent[str, JsonValue],
+    event: StoredEvent[str, JsonValue, JsonValue],
 ) -> WriteConditionEnforcerContext:
     return WriteConditionEnforcerContext(
         identifier=StreamIdentifier(event.category, event.stream),

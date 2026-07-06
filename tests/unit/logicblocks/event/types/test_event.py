@@ -29,6 +29,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             occurred_at=occurred_at,
         )
 
@@ -39,6 +40,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=observed_at,
         )
 
@@ -49,6 +51,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=observed_at,
         )
 
@@ -58,7 +61,10 @@ class TestNewEvent:
         now = datetime.now(UTC)
         clock = VerifyingStaticClock(now).expect_timezone(UTC)
         event = NewEvent(
-            name="something-happened", payload={"foo": "bar"}, clock=clock
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+            clock=clock,
         )
 
         assert event.observed_at == now
@@ -67,7 +73,10 @@ class TestNewEvent:
         now = datetime.now(UTC)
         clock = VerifyingStaticClock(now).expect_timezone(UTC)
         event = NewEvent(
-            name="something-happened", payload={"foo": "bar"}, clock=clock
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+            clock=clock,
         )
 
         assert event.observed_at == now and event.occurred_at == now
@@ -77,6 +86,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -84,6 +94,7 @@ class TestNewEvent:
         assert event.serialise() == {
             "name": "something-happened",
             "payload": {"foo": "bar"},
+            "metadata": None,
             "observed_at": now.isoformat(),
             "occurred_at": now.isoformat(),
         }
@@ -93,6 +104,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -101,6 +113,7 @@ class TestNewEvent:
             "NewEvent("
             "name=something-happened, "
             "payload={'foo': 'bar'}, "
+            "metadata=None, "
             f"observed_at={now}, "
             f"occurred_at={now})"
         )
@@ -110,12 +123,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -127,12 +142,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="first-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="another-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -144,12 +161,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -162,12 +181,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -180,12 +201,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -197,6 +220,7 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -208,6 +232,7 @@ class TestNewEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -219,12 +244,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": {"bar": "baz"}},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"foo": {"bar": "baz"}},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -236,12 +263,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="first-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="another-thing-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -253,12 +282,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -271,12 +302,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -289,12 +322,14 @@ class TestNewEvent:
         event1 = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
         event2 = NewEvent(
             name="something-happened",
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -308,6 +343,7 @@ class TestNewEvent:
         event = NewEvent(
             name="something-happened",
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -330,6 +366,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -342,6 +379,7 @@ class TestStoredEvent:
             "position": 0,
             "sequence_number": 0,
             "payload": {"foo": "bar"},
+            "metadata": None,
             "observed_at": now.isoformat(),
             "occurred_at": now.isoformat(),
         }
@@ -356,6 +394,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -369,6 +408,7 @@ class TestStoredEvent:
             "position=0, "
             "sequence_number=0, "
             "payload={'foo': 'bar'}, "
+            "metadata=None, "
             f"observed_at={now}, "
             f"occurred_at={now})"
         )
@@ -383,6 +423,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -394,6 +435,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -410,6 +452,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -421,6 +464,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -437,6 +481,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -448,6 +493,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -464,6 +510,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -475,6 +522,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -492,6 +540,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -503,6 +552,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -520,6 +570,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -531,6 +582,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -548,6 +600,7 @@ class TestStoredEvent:
                 "position",
                 "sequence_number",
                 "payload",
+                "metadata",
                 "observed_at",
                 "occurred_at",
             ],
@@ -562,6 +615,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -573,6 +627,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -589,6 +644,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -600,6 +656,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -616,6 +673,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -627,6 +685,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -643,6 +702,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -654,6 +714,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -670,6 +731,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -681,6 +743,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -697,6 +760,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -708,6 +772,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -724,6 +789,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -735,6 +801,7 @@ class TestStoredEvent:
             position=1,
             sequence_number=1,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -751,6 +818,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -762,6 +830,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -779,6 +848,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -790,6 +860,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=past,
             occurred_at=now,
         )
@@ -807,6 +878,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -818,6 +890,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"baz": "qux"},
+            metadata=None,
             observed_at=now,
             occurred_at=past,
         )
@@ -836,6 +909,7 @@ class TestStoredEvent:
             position=0,
             sequence_number=0,
             payload={"foo": "bar"},
+            metadata=None,
             observed_at=now,
             occurred_at=now,
         )
@@ -850,6 +924,254 @@ class TestStoredEvent:
             "observed_at": now.isoformat(),
             "occurred_at": now.isoformat(),
         }
+
+
+class TestNewEventMetadata:
+    def test_metadata_defaults_to_none_when_not_provided(self):
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+        )
+
+        assert event.metadata is None
+
+    def test_stores_metadata_as_is_when_provided(self):
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+        )
+
+        assert event.metadata == {"correlation_id": "abc-123"}
+
+    def test_includes_metadata_in_serialised_output(self):
+        now = datetime.now(UTC)
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.serialise() == {
+            "name": "something-happened",
+            "payload": {"foo": "bar"},
+            "metadata": {"correlation_id": "abc-123"},
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
+    def test_includes_none_metadata_in_serialised_output(self):
+        now = datetime.now(UTC)
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata=None,
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.serialise() == {
+            "name": "something-happened",
+            "payload": {"foo": "bar"},
+            "metadata": None,
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
+    def test_summarise_does_not_include_metadata(self):
+        now = datetime.now(UTC)
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.summarise() == {
+            "name": "something-happened",
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
+    def test_includes_metadata_in_representation(self):
+        now = datetime.now(UTC)
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert str(event) == (
+            "NewEvent("
+            "name=something-happened, "
+            "payload={'foo': 'bar'}, "
+            "metadata={'correlation_id': 'abc-123'}, "
+            f"observed_at={now}, "
+            f"occurred_at={now})"
+        )
+
+
+class TestStoredEventMetadata:
+    def test_stores_metadata_when_provided(self):
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.metadata == {"correlation_id": "abc-123"}
+
+    def test_includes_metadata_in_serialised_output(self):
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.serialise() == {
+            "id": "some-id",
+            "name": "something-happened",
+            "stream": "some-stream",
+            "category": "some-category",
+            "position": 0,
+            "sequence_number": 0,
+            "payload": {"foo": "bar"},
+            "metadata": {"correlation_id": "abc-123"},
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
+    def test_summarise_does_not_include_metadata(self):
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert event.summarise() == {
+            "id": "some-id",
+            "name": "something-happened",
+            "stream": "some-stream",
+            "category": "some-category",
+            "position": 0,
+            "sequence_number": 0,
+            "observed_at": now.isoformat(),
+            "occurred_at": now.isoformat(),
+        }
+
+    def test_includes_metadata_in_representation(self):
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        assert str(event) == (
+            "StoredEvent("
+            "id=some-id, "
+            "name='something-happened', "
+            "stream=some-stream, "
+            "category=some-category, "
+            "position=0, "
+            "sequence_number=0, "
+            "payload={'foo': 'bar'}, "
+            "metadata={'correlation_id': 'abc-123'}, "
+            f"observed_at={now}, "
+            f"occurred_at={now})"
+        )
+
+
+class TestSerialiseStoredEvent:
+    def test_carries_metadata_through_serialisation(self):
+        from logicblocks.event.types.event import serialise_stored_event
+
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        serialised = serialise_stored_event(event)
+
+        assert serialised == StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata={"correlation_id": "abc-123"},
+            observed_at=now,
+            occurred_at=now,
+        )
+
+    def test_carries_none_metadata_through_serialisation(self):
+        from logicblocks.event.types.event import serialise_stored_event
+
+        now = datetime.now(UTC)
+        event = StoredEvent(
+            id="some-id",
+            name="something-happened",
+            stream="some-stream",
+            category="some-category",
+            position=0,
+            sequence_number=0,
+            payload={"foo": "bar"},
+            metadata=None,
+            observed_at=now,
+            occurred_at=now,
+        )
+
+        serialised = serialise_stored_event(event)
+
+        assert serialised.metadata is None
 
 
 if __name__ == "__main__":

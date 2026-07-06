@@ -84,6 +84,7 @@ class TestStreamBasics:
                 NewEvent(
                     name=event_name,
                     payload=payload,
+                    metadata=None,
                     observed_at=now,
                     occurred_at=now,
                 )
@@ -98,6 +99,7 @@ class TestStreamBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=payload,
+                metadata=None,
                 position=0,
                 sequence_number=stored_events[0].sequence_number,
                 occurred_at=now,
@@ -132,6 +134,7 @@ class TestStreamBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=event.payload,
+                metadata=event.metadata,
                 position=position,
                 sequence_number=stored_events[position].sequence_number,
                 occurred_at=event.occurred_at,
@@ -444,6 +447,7 @@ class TestStreamPublishing:
                 category=category_name,
                 stream=stream_name,
                 payload={"value": 45},
+                metadata=new_event_1.metadata,
                 position=0,
                 sequence_number=stored_events[0].sequence_number,
                 occurred_at=now,
@@ -455,6 +459,7 @@ class TestStreamPublishing:
                 category=category_name,
                 stream=stream_name,
                 payload={"value": "hello"},
+                metadata=new_event_2.metadata,
                 position=1,
                 sequence_number=stored_events[1].sequence_number,
                 occurred_at=now,
@@ -497,6 +502,7 @@ class TestStreamPublishing:
                 category=category_name,
                 stream=stream_name,
                 payload=new_event_1.payload,
+                metadata=new_event_1.metadata,
                 position=0,
                 sequence_number=stored_events[0].sequence_number,
                 occurred_at=now,
@@ -508,6 +514,7 @@ class TestStreamPublishing:
                 category=category_name,
                 stream=stream_name,
                 payload=new_event_2.payload,
+                metadata=new_event_2.metadata,
                 position=1,
                 sequence_number=stored_events[1].sequence_number,
                 occurred_at=now,
@@ -614,6 +621,23 @@ class TestStreamPublishing:
             await stream.publish(
                 events=[new_event], condition=conditions.stream_is_empty()
             )
+
+    async def test_publishes_events_with_metadata_and_returns_stored_events_carrying_metadata(
+        self,
+    ):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        metadata = {"actor": "test-user", "correlation_id": "abc-123"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        new_event = NewEventBuilder().with_metadata(metadata).build()
+
+        stored_events = await stream.publish(events=[new_event])
+
+        assert len(stored_events) == 1
+        assert stored_events[0].metadata == metadata
 
 
 class TestStreamLogging:
@@ -857,6 +881,7 @@ class TestCategoryBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=new_event.payload,
+                metadata=new_event.metadata,
                 position=0,
                 sequence_number=stored_events[0].sequence_number,
                 occurred_at=new_event.occurred_at,
@@ -887,6 +912,7 @@ class TestCategoryBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=event.payload,
+                metadata=event.metadata,
                 position=position,
                 sequence_number=stored_events[position].sequence_number,
                 occurred_at=event.occurred_at,
@@ -1052,6 +1078,7 @@ class TestCategoryPublish:
                 category=category_name,
                 stream=stream_1_name,
                 payload=event.payload,
+                metadata=event.metadata,
                 position=i,
                 sequence_number=stored_events[stream_1_name][
                     i
@@ -1069,6 +1096,7 @@ class TestCategoryPublish:
                 category=category_name,
                 stream=stream_2_name,
                 payload=event.payload,
+                metadata=event.metadata,
                 position=i,
                 sequence_number=stored_events[stream_2_name][
                     i
@@ -1081,6 +1109,24 @@ class TestCategoryPublish:
 
         assert stream_1_read_events == expected_stream_1_events
         assert stream_2_read_events == expected_stream_2_events
+
+    async def test_publishes_events_with_metadata_and_returns_stored_events_carrying_metadata(
+        self,
+    ):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        metadata = {"actor": "test-user", "correlation_id": "abc-123"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        new_event = NewEventBuilder().with_metadata(metadata).build()
+        streams = {stream_name: stream_publish_definition(events=[new_event])}
+
+        stored_events = await category.publish(streams=streams)
+
+        assert len(stored_events[stream_name]) == 1
+        assert stored_events[stream_name][0].metadata == metadata
 
 
 class TestCategoryRead:
@@ -1388,6 +1434,7 @@ class TestLogBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=new_event.payload,
+                metadata=new_event.metadata,
                 position=0,
                 sequence_number=stored_events[0].sequence_number,
                 occurred_at=new_event.occurred_at,
@@ -1419,6 +1466,7 @@ class TestLogBasics:
                 category=category_name,
                 stream=stream_name,
                 payload=event.payload,
+                metadata=event.metadata,
                 position=position,
                 sequence_number=stored_events[position].sequence_number,
                 occurred_at=event.occurred_at,

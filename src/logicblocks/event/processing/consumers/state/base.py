@@ -165,7 +165,11 @@ class EventConsumerStateStore[E: Event]:
                 stream=partition
             ).publish(
                 events=[
-                    NewEvent(name="state-changed", payload=state.serialise())
+                    NewEvent(
+                        name="state-changed",
+                        payload=state.serialise(),
+                        metadata=None,
+                    )
                 ],
                 condition=condition,
             )

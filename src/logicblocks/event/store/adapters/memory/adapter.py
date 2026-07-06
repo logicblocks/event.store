@@ -97,10 +97,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     def _determine_required_locks[
         Name: StringPersistable,
         Payload: JsonPersistable,
+        Metadata: JsonPersistable,
     ](
         self,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
     ) -> list[str]:
         match self._serialisation_guarantee:
             case EventSerialisationGuarantee.STREAM:
@@ -116,33 +119,47 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                 return [self._lock_name(target)]
 
     @overload
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: StreamIdentifier,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]: ...
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]: ...
 
     @overload
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]: ...
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]: ...
 
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent[Name, Payload]] | None = None,
+        events: Sequence[NewEvent[Name, Payload, Metadata]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload, Metadata]]
         | None = None,
     ) -> (
-        Sequence[StoredEvent[Name, Payload]]
-        | Mapping[str, Sequence[StoredEvent[Name, Payload]]]
+        Sequence[StoredEvent[Name, Payload, Metadata]]
+        | Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]
     ):
         match target:
             case StreamIdentifier():
@@ -169,13 +186,14 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     async def _save_to_stream[
         Name: StringPersistable,
         Payload: JsonPersistable,
+        Metadata: JsonPersistable,
     ](
         self,
         *,
         target: StreamIdentifier,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]:
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would
         #       in order to keep the implementations as equivalent as possible.
@@ -196,9 +214,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
 
             last_stream_position = transaction.last_stream_position(target)
 
-            new_stored_events: list[StoredEvent[Name, Payload]] = []
+            new_stored_events: list[StoredEvent[Name, Payload, Metadata]] = []
             for new_event, count in zip(events, range(len(events))):
-                new_stored_event = StoredEvent[Name, Payload](
+                new_stored_event = StoredEvent[Name, Payload, Metadata](
                     id=uuid4().hex,
                     name=new_event.name,
                     stream=target.stream,
@@ -206,10 +224,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                     position=last_stream_position + count + 1,
                     sequence_number=next(self._sequence),
                     payload=new_event.payload,
+                    metadata=new_event.metadata,
                     observed_at=new_event.observed_at,
                     occurred_at=new_event.occurred_at,
                 )
-                serialised_stored_event = StoredEvent[str, JsonValue](
+                serialised_stored_event = StoredEvent[
+                    str, JsonValue, JsonValue
+                ](
                     id=new_stored_event.id,
                     name=serialise_to_string(new_stored_event.name),
                     stream=new_stored_event.stream,
@@ -217,6 +238,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                     position=new_stored_event.position,
                     sequence_number=new_stored_event.sequence_number,
                     payload=serialise_to_json_value(new_stored_event.payload),
+                    metadata=serialise_to_json_value(
+                        new_stored_event.metadata
+                    ),
                     observed_at=new_stored_event.observed_at,
                     occurred_at=new_stored_event.occurred_at,
                 )
@@ -231,12 +255,15 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
     async def _save_to_category[
         Name: StringPersistable,
         Payload: JsonPersistable,
+        Metadata: JsonPersistable,
     ](
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         # note: we call `asyncio.sleep(0)` to yield the event loop at similar
         #       points in the save operation as a DB backed implementation would
         #       in order to keep the implementations as equivalent as possible.
@@ -248,7 +275,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
             transaction = self._db.transaction()
             await asyncio.sleep(0)
 
-            results: dict[str, Sequence[StoredEvent[Name, Payload]]] = {}
+            results: dict[
+                str, Sequence[StoredEvent[Name, Payload, Metadata]]
+            ] = {}
 
             for stream_name in sorted(streams.keys()):
                 stream_request = streams[stream_name]
@@ -277,9 +306,11 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                     stream_target
                 )
 
-                new_stored_events: list[StoredEvent[Name, Payload]] = []
+                new_stored_events: list[
+                    StoredEvent[Name, Payload, Metadata]
+                ] = []
                 for new_event, count in zip(events, range(len(events))):
-                    new_stored_event = StoredEvent[Name, Payload](
+                    new_stored_event = StoredEvent[Name, Payload, Metadata](
                         id=uuid4().hex,
                         name=new_event.name,
                         stream=stream_target.stream,
@@ -287,10 +318,13 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                         position=last_stream_position + count + 1,
                         sequence_number=next(self._sequence),
                         payload=new_event.payload,
+                        metadata=new_event.metadata,
                         observed_at=new_event.observed_at,
                         occurred_at=new_event.occurred_at,
                     )
-                    serialised_stored_event = StoredEvent[str, JsonValue](
+                    serialised_stored_event = StoredEvent[
+                        str, JsonValue, JsonValue
+                    ](
                         id=new_stored_event.id,
                         name=serialise_to_string(new_stored_event.name),
                         stream=new_stored_event.stream,
@@ -299,6 +333,9 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
                         sequence_number=new_stored_event.sequence_number,
                         payload=serialise_to_json_value(
                             new_stored_event.payload
+                        ),
+                        metadata=serialise_to_json_value(
+                            new_stored_event.metadata
                         ),
                         observed_at=new_stored_event.observed_at,
                         occurred_at=new_stored_event.occurred_at,
@@ -315,7 +352,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
 
     async def latest(
         self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         snapshot = self._db.snapshot()
         await asyncio.sleep(0)
 
@@ -326,7 +363,7 @@ class InMemoryEventStorageAdapter(EventStorageAdapter):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         snapshot = self._db.snapshot()
 
         async_generator = snapshot.scan_events(target, constraints)

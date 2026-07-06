@@ -15,9 +15,12 @@ class Event(Protocol):
 
 
 @dataclass(frozen=True)
-class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
+class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
+    JsonValueSerialisable
+):
     name: Name
     payload: Payload
+    metadata: Metadata
     observed_at: datetime
     occurred_at: datetime
 
@@ -26,6 +29,7 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
         *,
         name: Name,
         payload: Payload,
+        metadata: Metadata,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -37,6 +41,7 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
 
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "payload", payload)
+        object.__setattr__(self, "metadata", metadata)
         object.__setattr__(self, "observed_at", observed_at)
         object.__setattr__(self, "occurred_at", occurred_at)
 
@@ -49,6 +54,7 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
         return {
             "name": serialise_to_json_value(self.name, fallback),
             "payload": serialise_to_json_value(self.payload, fallback),
+            "metadata": serialise_to_json_value(self.metadata, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
@@ -65,6 +71,7 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
             f"NewEvent("
             f"name={self.name}, "
             f"payload={repr(self.payload)}, "
+            f"metadata={repr(self.metadata)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )
@@ -74,7 +81,7 @@ class NewEvent[Name = str, Payload = JsonValue](JsonValueSerialisable):
 
 
 @dataclass(frozen=True)
-class StoredEvent[Name = str, Payload = JsonValue](
+class StoredEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
     JsonValueSerialisable, Event
 ):
     id: str
@@ -84,6 +91,7 @@ class StoredEvent[Name = str, Payload = JsonValue](
     position: int
     sequence_number: int
     payload: Payload
+    metadata: Metadata
     observed_at: datetime
     occurred_at: datetime
 
@@ -101,6 +109,7 @@ class StoredEvent[Name = str, Payload = JsonValue](
             "position": self.position,
             "sequence_number": self.sequence_number,
             "payload": serialise_to_json_value(self.payload, fallback),
+            "metadata": serialise_to_json_value(self.metadata, fallback),
             "observed_at": self.observed_at.isoformat(),
             "occurred_at": self.occurred_at.isoformat(),
         }
@@ -127,6 +136,7 @@ class StoredEvent[Name = str, Payload = JsonValue](
             f"position={self.position}, "
             f"sequence_number={self.sequence_number}, "
             f"payload={repr(self.payload)}, "
+            f"metadata={repr(self.metadata)}, "
             f"observed_at={self.observed_at}, "
             f"occurred_at={self.occurred_at})"
         )
@@ -136,10 +146,10 @@ class StoredEvent[Name = str, Payload = JsonValue](
 
 
 def serialise_stored_event(
-    event: StoredEvent[JsonPersistable, JsonPersistable],
+    event: StoredEvent[JsonPersistable, JsonPersistable, JsonPersistable],
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
-) -> StoredEvent[JsonValue, JsonValue]:
-    return StoredEvent[JsonValue, JsonValue](
+) -> StoredEvent[JsonValue, JsonValue, JsonValue]:
+    return StoredEvent[JsonValue, JsonValue, JsonValue](
         id=event.id,
         name=serialise_to_json_value(event.name, fallback),
         stream=event.stream,
@@ -147,6 +157,7 @@ def serialise_stored_event(
         position=event.position,
         sequence_number=event.sequence_number,
         payload=serialise_to_json_value(event.payload, fallback),
+        metadata=serialise_to_json_value(event.metadata, fallback),
         observed_at=event.observed_at,
         occurred_at=event.occurred_at,
     )

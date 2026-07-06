@@ -53,12 +53,16 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
-    async def publish[Name: StringPersistable, Payload: JsonPersistable](
+    async def publish[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]:
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         """Publish a sequence of events into the stream."""
         await self._logger.adebug(
             "event.stream.publishing",
@@ -198,11 +202,17 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             constraints=constraints,
         )
 
-    async def publish[Name: StringPersistable, Payload: JsonPersistable](
+    async def publish[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         """Publish events to multiple streams in the category atomically."""
         return await self._adapter.save(
             target=self._identifier, streams=streams

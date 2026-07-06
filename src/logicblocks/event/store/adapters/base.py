@@ -79,44 +79,58 @@ EventSerialisationGuarantee.STREAM = StreamEventSerialisationGuarantee()
 class EventStorageAdapter(ABC):
     @overload
     @abstractmethod
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: StreamIdentifier,
-        events: Sequence[NewEvent[Name, Payload]],
+        events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
-    ) -> Sequence[StoredEvent[Name, Payload]]:
+    ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         raise NotImplementedError()
 
     @overload
     @abstractmethod
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: CategoryIdentifier,
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]],
-    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload]]]:
+        streams: Mapping[
+            str, StreamPublishDefinition[Name, Payload, Metadata]
+        ],
+    ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         raise NotImplementedError()
 
     @abstractmethod
-    async def save[Name: StringPersistable, Payload: JsonPersistable](
+    async def save[
+        Name: StringPersistable,
+        Payload: JsonPersistable,
+        Metadata: JsonPersistable,
+    ](
         self,
         *,
         target: Saveable,
-        events: Sequence[NewEvent[Name, Payload]] | None = None,
+        events: Sequence[NewEvent[Name, Payload, Metadata]] | None = None,
         condition: WriteCondition = NoCondition(),
-        streams: Mapping[str, StreamPublishDefinition[Name, Payload]]
+        streams: Mapping[str, StreamPublishDefinition[Name, Payload, Metadata]]
         | None = None,
     ) -> (
-        Sequence[StoredEvent[Name, Payload]]
-        | Mapping[str, Sequence[StoredEvent[Name, Payload]]]
+        Sequence[StoredEvent[Name, Payload, Metadata]]
+        | Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]
     ):
         raise NotImplementedError()
 
     @abstractmethod
     async def latest(
         self, *, target: Latestable
-    ) -> StoredEvent[str, JsonValue] | None:
+    ) -> StoredEvent[str, JsonValue, JsonValue] | None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -125,5 +139,5 @@ class EventStorageAdapter(ABC):
         *,
         target: Scannable = LogIdentifier(),
         constraints: Set[constraints.QueryConstraint] = frozenset(),
-    ) -> AsyncIterator[StoredEvent[str, JsonValue]]:
+    ) -> AsyncIterator[StoredEvent[str, JsonValue, JsonValue]]:
         raise NotImplementedError()

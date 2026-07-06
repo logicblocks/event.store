@@ -5,13 +5,13 @@ title: "Event Metadata Implementation Plan"
 date: "2026-06-24T10:04:40+00:00"
 author: "bivav-ebury"
 producer: create-plan
-status: draft
+status: implemented
 derived_from: []
 relates_to: []
 tags: ["metadata", "events", "schema-migration"]
 revision: "366dcb6ca5b3a97cd3bf13628ace29c3db31bbc1"
 repository: "event.store"
-last_updated: "2026-06-24T10:04:40+00:00"
+last_updated: "2026-07-06T00:00:00+00:00"
 last_updated_by: "bivav-ebury"
 schema_version: 1
 ---
@@ -20,13 +20,19 @@ schema_version: 1
 
 ## Overview
 
-Add an optional, domain-agnostic `metadata` bag to events, persisted in a
+Add a domain-agnostic `metadata` bag to events, persisted in a
 dedicated `metadata JSONB NOT NULL` column on the `events` table. This mirrors
 the existing `projections.metadata` column and the `Projection[State, Metadata]`
-generic. Consumers who supply no metadata see no behavioural change (it defaults
-to `None` / JSON `null`, not `{}`); consumers who need cross-cutting context
+generic. Consumers who supply no metadata pass `metadata=None` explicitly (it is
+stored as JSON `null`, not `{}`); consumers who need cross-cutting context
 (e.g. "who was the actor") place a convention inside the bag. The `payload`
 column stays byte-identical to today.
+
+> **As-built note (2026-07-06):** During implementation the `metadata` argument
+> was made **required** on both `NewEvent` and `StoredEvent` rather than
+> defaulting to `None`. Callers omitting metadata must pass `metadata=None`
+> explicitly. This section and the Decisions below have been reconciled with the
+> shipped code; see the "Change from plan" callouts.
 
 This plan captures the full design inline, grounded in the current code, and is
 implemented **clean from `main`** — any earlier fold-into-payload work is
@@ -96,16 +102,18 @@ mirror:
 ## Desired End State
 
 `NewEvent`, `StoredEvent`, and their builders carry a `Metadata = JsonValue`
-generic and a `metadata` field. When metadata is omitted, `NewEvent.metadata` is
-`None` (not coerced to `{}`); the field has no class-level default (a generic
-field cannot default). The `Metadata` type parameter is threaded through the
+generic and a `metadata` field. The field has no class-level default (a generic
+field cannot default) and, **as built, `metadata` is a required constructor
+argument on both `NewEvent` and `StoredEvent`** — callers with no metadata pass
+`metadata=None` explicitly. The `Metadata` type parameter is threaded through the
 full `publish` → `save` → adapter chain, exactly as `Payload` is. The `events`
 table has a `metadata JSONB NOT NULL` column. An event published with metadata
 round-trips through both the memory and Postgres adapters; an event published
-without metadata round-trips as `None` (stored as JSON `null` — a `NOT NULL`
+with `metadata=None` round-trips as `None` (stored as JSON `null` — a `NOT NULL`
 JSONB column still holds JSON `null`, since SQL `NULL` ≠ JSON `null`). The
 `payload` column is byte-identical to today in all cases. A changelog fragment
-documents the addition and the required migration.
+documents the addition, the required-argument breaking change, and the required
+migration.
 
 **Verification:** `mise run` (full build) is green — unit, integration, and
 component tests, type checking, linting, and formatting all pass — and a new
@@ -123,15 +131,21 @@ shared adapter test proves metadata round-trips identically in both adapters.
   `StoredEvent[Name, Payload, Metadata]` is fully typed. Mirror `Payload`
   exactly: wherever you see a `Payload` type parameter or `[Name, Payload]`
   parameterisation, add `Metadata` alongside it.
-- **No class-level field default; omitted metadata is `None`.** A generic field
-  cannot carry a default (a `default_factory={}` is
+- **No class-level field default; metadata is a required argument.** A generic
+  field cannot carry a default (a `default_factory={}` is
   type-unsound — `{}` is not valid when `Metadata` is e.g. `list[str]`). So
-  `metadata: Metadata` has no `= ...` on either type. `StoredEvent.metadata` is
-  a **required** constructor argument — every construction site passes it
-  explicitly. `NewEvent` has a custom `__init__` that accepts
-  `metadata: Metadata | None = None` and stores it **as-is**: when omitted it
-  stays `None` (not coerced to `{}`). `None` serialises to JSON `null` and
-  round-trips through the `NOT NULL` JSONB column unchanged.
+  `metadata: Metadata` has no `= ...` on either type.
+
+  > **Change from plan (as built):** the plan originally gave `NewEvent.__init__`
+  > a `metadata: Metadata | None = None` default so metadata could be omitted.
+  > The shipped code makes `metadata` a **required** keyword argument on **both**
+  > `NewEvent` and `StoredEvent` (no `= None` default). Callers with no metadata
+  > pass `metadata=None` explicitly, which is stored **as-is**: `None`
+  > serialises to JSON `null` and round-trips through the `NOT NULL` JSONB
+  > column unchanged. Making it required forces every construction site — and
+  > every caller — to make an explicit choice, at the cost of being a breaking
+  > change for existing `NewEvent(...)` call sites (documented in the changelog
+  > fragment).
 - **Verification via `mise run`.** Per project `CLAUDE.md`, all automated
   criteria use `mise run ...` targets, not `make`. Targeted runs use the
   `--test-args` switch: `mise run test:unit --test-args='-k <expr>'` (and the
@@ -188,10 +202,13 @@ foundation; all later phases depend on it.
 
 **File**: `src/logicblocks/event/types/event.py`
 **Changes**: Add `Metadata = JsonValue` generic and `metadata: Metadata` field
-(no field-level default — generic fields cannot default). `__init__` accepts
-`metadata: Metadata | None = None` and stores it **as-is** (omitted → stays
-`None`, not coerced to `{}`). Include `metadata` in `serialise()` and
-`__repr__`. Do **not** add it to `summarise()` (summarise feeds logs).
+(no field-level default — generic fields cannot default). `__init__` accepts a
+**required** `metadata: Metadata` argument and stores it **as-is** (callers with
+no metadata pass `metadata=None`, not `{}`). Include `metadata` in `serialise()`
+and `__repr__`. Do **not** add it to `summarise()` (summarise feeds logs).
+
+> **Change from plan (as built):** `metadata` is a required argument, not
+> `metadata: Metadata | None = None`. See the Decisions section.
 
 ```python
 @dataclass(frozen=True)
@@ -209,7 +226,7 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
         *,
         name: Name,
         payload: Payload,
-        metadata: Metadata | None = None,
+        metadata: Metadata,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),
@@ -252,7 +269,8 @@ through, mirroring `payload`.
 
 #### Manual Verification:
 
-- [ ] `NewEvent(name=..., payload=...)` with no metadata reports `metadata is None`
+- [ ] `NewEvent(name=..., payload=..., metadata=None)` reports `metadata is None`
+      (metadata is a required argument — omitting it is a `TypeError`)
 - [ ] `serialise()` / `repr()` of an event with metadata show it; `summarise()`
       does **not** contain metadata
 
@@ -518,16 +536,25 @@ Document the addition and the required breaking migration.
 #### 1. Changelog fragment
 
 **File**: `changelog.d/<generated>.md` (via `mise run changelog:fragment:create`)
-**Changes**: Describe the new `metadata` field/column and state that a migration
-is required for existing deployments, including the recommended SQL inline:
+**Changes**: Describe the new `metadata` field/column, state the
+required-argument breaking change (both `NewEvent` and `StoredEvent`), and state
+that a migration is required for existing deployments, including the recommended
+SQL inline:
 
 ```sql
-ALTER TABLE events ADD COLUMN metadata JSONB NOT NULL DEFAULT '{}';
+SET lock_timeout = '2s';
+ALTER TABLE events ADD COLUMN metadata JSONB NOT NULL DEFAULT 'null'::jsonb;
 ALTER TABLE events ALTER COLUMN metadata DROP DEFAULT;
 ```
 
-The transient `DEFAULT '{}'` backfills existing rows during the add, then is
-dropped so the column's final state matches the no-default canonical DDL.
+> **Change from plan (as built):** the backfill default is `'null'::jsonb`, not
+> `'{}'`, so backfilled historical rows match the application's representation
+> of absent metadata (`None` → JSON `null`) and read back identically to
+> newly-written no-metadata rows. A bounded `lock_timeout` guards against
+> blocking behind a long-running transaction.
+
+The transient `DEFAULT 'null'::jsonb` backfills existing rows during the add,
+then is dropped so the column's final state matches the no-default canonical DDL.
 
 **Important:** commit only the new fragment under `changelog.d/`. Do **not** run
 `changelog:assemble` and commit the resulting `CHANGELOG.md` — assembly is the
@@ -641,8 +668,17 @@ case (a handful of traceability keys). No new indexes. No query-path changes.
 This is a **breaking schema change** for existing deployments, shipped exactly as
 the `events_category_stream_sequence_number_index` addition was: canonical DDL
 updated for fresh installs, plus a changelog fragment announcing the migration
-with the recommended SQL inline (add column with transient `DEFAULT '{}'` to
-backfill, then drop the default). No migration framework is introduced.
+with the recommended SQL inline (add column with transient `DEFAULT 'null'::jsonb`
+to backfill, then drop the default). No migration framework is introduced.
+
+It is **also a breaking API change**: `metadata` is a required constructor
+argument on both `NewEvent` and `StoredEvent` (as built — see Decisions), so
+existing direct `NewEvent(...)` / `StoredEvent(...)` call sites must be updated
+to pass `metadata` explicitly (`metadata=None` for no metadata). Because the
+read path maps the column directly onto `StoredEvent.metadata`, the migration
+must be applied **before, or atomically with,** deploying the new code —
+running the new code against an un-migrated table fails on reads as well as
+writes.
 
 ## References
 

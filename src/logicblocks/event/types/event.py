@@ -9,6 +9,27 @@ from .conversion import JsonPersistable, serialise_to_json_value
 from .json import JsonValue, JsonValueSerialisable
 
 
+class Unset:
+    """Sentinel marking an event's metadata as unspecified.
+
+    Distinguishes "no metadata supplied, fill from any batch default" (`UNSET`,
+    the default) from "explicitly no metadata, do not fill" (`None`).
+    """
+
+    _instance: "Unset | None" = None
+
+    def __new__(cls) -> "Unset":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET = Unset()
+
+
 class Event(Protocol):
     def summarise(self) -> JsonValue:
         raise NotImplementedError
@@ -29,7 +50,7 @@ class NewEvent[Name = str, Payload = JsonValue, Metadata = JsonValue](
         *,
         name: Name,
         payload: Payload,
-        metadata: Metadata,
+        metadata: Metadata | Unset = UNSET,
         observed_at: datetime | None = None,
         occurred_at: datetime | None = None,
         clock: Clock = SystemClock(),

@@ -639,7 +639,7 @@ class TestStreamPublishing:
         assert len(stored_events) == 1
         assert stored_events[0].metadata == metadata
 
-    async def test_batch_metadata_fills_none_events_leaving_others_untouched(
+    async def test_batch_metadata_fills_unset_events_leaving_others_untouched(
         self,
     ):
         category_name = data.random_event_category_name()
@@ -650,25 +650,42 @@ class TestStreamPublishing:
         store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        none_event = NewEvent(name="a", payload={}, metadata=None)
+        unset_event = NewEvent(name="a", payload={})
         own_event = NewEvent(name="b", payload={}, metadata=own)
 
         stored_events = await stream.publish(
-            events=[none_event, own_event], metadata=batch
+            events=[unset_event, own_event], metadata=batch
         )
 
         assert [event.metadata for event in stored_events] == [batch, own]
 
-    async def test_omitting_batch_metadata_leaves_none_events_as_none(self):
+    async def test_explicit_none_metadata_opts_out_of_batch_metadata(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        unset_event = NewEvent(name="a", payload={})
+        opted_out_event = NewEvent(name="b", payload={}, metadata=None)
+
+        stored_events = await stream.publish(
+            events=[unset_event, opted_out_event], metadata=batch
+        )
+
+        assert [event.metadata for event in stored_events] == [batch, None]
+
+    async def test_omitting_batch_metadata_leaves_unset_events_as_none(self):
         category_name = data.random_event_category_name()
         stream_name = data.random_event_stream_name()
 
         store = EventStore(adapter=InMemoryEventStorageAdapter())
         stream = store.stream(category=category_name, stream=stream_name)
 
-        none_event = NewEvent(name="a", payload={}, metadata=None)
+        unset_event = NewEvent(name="a", payload={})
 
-        stored_events = await stream.publish(events=[none_event])
+        stored_events = await stream.publish(events=[unset_event])
 
         assert stored_events[0].metadata is None
 
@@ -1161,7 +1178,7 @@ class TestCategoryPublish:
         assert len(stored_events[stream_name]) == 1
         assert stored_events[stream_name][0].metadata == metadata
 
-    async def test_batch_metadata_fills_none_events_leaving_others_untouched(
+    async def test_batch_metadata_fills_unset_events_leaving_others_untouched(
         self,
     ):
         category_name = data.random_event_category_name()
@@ -1172,13 +1189,13 @@ class TestCategoryPublish:
         store = EventStore(adapter=InMemoryEventStorageAdapter())
         category = store.category(category=category_name)
 
-        none_event = NewEvent(name="a", payload={}, metadata=None)
+        unset_event = NewEvent(name="a", payload={})
         own_event = NewEvent(name="b", payload={}, metadata=own)
 
         stored_events = await category.publish(
             streams={
                 stream_name: stream_publish_definition(
-                    events=[none_event, own_event], metadata=batch
+                    events=[unset_event, own_event], metadata=batch
                 )
             }
         )
@@ -1186,6 +1203,30 @@ class TestCategoryPublish:
         assert [event.metadata for event in stored_events[stream_name]] == [
             batch,
             own,
+        ]
+
+    async def test_explicit_none_metadata_opts_out_of_batch_metadata(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        unset_event = NewEvent(name="a", payload={})
+        opted_out_event = NewEvent(name="b", payload={}, metadata=None)
+
+        stored_events = await category.publish(
+            streams={
+                stream_name: stream_publish_definition(
+                    events=[unset_event, opted_out_event], metadata=batch
+                )
+            }
+        )
+
+        assert [event.metadata for event in stored_events[stream_name]] == [
+            batch,
+            None,
         ]
 
     async def test_batch_metadata_is_isolated_per_stream(self):
@@ -1200,15 +1241,11 @@ class TestCategoryPublish:
         stored_events = await category.publish(
             streams={
                 filled_stream_name: stream_publish_definition(
-                    events=[
-                        NewEvent[str, JsonValue, JsonValue](
-                            name="a", payload={}, metadata=None
-                        )
-                    ],
+                    events=[NewEvent(name="a", payload={})],
                     metadata=batch,
                 ),
                 untouched_stream_name: stream_publish_definition(
-                    events=[NewEvent(name="b", payload={}, metadata=None)],
+                    events=[NewEvent(name="b", payload={})],
                 ),
             }
         )
@@ -1216,7 +1253,7 @@ class TestCategoryPublish:
         assert stored_events[filled_stream_name][0].metadata == batch
         assert stored_events[untouched_stream_name][0].metadata is None
 
-    async def test_definition_without_metadata_leaves_none_events_as_none(
+    async def test_definition_without_metadata_leaves_unset_events_as_none(
         self,
     ):
         category_name = data.random_event_category_name()
@@ -1228,7 +1265,7 @@ class TestCategoryPublish:
         stored_events = await category.publish(
             streams={
                 stream_name: stream_publish_definition(
-                    events=[NewEvent(name="a", payload={}, metadata=None)],
+                    events=[NewEvent(name="a", payload={})],
                 )
             }
         )
@@ -1245,7 +1282,7 @@ class TestCategoryPublish:
         await category.publish(
             streams={
                 stream_name: stream_publish_definition(
-                    events=[NewEvent(name="seed", payload={}, metadata=None)],
+                    events=[NewEvent(name="seed", payload={})],
                 )
             }
         )
@@ -1254,11 +1291,7 @@ class TestCategoryPublish:
             await category.publish(
                 streams={
                     stream_name: stream_publish_definition(
-                        events=[
-                            NewEvent[str, JsonValue, JsonValue](
-                                name="a", payload={}, metadata=None
-                            )
-                        ],
+                        events=[NewEvent(name="a", payload={})],
                         condition=conditions.stream_is_empty(),
                         metadata={"actor": "svc"},
                     )
@@ -1276,11 +1309,7 @@ class TestCategoryPublish:
         stored_events = await category.publish(
             streams={
                 stream_name: stream_publish_definition(
-                    events=[
-                        NewEvent[str, JsonValue, JsonValue](
-                            name="a", payload={}, metadata=None
-                        )
-                    ],
+                    events=[NewEvent(name="a", payload={})],
                     condition=conditions.stream_is_empty(),
                     metadata=batch,
                 )

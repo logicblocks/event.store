@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 
 import pytest
 
-from logicblocks.event.types import NewEvent, StoredEvent
+from logicblocks.event.types import UNSET, NewEvent, StoredEvent
 from logicblocks.event.utils.clock import StaticClock
 
 
@@ -24,6 +24,20 @@ class VerifyingStaticClock(StaticClock):
 
 
 class TestNewEvent:
+    def test_defaults_metadata_to_unset_when_omitted(self):
+        event = NewEvent(name="something-happened", payload={"foo": "bar"})
+
+        assert event.metadata is UNSET
+
+    def test_uses_metadata_when_provided(self):
+        event = NewEvent(
+            name="something-happened",
+            payload={"foo": "bar"},
+            metadata={"actor": "svc"},
+        )
+
+        assert event.metadata == {"actor": "svc"}
+
     def test_uses_occurred_at_when_provided(self):
         occurred_at = datetime.now(UTC)
         event = NewEvent(

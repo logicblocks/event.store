@@ -7,26 +7,20 @@ from logicblocks.event.testing import NewEventBuilder
 from logicblocks.event.types import NewEvent
 
 
-def new_event_without_metadata(name: str = "event") -> NewEvent:
+def new_event_with_unset_metadata(name: str = "event") -> NewEvent:
+    return NewEvent(name=name, payload={"value": name})
+
+
+def new_event_with_explicit_none_metadata(name: str = "event") -> NewEvent:
     return NewEvent(name=name, payload={"value": name}, metadata=None)
 
 
 class TestResolveBatchMetadata:
-    def test_returns_events_unchanged_when_batch_metadata_is_none(self):
-        events = [
-            new_event_without_metadata("event-1"),
-            NewEventBuilder().with_metadata({"a": "b"}).build(),
-        ]
-
-        resolved = resolve_batch_metadata(events, None)
-
-        assert resolved == events
-
-    def test_fills_none_event_with_batch_metadata_preserving_other_fields(
+    def test_fills_unset_event_with_batch_metadata_preserving_other_fields(
         self,
     ):
         batch = {"actor": "svc"}
-        event = new_event_without_metadata()
+        event = new_event_with_unset_metadata()
 
         resolved = resolve_batch_metadata([event], batch)
 
@@ -34,6 +28,20 @@ class TestResolveBatchMetadata:
             name=event.name,
             payload=event.payload,
             metadata=batch,
+            observed_at=event.observed_at,
+            occurred_at=event.occurred_at,
+        )
+        assert resolved == [expected]
+
+    def test_fills_unset_event_with_none_when_no_batch_metadata(self):
+        event = new_event_with_unset_metadata()
+
+        resolved = resolve_batch_metadata([event], None)
+
+        expected = NewEvent(
+            name=event.name,
+            payload=event.payload,
+            metadata=None,
             observed_at=event.observed_at,
             occurred_at=event.occurred_at,
         )
@@ -47,36 +55,47 @@ class TestResolveBatchMetadata:
 
         assert resolved == [event]
 
-    def test_fills_only_none_events_in_mixed_batch(self):
+    def test_treats_explicit_none_as_opt_out_from_batch_metadata(self):
+        event = new_event_with_explicit_none_metadata()
+
+        resolved = resolve_batch_metadata([event], {"actor": "svc"})
+
+        assert resolved == [event]
+        assert resolved[0].metadata is None
+
+    def test_fills_only_unset_events_in_mixed_batch(self):
         batch = {"actor": "svc"}
-        none_event = new_event_without_metadata()
+        unset_event = new_event_with_unset_metadata()
+        opted_out_event = new_event_with_explicit_none_metadata("opted-out")
         own_event = NewEventBuilder().with_metadata({"actor": "own"}).build()
 
-        resolved = resolve_batch_metadata([none_event, own_event], batch)
+        resolved = resolve_batch_metadata(
+            [unset_event, opted_out_event, own_event], batch
+        )
 
         expected_filled = NewEvent(
-            name=none_event.name,
-            payload=none_event.payload,
+            name=unset_event.name,
+            payload=unset_event.payload,
             metadata=batch,
-            observed_at=none_event.observed_at,
-            occurred_at=none_event.occurred_at,
+            observed_at=unset_event.observed_at,
+            occurred_at=unset_event.occurred_at,
         )
-        assert resolved == [expected_filled, own_event]
+        assert resolved == [expected_filled, opted_out_event, own_event]
 
     def test_returns_empty_list_for_empty_events(self):
         assert resolve_batch_metadata([], {"actor": "svc"}) == []
 
-    def test_fills_none_event_with_empty_mapping_batch_metadata(self):
-        none_event = new_event_without_metadata()
+    def test_fills_unset_event_with_empty_mapping_batch_metadata(self):
+        unset_event = new_event_with_unset_metadata()
 
-        resolved = resolve_batch_metadata([none_event], {})
+        resolved = resolve_batch_metadata([unset_event], {})
 
         expected = NewEvent(
-            name=none_event.name,
-            payload=none_event.payload,
+            name=unset_event.name,
+            payload=unset_event.payload,
             metadata={},
-            observed_at=none_event.observed_at,
-            occurred_at=none_event.occurred_at,
+            observed_at=unset_event.observed_at,
+            occurred_at=unset_event.occurred_at,
         )
         assert resolved == [expected]
 

@@ -13,7 +13,7 @@ from .conversion import (
     serialise_to_string,
     str_serialisation_fallback,
 )
-from .event import Event, NewEvent, StoredEvent
+from .event import UNSET, Event, NewEvent, StoredEvent, Unset
 from .functions import Applier, Converter
 from .identifier import (
     CategoryIdentifier,
@@ -70,6 +70,8 @@ __all__ = [
     "StringLoggable",
     "StringPersistable",
     "StringSerialisable",
+    "UNSET",
+    "Unset",
     "default_deserialisation_fallback",
     "default_serialisation_fallback",
     "deserialise_from_json_value",

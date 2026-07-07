@@ -66,10 +66,9 @@ async def main():
     store = EventStore(adapter)
 
     stream = store.stream(category="profiles", stream="joe.bloggs")
-    # metadata is required; pass metadata=None when the event has no metadata
+    # metadata is optional; omit it to leave the event's metadata unset
     profile_created_event = NewEvent(name="profile-created",
-                                     payload={"name": "Joe Bloggs", "email": "joe.bloggs@example.com"},
-                                     metadata=None)
+                                     payload={"name": "Joe Bloggs", "email": "joe.bloggs@example.com"})
     date_of_birth_set_event = NewEvent(name="date-of-birth-set", payload={"dob": "1992-07-10"},
                                        metadata={"actor": "user-123"})
 
@@ -102,19 +101,27 @@ asyncio.run(main())
 
 Instead of setting `metadata` on every event, you can supply a single
 `metadata` mapping alongside `events` and have it applied to the whole batch.
-It fills only events whose `metadata is None`; per-event metadata always takes
-precedence.
+An event's `metadata` has three states:
+
+- **unset** (the default, when `metadata` is omitted) — the event takes the
+  batch metadata, or `None` if no batch metadata is supplied.
+- **an explicit value** (e.g. `metadata={"actor": "user-123"}`) — kept as-is;
+  per-event metadata always takes precedence over the batch.
+- **explicit `None`** — an opt-out: the event keeps `None` even when batch
+  metadata is supplied.
 
 ```python
 await stream.publish(
     events=[
-        NewEvent(name="profile-created", payload={...}, metadata=None),
-        NewEvent(name="date-of-birth-set", payload={...}, metadata={"actor": "user-123"}),
+        NewEvent(name="profile-created", payload={...}),                       # unset -> batch
+        NewEvent(name="date-of-birth-set", payload={...}, metadata={"actor": "user-123"}),  # kept
+        NewEvent(name="imported", payload={...}, metadata=None),               # opt-out -> None
     ],
     metadata={"actor": "service", "tenant": "acme"},
 )
-# the first event is stored with {"actor": "service", "tenant": "acme"}
-# the second keeps its own {"actor": "user-123"}
+# profile-created  -> {"actor": "service", "tenant": "acme"}
+# date-of-birth-set -> {"actor": "user-123"}
+# imported          -> None
 ```
 
 The same option is available per stream when publishing to a category via

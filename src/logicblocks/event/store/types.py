@@ -1,7 +1,8 @@
 from collections.abc import Sequence
-from typing import NotRequired, TypedDict
+from typing import NotRequired, TypedDict, cast
 
 from logicblocks.event.types import (
+    UNSET,
     JsonPersistable,
     JsonValue,
     NewEvent,
@@ -49,15 +50,13 @@ def resolve_batch_metadata[
     events: Sequence[NewEvent[Name, Payload, Metadata]],
     batch_metadata: Metadata | None,
 ) -> Sequence[NewEvent[Name, Payload, Metadata]]:
-    if batch_metadata is None:
-        return events
     return [
         event
-        if event.metadata is not None
+        if event.metadata is not UNSET
         else NewEvent[Name, Payload, Metadata](
             name=event.name,
             payload=event.payload,
-            metadata=batch_metadata,
+            metadata=cast(Metadata, batch_metadata),
             observed_at=event.observed_at,
             occurred_at=event.occurred_at,
         )

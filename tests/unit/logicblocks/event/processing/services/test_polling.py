@@ -75,7 +75,7 @@ class TestPollingServiceRepr:
 
         assert (
             repr(service)
-            == f"PollingService(CallableService(callable={my_poller.__qualname__}))"
+            == f"PollingService(CallableService({my_poller.__qualname__}))"
         )
 
 

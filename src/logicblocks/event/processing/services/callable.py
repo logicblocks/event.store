@@ -38,4 +38,4 @@ class CallableService[T = Any](Service[T]):
             getattr(self._callable, "__name__", repr(self._callable)),
         )
 
-        return f"{self.__class__.__name__}(callable={callable_name})"
+        return f"{self.__class__.__name__}({callable_name})"

@@ -1,19 +1,26 @@
 from .callable import CallableService, CallableServiceCallable
-from .deferred_future import DeferredFuture
 from .error import (
+    ConstantRetryStrategy,
     ContinueErrorHandler,
     ContinueErrorHandlerDecision,
     ErrorHandler,
     ErrorHandlerDecision,
     ErrorHandlingService,
     ErrorHandlingServiceMixin,
+    ExcludeExceptionsRetryStrategy,
     ExitErrorHandler,
     ExitErrorHandlerDecision,
+    IncludeExceptionsRetryStrategy,
+    OverrideRetryStrategyDecision,
     RaiseErrorHandler,
     RaiseErrorHandlerDecision,
     RetryErrorHandler,
     RetryErrorHandlerDecision,
+    RetryImmediatelyDecision,
+    RetryStrategy,
+    RetryStrategyDecision,
     TypeMappingErrorHandler,
+    WaitRetryStrategyDecision,
     continue_execution_type_mapping,
     error_handler_type_mappings,
     exit_fatally_type_mapping,
@@ -25,7 +32,13 @@ from .manager import (
 )
 from .polling import PollingService
 from .status import DelegateServiceStatusTrackingMixin, StatusTrackingService
-from .types import ExecutionMode, IsolationMode, ManagedServiceState, Service
+from .types import (
+    DeferredFuture,
+    ExecutionMode,
+    IsolationMode,
+    ManagedServiceState,
+    Service,
+)
 
 __all__ = [
     "CallableService",
@@ -39,11 +52,14 @@ __all__ = [
     "ExitErrorHandler",
     "ExitErrorHandlerDecision",
     "IsolationMode",
+    "OverrideRetryStrategyDecision",
     "PollingService",
     "RaiseErrorHandler",
     "RaiseErrorHandlerDecision",
     "RetryErrorHandler",
     "RetryErrorHandlerDecision",
+    "RetryImmediatelyDecision",
+    "RetryStrategyDecision",
     "ContinueErrorHandler",
     "ContinueErrorHandlerDecision",
     "ServiceManager",
@@ -52,9 +68,14 @@ __all__ = [
     "StatusTrackingService",
     "DelegateServiceStatusTrackingMixin",
     "TypeMappingErrorHandler",
+    "WaitRetryStrategyDecision",
     "error_handler_type_mappings",
     "exit_fatally_type_mapping",
     "raise_exception_type_mapping",
     "continue_execution_type_mapping",
     "retry_execution_type_mapping",
+    "RetryStrategy",
+    "ConstantRetryStrategy",
+    "IncludeExceptionsRetryStrategy",
+    "ExcludeExceptionsRetryStrategy",
 ]

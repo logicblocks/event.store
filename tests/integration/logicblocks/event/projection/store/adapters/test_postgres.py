@@ -1,9 +1,12 @@
 import os
 from typing import Sequence
 
+import pytest
 import pytest_asyncio
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
+    Thing,
+    ThingProjectionBuilder,
 )
 from logicblocks.event.testsupport import (
     clear_table,
@@ -23,6 +26,7 @@ from logicblocks.event.projection.store import ProjectionStorageAdapter
 from logicblocks.event.projection.store.adapters import (
     PostgresProjectionStorageAdapter,
 )
+from logicblocks.event.query import FilterClause, Operator, Path, Search
 from logicblocks.event.types import JsonValue, Projection, identifier
 
 connection_settings = ConnectionSettings(
@@ -90,3 +94,48 @@ class TestPostgresProjectionStorageAdapterCommonCases(
         self, *, adapter: ProjectionStorageAdapter
     ) -> Sequence[Projection[JsonValue, JsonValue]]:
         return await read_projections(self.pool, "projections")
+
+
+class TestPostgresProjectionStorageAdapterAbsentFieldBehaviour:
+    """Asserts the DESIRED behaviour when filtering on an absent field.
+
+    We have chosen "raise a ``ValueError``" as the unified behaviour, matching
+    the in-memory adapter (see the mirror test
+    ``TestInMemoryProjectionStorageAdapterAbsentFieldBehaviour`` in
+    ``tests/unit/.../adapters/test_memory.py``). The Postgres adapter currently
+    silently excludes the projection instead, so this test is EXPECTED TO FAIL
+    until the adapter is updated to raise on an absent field.
+    """
+
+    pool: AsyncConnectionPool[AsyncConnection]
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def store_connection_pool(self, open_connection_pool):
+        self.pool = open_connection_pool
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await enable_extension(open_connection_pool, "pg_trgm")
+        await drop_table(open_connection_pool, "projections")
+        await create_table(open_connection_pool, "projections")
+
+    @pytest.mark.parametrize("operator", [Operator.EQUAL, Operator.NOT_EQUAL])
+    async def test_filtering_on_absent_field_raises(
+        self, operator: Operator
+    ) -> None:
+        adapter = PostgresProjectionStorageAdapter(connection_source=self.pool)
+        await adapter.save(
+            projection=ThingProjectionBuilder()
+            .with_state(Thing(value_1=1))
+            .build()
+        )
+
+        with pytest.raises(ValueError):
+            await adapter.find_many(
+                search=Search(
+                    filters=[
+                        FilterClause(operator, Path("state", "value_5"), 42)
+                    ]
+                ),
+                state_type=Thing,
+            )

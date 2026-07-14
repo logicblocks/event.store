@@ -639,6 +639,39 @@ class TestStreamPublishing:
         assert len(stored_events) == 1
         assert stored_events[0].metadata == metadata
 
+    async def test_batch_metadata_fills_none_events_leaving_others_untouched(
+        self,
+    ):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+        own = {"actor": "own"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        none_event = NewEvent(name="a", payload={}, metadata=None)
+        own_event = NewEvent(name="b", payload={}, metadata=own)
+
+        stored_events = await stream.publish(
+            events=[none_event, own_event], metadata=batch
+        )
+
+        assert [event.metadata for event in stored_events] == [batch, own]
+
+    async def test_omitting_batch_metadata_leaves_none_events_as_none(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        none_event = NewEvent(name="a", payload={}, metadata=None)
+
+        stored_events = await stream.publish(events=[none_event])
+
+        assert stored_events[0].metadata is None
+
 
 class TestStreamLogging:
     async def test_logs_event_and_conditions_pre_publish(self):
@@ -1127,6 +1160,134 @@ class TestCategoryPublish:
 
         assert len(stored_events[stream_name]) == 1
         assert stored_events[stream_name][0].metadata == metadata
+
+    async def test_batch_metadata_fills_none_events_leaving_others_untouched(
+        self,
+    ):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+        own = {"actor": "own"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        none_event = NewEvent(name="a", payload={}, metadata=None)
+        own_event = NewEvent(name="b", payload={}, metadata=own)
+
+        stored_events = await category.publish(
+            streams={
+                stream_name: stream_publish_definition(
+                    events=[none_event, own_event], metadata=batch
+                )
+            }
+        )
+
+        assert [event.metadata for event in stored_events[stream_name]] == [
+            batch,
+            own,
+        ]
+
+    async def test_batch_metadata_is_isolated_per_stream(self):
+        category_name = data.random_event_category_name()
+        filled_stream_name = data.random_event_stream_name()
+        untouched_stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        stored_events = await category.publish(
+            streams={
+                filled_stream_name: stream_publish_definition(
+                    events=[
+                        NewEvent[str, JsonValue, JsonValue](
+                            name="a", payload={}, metadata=None
+                        )
+                    ],
+                    metadata=batch,
+                ),
+                untouched_stream_name: stream_publish_definition(
+                    events=[NewEvent(name="b", payload={}, metadata=None)],
+                ),
+            }
+        )
+
+        assert stored_events[filled_stream_name][0].metadata == batch
+        assert stored_events[untouched_stream_name][0].metadata is None
+
+    async def test_definition_without_metadata_leaves_none_events_as_none(
+        self,
+    ):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        stored_events = await category.publish(
+            streams={
+                stream_name: stream_publish_definition(
+                    events=[NewEvent(name="a", payload={}, metadata=None)],
+                )
+            }
+        )
+
+        assert stored_events[stream_name][0].metadata is None
+
+    async def test_condition_still_fires_when_metadata_supplied(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        await category.publish(
+            streams={
+                stream_name: stream_publish_definition(
+                    events=[NewEvent(name="seed", payload={}, metadata=None)],
+                )
+            }
+        )
+
+        with pytest.raises(UnmetWriteConditionError):
+            await category.publish(
+                streams={
+                    stream_name: stream_publish_definition(
+                        events=[
+                            NewEvent[str, JsonValue, JsonValue](
+                                name="a", payload={}, metadata=None
+                            )
+                        ],
+                        condition=conditions.stream_is_empty(),
+                        metadata={"actor": "svc"},
+                    )
+                }
+            )
+
+    async def test_condition_met_publishes_with_batch_metadata(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        batch = {"actor": "svc"}
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        category = store.category(category=category_name)
+
+        stored_events = await category.publish(
+            streams={
+                stream_name: stream_publish_definition(
+                    events=[
+                        NewEvent[str, JsonValue, JsonValue](
+                            name="a", payload={}, metadata=None
+                        )
+                    ],
+                    condition=conditions.stream_is_empty(),
+                    metadata=batch,
+                )
+            }
+        )
+
+        assert stored_events[stream_name][0].metadata == batch
 
 
 class TestCategoryRead:

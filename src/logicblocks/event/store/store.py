@@ -20,7 +20,7 @@ from logicblocks.event.types import (
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError
-from .types import StreamPublishDefinition
+from .types import StreamPublishDefinition, resolve_batch_metadata
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
@@ -62,8 +62,10 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         *,
         events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
+        metadata: Metadata | None = None,
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         """Publish a sequence of events into the stream."""
+        events = resolve_batch_metadata(events, metadata)
         await self._logger.adebug(
             "event.stream.publishing",
             category=self._identifier.category,
@@ -214,8 +216,24 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
         """Publish events to multiple streams in the category atomically."""
+
+        def _resolve(
+            definition: StreamPublishDefinition[Name, Payload, Metadata],
+        ) -> StreamPublishDefinition[Name, Payload, Metadata]:
+            resolved: StreamPublishDefinition[Name, Payload, Metadata] = {
+                "events": resolve_batch_metadata(
+                    definition["events"], definition.get("metadata")
+                ),
+            }
+            if "condition" in definition:
+                resolved["condition"] = definition["condition"]
+            return resolved
+
+        resolved_streams = {
+            name: _resolve(definition) for name, definition in streams.items()
+        }
         return await self._adapter.save(
-            target=self._identifier, streams=streams
+            target=self._identifier, streams=resolved_streams
         )
 
     def __eq__(self, other: Any) -> bool:

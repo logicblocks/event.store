@@ -98,6 +98,28 @@ asyncio.run(main())
 # }
 ```
 
+### Batch-level metadata
+
+Instead of setting `metadata` on every event, you can supply a single
+`metadata` mapping alongside `events` and have it applied to the whole batch.
+It fills only events whose `metadata is None`; per-event metadata always takes
+precedence.
+
+```python
+await stream.publish(
+    events=[
+        NewEvent(name="profile-created", payload={...}, metadata=None),
+        NewEvent(name="date-of-birth-set", payload={...}, metadata={"actor": "user-123"}),
+    ],
+    metadata={"actor": "service", "tenant": "acme"},
+)
+# the first event is stored with {"actor": "service", "tenant": "acme"}
+# the second keeps its own {"actor": "user-123"}
+```
+
+The same option is available per stream when publishing to a category via
+`stream_publish_definition(events=[...], metadata={...})`.
+
 Features
 --------
 

@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
 import pytest
-
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
     Thing,
@@ -40,9 +39,7 @@ class TestInMemoryProjectionStorageAdapterAbsentFieldBehaviour:
     until the adapter is aligned.
     """
 
-    @pytest.mark.parametrize(
-        "operator", [Operator.EQUAL, Operator.NOT_EQUAL]
-    )
+    @pytest.mark.parametrize("operator", [Operator.EQUAL, Operator.NOT_EQUAL])
     async def test_filtering_on_absent_field_raises(
         self, operator: Operator
     ) -> None:
@@ -57,9 +54,7 @@ class TestInMemoryProjectionStorageAdapterAbsentFieldBehaviour:
             await adapter.find_many(
                 search=Search(
                     filters=[
-                        FilterClause(
-                            operator, Path("state", "value_5"), 42
-                        )
+                        FilterClause(operator, Path("state", "value_5"), 42)
                     ]
                 ),
                 state_type=Thing,

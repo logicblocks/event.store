@@ -1,15 +1,13 @@
 import os
 from typing import Sequence
 
-import pytest_asyncio
 import pytest
-
+import pytest_asyncio
 from logicblocks.event.testcases.projection.store.adapters import (
     ProjectionStorageAdapterCases,
     Thing,
     ThingProjectionBuilder,
 )
-from logicblocks.event.query import FilterClause, Operator, Path, Search
 from logicblocks.event.testsupport import (
     clear_table,
     connection_pool,
@@ -28,6 +26,7 @@ from logicblocks.event.projection.store import ProjectionStorageAdapter
 from logicblocks.event.projection.store.adapters import (
     PostgresProjectionStorageAdapter,
 )
+from logicblocks.event.query import FilterClause, Operator, Path, Search
 from logicblocks.event.types import JsonValue, Projection, identifier
 
 connection_settings = ConnectionSettings(
@@ -120,9 +119,7 @@ class TestPostgresProjectionStorageAdapterAbsentFieldBehaviour:
         await drop_table(open_connection_pool, "projections")
         await create_table(open_connection_pool, "projections")
 
-    @pytest.mark.parametrize(
-        "operator", [Operator.EQUAL, Operator.NOT_EQUAL]
-    )
+    @pytest.mark.parametrize("operator", [Operator.EQUAL, Operator.NOT_EQUAL])
     async def test_filtering_on_absent_field_raises(
         self, operator: Operator
     ) -> None:

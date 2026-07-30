@@ -1,4 +1,4 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Callable, Self, cast
 
@@ -842,6 +842,67 @@ class TestFindManyCases:
                     Operator.IN,
                     Path("state", "value_2"),
                     [value_to_filter_1, value_to_filter_2],
+                )
+            ],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(item_count=2),
+        )
+        located = await adapter.find_many(search=search, state_type=Thing)
+
+        assert located == [projection_1, projection_2]
+
+    iterables: list[Callable[[Iterable[Any]], Any]] = [
+        set,
+        frozenset,
+        tuple,
+        iter,
+    ]
+
+    @pytest.mark.parametrize("constructor", iterables)
+    async def test_filters_supports_non_list_iterables(
+        self, constructor: Callable[[Iterable], Any], harness
+    ):
+        adapter = harness.construct_storage_adapter()
+
+        value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
+        value_to_filter_2 = data.random_ascii_alphanumerics_string(10)
+        other_value = data.random_ascii_alphanumerics_string(10)
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_2=value_to_filter_1))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_2=value_to_filter_2))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_2=other_value))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.IN,
+                    Path("state", "value_2"),
+                    constructor((value_to_filter_1, value_to_filter_2)),
                 )
             ],
             sort=SortClause(

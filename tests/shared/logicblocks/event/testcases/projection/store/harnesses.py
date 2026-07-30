@@ -40,7 +40,7 @@ class PostgresProjectionStoreAdapterHarness(ProjectionStoreAdapterHarness):
         return PostgresProjectionStorageAdapter(connection_source=self.pool)
 
     async def clear_storage(self) -> None:
-        await clear_table(self.pool, "events")
+        await clear_table(self.pool, "projections")
 
     async def retrieve_projections(
         self, *, adapter: ProjectionStorageAdapter

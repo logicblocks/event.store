@@ -1,4 +1,4 @@
-from typing import Any, Sequence, TypeGuard
+from typing import Any
 
 from psycopg.types.json import Jsonb
 
@@ -78,11 +78,3 @@ def value_for_path(
             return value_for_nested_path(value, path, operator)
     else:
         return postgresquery.Constant(value)
-
-
-def is_multi_valued(value: Any) -> TypeGuard[Sequence[Any]]:
-    return (
-        not isinstance(value, str)
-        and not isinstance(value, bytes)
-        and isinstance(value, Sequence)
-    )

@@ -6,13 +6,13 @@ from logicblocks.event.types import Converter
 
 from ...converter import TypeRegistryConverter
 from .. import query as postgresquery
+from ..is_multi_valued import is_multi_valued
 from ..query import QueryApplier
 from ..settings import TableSettings
 from .appliers import CombinedQueryApplier
 from .helpers import (
     expression_for_field,
     expression_for_path,
-    is_multi_valued,
     value_for_path,
 )
 from .types import ClauseConverter

@@ -2,11 +2,20 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum, StrEnum
-from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
+from typing import (
+    Any,
+    LiteralString,
+    Self,
+    TypedDict,
+    Unpack,
+    assert_never,
+    cast,
+)
 
 from psycopg import sql
 
 from ...types import Applier
+from .is_multi_valued import is_multi_valued
 from .types import ParameterisedQuery, ParameterisedQueryFragment
 
 
@@ -160,9 +169,13 @@ class ResultTarget(Node):
 class Constant(Expression):
     value: Any
 
+    @property
+    def param(self):
+        return list(self.value) if is_multi_valued(self.value) else self.value
+
     def to_fragment(self) -> ParameterisedQueryFragment:
         operand_sql = sql.SQL("%s")
-        params = [self.value]
+        params = [self.param]
 
         return operand_sql, params
 
@@ -334,35 +347,40 @@ class Condition(Expression):
     def _operand_fragment(
         operand: ConditionOperand,
     ) -> ParameterisedQueryFragment:
-        if isinstance(operand, Query):
-            subquery, params = operand.to_fragment()
-            if subquery is None:
-                return None, []
+        match operand:
+            case Query():
+                subquery, params = operand.to_fragment()
+                if subquery is None:
+                    return None, []
 
-            operand_sql = sql.SQL("(") + subquery + sql.SQL(")")
+                operand_sql = sql.SQL("(") + subquery + sql.SQL(")")
 
-            return operand_sql, params
+                return operand_sql, params
 
-        if isinstance(operand, Iterable):
-            operand = cast(Iterable[Any], operand)
+            case Iterable():
+                fragments = [
+                    Condition._operand_fragment(operand_part)
+                    for operand_part in operand
+                ]
+                elements = [
+                    fragment[0]
+                    for fragment in fragments
+                    if fragment[0] is not None
+                ]
+                operand_sql = (
+                    sql.SQL("(") + sql.SQL(", ").join(elements) + sql.SQL(")")
+                )
+                params = [
+                    param for fragment in fragments for param in fragment[1]
+                ]
 
-            fragments = [
-                Condition._operand_fragment(operand_part)
-                for operand_part in operand
-            ]
-            elements = [
-                fragment[0]
-                for fragment in fragments
-                if fragment[0] is not None
-            ]
-            operand_sql = (
-                sql.SQL("(") + sql.SQL(", ").join(elements) + sql.SQL(")")
-            )
-            params = [param for fragment in fragments for param in fragment[1]]
+                return operand_sql, params
 
-            return operand_sql, params
+            case Expression():
+                return operand.to_fragment()
 
-        return operand.to_fragment()
+            case _:
+                assert_never(operand)
 
     def _left_fragment(self) -> ParameterisedQueryFragment:
         if self._left is None:
@@ -715,7 +733,7 @@ class Query:
             return None, []
 
         clause = sql.SQL("LIMIT %s")
-        params: Sequence[Any] = [self.limit_value]
+        params = [self.limit_value]
 
         return clause, params
 
@@ -724,7 +742,7 @@ class Query:
             return None, []
 
         clause = sql.SQL("OFFSET %s")
-        params: Sequence[Any] = [self.offset_value]
+        params = [self.offset_value]
 
         return clause, params
 

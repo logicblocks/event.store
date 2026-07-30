@@ -91,9 +91,6 @@ async def connection_pool(connection_settings: ConnectionSettings):
     conninfo = connection_settings.to_connection_string()
     pool = AsyncConnectionPool[AsyncConnection](conninfo, open=False)
 
-    await pool.open()
-
-    try:
+    async with pool:
+        await pool.wait()
         yield pool
-    finally:
-        await pool.close()

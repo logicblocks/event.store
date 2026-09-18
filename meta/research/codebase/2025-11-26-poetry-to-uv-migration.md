@@ -11,11 +11,11 @@ last_updated_by: "Toby Clemson"
 last_updated_note: "Updated with uv version management capabilities (uv 0.7.0+)"
 type: "codebase-research"
 id: "2025-11-26-poetry-to-uv-migration"
-title: "Research: Poetry to UV Migration Analysis"
+title: "Poetry to UV Migration Analysis"
 schema_version: 1
 ---
 
-# Research: Poetry to UV Migration Analysis
+# Poetry to UV Migration Analysis
 
 **Date**: 2025-11-26T20:43:26+00:00
 **Author**: Toby Clemson

@@ -362,4 +362,4 @@ reports
 ### mise
 mise.local.toml
 
-.accelerator/
+.accelerator/config.local.md

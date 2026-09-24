@@ -12,6 +12,7 @@ type ConnectionSource = (
 )
 
 type SqlFragment = sql.Composable | None
+type SqlParam = Any
 
-type ParameterisedQuery = tuple[abc.Query, Sequence[Any]]
-type ParameterisedQueryFragment = tuple[SqlFragment, Sequence[Any]]
+type ParameterisedQuery = tuple[abc.Query, Sequence[SqlParam]]
+type ParameterisedQueryFragment = tuple[SqlFragment, Sequence[SqlParam]]

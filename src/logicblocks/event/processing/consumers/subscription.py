@@ -158,7 +158,7 @@ class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
             )
             self._delegates.pop(source.identifier)
         else:
-            await self._logger.awarn(
+            await self._logger.awarning(
                 "event.consumer.subscription.missing-source",
                 source=source.identifier.serialise(
                     fallback=str_serialisation_fallback

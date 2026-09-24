@@ -98,7 +98,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
             return stored_events
         except UnmetWriteConditionError as ex:
-            await self._logger.awarn(
+            await self._logger.awarning(
                 "event.stream.publish-failed",
                 category=self._identifier.category,
                 stream=self._identifier.stream,

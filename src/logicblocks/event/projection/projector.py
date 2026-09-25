@@ -56,6 +56,9 @@ class Projector[
     ) -> Metadata:
         return metadata
 
+    def finalise_state(self, state: State) -> State:
+        return state
+
     @property
     def projection_name(self):
         return self.name if self.name is not None else self._default_name()
@@ -82,11 +85,13 @@ class Projector[
             state = self.apply(state=state, event=event)
             metadata = self.update_metadata(state, metadata, event)
 
+        finalised_state = self.finalise_state(state)
+
         return Projection[State, Metadata](
-            id=self.id_factory(state, source.identifier),
+            id=self.id_factory(finalised_state, source.identifier),
             name=self.projection_name,
             source=source.identifier,
-            state=state,
+            state=finalised_state,
             metadata=metadata,
         )
 

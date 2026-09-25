@@ -2,6 +2,8 @@ import dataclasses
 from collections.abc import Callable
 from typing import Any, Mapping, Self
 
+import pytest
+
 from logicblocks.event.processing import ProjectionEventProcessor
 from logicblocks.event.projection import (
     InMemoryProjectionStorageAdapter,
@@ -74,6 +76,20 @@ class StateProjector(Projector[StreamIdentifier, State, Mapping[str, int]]):
         return State(
             value=state.value + event.payload["value"],
         )
+
+
+class HundredfoldStateProjector(StateProjector):
+    def finalise_state(self, state: State) -> State:
+        return State(value=state.value * 100)
+
+
+class InvalidStateError(Exception):
+    pass
+
+
+class RejectingStateProjector(StateProjector):
+    def finalise_state(self, state: State) -> State:
+        raise InvalidStateError()
 
 
 class StateProjectionBuilder(BaseProjectionBuilder[State, Mapping[str, int]]):
@@ -176,3 +192,144 @@ class TestProjectionEventProcessor:
         assert loaded is not None
         assert loaded.state == State(value=15)
         assert loaded.metadata["event_count"] == 4
+
+    async def test_saves_finalised_state(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        projection_name = data.random_projection_name()
+
+        source = StreamIdentifier(category=category_name, stream=stream_name)
+
+        projector = HundredfoldStateProjector(projection_name=projection_name)
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter)
+        processor = ProjectionEventProcessor[State, Mapping[str, int]](
+            projector=projector,
+            projection_store=store,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        event = (
+            StoredEventBuilder()
+            .with_stream(stream_name)
+            .with_category(category_name)
+            .with_name("thing-occurred")
+            .with_payload({"value": 10})
+            .build()
+        )
+
+        await processor.process_event(event)
+
+        loaded = await store.locate(
+            source=source,
+            name=projection_name,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        assert loaded is not None
+        assert loaded.state == State(value=1000)
+
+    async def test_updates_existing_projection_with_finalised_state(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        projection_name = data.random_projection_name()
+
+        source = StreamIdentifier(category=category_name, stream=stream_name)
+
+        projector = HundredfoldStateProjector(projection_name=projection_name)
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter)
+        processor = ProjectionEventProcessor[State, Mapping[str, int]](
+            projector=projector,
+            projection_store=store,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        projection = (
+            StateProjectionBuilder()
+            .with_name(projection_name)
+            .with_id(stream_name)
+            .with_source(source)
+            .with_state(State(value=5))
+            .with_metadata({"event_count": 3})
+            .build()
+        )
+
+        await store.save(projection=projection)
+
+        event = (
+            StoredEventBuilder()
+            .with_stream(stream_name)
+            .with_category(category_name)
+            .with_name("thing-occurred")
+            .with_payload({"value": 10})
+            .build()
+        )
+
+        await processor.process_event(event)
+
+        loaded = await store.locate(
+            source=source,
+            name=projection_name,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        assert loaded is not None
+        assert loaded.state == State(value=1500)
+
+    async def test_does_not_save_when_finalise_state_raises(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        projection_name = data.random_projection_name()
+
+        source = StreamIdentifier(category=category_name, stream=stream_name)
+
+        projector = RejectingStateProjector(projection_name=projection_name)
+        adapter = InMemoryProjectionStorageAdapter()
+        store = ProjectionStore(adapter=adapter)
+        processor = ProjectionEventProcessor[State, Mapping[str, int]](
+            projector=projector,
+            projection_store=store,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        projection = (
+            StateProjectionBuilder()
+            .with_name(projection_name)
+            .with_id(stream_name)
+            .with_source(source)
+            .with_state(State(value=5))
+            .with_metadata({"event_count": 3})
+            .build()
+        )
+
+        await store.save(projection=projection)
+
+        event = (
+            StoredEventBuilder()
+            .with_stream(stream_name)
+            .with_category(category_name)
+            .with_name("thing-occurred")
+            .with_payload({"value": 10})
+            .build()
+        )
+
+        with pytest.raises(InvalidStateError):
+            await processor.process_event(event)
+
+        loaded = await store.locate(
+            source=source,
+            name=projection_name,
+            state_type=State,
+            metadata_type=Mapping[str, int],
+        )
+
+        assert loaded == projection

@@ -6,6 +6,10 @@ import structlog
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSource, constraints
+from logicblocks.event.store.middleware import (
+    EventStoreMiddlewareRegistry,
+    PublishRequest,
+)
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -20,6 +24,7 @@ from logicblocks.event.types import (
 from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError
+from .middleware import EventStoreMiddleware
 from .types import StreamPublishDefinition
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
@@ -35,15 +40,18 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         stream: StreamIdentifier,
+        middleware: EventStoreMiddlewareRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
+        self._identifier = stream
+        self._middleware = middleware
         self._logger = logger.bind(
             category=stream.category, stream=stream.stream
         )
-        self._identifier = stream
 
     @property
     def identifier(self) -> StreamIdentifier:
@@ -64,22 +72,30 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         """Publish a sequence of events into the stream."""
+        processed_publish = await self._middleware.on_publish(
+            PublishRequest(
+                stream=self._identifier,
+                events=events,
+                condition=condition,
+            )
+        )
+
         await self._logger.adebug(
             "event.stream.publishing",
             category=self._identifier.category,
             stream=self._identifier.stream,
             events=[
                 event.serialise(fallback=str_serialisation_fallback)
-                for event in events
+                for event in processed_publish.events
             ],
-            conditions=condition,
+            conditions=processed_publish.condition,
         )
 
         try:
             stored_events = await self._adapter.save(
                 target=self._identifier,
-                events=events,
-                condition=condition,
+                events=processed_publish.events,
+                condition=processed_publish.condition,
             )
 
             if self._logger.is_enabled_for(logging.DEBUG):
@@ -102,7 +118,9 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
                 "event.stream.publish-failed",
                 category=self._identifier.category,
                 stream=self._identifier.stream,
-                events=[event.summarise() for event in events],
+                events=[
+                    event.summarise() for event in processed_publish.events
+                ],
                 reason=repr(ex),
             )
             raise
@@ -149,13 +167,16 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         category: CategoryIdentifier,
+        middleware: EventStoreMiddlewareRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
-        self._logger = logger.bind(category=category.category)
         self._identifier = category
+        self._middleware = middleware
+        self._logger = logger.bind(category=category.category)
 
     @property
     def identifier(self) -> CategoryIdentifier:
@@ -176,10 +197,11 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         """
         return EventStream(
             adapter=self._adapter,
-            logger=self._logger,
             stream=StreamIdentifier(
                 category=self._identifier.category, stream=stream
             ),
+            middleware=self._middleware,
+            logger=self._logger,
         )
 
     def iterate(
@@ -236,13 +258,16 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         log: LogIdentifier = LogIdentifier(),
+        middleware: EventStoreMiddlewareRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
-        self._logger = logger.bind()
         self._identifier = log
+        self._middleware = middleware
+        self._logger = logger.bind()
 
     @property
     def identifier(self) -> LogIdentifier:
@@ -301,9 +326,11 @@ class EventStore:
     def __init__(
         self,
         adapter: EventStorageAdapter,
+        middleware: Sequence[EventStoreMiddleware] = (),
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
+        self._middleware = EventStoreMiddlewareRegistry(middleware)
         self._logger = logger
 
     def stream(self, *, category: str, stream: str) -> EventStream:
@@ -326,8 +353,9 @@ class EventStore:
         """
         return EventStream(
             adapter=self._adapter,
-            logger=self._logger,
             stream=StreamIdentifier(category=category, stream=stream),
+            middleware=self._middleware,
+            logger=self._logger,
         )
 
     def category(self, *, category: str) -> EventCategory:
@@ -348,8 +376,9 @@ class EventStore:
         """
         return EventCategory(
             adapter=self._adapter,
-            logger=self._logger,
             category=CategoryIdentifier(category=category),
+            middleware=self._middleware,
+            logger=self._logger,
         )
 
     def log(self) -> EventLog:
@@ -360,5 +389,6 @@ class EventStore:
         """
         return EventLog(
             adapter=self._adapter,
+            middleware=self._middleware,
             logger=self._logger,
         )

@@ -1,6 +1,6 @@
 import sys
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from functools import reduce
 from typing import Any, Mapping, MutableMapping, Self
@@ -12,7 +12,7 @@ from logicblocks.event.projection import (
     MissingProjectionHandlerError,
     Projector,
 )
-from logicblocks.event.store import EventStore
+from logicblocks.event.store import EventStore, InMemoryStoredEventSource
 from logicblocks.event.store.adapters import InMemoryEventStorageAdapter
 from logicblocks.event.testing import NewEventBuilder, StoredEventBuilder, data
 from logicblocks.event.types import (
@@ -119,6 +119,47 @@ class AggregateProjector(Projector[StreamIdentifier, Aggregate]):
             something_occurred_at=state.something_occurred_at,
             something_else_occurred_at=event.occurred_at,
         )
+
+
+@dataclass(frozen=True)
+class Tally:
+    values: tuple[int, ...] = ()
+    total: int = 0
+    finalised_count: int = 0
+
+
+class TallyProjector(Projector[StreamIdentifier, Tally]):
+    def initial_state_factory(self) -> Tally:
+        return Tally()
+
+    def initial_metadata_factory(self) -> JsonValue:
+        return {}
+
+    def id_factory(self, state: Tally, source: StreamIdentifier) -> str:
+        return source.stream
+
+    @staticmethod
+    def value_added(
+        state: Tally, event: StoredEvent[str, Mapping[str, Any]]
+    ) -> Tally:
+        return replace(state, values=(*state.values, event.payload["value"]))
+
+
+class RecordingFinalisingTallyProjector(TallyProjector):
+    def __init__(self):
+        self.finalised_states: list[Tally] = []
+
+    def finalise_state(self, state: Tally) -> Tally:
+        self.finalised_states.append(state)
+        return replace(state, finalised_count=state.finalised_count + 1)
+
+
+def value_added_event(value: int):
+    return (
+        NewEventBuilder()
+        .with_name("value-added")
+        .with_payload({"value": value})
+    )
 
 
 class TestProjectorEventApplication:
@@ -307,6 +348,19 @@ class TestProjectorEventApplication:
         expected_state = Aggregate()
 
         assert expected_state == actual_state
+
+    def test_does_not_finalise_state_when_applying_single_event(self):
+        stored_event = (
+            generic_event.with_name("value-added")
+            .with_payload({"value": 1})
+            .build()
+        )
+
+        projector = RecordingFinalisingTallyProjector()
+
+        projector.apply(event=stored_event)
+
+        assert projector.finalised_states == []
 
 
 class TestProjectorProjection:
@@ -760,6 +814,249 @@ class TestProjectorProjection:
         projection = await projector.project(source=stream)
 
         assert projection.name == projection_name
+
+    async def test_uses_finalised_state_as_projection_state(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(
+            events=[value_added_event(1).build(), value_added_event(2).build()]
+        )
+
+        projector = RecordingFinalisingTallyProjector()
+
+        actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[Tally](
+            id=stream_name,
+            state=Tally(values=(1, 2), finalised_count=1),
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="recording-finalising-tally",
+            metadata={},
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_finalises_state_once_after_all_events_applied(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        await stream.publish(
+            events=[
+                value_added_event(1).build(),
+                value_added_event(2).build(),
+                value_added_event(3).build(),
+            ]
+        )
+
+        projector = RecordingFinalisingTallyProjector()
+
+        await projector.project(source=stream)
+
+        assert projector.finalised_states == [Tally(values=(1, 2, 3))]
+
+    async def test_finalises_initial_state_when_source_has_no_events(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        projector = RecordingFinalisingTallyProjector()
+
+        await projector.project(source=stream)
+
+        assert projector.finalised_states == [Tally()]
+
+    async def test_finalises_provided_state_when_source_has_no_events(self):
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        projector = RecordingFinalisingTallyProjector()
+
+        await projector.project(source=stream, state=Tally(values=(7,)))
+
+        assert projector.finalised_states == [Tally(values=(7,))]
+
+    async def test_derives_projection_id_from_finalised_state(self):
+        class FinalisedIdTallyProjector(RecordingFinalisingTallyProjector):
+            def id_factory(
+                self, state: Tally, source: StreamIdentifier
+            ) -> str:
+                return f"{source.stream}-{state.finalised_count}"
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(events=[value_added_event(1).build()])
+
+        projector = FinalisedIdTallyProjector()
+
+        actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[Tally](
+            id=f"{stream_name}-1",
+            state=Tally(values=(1,), finalised_count=1),
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="finalised-id-tally",
+            metadata={},
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_updates_metadata_with_unfinalised_states(self):
+        class MetadataRecordingTallyProjector(
+            RecordingFinalisingTallyProjector
+        ):
+            def __init__(self):
+                super().__init__()
+                self.metadata_states: list[Tally] = []
+
+            def update_metadata(
+                self, state: Tally, metadata: JsonValue, event: StoredEvent
+            ) -> JsonValue:
+                self.metadata_states.append(state)
+                return metadata
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        await stream.publish(
+            events=[value_added_event(1).build(), value_added_event(2).build()]
+        )
+
+        projector = MetadataRecordingTallyProjector()
+
+        await projector.project(source=stream)
+
+        assert projector.metadata_states == [
+            Tally(values=(1,)),
+            Tally(values=(1, 2)),
+        ]
+
+    async def test_leaves_state_unchanged_by_default(self):
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(category=category_name, stream=stream_name)
+
+        await stream.publish(
+            events=[value_added_event(1).build(), value_added_event(2).build()]
+        )
+
+        projector = TallyProjector()
+
+        actual_projection = await projector.project(source=stream)
+        expected_projection = Projection[Tally](
+            id=stream_name,
+            state=Tally(values=(1, 2)),
+            source=StreamIdentifier(
+                category=category_name, stream=stream_name
+            ),
+            name="tally",
+            metadata={},
+        )
+
+        assert expected_projection == actual_projection
+
+    async def test_resumed_projection_matches_single_projection(self):
+        class TotallingTallyProjector(TallyProjector):
+            def finalise_state(self, state: Tally) -> Tally:
+                return replace(state, total=sum(state.values))
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+        identifier = StreamIdentifier(
+            category=category_name, stream=stream_name
+        )
+
+        first_event = (
+            generic_event.with_category(category_name)
+            .with_stream(stream_name)
+            .with_name("value-added")
+            .with_payload({"value": 1})
+            .with_position(0)
+            .build()
+        )
+        second_event = (
+            generic_event.with_category(category_name)
+            .with_stream(stream_name)
+            .with_name("value-added")
+            .with_payload({"value": 2})
+            .with_position(1)
+            .build()
+        )
+
+        projector = TotallingTallyProjector()
+
+        single_projection = await projector.project(
+            source=InMemoryStoredEventSource(
+                events=[first_event, second_event], identifier=identifier
+            )
+        )
+        partial_projection = await projector.project(
+            source=InMemoryStoredEventSource(
+                events=[first_event], identifier=identifier
+            )
+        )
+        resumed_projection = await projector.project(
+            source=InMemoryStoredEventSource(
+                events=[second_event], identifier=identifier
+            ),
+            state=partial_projection.state,
+            metadata=partial_projection.metadata,
+        )
+        expected_projection = Projection[Tally](
+            id=stream_name,
+            state=Tally(values=(1, 2), total=3),
+            source=identifier,
+            name="totalling-tally",
+            metadata={},
+        )
+
+        assert (single_projection, resumed_projection) == (
+            expected_projection,
+            expected_projection,
+        )
+
+    async def test_raises_when_finalise_state_raises(self):
+        class InvalidTallyError(Exception):
+            pass
+
+        class ValidatingTallyProjector(TallyProjector):
+            def finalise_state(self, state: Tally) -> Tally:
+                raise InvalidTallyError()
+
+        store = EventStore(adapter=InMemoryEventStorageAdapter())
+        stream = store.stream(
+            category=data.random_event_category_name(),
+            stream=data.random_event_stream_name(),
+        )
+
+        await stream.publish(events=[value_added_event(1).build()])
+
+        projector = ValidatingTallyProjector()
+
+        with pytest.raises(InvalidTallyError):
+            await projector.project(source=stream)
 
 
 if __name__ == "__main__":

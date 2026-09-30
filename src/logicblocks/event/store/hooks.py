@@ -1,6 +1,9 @@
-import functools
 from abc import ABC
-from collections.abc import AsyncGenerator, Callable, Sequence
+from collections.abc import AsyncGenerator, Sequence
+from contextlib import (
+    AsyncExitStack,
+    asynccontextmanager,
+)
 from dataclasses import dataclass
 
 from logicblocks.event.types import (
@@ -31,6 +34,7 @@ class PublishResponse:
 
 
 class EventStoreWriteHooks(ABC):
+    @asynccontextmanager
     async def on_publish(
         self, request: PublishRequest
     ) -> AsyncGenerator[PublishResponse]:
@@ -41,60 +45,27 @@ class EventStoreWriteHooks(ABC):
         # Something After
 
 
-class _DefaultEventStoreWriteHooks(EventStoreWriteHooks):
-    pass
-
-
-class EventStoreHookRunner[Res]:
-    def __init__(self, gen: AsyncGenerator[Res]):
-        self._gen = gen
-
-    async def start(self) -> Res:
-        return await self._gen.asend(None)
-
-    async def end(self) -> None:
-        try:
-            await self._gen.asend(None)
-        except StopAsyncIteration:
-            pass
-
-
-def hook_runner[**P, Res](
-    fn: Callable[P, AsyncGenerator[Res]],
-) -> Callable[P, EventStoreHookRunner[Res]]:
-    @functools.wraps(fn)
-    def wrapper(
-        *args: P.args, **kwargs: P.kwargs
-    ) -> EventStoreHookRunner[Res]:
-        return EventStoreHookRunner(fn(*args, **kwargs))
-
-    return wrapper
-
-
 class EventStoreWriteHooksRegistry:
     def __init__(self, hooks: Sequence[EventStoreWriteHooks]):
         self._hooks = list(hooks)
 
-    @hook_runner
+    @asynccontextmanager
     async def on_publish(
         self, request: PublishRequest
     ) -> AsyncGenerator[PublishResponse]:
         response = PublishResponse(
             events=request.events, condition=request.condition
         )
-        hooks = []
-        for middleware in self._hooks:
-            hook = middleware.on_publish(
-                PublishRequest(
-                    stream=request.stream,
-                    events=response.events,
-                    condition=response.condition,
+        async with AsyncExitStack() as stack:
+            for middleware in self._hooks:
+                response = await stack.enter_async_context(
+                    middleware.on_publish(
+                        PublishRequest(
+                            stream=request.stream,
+                            events=response.events,
+                            condition=response.condition,
+                        )
+                    )
                 )
-            )
-            response = await hook.asend(None)
-            hooks.append(hook)
 
-        yield response
-
-        for hook in reversed(hooks):
-            await hook.asend(None)
+            yield response

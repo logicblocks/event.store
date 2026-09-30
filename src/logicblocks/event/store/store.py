@@ -72,60 +72,59 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         """Publish a sequence of events into the stream."""
-        hook = self._write_hooks.on_publish(
+        async with self._write_hooks.on_publish(
             PublishRequest(
                 stream=self._identifier,
                 events=events,
                 condition=condition,
             )
-        )
-        processed_publish = await hook.start()
-
-        await self._logger.adebug(
-            "event.stream.publishing",
-            category=self._identifier.category,
-            stream=self._identifier.stream,
-            events=[
-                event.serialise(fallback=str_serialisation_fallback)
-                for event in processed_publish.events
-            ],
-            conditions=processed_publish.condition,
-        )
-
-        try:
-            stored_events = await self._adapter.save(
-                target=self._identifier,
-                events=processed_publish.events,
-                condition=processed_publish.condition,
-            )
-
-            if self._logger.is_enabled_for(logging.DEBUG):
-                await self._logger.ainfo(
-                    "event.stream.published",
-                    events=[
-                        event.serialise(fallback=str_serialisation_fallback)
-                        for event in stored_events
-                    ],
-                )
-            else:
-                await self._logger.ainfo(
-                    "event.stream.published",
-                    events=[event.summarise() for event in stored_events],
-                )
-
-            await hook.end()
-            return stored_events
-        except UnmetWriteConditionError as ex:
-            await self._logger.awarning(
-                "event.stream.publish-failed",
+        ) as processed_publish:
+            await self._logger.adebug(
+                "event.stream.publishing",
                 category=self._identifier.category,
                 stream=self._identifier.stream,
                 events=[
-                    event.summarise() for event in processed_publish.events
+                    event.serialise(fallback=str_serialisation_fallback)
+                    for event in processed_publish.events
                 ],
-                reason=repr(ex),
+                conditions=processed_publish.condition,
             )
-            raise
+
+            try:
+                stored_events = await self._adapter.save(
+                    target=self._identifier,
+                    events=processed_publish.events,
+                    condition=processed_publish.condition,
+                )
+
+                if self._logger.is_enabled_for(logging.DEBUG):
+                    await self._logger.ainfo(
+                        "event.stream.published",
+                        events=[
+                            event.serialise(
+                                fallback=str_serialisation_fallback
+                            )
+                            for event in stored_events
+                        ],
+                    )
+                else:
+                    await self._logger.ainfo(
+                        "event.stream.published",
+                        events=[event.summarise() for event in stored_events],
+                    )
+
+                return stored_events
+            except UnmetWriteConditionError as ex:
+                await self._logger.awarning(
+                    "event.stream.publish-failed",
+                    category=self._identifier.category,
+                    stream=self._identifier.stream,
+                    events=[
+                        event.summarise() for event in processed_publish.events
+                    ],
+                    reason=repr(ex),
+                )
+                raise
 
     def iterate(
         self, *, constraints: Set[constraints.QueryConstraint] = frozenset()

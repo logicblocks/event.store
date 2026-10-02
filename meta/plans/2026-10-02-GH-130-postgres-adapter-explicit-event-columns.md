@@ -5,16 +5,46 @@ title: "Postgres Adapter Explicit Event Columns Implementation Plan"
 date: "2026-10-02T14:56:13+00:00"
 author: "Xuemin Guan"
 producer: create-plan
-status: draft
+status: in-progress
 tags: [postgres, event-store, schema-evolution, rolling-deploy]
 revision: "a525967ba61efb6eac03f0915d2723d138b5b849"
 repository: "event.store"
-last_updated: "2026-10-02T16:07:28+00:00"
+last_updated: "2026-10-02T18:30:00+00:00"
 last_updated_by: "Xuemin Guan"
 schema_version: 1
 ---
 
 # Postgres Adapter Explicit Event Columns Implementation Plan
+
+## Progress
+
+Branch: `gh-130-explicit-event-columns` (pushed). No PR yet; open it
+after Step 4 (`DISTINCT ON`) so the fix covers every path.
+
+Session step numbers (used in conversation) map to plan sections:
+
+| Session step | Plan section | Status |
+| --- | --- | --- |
+| 1 | §1 Test support | Done (`1d98a1e`) |
+| 2 | §2 Step 1 — `RETURNING` | Done (`1d98a1e`) |
+| 3 | §3 Step 2 — `latest` + save to existing stream | Done (not committed) |
+| 4 | §4 Step 3 — `scan` | **Next** |
+| 5 | §5 Step 4 — `save` to a category | Not started |
+| 6 | §6 Refactor + full checks | Not started |
+| 7 | Phase 2 — changelog fragment + metadata fragment fix | Not started |
+| 8 | Manual verification | Not started |
+
+Notes:
+
+- `EVENT_COLUMNS` and `event_columns()` now exist in `adapter.py`.
+  Steps 3–5 reuse them. Function vs constant is decided in Step 6.
+- Run one test class with
+  `uv run invoke test.integration --test-args="-k <Class>"`.
+  `mise run test:integration[<Class>]` does not work.
+- At the end of Step 2: 1747 unit and 135 integration tests pass;
+  `mise run check` is clean.
+- At the end of Step 3: `UnknownColumns` + `CommonCases` give 67
+  passed; 1747 unit tests pass; `mise run check` is clean.
 
 ## Overview
 
@@ -332,9 +362,9 @@ With all tests green:
 - [ ] Each new integration test fails with
       `TypeError: StoredEvent.__init__() got an unexpected keyword argument 'unknown_column'`
       before its query change, and passes after it
-- [ ] The updated `test_batch_insert_query_builds_correct_sql` fails
+- [x] The updated `test_batch_insert_query_builds_correct_sql` fails
       before the `RETURNING` change and passes after it
-- [ ] Provision the local database before targeted integration runs:
+- [x] Provision the local database before targeted integration runs:
       `mise run database:test:provision`
 - [ ] New tests pass:
       `mise exec -- invoke test.integration --test-args="-k TestPostgresStorageAdapterUnknownColumns"`

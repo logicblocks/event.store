@@ -314,7 +314,7 @@ def read_last_query(
 ) -> ParameterisedQuery:
     table = table_settings.table_name
 
-    select_clause = sql.SQL("SELECT *")
+    select_clause = sql.SQL("SELECT {columns}").format(columns=event_columns())
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = (

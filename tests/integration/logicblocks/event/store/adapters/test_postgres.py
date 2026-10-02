@@ -667,6 +667,62 @@ class TestPostgresStorageAdapterUnknownColumns:
 
         assert stored_events == await read_events(self.pool, "events")
 
+    @pytest.mark.parametrize(
+        "target_for",
+        [
+            lambda category, stream: identifier.LogIdentifier(),
+            lambda category, stream: identifier.CategoryIdentifier(
+                category=category
+            ),
+            lambda category, stream: identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+        ],
+        ids=["log", "category", "stream"],
+    )
+    async def test_reads_latest_when_table_has_unknown_column(
+        self, target_for
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        seeded_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        await add_unknown_column(self.pool, "events")
+
+        latest_event = await adapter.latest(
+            target=target_for(category, stream)
+        )
+
+        assert latest_event == seeded_events[-1]
+
+    async def test_saves_to_existing_stream_when_table_has_unknown_column(
+        self,
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        target = identifier.StreamIdentifier(
+            category=random_event_category_name(),
+            stream=random_event_stream_name(),
+        )
+
+        await adapter.save(target=target, events=[NewEventBuilder().build()])
+
+        await add_unknown_column(self.pool, "events")
+
+        stored_events = await adapter.save(
+            target=target, events=[NewEventBuilder().build()]
+        )
+
+        assert stored_events == (await read_events(self.pool, "events"))[-1:]
+
 
 class TestPostgresStorageAdapterQueryConstraints:
     pool: AsyncConnectionPool[AsyncConnection]

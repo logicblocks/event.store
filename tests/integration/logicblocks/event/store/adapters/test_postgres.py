@@ -5,7 +5,6 @@ import sys
 from collections.abc import AsyncIterator, Sequence
 
 import pytest
-import pytest_asyncio
 from logicblocks.event.testcases.store.adapters import (
     ConcurrencyParameters,
     EventStorageAdapterCases,
@@ -111,7 +110,7 @@ async def read_iterator_events(
     return [await anext(iterator) for _ in range(number_of_events)]
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def open_connection_pool():
     async with connection_pool(connection_settings) as pool:
         yield pool
@@ -120,11 +119,11 @@ async def open_connection_pool():
 class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
     pool: AsyncConnectionPool[AsyncConnection]
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await create_table(open_connection_pool, "events")
@@ -167,7 +166,7 @@ class TestPostgresEventStorageAdapterCommonCases(EventStorageAdapterCases):
 
 
 class TestPostgresStorageAdapterCustomTableName:
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
 
@@ -227,16 +226,16 @@ class TestPostgresStorageAdapterCustomTableName:
 class TestPostgresStorageAdapterScanPaging:
     pool: AsyncConnectionPool[AsyncConnection]
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await create_table(open_connection_pool, "events")
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def shutdown_async_generators(self):
         yield
 
@@ -621,11 +620,11 @@ class TestPostgresStorageAdapterScanPaging:
 class TestPostgresStorageAdapterQueryConstraints:
     pool: AsyncConnectionPool[AsyncConnection]
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await create_table(open_connection_pool, "events")

@@ -2,7 +2,6 @@ import os
 import sys
 
 import pytest
-import pytest_asyncio
 from logicblocks.event.testcases import (
     EventSubscriberStateStoreCases,
 )
@@ -36,7 +35,7 @@ def read_subscriber_states_query(table: str) -> abc.Query:
     )
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def open_connection_pool():
     async with connection_pool(connection_settings) as pool:
         yield pool
@@ -45,11 +44,11 @@ async def open_connection_pool():
 class TestPostgresEventSubscriberStateStore(EventSubscriberStateStoreCases):
     pool: AsyncConnectionPool[AsyncConnection]
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.pool = open_connection_pool
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "subscribers")
         await create_table(open_connection_pool, "subscribers")

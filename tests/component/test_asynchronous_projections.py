@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Callable, Mapping, Self
 
-import pytest_asyncio
+import pytest
 from logicblocks.event.testsupport import (
     connection_pool,
     create_table,
@@ -56,7 +56,7 @@ connection_settings = ConnectionSettings(
 )
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def open_connection_pool():
     async with connection_pool(connection_settings) as pool:
         yield pool
@@ -65,11 +65,11 @@ async def open_connection_pool():
 class TestAsynchronousProjections:
     connection_pool: AsyncConnectionPool[AsyncConnection]
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def store_connection_pool(self, open_connection_pool):
         self.connection_pool = open_connection_pool
 
-    @pytest_asyncio.fixture(autouse=True)
+    @pytest.fixture(autouse=True)
     async def reinitialise_storage(self, open_connection_pool):
         await drop_table(open_connection_pool, "events")
         await drop_table(open_connection_pool, "projections")

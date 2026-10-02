@@ -1,11 +1,9 @@
-from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Callable, Self, cast
 
 import pytest
 
-from logicblocks.event.projection.store import ProjectionStorageAdapter
 from logicblocks.event.query import (
     FilterClause,
     KeySetPagingClause,
@@ -26,7 +24,6 @@ from logicblocks.event.testing import (
 from logicblocks.event.types import (
     JsonValue,
     JsonValueConvertible,
-    Projection,
     StreamIdentifier,
     default_deserialisation_fallback,
     default_serialisation_fallback,
@@ -95,43 +92,27 @@ class ThingProjectionBuilder(BaseProjectionBuilder[Thing]):
         return {}
 
 
-class Base(ABC):
-    @abstractmethod
-    def construct_storage_adapter(self) -> ProjectionStorageAdapter:
-        raise NotImplementedError()
-
-    @abstractmethod
-    async def clear_storage(self) -> None:
-        raise NotImplementedError()
-
-    @abstractmethod
-    async def retrieve_projections(
-        self, *, adapter: ProjectionStorageAdapter
-    ) -> Sequence[Projection[JsonValue, JsonValue]]:
-        raise NotImplementedError()
-
-
-class SaveCases(Base, ABC):
-    async def test_stores_single_projection_for_later_retrieval(self):
+class TestSaveCases:
+    async def test_stores_single_projection_for_later_retrieval(self, harness):
         projection_1_id = data.random_projection_id()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection = ThingProjectionBuilder().with_id(projection_1_id).build()
 
         await adapter.save(projection=projection)
 
-        retrieved_projections = await self.retrieve_projections(
+        retrieved_projections = await harness.retrieve_projections(
             adapter=adapter
         )
 
         assert retrieved_projections == [serialise_projection(projection)]
 
-    async def test_stores_many_projections_for_later_retrieval(self):
+    async def test_stores_many_projections_for_later_retrieval(self, harness):
         projection_1_id = data.random_projection_id()
         projection_2_id = data.random_projection_id()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder().with_id(projection_1_id).build()
@@ -143,7 +124,7 @@ class SaveCases(Base, ABC):
         await adapter.save(projection=projection_1)
         await adapter.save(projection=projection_2)
 
-        retrieved_projections = await self.retrieve_projections(
+        retrieved_projections = await harness.retrieve_projections(
             adapter=adapter
         )
 
@@ -152,7 +133,9 @@ class SaveCases(Base, ABC):
             serialise_projection(projection_2),
         ]
 
-    async def test_updates_existing_projection_state_and_metadata(self):
+    async def test_updates_existing_projection_state_and_metadata(
+        self, harness
+    ):
         projection_name = data.random_projection_name()
         projection_id = data.random_projection_id()
 
@@ -170,7 +153,7 @@ class SaveCases(Base, ABC):
         projection_v2_state = Thing(value_1=10, value_2="second version")
         projection_v2_metadata = {"updated_at": "2024-02-02T00:00:00Z"}
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_v1 = (
             ThingProjectionBuilder()
@@ -194,7 +177,7 @@ class SaveCases(Base, ABC):
         await adapter.save(projection=projection_v1)
         await adapter.save(projection=provided_projection_v2)
 
-        retrieved_projections = await self.retrieve_projections(
+        retrieved_projections = await harness.retrieve_projections(
             adapter=adapter
         )
 
@@ -213,12 +196,12 @@ class SaveCases(Base, ABC):
         ]
 
 
-class FindOneCases(Base, ABC):
-    async def test_applies_single_filter_on_top_level_field(self):
+class TestFindOneCases:
+    async def test_applies_single_filter_on_top_level_field(self, harness):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder().with_name(projection_1_name).build()
@@ -243,10 +226,10 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_1
 
-    async def test_applies_multiple_filters(self):
+    async def test_applies_multiple_filters(self, harness):
         projection_name = data.random_event_stream_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -280,11 +263,11 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_2
 
-    async def test_applies_single_filter_on_nested_source_field(self):
+    async def test_applies_single_filter_on_nested_source_field(self, harness):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         source = StreamIdentifier(
             category=data.random_event_category_name(),
@@ -326,10 +309,10 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_1
 
-    async def test_applies_single_filter_on_nested_state_field(self):
+    async def test_applies_single_filter_on_nested_state_field(self, harness):
         projection_name = data.random_event_stream_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         filter_value = data.random_lowercase_ascii_alphabetics_string(10)
         projection_1 = (
@@ -361,8 +344,8 @@ class FindOneCases(Base, ABC):
 
         assert located == projection_2
 
-    async def test_returns_none_when_no_matches(self):
-        adapter = self.construct_storage_adapter()
+    async def test_returns_none_when_no_matches(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         located = await adapter.find_one(
             lookup=Lookup(
@@ -379,10 +362,10 @@ class FindOneCases(Base, ABC):
 
         assert located is None
 
-    async def test_raises_when_multiple_matches(self):
+    async def test_raises_when_multiple_matches(self, harness):
         projection_name = data.random_event_stream_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -413,12 +396,12 @@ class FindOneCases(Base, ABC):
             )
 
 
-class FindManyCases(Base, ABC):
-    async def test_applies_single_filter(self):
+class TestFindManyCases:
+    async def test_applies_single_filter(self, harness):
         projection_1_name = data.random_projection_name()
         projection_2_name = data.random_projection_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder().with_name(projection_1_name).build()
@@ -443,8 +426,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1]
 
-    async def test_applies_multiple_filters(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_multiple_filters(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -490,8 +473,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_4]
 
-    async def test_applies_null_filter(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_null_filter(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -522,8 +505,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1]
 
-    async def test_applies_not_filter(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_not_filter(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -555,8 +538,8 @@ class FindManyCases(Base, ABC):
 
         assert located == other_projections
 
-    async def test_applies_simple_sorting(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_simple_sorting(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -594,8 +577,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_2, projection_1]
 
-    async def test_applies_function_based_sorting(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_function_based_sorting(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -653,8 +636,8 @@ class FindManyCases(Base, ABC):
             projection_1,
         ]
 
-    async def test_applies_paging(self):
-        adapter = self.construct_storage_adapter()
+    async def test_applies_paging(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -688,8 +671,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_2, projection_3]
 
-    async def test_sorts_before_paging(self):
-        adapter = self.construct_storage_adapter()
+    async def test_sorts_before_paging(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -728,8 +711,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_3, projection_2]
 
-    async def test_filters_before_paging(self):
-        adapter = self.construct_storage_adapter()
+    async def test_filters_before_paging(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -773,8 +756,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_2, projection_3]
 
-    async def test_filters_sorts_and_pages(self):
-        adapter = self.construct_storage_adapter()
+    async def test_filters_sorts_and_pages(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -823,8 +806,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_4, projection_2]
 
-    async def test_filters_on_value_present_in_list(self):
-        adapter = self.construct_storage_adapter()
+    async def test_filters_on_value_present_in_list(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         value_to_filter_1 = data.random_ascii_alphanumerics_string(10)
         value_to_filter_2 = data.random_ascii_alphanumerics_string(10)
@@ -874,8 +857,8 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1, projection_2]
 
-    async def test_filters_on_list_containing_value(self):
-        adapter = self.construct_storage_adapter()
+    async def test_filters_on_list_containing_value(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         value_to_filter = data.random_ascii_alphanumerics_string(10)
         other_value1 = data.random_ascii_alphanumerics_string(10)
@@ -943,16 +926,16 @@ class FindManyCases(Base, ABC):
         assert located == [projection_2, projection_3]
 
 
-class CountCases(Base, ABC):
-    async def test_returns_zero_when_no_projections(self):
-        adapter = self.construct_storage_adapter()
+class TestCountCases:
+    async def test_returns_zero_when_no_projections(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         total = await adapter.count(search=Search())
 
         assert total == 0
 
-    async def test_returns_count_of_single_projection(self):
-        adapter = self.construct_storage_adapter()
+    async def test_returns_count_of_single_projection(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection = ThingProjectionBuilder().build()
         await adapter.save(projection=projection)
@@ -961,8 +944,8 @@ class CountCases(Base, ABC):
 
         assert total == 1
 
-    async def test_returns_count_of_multiple_projections(self):
-        adapter = self.construct_storage_adapter()
+    async def test_returns_count_of_multiple_projections(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = ThingProjectionBuilder().build()
         projection_2 = ThingProjectionBuilder().build()
@@ -976,11 +959,13 @@ class CountCases(Base, ABC):
 
         assert total == 3
 
-    async def test_returns_same_count_when_updating_existing_projection(self):
+    async def test_returns_same_count_when_updating_existing_projection(
+        self, harness
+    ):
         projection_id = data.random_projection_id()
         projection_name = data.random_projection_name()
 
-        adapter = self.construct_storage_adapter()
+        adapter = harness.construct_storage_adapter()
 
         projection_v1 = (
             ThingProjectionBuilder()
@@ -1004,8 +989,8 @@ class CountCases(Base, ABC):
 
         assert total == 1
 
-    async def test_returns_count_of_filtered_projections(self):
-        adapter = self.construct_storage_adapter()
+    async def test_returns_count_of_filtered_projections(self, harness):
+        adapter = harness.construct_storage_adapter()
 
         projection_1 = (
             ThingProjectionBuilder()
@@ -1036,9 +1021,3 @@ class CountCases(Base, ABC):
         total = await adapter.count(search=search)
 
         assert total == 2
-
-
-class ProjectionStorageAdapterCases(
-    SaveCases, FindOneCases, FindManyCases, CountCases, ABC
-):
-    pass

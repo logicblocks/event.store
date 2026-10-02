@@ -1,6 +1,6 @@
 import hashlib
 from collections.abc import AsyncIterator, Mapping, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Sequence, TypedDict, cast, overload
 from uuid import uuid4
@@ -61,6 +61,14 @@ from .converters import (
     WriteConditionEnforcer,
     WriteConditionEnforcerContext,
 )
+
+EVENT_COLUMNS = tuple(field.name for field in fields(StoredEvent))
+
+
+def event_columns() -> sql.Composable:
+    return sql.SQL(", ").join(
+        sql.Identifier(column) for column in EVENT_COLUMNS
+    )
 
 
 class StreamInsertDefinition[
@@ -450,9 +458,11 @@ def insert_batch_query[
                                  occurred_at)
                 VALUES
                     {1}
-                    RETURNING *;
+                    RETURNING {2};
                 """).format(
-            sql.Identifier(table_settings.table_name), rows_expression
+            sql.Identifier(table_settings.table_name),
+            rows_expression,
+            event_columns(),
         ),
         values,
     )

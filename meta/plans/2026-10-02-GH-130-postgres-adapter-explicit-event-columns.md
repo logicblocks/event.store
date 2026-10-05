@@ -30,9 +30,9 @@ Session step numbers (used in conversation) map to plan sections:
 | 3 | §3 Step 2 — `latest` + save to existing stream | Done (`ea5ceb72`) |
 | 4 | §4 Step 3 — `scan` | Done (`0519a22b`) |
 | 5 | §5 Step 4 — `save` to a category | Done (`1909105d`) |
-| 6 | §6 Refactor + full checks | Done (not committed) |
-| 7 | Phase 2 — changelog fragment + metadata fragment fix | **Next** |
-| 8 | Manual verification | Not started |
+| 6 | §6 Refactor + full checks | Done (`96c6ce8e`) |
+| 7 | Phase 2 — changelog fragment + metadata fragment fix | Done (not committed) |
+| 8 | Manual verification | **Next** |
 
 Notes:
 
@@ -54,6 +54,11 @@ Notes:
 - Step 6: `event_columns()` became the constant `EVENT_COLUMNS_SQL`.
   Tests were not folded further. `mise run` is green: 1747 unit,
   143 integration, 3 component.
+- Step 7: new fragment
+  `changelog.d/20261005_101447_xueminguan_explicit_event_columns.md`;
+  metadata fragment migration and rollback guidance rewritten.
+  `mise run` skips tests when only Markdown changed, then
+  `test:report` fails with "No data to combine"; use `mise run --force`.
 
 ## Overview
 
@@ -452,9 +457,9 @@ Correct the migration and rollback advice:
 
 #### Automated Verification
 
-- [ ] The fragment exists in `changelog.d/`
-- [ ] The existing metadata fragment is updated in the same PR
-- [ ] Full build passes: `mise run`
+- [x] The fragment exists in `changelog.d/`
+- [x] The existing metadata fragment is updated in the same PR
+- [x] Full build passes: `mise run`
 
 #### Manual Verification
 

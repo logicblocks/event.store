@@ -29,9 +29,9 @@ Session step numbers (used in conversation) map to plan sections:
 | 2 | §2 Step 1 — `RETURNING` | Done (`1d98a1e`) |
 | 3 | §3 Step 2 — `latest` + save to existing stream | Done (`ea5ceb72`) |
 | 4 | §4 Step 3 — `scan` | Done (`0519a22b`) |
-| 5 | §5 Step 4 — `save` to a category | Done (not committed) |
-| 6 | §6 Refactor + full checks | **Next** |
-| 7 | Phase 2 — changelog fragment + metadata fragment fix | Not started |
+| 5 | §5 Step 4 — `save` to a category | Done (`1909105d`) |
+| 6 | §6 Refactor + full checks | Done (not committed) |
+| 7 | Phase 2 — changelog fragment + metadata fragment fix | **Next** |
 | 8 | Manual verification | Not started |
 
 Notes:
@@ -51,6 +51,9 @@ Notes:
   `for_each_read_target` in the integration test module.
 - At the end of Step 5: 143 integration and 1747 unit tests pass;
   `mise run check` is clean. No SQL `*` remains in the events adapter.
+- Step 6: `event_columns()` became the constant `EVENT_COLUMNS_SQL`.
+  Tests were not folded further. `mise run` is green: 1747 unit,
+  143 integration, 3 component.
 
 ## Overview
 
@@ -365,21 +368,21 @@ With all tests green:
 
 #### Automated Verification
 
-- [ ] Each new integration test fails with
+- [x] Each new integration test fails with
       `TypeError: StoredEvent.__init__() got an unexpected keyword argument 'unknown_column'`
       before its query change, and passes after it
 - [x] The updated `test_batch_insert_query_builds_correct_sql` fails
       before the `RETURNING` change and passes after it
 - [x] Provision the local database before targeted integration runs:
       `mise run database:test:provision`
-- [ ] New tests pass:
+- [x] New tests pass:
       `mise exec -- invoke test.integration --test-args="-k TestPostgresStorageAdapterUnknownColumns"`
-- [ ] Shared adapter cases still pass:
+- [x] Shared adapter cases still pass:
       `mise exec -- invoke test.integration --test-args="-k TestPostgresEventStorageAdapterCommonCases"`
-- [ ] All unit tests pass: `mise run test:unit`
-- [ ] All integration tests pass: `mise run test:integration`
-- [ ] Type checking passes: `mise run types:check`
-- [ ] Lint and format pass: `mise run lint:fix` and `mise run format:fix`
+- [x] All unit tests pass: `mise run test:unit`
+- [x] All integration tests pass: `mise run test:integration`
+- [x] Type checking passes: `mise run types:check`
+- [x] Lint and format pass: `mise run lint:fix` and `mise run format:fix`
       leave no diff
 
 #### Manual Verification

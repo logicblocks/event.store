@@ -63,12 +63,9 @@ from .converters import (
 )
 
 EVENT_COLUMNS = tuple(field.name for field in fields(StoredEvent))
-
-
-def event_columns() -> sql.Composable:
-    return sql.SQL(", ").join(
-        sql.Identifier(column) for column in EVENT_COLUMNS
-    )
+EVENT_COLUMNS_SQL = sql.SQL(", ").join(
+    sql.Identifier(column) for column in EVENT_COLUMNS
+)
 
 
 class StreamInsertDefinition[
@@ -316,7 +313,9 @@ def read_last_query(
 ) -> ParameterisedQuery:
     table = table_settings.table_name
 
-    select_clause = sql.SQL("SELECT {columns}").format(columns=event_columns())
+    select_clause = sql.SQL("SELECT {columns}").format(
+        columns=EVENT_COLUMNS_SQL
+    )
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = (
@@ -372,7 +371,7 @@ def read_last_category_batch_query(
 
     select_clause = sql.SQL(
         "SELECT DISTINCT ON (category, stream) {columns}"
-    ).format(columns=event_columns())
+    ).format(columns=EVENT_COLUMNS_SQL)
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = sql.SQL("category = %s")
@@ -466,7 +465,7 @@ def insert_batch_query[
                 """).format(
             sql.Identifier(table_settings.table_name),
             rows_expression,
-            event_columns(),
+            EVENT_COLUMNS_SQL,
         ),
         values,
     )

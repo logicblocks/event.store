@@ -370,7 +370,9 @@ def read_last_category_batch_query(
 ) -> ParameterisedQuery:
     table = table_settings.table_name
 
-    select_clause = sql.SQL("SELECT DISTINCT ON (category, stream ) *")
+    select_clause = sql.SQL(
+        "SELECT DISTINCT ON (category, stream) {columns}"
+    ).format(columns=event_columns())
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = sql.SQL("category = %s")

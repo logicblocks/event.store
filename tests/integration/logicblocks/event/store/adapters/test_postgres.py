@@ -751,6 +751,50 @@ class TestPostgresStorageAdapterUnknownColumns:
 
         assert scanned_events == list(seeded_events)
 
+    async def test_saves_to_existing_streams_in_category_when_table_has_unknown_column(
+        self,
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        streams = [random_event_stream_name(), random_event_stream_name()]
+
+        seeded_events = [
+            event
+            for stream in streams
+            for event in await adapter.save(
+                target=identifier.StreamIdentifier(
+                    category=category, stream=stream
+                ),
+                events=[NewEventBuilder().build()],
+            )
+        ]
+
+        await add_unknown_column(self.pool, "events")
+
+        stored_events = await adapter.save(
+            target=identifier.CategoryIdentifier(category=category),
+            streams={
+                stream: {"events": [NewEventBuilder().build()]}
+                for stream in streams
+            },
+        )
+
+        seeded_ids = {event.id for event in seeded_events}
+        appended_events = [
+            event
+            for event in await read_events(self.pool, "events")
+            if event.id not in seeded_ids
+        ]
+        appended_events_by_stream = {
+            stream: [
+                event for event in appended_events if event.stream == stream
+            ]
+            for stream in {event.stream for event in appended_events}
+        }
+
+        assert appended_events_by_stream == stored_events
+
 
 class TestPostgresStorageAdapterQueryConstraints:
     pool: AsyncConnectionPool[AsyncConnection]

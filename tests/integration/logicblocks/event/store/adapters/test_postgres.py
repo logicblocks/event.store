@@ -102,6 +102,21 @@ async def add_unknown_column(
         )
 
 
+for_each_read_target = pytest.mark.parametrize(
+    "target_for",
+    [
+        lambda category, stream: identifier.LogIdentifier(),
+        lambda category, stream: identifier.CategoryIdentifier(
+            category=category
+        ),
+        lambda category, stream: identifier.StreamIdentifier(
+            category=category, stream=stream
+        ),
+    ],
+    ids=["log", "category", "stream"],
+)
+
+
 async def save_random_events(
     *,
     adapter: EventStorageAdapter,
@@ -667,19 +682,7 @@ class TestPostgresStorageAdapterUnknownColumns:
 
         assert stored_events == await read_events(self.pool, "events")
 
-    @pytest.mark.parametrize(
-        "target_for",
-        [
-            lambda category, stream: identifier.LogIdentifier(),
-            lambda category, stream: identifier.CategoryIdentifier(
-                category=category
-            ),
-            lambda category, stream: identifier.StreamIdentifier(
-                category=category, stream=stream
-            ),
-        ],
-        ids=["log", "category", "stream"],
-    )
+    @for_each_read_target
     async def test_reads_latest_when_table_has_unknown_column(
         self, target_for
     ):
@@ -722,6 +725,31 @@ class TestPostgresStorageAdapterUnknownColumns:
         )
 
         assert stored_events == (await read_events(self.pool, "events"))[-1:]
+
+    @for_each_read_target
+    async def test_scans_when_table_has_unknown_column(self, target_for):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        seeded_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        await add_unknown_column(self.pool, "events")
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=target_for(category, stream)
+            )
+        ]
+
+        assert scanned_events == list(seeded_events)
 
 
 class TestPostgresStorageAdapterQueryConstraints:

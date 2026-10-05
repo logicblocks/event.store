@@ -190,7 +190,9 @@ def scan_query(
     ],
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    builder = Query().select_all().from_table(table_settings.table_name)
+    builder = (
+        Query().select(*EVENT_COLUMNS).from_table(table_settings.table_name)
+    )
 
     if parameters.category:
         builder = builder.where(

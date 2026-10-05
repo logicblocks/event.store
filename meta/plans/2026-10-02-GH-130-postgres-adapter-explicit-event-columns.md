@@ -27,9 +27,9 @@ Session step numbers (used in conversation) map to plan sections:
 | --- | --- | --- |
 | 1 | §1 Test support | Done (`1d98a1e`) |
 | 2 | §2 Step 1 — `RETURNING` | Done (`1d98a1e`) |
-| 3 | §3 Step 2 — `latest` + save to existing stream | Done (not committed) |
-| 4 | §4 Step 3 — `scan` | **Next** |
-| 5 | §5 Step 4 — `save` to a category | Not started |
+| 3 | §3 Step 2 — `latest` + save to existing stream | Done (`ea5ceb72`) |
+| 4 | §4 Step 3 — `scan` | Done (not committed) |
+| 5 | §5 Step 4 — `save` to a category | **Next** |
 | 6 | §6 Refactor + full checks | Not started |
 | 7 | Phase 2 — changelog fragment + metadata fragment fix | Not started |
 | 8 | Manual verification | Not started |
@@ -45,6 +45,10 @@ Notes:
   `mise run check` is clean.
 - At the end of Step 3: `UnknownColumns` + `CommonCases` give 67
   passed; 1747 unit tests pass; `mise run check` is clean.
+- At the end of Step 4: `UnknownColumns`, `CommonCases`, `ScanPaging`
+  and `QueryConstraints` give 78 passed; 1747 unit tests pass;
+  `mise run check` is clean. The three read targets are shared as
+  `for_each_read_target` in the integration test module.
 
 ## Overview
 

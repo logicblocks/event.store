@@ -18,21 +18,21 @@ schema_version: 1
 
 ## Progress
 
-Branch: `gh-130-explicit-event-columns` (pushed). No PR yet; open it
-after Step 4 (`DISTINCT ON`) so the fix covers every path.
+Branch: `gh-130-explicit-event-columns` (pushed).
+PR: https://github.com/logicblocks/event.store/pull/131
 
 Session step numbers (used in conversation) map to plan sections:
 
 | Session step | Plan section | Status |
 | --- | --- | --- |
-| 1 | §1 Test support | Done (`1d98a1e`) |
-| 2 | §2 Step 1 — `RETURNING` | Done (`1d98a1e`) |
-| 3 | §3 Step 2 — `latest` + save to existing stream | Done (`ea5ceb72`) |
-| 4 | §4 Step 3 — `scan` | Done (`0519a22b`) |
-| 5 | §5 Step 4 — `save` to a category | Done (`1909105d`) |
-| 6 | §6 Refactor + full checks | Done (`96c6ce8e`) |
-| 7 | Phase 2 — changelog fragment + metadata fragment fix | Done (not committed) |
-| 8 | Manual verification | **Next** |
+| 1 | §1 Test support | Done (`752fe6b`) |
+| 2 | §2 Step 1 — `RETURNING` | Done (`752fe6b`) |
+| 3 | §3 Step 2 — `latest` + save to existing stream | Done (`78517f80`) |
+| 4 | §4 Step 3 — `scan` | Done (`d1785cf3`) |
+| 5 | §5 Step 4 — `save` to a category | Done (`e3b520c4`) |
+| 6 | §6 Refactor + full checks | Done (`2a7665f2`) |
+| 7 | Phase 2 — changelog fragment + metadata fragment fix | Done (`eeaaa611`) |
+| 8 | Manual verification | Done |
 
 Notes:
 
@@ -59,6 +59,13 @@ Notes:
   metadata fragment migration and rollback guidance rewritten.
   `mise run` skips tests when only Markdown changed, then
   `test:report` fails with "No data to combine"; use `mise run --force`.
+- Step 8: a scratch script ran `latest` and `scan` (log, category,
+  stream), `save` to an existing stream and `save` to a category on
+  `events` and `event_log`, each with an added `unknown_column TEXT`.
+  All 16 calls matched the stored rows. The same script on `v0.1.11`
+  failed all 16 with the `TypeError`.
+- Still open: the two Phase 2 manual checks that need a reader's
+  judgement (clarity, and agreement between the two fragments).
 
 ## Overview
 
@@ -392,10 +399,10 @@ With all tests green:
 
 #### Manual Verification
 
-- [ ] Reproduce the issue end to end once against a local database:
+- [x] Reproduce the issue end to end once against a local database:
       save events, `ALTER TABLE events ADD COLUMN unknown_column TEXT`,
       then `latest` and `scan` succeed and the rows match
-- [ ] The custom table name path still works with an extra column (spot
+- [x] The custom table name path still works with an extra column (spot
       check with `TableSettings(table_name="event_log")`)
 
 ---
@@ -467,7 +474,7 @@ Correct the migration and rollback advice:
       upgrade
 - [ ] Both fragments agree on the limits for releases before this fix,
       defaults during version overlap, and application-only rollback
-- [ ] The metadata migration example does not drop the default in the
+- [x] The metadata migration example does not drop the default in the
       initial add-column step
 
 ---

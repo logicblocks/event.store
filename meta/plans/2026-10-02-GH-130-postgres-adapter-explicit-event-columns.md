@@ -28,9 +28,9 @@ Session step numbers (used in conversation) map to plan sections:
 | 1 | §1 Test support | Done (`1d98a1e`) |
 | 2 | §2 Step 1 — `RETURNING` | Done (`1d98a1e`) |
 | 3 | §3 Step 2 — `latest` + save to existing stream | Done (`ea5ceb72`) |
-| 4 | §4 Step 3 — `scan` | Done (not committed) |
-| 5 | §5 Step 4 — `save` to a category | **Next** |
-| 6 | §6 Refactor + full checks | Not started |
+| 4 | §4 Step 3 — `scan` | Done (`0519a22b`) |
+| 5 | §5 Step 4 — `save` to a category | Done (not committed) |
+| 6 | §6 Refactor + full checks | **Next** |
 | 7 | Phase 2 — changelog fragment + metadata fragment fix | Not started |
 | 8 | Manual verification | Not started |
 
@@ -49,6 +49,8 @@ Notes:
   and `QueryConstraints` give 78 passed; 1747 unit tests pass;
   `mise run check` is clean. The three read targets are shared as
   `for_each_read_target` in the integration test module.
+- At the end of Step 5: 143 integration and 1747 unit tests pass;
+  `mise run check` is clean. No SQL `*` remains in the events adapter.
 
 ## Overview
 

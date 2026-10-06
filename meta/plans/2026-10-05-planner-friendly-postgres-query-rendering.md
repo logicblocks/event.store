@@ -184,8 +184,8 @@ Each PR's own end state is in its section.
 
 - **Changing the default table schema or shipping indexes in `sql/`.** Index choice depends on the
   application's queries. The README gives guidance instead.
-- **Partitioning `projections` by `name`.** It's documented as an option in the README, without
-  library support (no partition helpers).
+- **Partitioning `projections` by `name`.** The library doesn't ship or test a partitioned schema,
+  so the README doesn't recommend it.
 - **Promoted or generated columns, or a path→column mapping in `TableSettings`.**
 - **Inlining any other filter values.** Only `name` on the projection adapter is inlined, because it
   has few distinct values and partial indexes depend on it. `literal_value_paths` deliberately takes
@@ -266,15 +266,6 @@ covers:
     - Add a trailing sort expression when queries sort with a `LIMIT`.
     - Note that `CONCURRENTLY` can't run inside a transaction, and that a failed build leaves an
       `INVALID` index that must be dropped and recreated.
-    - These indexes give table-wide statistics for each expression, not per-type statistics.
-  - Or `PARTITION BY LIST (name)`, with plain expression indexes per partition, for per-type
-    statistics. The primary key `(name, id)` already includes the partition key, so
-    `ON CONFLICT (name, id)` upserts work unchanged. Before taking this route:
-    - Add a `DEFAULT` partition. Without one, the first save of a new projection type fails with
-      `no partition of relation "projections" found for row`.
-    - An existing table can't be converted in place. It has to be recreated and its rows copied.
-    - `CREATE INDEX CONCURRENTLY` isn't supported on the parent. Build each partition's index
-      concurrently, then use `CREATE INDEX ON ONLY projections …` and `ALTER INDEX … ATTACH PARTITION`.
 - **When partial indexes are fine:** a single candidate index with no competing filter, or pure
   ordering walks.
 - **A caution:** `CREATE STATISTICS` on expressions over large TOASTed `state` columns can use
@@ -618,7 +609,6 @@ as PR 2. Add a partial index,
 **File**: `README.md`
 **Changes**: In the indexing section, replace the remaining bound-`name` caveat. Say that:
 - the projection adapter inlines `name`, so partial indexes are usable under prepared plans;
-- with a partitioned table, a literal `name` also lets Postgres prune partitions at plan time;
 - a custom converter should start from `default_projection_query_converter`.
 
 Show a complete snippet with imports:

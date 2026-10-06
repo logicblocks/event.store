@@ -116,8 +116,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) = "to_jsonb"(%s)',
-            ["value", 5],
+            'WHERE "jsonb_extract_path"("state", \'value\') = "to_jsonb"(%s)',
+            [5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -139,9 +139,9 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) = '
+            'WHERE "jsonb_extract_path"("state", \'value\') = '
             '"to_jsonb"(CAST(%s AS "text"))',
-            ["value", "test"],
+            ["test"],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -184,8 +184,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path_text"("state", %s) IS NULL ',
-            ["value"],
+            'WHERE "jsonb_extract_path_text"("state", \'value\') IS NULL ',
+            [],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -228,8 +228,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path_text"("state", %s) IS NOT NULL ',
-            ["value"],
+            'WHERE "jsonb_extract_path_text"("state", \'value\') IS NOT NULL ',
+            [],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -253,11 +253,11 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) IN ('
+            'WHERE "jsonb_extract_path"("state", \'value\') IN ('
             '"to_jsonb"(CAST(%s AS "text")), '
             '"to_jsonb"(CAST(%s AS "text"))'
             ")",
-            ["value", value_1, value_2],
+            [value_1, value_2],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -284,10 +284,51 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) = "to_jsonb"(%s) '
-            'AND "jsonb_extract_path"("state", %s, %s, %s) = "to_jsonb"(%s)',
-            ["value_1", 5, "value_2", 0, "value_3", 6],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') = "to_jsonb"(%s) '
+            "AND \"jsonb_extract_path\"(\"state\", 'value_2', '0', 'value_3') "
+            '= "to_jsonb"(%s)',
+            [5, 6],
         )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_converts_filter_query_with_special_characters_in_path_key(
+        self, query_type
+    ):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.EQUAL,
+                    field=Path("state", "it's 50%"),
+                    value=5,
+                )
+            ]
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'SELECT * FROM "projections" '
+            "WHERE \"jsonb_extract_path\"(\"state\", 'it''s 50%%') = "
+            '"to_jsonb"(%s)',
+            [5],
+        )
+
+    @pytest.mark.parametrize("query_type", [Lookup, Search])
+    def test_raises_for_boolean_path_sub_level(self, query_type):
+        converter = query_converter_with_default_converters()
+        query = query_type(
+            filters=[
+                FilterClause(
+                    operator=Operator.EQUAL,
+                    field=Path("state", "value", True),
+                    value=5,
+                )
+            ]
+        )
+
+        with pytest.raises(ValueError):
+            converter.convert_query(query)
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
     def test_converts_not_equal_filter_query_on_top_level_attribute(
@@ -330,8 +371,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) != "to_jsonb"(%s)',
-            ["value_1", 5],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') != "to_jsonb"(%s)',
+            [5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -375,8 +416,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) > "to_jsonb"(%s)',
-            ["value_1", 5],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') > "to_jsonb"(%s)',
+            [5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -420,8 +461,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) >= "to_jsonb"(%s)',
-            ["value_1", 5],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') >= "to_jsonb"(%s)',
+            [5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -465,8 +506,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) < "to_jsonb"(%s)',
-            ["value_1", 5],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') < "to_jsonb"(%s)',
+            [5],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -510,8 +551,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path"("state", %s) <= "to_jsonb"(%s)',
-            ["value_1", 5],
+            'WHERE "jsonb_extract_path"("state", \'value_1\') <= "to_jsonb"(%s)',
+            [5],
         )
 
     def test_converts_single_sort_query_on_top_level_attribute(self):
@@ -567,8 +608,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'ORDER BY "jsonb_extract_path"("state", %s) ASC',
-            ["value_1"],
+            'ORDER BY "jsonb_extract_path"("state", \'value_1\') ASC',
+            [],
         )
 
     def test_converts_multiple_field_sort_query_on_nested_attributes(
@@ -592,9 +633,9 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" ORDER BY '
-            '"jsonb_extract_path"("state", %s) DESC, '
-            '"jsonb_extract_path"("state", %s) ASC',
-            ["value_1", "value_2"],
+            '"jsonb_extract_path"("state", \'value_1\') DESC, '
+            '"jsonb_extract_path"("state", \'value_2\') ASC',
+            [],
         )
 
     def test_converts_single_sort_query_where_field_is_function(self):
@@ -620,11 +661,11 @@ class TestPostgresQueryConverterQueryConversion:
             "SELECT "
             "*, "
             '"similarity"('
-            'CAST("jsonb_extract_path"("state", %s) AS "text"), %s'
+            'CAST("jsonb_extract_path"("state", \'value\') AS "text"), %s'
             ') AS "value_score" '
             'FROM "projections" '
             'ORDER BY "value_score" DESC',
-            ["value", "xyz"],
+            ["xyz"],
         )
 
     def test_converts_offset_paging_query_for_first_page(self):
@@ -877,6 +918,84 @@ class TestPostgresQueryConverterQueryConversion:
             [last_id, 1, 10, 10],
         )
 
+    def test_converts_key_set_paging_query_nested_asc_sort_next_page_forwards(
+        self,
+    ):
+        converter = query_converter_with_default_converters()
+
+        last_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(
+                last_id=last_id,
+                direction=PagingDirection.FORWARDS,
+                item_count=10,
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "last" AS '
+            '(SELECT "jsonb_extract_path"("state", \'value_1\'), "id" '
+            'FROM "projections" WHERE "id" = %s LIMIT %s) '
+            'SELECT * FROM "projections" '
+            'WHERE ("jsonb_extract_path"("state", \'value_1\'), "id") > '
+            '(SELECT * FROM "last") '
+            'ORDER BY "jsonb_extract_path"("state", \'value_1\') ASC, '
+            '"id" ASC '
+            "LIMIT %s",
+            [last_id, 1, 10],
+        )
+
+    def test_converts_key_set_paging_query_nested_asc_sort_next_page_backwards(
+        self,
+    ):
+        converter = query_converter_with_default_converters()
+
+        last_id = random_projection_id()
+
+        query = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+            paging=KeySetPagingClause(
+                last_id=last_id,
+                direction=PagingDirection.BACKWARDS,
+                item_count=10,
+            ),
+        )
+
+        converted = converter.convert_query(query)
+
+        assert parameterised_query_to_string(converted) == (
+            'WITH "last" AS '
+            '(SELECT "jsonb_extract_path"("state", \'value_1\'), "id" '
+            'FROM "projections" WHERE "id" = %s LIMIT %s) '
+            "SELECT * FROM "
+            '(SELECT * FROM "projections" '
+            'WHERE ("jsonb_extract_path"("state", \'value_1\'), "id") < '
+            '(SELECT * FROM "last") '
+            'ORDER BY "jsonb_extract_path"("state", \'value_1\') DESC, '
+            '"id" DESC '
+            'LIMIT %s) AS "page" '
+            'ORDER BY "jsonb_extract_path"("state", \'value_1\') ASC, '
+            '"id" ASC '
+            "LIMIT %s",
+            [last_id, 1, 10, 10],
+        )
+
     def test_converts_key_set_paging_query_other_mixed_sorts_first_page(
         self,
     ):
@@ -1022,9 +1141,9 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
             "WHERE "
-            '"jsonb_extract_path"("state", %s) @> '
+            '"jsonb_extract_path"("state", \'arr\') @> '
             '"to_jsonb"(CAST(%s AS "text"))',
-            ["arr", value],
+            [value],
         )
 
     def test_converts_string_regex_query_on_nested_attribute(self):
@@ -1045,9 +1164,9 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             "SELECT * FROM "
             '"projections" WHERE '
-            '"jsonb_extract_path_text"("state", %s) ~ '
+            '"jsonb_extract_path_text"("state", \'field\') ~ '
             "%s",
-            ["field", "regex.*"],
+            ["regex.*"],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -1069,8 +1188,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path_text"("state", %s) ~ %s',
-            ["description", "world$"],
+            'WHERE "jsonb_extract_path_text"("state", \'description\') ~ %s',
+            ["world$"],
         )
 
     @pytest.mark.parametrize("query_type", [Lookup, Search])
@@ -1092,8 +1211,8 @@ class TestPostgresQueryConverterQueryConversion:
 
         assert parameterised_query_to_string(converted) == (
             'SELECT * FROM "projections" '
-            'WHERE "jsonb_extract_path_text"("state", %s) !~ %s',
-            ["description", "world$"],
+            'WHERE "jsonb_extract_path_text"("state", \'description\') !~ %s',
+            ["world$"],
         )
 
     def test_converts_string_not_regex_query_on_nested_attribute(self):
@@ -1114,7 +1233,7 @@ class TestPostgresQueryConverterQueryConversion:
         assert parameterised_query_to_string(converted) == (
             "SELECT * FROM "
             '"projections" WHERE '
-            '"jsonb_extract_path_text"("state", %s) !~ '
+            '"jsonb_extract_path_text"("state", \'field\') !~ '
             "%s",
-            ["field", "regex.*"],
+            ["regex.*"],
         )

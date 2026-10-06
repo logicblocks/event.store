@@ -18,6 +18,7 @@ from logicblocks.event.persistence.postgres import (
     SortDirection,
     Star,
 )
+from logicblocks.event.persistence.postgres.query import InlineLiteral
 
 
 def sql_query_to_string(query: abc.Query) -> str:
@@ -145,6 +146,43 @@ class TestFunctionApplication:
         assert parameterised_query_fragment_to_string(fragment) == (
             '"concat"("upper"("users"."name"), %s)',
             ["def"],
+        )
+
+
+class TestInlineLiteral:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("a", "'a'"),
+            ("it's", "'it''s'"),
+            ("a\\b", " E'a\\\\b'"),
+            ("50%", "'50%%'"),
+            ("a%sb", "'a%%sb'"),
+            ("a%%b", "'a%%%%b'"),
+        ],
+    )
+    def test_renders_value_inline_with_no_params(self, value, expected):
+        fragment = InlineLiteral(value).to_fragment()
+
+        assert parameterised_query_fragment_to_string(fragment) == (
+            expected,
+            [],
+        )
+
+    def test_renders_inline_as_function_argument(self):
+        function_application = FunctionApplication(
+            function_name="jsonb_extract_path",
+            arguments=[
+                ColumnReference(field="state"),
+                InlineLiteral("a"),
+                InlineLiteral("0"),
+            ],
+        )
+        fragment = function_application.to_fragment()
+
+        assert parameterised_query_fragment_to_string(fragment) == (
+            "\"jsonb_extract_path\"(\"state\", 'a', '0')",
+            [],
         )
 
 

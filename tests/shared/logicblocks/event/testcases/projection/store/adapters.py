@@ -942,6 +942,118 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_2, projection_3]
 
+    async def test_filters_on_list_element_by_index(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_id("1")
+            .with_state(Thing(value_1=5, value_3=["first", "second"]))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_id("2")
+            .with_state(Thing(value_1=6, value_3=["second", "first"]))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_id("3")
+            .with_state(Thing(value_1=7, value_3=["first"]))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.EQUAL, Path("state", "value_3", 0), "first"
+                )
+            ],
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Path("state", "value_1"), order=SortOrder.ASC
+                    )
+                ]
+            ),
+        )
+        located = await adapter.find_many(search=search, state_type=Thing)
+
+        assert located == [projection_1, projection_3]
+
+    async def test_applies_sorting_on_deeply_nested_field(self):
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=5, value_4={"rank": 2}))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=5, value_4={"rank": 3}))
+            .build()
+        )
+        projection_3 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=5, value_4={"rank": 1}))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+        await adapter.save(projection=projection_3)
+
+        search = Search(
+            sort=SortClause(
+                fields=[
+                    SortField(
+                        field=Path("state", "value_4", "rank"),
+                        order=SortOrder.DESC,
+                    )
+                ]
+            )
+        )
+        located = await adapter.find_many(search=search, state_type=Thing)
+
+        assert located == [projection_2, projection_1, projection_3]
+
+    async def test_filters_on_field_with_quotes_and_percent_signs_in_key(
+        self,
+    ):
+        key = "it's 50%s %% done"
+        adapter = self.construct_storage_adapter()
+
+        projection_1 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=5, value_4={key: "match"}))
+            .build()
+        )
+        projection_2 = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=5, value_4={key: "other"}))
+            .build()
+        )
+
+        await adapter.save(projection=projection_1)
+        await adapter.save(projection=projection_2)
+
+        search = Search(
+            filters=[
+                FilterClause(
+                    Operator.EQUAL, Path("state", "value_4", key), "match"
+                )
+            ]
+        )
+        located = await adapter.find_many(search=search, state_type=Thing)
+
+        assert located == [projection_1]
+
 
 class CountCases(Base, ABC):
     async def test_returns_zero_when_no_projections(self):

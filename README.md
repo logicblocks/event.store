@@ -178,25 +178,6 @@ Keep in mind that:
   timestamps. Index entries larger than about 2.7kB are rejected, so indexing
   a key that can hold a large object or array makes saving such a projection
   fail. For `CONTAINS` on larger values, use a GIN index with `jsonb_path_ops`;
-- an index that leads with `name` gives the planner statistics for its
-  expressions across all projection types. For per-type statistics, partition
-  the table by `name`, with a `DEFAULT` partition so that saving a projection
-  of a new type doesn't fail:
-
-  ```sql
-  CREATE TABLE projections (...) PARTITION BY LIST (name);
-  CREATE TABLE projections_profile
-      PARTITION OF projections FOR VALUES IN ('profile');
-  CREATE TABLE projections_default
-      PARTITION OF projections DEFAULT;
-  ```
-
-  The primary key `(name, id)` includes the partition key, so saving works
-  unchanged. An existing table can't be partitioned in place: create a new
-  table and copy the rows across. Indexes can't be built concurrently on the
-  partitioned table itself: create the index with
-  `CREATE INDEX … ON ONLY projections`, build each partition's index
-  concurrently, then `ALTER INDEX … ATTACH PARTITION` each one;
 - path keys and `name` are sent as bind parameters. Once psycopg has run a
   query five times on a connection it prepares it, and Postgres may then
   switch to a generic plan, which can use neither expression indexes nor

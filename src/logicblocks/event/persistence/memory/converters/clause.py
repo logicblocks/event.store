@@ -24,6 +24,7 @@ from .helpers import compose_transformers
 from .types import (
     ClauseConverter,
     Identifiable,
+    MissingNestedPathError,
     Result,
     ResultSet,
     ResultSetTransformer,
@@ -55,7 +56,10 @@ class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
     @staticmethod
     def _matches(clause: FilterClause, item: Result[R]) -> bool:
         comparison_value = clause.value
-        resolved_value = item.lookup(clause.field)
+        try:
+            resolved_value = item.lookup(clause.field)
+        except MissingNestedPathError:
+            return False
 
         match clause.operator:
             case Operator.EQUAL:

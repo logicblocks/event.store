@@ -442,12 +442,29 @@ class TestDelegatingQueryConverterDefaultClauseConverters:
             .build()
         )
 
-        with pytest.raises(ValueError) as e:
-            transformer(ResultSet.of(projection_1, projection_2))
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
 
-        assert (
-            str(e.value) == f"Invalid projection path: {['state', 'value_3']}."
+        assert result_set.records == []
+
+    def test_filter_on_nested_attribute_missing_from_some_projections(self):
+        converter = DelegatingQueryConverter().with_default_clause_converters()
+
+        clause = FilterClause(Operator.EQUAL, Path("state", "value_3"), 10)
+
+        transformer = converter.convert_clause(clause)
+
+        projection_1 = (
+            MappingProjectionBuilder()
+            .with_state({"value_1": 5, "value_3": 10})
+            .build()
         )
+        projection_2 = (
+            MappingProjectionBuilder().with_state({"value_1": 10}).build()
+        )
+
+        result_set = transformer(ResultSet.of(projection_1, projection_2))
+
+        assert result_set.records == [projection_1]
 
     def test_sort_clause_over_single_field_on_top_level_attribute(self):
         converter = DelegatingQueryConverter().with_default_clause_converters()

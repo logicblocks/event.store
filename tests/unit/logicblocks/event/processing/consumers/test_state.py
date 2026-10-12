@@ -1,6 +1,8 @@
 import asyncio
 from collections.abc import Sequence
 
+import pytest
+
 from logicblocks.event.processing import (
     EventConsumerState,
     EventConsumerStateStore,
@@ -1513,6 +1515,172 @@ class TestEventConsumerStateStoreSave:
         }
 
         assert len(partition_3_events) == 0
+
+    async def test_reloads_persisted_state_after_save_rejected_by_another_writer(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+        other_state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(1).build()
+        )
+        await state_store.save()
+
+        await other_state_store.load()
+        other_state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(2).build()
+        )
+        await other_state_store.save()
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(3).build()
+        )
+        try:
+            await state_store.save()
+        except UnmetWriteConditionError:
+            pass
+
+        state = await state_store.load()
+
+        assert state == EventConsumerState(state={"last_sequence_number": 2})
+
+    async def test_saves_after_reloading_following_save_rejected_by_another_writer(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+        other_state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(1).build()
+        )
+        await state_store.save()
+
+        await other_state_store.load()
+        other_state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(2).build()
+        )
+        await other_state_store.save()
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(3).build()
+        )
+        try:
+            await state_store.save()
+        except UnmetWriteConditionError:
+            pass
+
+        await state_store.load()
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(3).build()
+        )
+        await state_store.save()
+
+        state_events = await state_category.stream(stream="default").read()
+
+        assert [event.payload for event in state_events] == [
+            {"state": {"last_sequence_number": 1}},
+            {"state": {"last_sequence_number": 2}},
+            {"state": {"last_sequence_number": 3}},
+        ]
+
+    async def test_still_raises_when_save_rejected_by_another_writer(self):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+        other_state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(1).build()
+        )
+        await state_store.save()
+
+        await other_state_store.load()
+        other_state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(2).build()
+        )
+        await other_state_store.save()
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(3).build()
+        )
+
+        with pytest.raises(UnmetWriteConditionError):
+            await state_store.save()
+
+    async def test_retains_other_partitions_when_save_rejected_by_another_writer(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+        state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+        other_state_store = EventConsumerStateStore(
+            category=state_category,
+            converter=StoredEventEventConsumerStateConverter(),
+        )
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(1).build(),
+            partition="partition1",
+        )
+        await state_store.save(partition="partition1")
+
+        await other_state_store.load(partition="partition1")
+        other_state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(2).build(),
+            partition="partition1",
+        )
+        await other_state_store.save(partition="partition1")
+
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(3).build(),
+            partition="partition1",
+        )
+        state_store.record_processed(
+            event=StoredEventBuilder().with_sequence_number(4).build(),
+            partition="partition2",
+        )
+        try:
+            await state_store.save(partition="partition1")
+        except UnmetWriteConditionError:
+            pass
+
+        state = await state_store.load(partition="partition2")
+
+        assert state == EventConsumerState(state={"last_sequence_number": 4})
 
 
 class TestEventConsumerStateStoreSaveIfRequired:

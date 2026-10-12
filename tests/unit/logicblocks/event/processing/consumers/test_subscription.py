@@ -1,3 +1,4 @@
+import pytest
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
 from pytest_unordered import unordered
@@ -5,16 +6,19 @@ from pytest_unordered import unordered
 from logicblocks.event.processing import (
     EventBroker,
     EventConsumer,
+    EventProcessor,
     EventSubscriber,
     EventSubscriptionConsumer,
+    make_event_store_subscriber,
 )
 from logicblocks.event.sources import EventSource
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
+    UnmetWriteConditionError,
 )
-from logicblocks.event.testing import data
-from logicblocks.event.types import CategoryIdentifier
+from logicblocks.event.testing import NewEventBuilder, data
+from logicblocks.event.types import CategoryIdentifier, StoredEvent
 
 
 class CapturingEventConsumer(EventConsumer):
@@ -24,6 +28,14 @@ class CapturingEventConsumer(EventConsumer):
 
     async def consume_all(self) -> None:
         self.invoke_count += 1
+
+
+class CapturingEventProcessor(EventProcessor):
+    def __init__(self):
+        self.processed_events = []
+
+    async def process_event(self, event: StoredEvent):
+        self.processed_events.append(event)
 
 
 class CapturingEventConsumerFactory:
@@ -188,6 +200,66 @@ class TestEventSubscriptionConsumer:
 
         assert stream_1_consumer.invoke_count == 1
         assert stream_2_consumer.invoke_count == 2
+
+    async def test_resumes_from_state_saved_by_another_subscriber_after_source_reaccepted(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+
+        category_name = data.random_event_category_name()
+        source = event_store.category(category=category_name)
+        stream = event_store.stream(
+            category=category_name, stream=data.random_event_stream_name()
+        )
+
+        subscriber_group = data.random_subscriber_group()
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+
+        processor = CapturingEventProcessor()
+        subscriber = make_event_store_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_request=source.identifier,
+            subscriber_state_category=state_category,
+            event_processor=processor,
+        )
+        other_subscriber = make_event_store_subscriber(
+            subscriber_group=subscriber_group,
+            subscription_request=source.identifier,
+            subscriber_state_category=state_category,
+            event_processor=CapturingEventProcessor(),
+        )
+
+        publish_1_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        await subscriber.accept(source)
+        await subscriber.consume_all()
+        await subscriber.withdraw(source)
+
+        publish_2_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        await other_subscriber.accept(source)
+        await other_subscriber.consume_all()
+        await other_subscriber.withdraw(source)
+
+        publish_3_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        await subscriber.accept(source)
+        with pytest.raises(UnmetWriteConditionError):
+            await subscriber.consume_all()
+
+        await subscriber.consume_all()
+
+        assert processor.processed_events == [
+            *publish_1_events,
+            *publish_2_events,
+            *publish_3_events,
+            *publish_3_events,
+        ]
 
     async def test_logs_when_accepting_source(self):
         logger = CapturingLogger.create()

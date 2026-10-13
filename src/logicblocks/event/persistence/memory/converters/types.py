@@ -13,6 +13,10 @@ class Identifiable(Protocol):
         raise NotImplementedError
 
 
+class MissingNestedPathError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class Result[T: Identifiable]:
     record: T
@@ -44,7 +48,9 @@ class Result[T: Identifiable]:
             try:
                 value = value[path_segment]
             except KeyError:
-                raise ValueError(f"Invalid projection path: {path}.")
+                raise MissingNestedPathError(
+                    f"Invalid projection path: {path}."
+                )
 
         return value
 

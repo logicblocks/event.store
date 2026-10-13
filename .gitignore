@@ -11,6 +11,7 @@
 .idea/vcs.xml
 .idea/misc.xml
 .idea/dataSources.xml
+.idea/jujutsu.xml
 .idea/.gitignore
 
 # AWS User-specific
@@ -362,4 +363,4 @@ reports
 ### mise
 mise.local.toml
 
-.accelerator/
+.accelerator/config.local.md

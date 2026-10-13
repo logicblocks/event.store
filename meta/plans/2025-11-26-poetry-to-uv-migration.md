@@ -1,3 +1,18 @@
+---
+type: "plan"
+id: "2025-11-26-poetry-to-uv-migration"
+title: "Poetry to UV Migration Implementation Plan"
+date: "2025-11-26T00:00:00+00:00"
+author: "Toby Clemson"
+tags: []
+revision: "80e1103fd5d5bc12ae7cdc47ca643dcd013d26ec"
+repository: "event.store"
+last_updated: "2025-11-26T00:00:00+00:00"
+last_updated_by: "Toby Clemson"
+schema_version: 1
+relates_to: ["codebase-research:2025-11-26-poetry-to-uv-migration"]
+---
+
 # Poetry to UV Migration Implementation Plan
 
 ## Overview
@@ -695,7 +710,7 @@ If the migration fails:
 
 ## References
 
-- Research document: `meta/research/2025-11-26-poetry-to-uv-migration.md`
+- Research document: `meta/research/codebase/2025-11-26-poetry-to-uv-migration.md`
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [uv GitHub Releases](https://github.com/astral-sh/uv/releases)
 - [Hatchling Documentation](https://hatch.pypa.io/latest/)

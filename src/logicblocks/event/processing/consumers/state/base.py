@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Any, Self
 
 from logicblocks.event.sources import constraints
-from logicblocks.event.store import EventCategory, conditions
+from logicblocks.event.store import (
+    EventCategory,
+    UnmetWriteConditionError,
+    conditions,
+)
 from logicblocks.event.types import (
     Event,
     JsonObject,
@@ -161,20 +165,34 @@ class EventConsumerStateStore[E: Event]:
                 else conditions.position_is(position)
             )
 
-            stored_events = await self._category.stream(
-                stream=partition
-            ).publish(
-                events=[
-                    NewEvent(
-                        name="state-changed",
-                        payload=state.serialise(),
-                        metadata=None,
-                    )
-                ],
-                condition=condition,
-            )
+            try:
+                stored_events = await self._category.stream(
+                    stream=partition
+                ).publish(
+                    events=[
+                        NewEvent(
+                            name="state-changed",
+                            payload=state.serialise(),
+                            metadata=None,
+                        )
+                    ],
+                    condition=condition,
+                )
+            except UnmetWriteConditionError:
+                self._invalidate(partition)
+                raise
+
             self._positions[partition] = stored_events[0].position
             self._persistence_lags[partition] = EventCount(0)
+
+    def _invalidate(self, partition: str) -> None:
+        # Another writer saved this partition since we last loaded or saved
+        # it, so our cached state and position are stale. Dropping them makes
+        # the next load() pick up the persisted state instead of failing the
+        # same conditional write forever.
+        self._states.pop(partition, None)
+        self._positions.pop(partition, None)
+        self._persistence_lags.pop(partition, None)
 
     async def load(
         self, *, partition: str = "default"

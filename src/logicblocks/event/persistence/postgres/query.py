@@ -5,6 +5,7 @@ from enum import Enum, StrEnum
 from typing import Any, LiteralString, Self, TypedDict, Unpack, cast
 
 from psycopg import sql
+from psycopg.abc import AdaptContext
 
 from ...types import Applier
 from .types import ParameterisedQuery, ParameterisedQueryFragment
@@ -165,6 +166,19 @@ class Constant(Expression):
         params = [self.value]
 
         return operand_sql, params
+
+
+class _PlaceholderSafeLiteral(sql.Literal):
+    def as_bytes(self, context: AdaptContext | None = None) -> bytes:
+        return super().as_bytes(context).replace(b"%", b"%%")
+
+
+@dataclass(frozen=True)
+class InlineLiteral(Expression):
+    value: str | int | float | bool
+
+    def to_fragment(self) -> ParameterisedQueryFragment:
+        return _PlaceholderSafeLiteral(self.value), []
 
 
 @dataclass(frozen=True)

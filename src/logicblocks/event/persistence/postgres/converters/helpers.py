@@ -6,6 +6,12 @@ from logicblocks.event import query as genericquery
 from logicblocks.event.persistence.postgres import query as postgresquery
 
 
+def path_key(sub_level: str | int) -> str:
+    if isinstance(sub_level, bool):
+        raise ValueError(f"Unsupported path sub-level: {sub_level!r}")
+    return str(sub_level)
+
+
 def expression_for_path(
     path: genericquery.Path,
     operator: postgresquery.Operator | None = None,
@@ -20,7 +26,7 @@ def expression_for_path(
         arguments = [
             postgresquery.ColumnReference(field=path.top_level),
             *[
-                postgresquery.Constant(value=sub_level)
+                postgresquery.InlineLiteral(value=path_key(sub_level))
                 for sub_level in path.sub_levels
             ],
         ]

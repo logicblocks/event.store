@@ -134,6 +134,73 @@ including when the source has no events. Keep in mind that:
 - subclasses that override `project()` must call `finalise_state`
   themselves.
 
+### Indexing Projections in Postgres
+
+The Postgres projection store keeps every projection type in one
+`projections` table, with each projection's state in a `jsonb` column.
+Searches filter and sort on paths into `state`, so index those paths with
+expression indexes, in addition to the indexes in
+`sql/create_projections_indices.sql`. Lead with `name`, and build the index
+concurrently on a live table:
+
+```sql
+CREATE INDEX CONCURRENTLY projections_name_account_id_created_at_index
+    ON projections (
+        name,
+        jsonb_extract_path(state, 'account_id'),
+        jsonb_extract_path(state, 'created_at') DESC
+    );
+
+ANALYZE projections;
+```
+
+The trailing sort expression lets queries that sort with a limit stop early.
+`CONCURRENTLY` can't run inside a transaction, and a failed build leaves an
+`INVALID` index that must be dropped and recreated.
+
+Index expressions must match the SQL the store renders exactly, so `->` and
+`->>` won't do:
+
+| Filter operators | Index expression |
+|---|---|
+| `EQUAL`, `NOT_EQUAL`, `LESS_THAN`, `GREATER_THAN`, `IN`, `CONTAINS` (and their variants), and sorting | `jsonb_extract_path(state, 'key', …)` |
+| `REGEX_MATCHES`, `NOT_REGEX_MATCHES`, and `EQUAL` / `NOT_EQUAL` with `None` | `jsonb_extract_path_text(state, 'key', …)` |
+
+Keep in mind that:
+
+- partial indexes (`… WHERE name = 'profile'`) mislead the planner when a
+  query filters on more than one indexed path. Postgres doesn't use a partial
+  index's statistics to estimate how many rows match, so it estimates every
+  equality filter at 0.5% of the rows and every range filter at a third, and
+  can walk a far less selective index. Partial indexes are fine when only one
+  index can serve the query, or when the index only provides the order;
+- btree indexes suit keys holding small scalar values, such as ids, enums and
+  timestamps. Index entries larger than about 2.7kB are rejected, so indexing
+  a key that can hold a large object or array makes saving such a projection
+  fail. For `CONTAINS` on larger values, use a GIN index with `jsonb_path_ops`;
+- path keys and `name` are sent as bind parameters. Once psycopg has run a
+  query five times on a connection it prepares it, and Postgres may then
+  switch to a generic plan, which can use neither expression indexes nor
+  partial indexes. If that happens, set `plan_cache_mode = force_custom_plan`
+  for the database role, or pass a connection pool that doesn't prepare
+  queries:
+
+  ```python
+  from psycopg_pool import AsyncConnectionPool
+
+  from logicblocks.event.projection.store import (
+      PostgresProjectionStorageAdapter,
+  )
+
+  pool = AsyncConnectionPool(
+      conninfo, kwargs={"prepare_threshold": None}, open=False
+  )
+  adapter = PostgresProjectionStorageAdapter(connection_source=pool)
+  ```
+
+- `CREATE STATISTICS` on expressions over large `state` documents can use a
+  lot of memory during `ANALYZE`, so try it on a production-sized copy first.
+
 Features
 --------
 

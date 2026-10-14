@@ -6,6 +6,10 @@ import structlog
 from structlog.typing import FilteringBoundLogger
 
 from logicblocks.event.sources import EventSource, constraints
+from logicblocks.event.store.hooks import (
+    EventStoreWriteHooksRegistry,
+    PublishRequest,
+)
 from logicblocks.event.types import (
     CategoryIdentifier,
     JsonPersistable,
@@ -21,6 +25,7 @@ from .adapters import EventStorageAdapter
 from .conditions import NoCondition, WriteCondition
 from .exceptions import UnmetWriteConditionError
 from .types import StreamPublishDefinition
+from .write_hooks import EventStoreWriteHooks
 
 _default_logger = structlog.get_logger("logicblocks.event.store")
 
@@ -35,15 +40,18 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         stream: StreamIdentifier,
+        write_hooks: EventStoreWriteHooksRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
+        self._identifier = stream
+        self._write_hooks = write_hooks
         self._logger = logger.bind(
             category=stream.category, stream=stream.stream
         )
-        self._identifier = stream
 
     @property
     def identifier(self) -> StreamIdentifier:
@@ -64,48 +72,59 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
         """Publish a sequence of events into the stream."""
-        await self._logger.adebug(
-            "event.stream.publishing",
-            category=self._identifier.category,
-            stream=self._identifier.stream,
-            events=[
-                event.serialise(fallback=str_serialisation_fallback)
-                for event in events
-            ],
-            conditions=condition,
-        )
-
-        try:
-            stored_events = await self._adapter.save(
-                target=self._identifier,
+        async with self._write_hooks.on_publish(
+            PublishRequest(
+                stream=self._identifier,
                 events=events,
                 condition=condition,
             )
-
-            if self._logger.is_enabled_for(logging.DEBUG):
-                await self._logger.ainfo(
-                    "event.stream.published",
-                    events=[
-                        event.serialise(fallback=str_serialisation_fallback)
-                        for event in stored_events
-                    ],
-                )
-            else:
-                await self._logger.ainfo(
-                    "event.stream.published",
-                    events=[event.summarise() for event in stored_events],
-                )
-
-            return stored_events
-        except UnmetWriteConditionError as ex:
-            await self._logger.awarning(
-                "event.stream.publish-failed",
+        ) as processed_publish:
+            await self._logger.adebug(
+                "event.stream.publishing",
                 category=self._identifier.category,
                 stream=self._identifier.stream,
-                events=[event.summarise() for event in events],
-                reason=repr(ex),
+                events=[
+                    event.serialise(fallback=str_serialisation_fallback)
+                    for event in processed_publish.events
+                ],
+                conditions=processed_publish.condition,
             )
-            raise
+
+            try:
+                stored_events = await self._adapter.save(
+                    target=self._identifier,
+                    events=processed_publish.events,
+                    condition=processed_publish.condition,
+                )
+
+                if self._logger.is_enabled_for(logging.DEBUG):
+                    await self._logger.ainfo(
+                        "event.stream.published",
+                        events=[
+                            event.serialise(
+                                fallback=str_serialisation_fallback
+                            )
+                            for event in stored_events
+                        ],
+                    )
+                else:
+                    await self._logger.ainfo(
+                        "event.stream.published",
+                        events=[event.summarise() for event in stored_events],
+                    )
+
+                return stored_events
+            except UnmetWriteConditionError as ex:
+                await self._logger.awarning(
+                    "event.stream.publish-failed",
+                    category=self._identifier.category,
+                    stream=self._identifier.stream,
+                    events=[
+                        event.summarise() for event in processed_publish.events
+                    ],
+                    reason=repr(ex),
+                )
+                raise
 
     def iterate(
         self, *, constraints: Set[constraints.QueryConstraint] = frozenset()
@@ -149,13 +168,16 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         category: CategoryIdentifier,
+        write_hooks: EventStoreWriteHooksRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
-        self._logger = logger.bind(category=category.category)
         self._identifier = category
+        self._write_hooks = write_hooks
+        self._logger = logger.bind(category=category.category)
 
     @property
     def identifier(self) -> CategoryIdentifier:
@@ -176,10 +198,11 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
         """
         return EventStream(
             adapter=self._adapter,
-            logger=self._logger,
             stream=StreamIdentifier(
                 category=self._identifier.category, stream=stream
             ),
+            write_hooks=self._write_hooks,
+            logger=self._logger,
         )
 
     def iterate(
@@ -236,13 +259,16 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     def __init__(
         self,
+        *,
         adapter: EventStorageAdapter,
         log: LogIdentifier = LogIdentifier(),
+        write_hooks: EventStoreWriteHooksRegistry,
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
-        self._logger = logger.bind()
         self._identifier = log
+        self._write_hooks = write_hooks
+        self._logger = logger.bind()
 
     @property
     def identifier(self) -> LogIdentifier:
@@ -301,9 +327,11 @@ class EventStore:
     def __init__(
         self,
         adapter: EventStorageAdapter,
+        write_hooks: Sequence[EventStoreWriteHooks] = (),
         logger: FilteringBoundLogger = _default_logger,
     ):
         self._adapter = adapter
+        self._write_hooks = EventStoreWriteHooksRegistry(write_hooks)
         self._logger = logger
 
     def stream(self, *, category: str, stream: str) -> EventStream:
@@ -326,8 +354,9 @@ class EventStore:
         """
         return EventStream(
             adapter=self._adapter,
-            logger=self._logger,
             stream=StreamIdentifier(category=category, stream=stream),
+            write_hooks=self._write_hooks,
+            logger=self._logger,
         )
 
     def category(self, *, category: str) -> EventCategory:
@@ -348,8 +377,9 @@ class EventStore:
         """
         return EventCategory(
             adapter=self._adapter,
-            logger=self._logger,
             category=CategoryIdentifier(category=category),
+            write_hooks=self._write_hooks,
+            logger=self._logger,
         )
 
     def log(self) -> EventLog:
@@ -360,5 +390,6 @@ class EventStore:
         """
         return EventLog(
             adapter=self._adapter,
+            write_hooks=self._write_hooks,
             logger=self._logger,
         )

@@ -1,21 +1,24 @@
 ---
-date: 2025-11-26T20:43:26+00:00
-researcher: Toby Clemson
-git_commit: 5f1c67ba94beef907d1100ef221c1e0d31a75329
-branch: switch-to-mise-and-uv
-repository: event.store
+date: "2025-11-26T20:43:26+00:00"
+author: "Toby Clemson"
+revision: "5f1c67ba94beef907d1100ef221c1e0d31a75329"
+repository: "event.store"
 topic: "Poetry to UV Migration Analysis"
-tags: [ research, codebase, poetry, uv, migration, mise, invoke, ci-cd ]
-status: complete
-last_updated: 2025-11-26
-last_updated_by: Toby Clemson
+tags: ["research", "codebase", "poetry", "uv", "migration", "mise", "invoke", "ci-cd"]
+status: "complete"
+last_updated: "2025-11-26T00:00:00+00:00"
+last_updated_by: "Toby Clemson"
 last_updated_note: "Updated with uv version management capabilities (uv 0.7.0+)"
+type: "codebase-research"
+id: "2025-11-26-poetry-to-uv-migration"
+title: "Poetry to UV Migration Analysis"
+schema_version: 1
 ---
 
-# Research: Poetry to UV Migration Analysis
+# Poetry to UV Migration Analysis
 
 **Date**: 2025-11-26T20:43:26+00:00
-**Researcher**: Toby Clemson
+**Author**: Toby Clemson
 **Git Commit**: 5f1c67ba94beef907d1100ef221c1e0d31a75329
 **Branch**: switch-to-mise-and-uv
 **Repository**: event.store

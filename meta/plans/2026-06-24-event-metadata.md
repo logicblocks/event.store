@@ -1,13 +1,11 @@
 ---
-type: plan
+type: "plan"
 id: "2026-06-24-event-metadata"
 title: "Event Metadata Implementation Plan"
 date: "2026-06-24T10:04:40+00:00"
 author: "bivav-ebury"
-producer: create-plan
-status: implemented
-derived_from: []
-relates_to: []
+producer: "create-plan"
+status: "done"
 tags: ["metadata", "events", "schema-migration"]
 revision: "366dcb6ca5b3a97cd3bf13628ace29c3db31bbc1"
 repository: "event.store"

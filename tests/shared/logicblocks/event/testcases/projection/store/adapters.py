@@ -522,6 +522,39 @@ class FindManyCases(Base, ABC):
 
         assert located == [projection_1]
 
+    async def test_filter_on_nested_path_missing_from_some_projections_matches_only_those_with_it(
+        self,
+    ):
+        adapter = self.construct_storage_adapter()
+
+        with_path = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=1, value_4={"nested": "present"}))
+            .build()
+        )
+        without_path = (
+            ThingProjectionBuilder()
+            .with_state(Thing(value_1=1, value_4={}))
+            .build()
+        )
+        await adapter.save(projection=with_path)
+        await adapter.save(projection=without_path)
+
+        located = await adapter.find_many(
+            search=Search(
+                filters=[
+                    FilterClause(
+                        Operator.EQUAL,
+                        Path("state", "value_4", "nested"),
+                        "present",
+                    )
+                ]
+            ),
+            state_type=Thing,
+        )
+
+        assert located == [with_path]
+
     async def test_applies_not_filter(self):
         adapter = self.construct_storage_adapter()
 

@@ -1,3 +1,18 @@
+---
+type: "pr-description"
+id: "85"
+title: "Before"
+date: "2025-12-01T20:15:06+00:00"
+author: "InfraBlocks CI"
+tags: []
+revision: "7a99fa86ac2283c2dad9301ef442ff6420eb23f3"
+repository: "event.store"
+last_updated: "2025-12-01T20:15:06+00:00"
+last_updated_by: "InfraBlocks CI"
+schema_version: 1
+pr_number: 85
+---
+
 ## Summary
 
 This PR switches the project's type checker from pyright to pyrefly. The stricter type checking revealed several type safety issues in the error handling APIs, which have been fixed with breaking changes that improve type correctness and API clarity.

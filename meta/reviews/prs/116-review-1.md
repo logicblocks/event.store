@@ -1,11 +1,11 @@
 ---
-type: pr-review
+type: "pr-review"
 id: "116-review-1"
 title: "Add optional metadata bag to events"
 date: "2026-06-26T14:13:08+00:00"
 author: "bivav-ebury"
-producer: review-pr
-status: complete
+producer: "review-pr"
+status: "complete"
 target: "pr:116"
 reviewer: "bivav-ebury"
 verdict: "COMMENT"

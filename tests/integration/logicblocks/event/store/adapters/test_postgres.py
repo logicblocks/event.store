@@ -3,6 +3,7 @@ import os
 import random
 import sys
 from collections.abc import AsyncIterator, Sequence
+from dataclasses import fields
 
 import pytest
 import pytest_asyncio
@@ -55,8 +56,11 @@ connection_settings = ConnectionSettings(
 
 
 def read_events_query(table: str) -> abc.Query:
-    return sql.SQL("SELECT * FROM {0} ORDER BY sequence_number").format(
-        sql.Identifier(table)
+    columns = sql.SQL(", ").join(
+        sql.Identifier(field.name) for field in fields(StoredEvent)
+    )
+    return sql.SQL("SELECT {0} FROM {1} ORDER BY sequence_number").format(
+        columns, sql.Identifier(table)
     )
 
 
@@ -84,6 +88,33 @@ async def read_events(
             )
 
             return events
+
+
+async def add_unknown_column(
+    pool: AsyncConnectionPool[AsyncConnection], table: str
+) -> None:
+    async with pool.connection() as connection:
+        await connection.execute(
+            sql.SQL(
+                "ALTER TABLE {0} "
+                "ADD COLUMN unknown_column TEXT NOT NULL DEFAULT 'unknown'"
+            ).format(sql.Identifier(table))
+        )
+
+
+for_each_read_target = pytest.mark.parametrize(
+    "target_for",
+    [
+        lambda category, stream: identifier.LogIdentifier(),
+        lambda category, stream: identifier.CategoryIdentifier(
+            category=category
+        ),
+        lambda category, stream: identifier.StreamIdentifier(
+            category=category, stream=stream
+        ),
+    ],
+    ids=["log", "category", "stream"],
+)
 
 
 async def save_random_events(
@@ -616,6 +647,153 @@ class TestPostgresStorageAdapterScanPaging:
             await anext(iterator)
 
         assert scanned_events == stored_events
+
+
+class TestPostgresStorageAdapterUnknownColumns:
+    pool: AsyncConnectionPool[AsyncConnection]
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def store_connection_pool(self, open_connection_pool):
+        self.pool = open_connection_pool
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def reinitialise_storage(self, open_connection_pool):
+        await drop_table(open_connection_pool, "events")
+        await create_table(open_connection_pool, "events")
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def shutdown_async_generators(self):
+        yield
+
+        await asyncio.get_event_loop().shutdown_asyncgens()
+
+    async def test_saves_to_new_stream_when_table_has_unknown_column(self):
+        await add_unknown_column(self.pool, "events")
+
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        stored_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=random_event_category_name(),
+                stream=random_event_stream_name(),
+            ),
+            events=[NewEventBuilder().build()],
+        )
+
+        assert stored_events == await read_events(self.pool, "events")
+
+    @for_each_read_target
+    async def test_reads_latest_when_table_has_unknown_column(
+        self, target_for
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        seeded_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        await add_unknown_column(self.pool, "events")
+
+        latest_event = await adapter.latest(
+            target=target_for(category, stream)
+        )
+
+        assert latest_event == seeded_events[-1]
+
+    async def test_saves_to_existing_stream_when_table_has_unknown_column(
+        self,
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        target = identifier.StreamIdentifier(
+            category=random_event_category_name(),
+            stream=random_event_stream_name(),
+        )
+
+        await adapter.save(target=target, events=[NewEventBuilder().build()])
+
+        await add_unknown_column(self.pool, "events")
+
+        stored_events = await adapter.save(
+            target=target, events=[NewEventBuilder().build()]
+        )
+
+        assert stored_events == (await read_events(self.pool, "events"))[-1:]
+
+    @for_each_read_target
+    async def test_scans_when_table_has_unknown_column(self, target_for):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        stream = random_event_stream_name()
+
+        seeded_events = await adapter.save(
+            target=identifier.StreamIdentifier(
+                category=category, stream=stream
+            ),
+            events=[NewEventBuilder().build(), NewEventBuilder().build()],
+        )
+
+        await add_unknown_column(self.pool, "events")
+
+        scanned_events = [
+            event
+            async for event in adapter.scan(
+                target=target_for(category, stream)
+            )
+        ]
+
+        assert scanned_events == list(seeded_events)
+
+    async def test_saves_to_existing_streams_in_category_when_table_has_unknown_column(
+        self,
+    ):
+        adapter = PostgresEventStorageAdapter(connection_source=self.pool)
+
+        category = random_event_category_name()
+        streams = [random_event_stream_name(), random_event_stream_name()]
+
+        seeded_events = [
+            event
+            for stream in streams
+            for event in await adapter.save(
+                target=identifier.StreamIdentifier(
+                    category=category, stream=stream
+                ),
+                events=[NewEventBuilder().build()],
+            )
+        ]
+
+        await add_unknown_column(self.pool, "events")
+
+        stored_events = await adapter.save(
+            target=identifier.CategoryIdentifier(category=category),
+            streams={
+                stream: {"events": [NewEventBuilder().build()]}
+                for stream in streams
+            },
+        )
+
+        seeded_ids = {event.id for event in seeded_events}
+        appended_events = [
+            event
+            for event in await read_events(self.pool, "events")
+            if event.id not in seeded_ids
+        ]
+        appended_events_by_stream = {
+            stream: [
+                event for event in appended_events if event.stream == stream
+            ]
+            for stream in {event.stream for event in appended_events}
+        }
+
+        assert appended_events_by_stream == stored_events
 
 
 class TestPostgresStorageAdapterQueryConstraints:

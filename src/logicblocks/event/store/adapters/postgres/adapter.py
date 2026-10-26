@@ -1,6 +1,6 @@
 import hashlib
 from collections.abc import AsyncIterator, Mapping, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Sequence, TypedDict, cast, overload
 from uuid import uuid4
@@ -60,6 +60,11 @@ from .converters import (
     TypeRegistryConstraintConverter,
     WriteConditionEnforcer,
     WriteConditionEnforcerContext,
+)
+
+EVENT_COLUMNS = tuple(field.name for field in fields(StoredEvent))
+EVENT_COLUMNS_SQL = sql.SQL(", ").join(
+    sql.Identifier(column) for column in EVENT_COLUMNS
 )
 
 
@@ -182,7 +187,9 @@ def scan_query(
     ],
     table_settings: TableSettings,
 ) -> ParameterisedQuery:
-    builder = Query().select_all().from_table(table_settings.table_name)
+    builder = (
+        Query().select(*EVENT_COLUMNS).from_table(table_settings.table_name)
+    )
 
     if parameters.category:
         builder = builder.where(
@@ -306,7 +313,9 @@ def read_last_query(
 ) -> ParameterisedQuery:
     table = table_settings.table_name
 
-    select_clause = sql.SQL("SELECT *")
+    select_clause = sql.SQL("SELECT {columns}").format(
+        columns=EVENT_COLUMNS_SQL
+    )
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = (
@@ -360,7 +369,9 @@ def read_last_category_batch_query(
 ) -> ParameterisedQuery:
     table = table_settings.table_name
 
-    select_clause = sql.SQL("SELECT DISTINCT ON (category, stream ) *")
+    select_clause = sql.SQL(
+        "SELECT DISTINCT ON (category, stream) {columns}"
+    ).format(columns=EVENT_COLUMNS_SQL)
     from_clause = sql.SQL("FROM {table}").format(table=sql.Identifier(table))
 
     category_where_clause = sql.SQL("category = %s")
@@ -450,9 +461,11 @@ def insert_batch_query[
                                  occurred_at)
                 VALUES
                     {1}
-                    RETURNING *;
+                    RETURNING {2};
                 """).format(
-            sql.Identifier(table_settings.table_name), rows_expression
+            sql.Identifier(table_settings.table_name),
+            rows_expression,
+            EVENT_COLUMNS_SQL,
         ),
         values,
     )

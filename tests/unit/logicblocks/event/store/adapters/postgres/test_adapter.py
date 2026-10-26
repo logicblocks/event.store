@@ -283,7 +283,9 @@ class TestBatchInsert:
          payload, metadata, observed_at, occurred_at)
         VALUES
           (%s, %s, %s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-          RETURNING *;
+          RETURNING "id", "name", "stream", "category", "position",
+                    "sequence_number", "payload", "metadata",
+                    "observed_at", "occurred_at";
         """
         assert normalize_whitespace(query_str) == normalize_whitespace(
             expected_query_str

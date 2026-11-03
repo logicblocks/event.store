@@ -34,30 +34,28 @@ Usage
 ```python
 import asyncio
 
-from logicblocks.event.store import EventStore, adapters
-from logicblocks.event.types import NewEvent, StreamIdentifier
 from logicblocks.event.projection import Projector
+from logicblocks.event.store import EventStore, adapters
+from logicblocks.event.types import JsonValue, NewEvent, StreamIdentifier
 
 
-class ProfileProjector(
-    Projector[StreamIdentifier, dict[str, str], dict[str, str]]
-):
+class ProfileProjector(Projector[StreamIdentifier, dict[str, str]]):
     def initial_state_factory(self) -> dict[str, str]:
         return {}
 
-    def initial_metadata_factory(self) -> dict[str, str]:
+    def initial_metadata_factory(self) -> JsonValue:
         return {}
 
     def id_factory(self, state, source: StreamIdentifier) -> str:
         return source.stream
 
     def profile_created(self, state, event):
-        state['name'] = event.payload['name']
-        state['email'] = event.payload['email']
+        state["name"] = event.payload["name"]
+        state["email"] = event.payload["email"]
         return state
 
     def date_of_birth_set(self, state, event):
-        state['dob'] = event.payload['dob']
+        state["dob"] = event.payload["dob"]
         return state
 
 
@@ -66,43 +64,58 @@ async def main():
     store = EventStore(adapter)
 
     stream = store.stream(category="profiles", stream="joe.bloggs")
-    # metadata is required; pass metadata=None when the event has no metadata
-    profile_created_event = NewEvent(name="profile-created",
-                                     payload={"name": "Joe Bloggs", "email": "joe.bloggs@example.com"},
-                                     metadata=None)
-    date_of_birth_set_event = NewEvent(name="date-of-birth-set", payload={"dob": "1992-07-10"},
-                                       metadata={"actor": "user-123"})
 
-    await stream.publish(
-        events=[
-            profile_created_event
-        ])
-    await stream.publish(
-        events=[
-            date_of_birth_set_event
-        ]
+    # metadata is required; pass metadata=None when the event has no metadata
+    profile_created_event = NewEvent(
+        name="profile-created",
+        payload={"name": "Joe Bloggs", "email": "joe.bloggs@example.com"},
+        metadata=None,
     )
+    date_of_birth_set_event = NewEvent(
+        name="date-of-birth-set",
+        payload={"dob": "1992-07-10"},
+        metadata={"actor": "user-123"},
+    )
+
+    await stream.publish(events=[profile_created_event])
+    await stream.publish(events=[date_of_birth_set_event])
 
     projector = ProfileProjector()
     projection = await projector.project(source=stream)
-    profile = projection.state
+
+    print(projection.state)
+    # {'name': 'Joe Bloggs', 'email': 'joe.bloggs@example.com',
+    #  'dob': '1992-07-10'}
 
 
 asyncio.run(main())
+```
 
+`Projector` takes the source identifier type, the state type and, optionally,
+the type of the projection's own metadata, which defaults to `JsonValue`. The
+projection's metadata is separate from the metadata on each event.
 
-# profile == {
-#   "name": "Joe Bloggs", 
-#   "email": "joe.bloggs@example.com", 
-#   "dob": "1992-07-10"
-# }
+The library logs through [structlog](https://www.structlog.org/), so running
+the example also prints debug and info lines for each publish and read. To
+show only warnings and above, configure structlog before running it:
+
+```python
+import logging
+
+import structlog
+
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING)
+)
 ```
 
 ### Finalising State
 
 Override `finalise_state` to do work once per projection rather than in every
 event handler, for example validation or normalisation. Handlers can then make
-cheap, unvalidated changes and leave the expensive work to the end:
+cheap, unvalidated changes and leave the expensive work to the end. This
+example extends the `ProfileProjector` from the
+[basic example](#basic-example):
 
 ```python
 class ValidatedProfileProjector(ProfileProjector):
@@ -119,9 +132,11 @@ including when the source has no events. Keep in mind that:
 - with `ProjectionEventProcessor`, which projects one event at a time, it
   runs once per processed event, so the saving comes from multi-event folds
   such as rebuilds;
-- its output is passed back in as the starting state when a projection is
-  resumed (via `state=`, and always by `ProjectionEventProcessor`), so it must
-  not change what later handlers, `update_metadata` or `id_factory` compute.
+- its output becomes the starting state when a projection is resumed, either
+  directly via `state=` or, with `ProjectionEventProcessor`, as the state
+  reloaded from the projection store (the processor passes `state=None` for
+  a stream's first event, when nothing is stored yet). So it must not change
+  what later handlers, `update_metadata` or `id_factory` compute.
   Validation and recomputing derived fields are fine; lossy normalisation,
   such as clamping or truncation, isn't;
 - its output must survive a round trip through the projection store, and it
@@ -129,8 +144,12 @@ including when the source has no events. Keep in mind that:
   stored, otherwise those projections need rebuilding;
 - `update_metadata` and `apply()` see unfinalised state;
 - handlers mustn't rely on coercion or defaults that validation would apply;
-- `finalise_state` is a reserved name, so no event may be named
-  `finalise-state`;
+- handlers are found by converting the event name to snake case, and nothing
+  stops that matching a projector method. An event named `finalise-state` is
+  routed to `finalise_state` as if it were a handler and fails with a
+  `TypeError`. Other method names clash the same way: `apply` and `project`
+  also raise a `TypeError`, and `id-factory` silently replaces the state with
+  the projection id. Avoid event names that convert to projector methods;
 - subclasses that override `project()` must call `finalise_state`
   themselves.
 

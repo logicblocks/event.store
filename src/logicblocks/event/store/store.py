@@ -63,7 +63,20 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
-        """Publish a sequence of events into the stream."""
+        """Publish a sequence of events into the stream.
+
+        Args:
+            events: The events to publish, in order.
+            condition: A write condition that must be met for the events to
+                be written. Defaults to no condition.
+
+        Returns:
+            the stored events, in the order they were published.
+
+        Raises:
+            UnmetWriteConditionError: If the condition is not met, in which
+                case no events are written.
+        """
         await self._logger.adebug(
             "event.stream.publishing",
             category=self._identifier.category,
@@ -144,7 +157,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
     can be narrowed to a specific stream using the `stream` method.
 
     Events in the category can be read using the `read` method. Categories are
-    also iterable, supporting `iter`.
+    also async iterable, supporting `aiter` and `async for`.
     """
 
     def __init__(
@@ -172,7 +185,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             stream (str): The name of the stream.
 
         Returns:
-            an event store scoped to the specified stream.
+            an `EventStream` for the specified stream.
         """
         return EventStream(
             adapter=self._adapter,
@@ -213,7 +226,21 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             str, StreamPublishDefinition[Name, Payload, Metadata]
         ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
-        """Publish events to multiple streams in the category atomically."""
+        """Publish events to multiple streams in the category atomically.
+
+        Args:
+            streams: A mapping from stream name to the definition of what to
+                publish to that stream. Each definition holds the events to
+                publish and, optionally, the write condition for that stream.
+                Streams without a condition are written unconditionally.
+
+        Returns:
+            a mapping from stream name to the stored events for that stream.
+
+        Raises:
+            UnmetWriteConditionError: If any stream's condition is not met, in
+                which case no events are written to any stream.
+        """
         return await self._adapter.save(
             target=self._identifier, streams=streams
         )
@@ -309,9 +336,9 @@ class EventStore:
     def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.
 
-        This method alone doesn't result in any IO, it instead returns a scoped
-        event store for the stream identified by the category and stream names,
-        as part of a fluent interface.
+        This method alone doesn't result in any IO, it instead returns an
+        `EventStream` for the stream identified by the category and stream
+        names, as part of a fluent interface.
 
         Categories and streams implicitly exist, i.e., calling this method for a
         category or stream that has never been written to will not result in an
@@ -322,7 +349,7 @@ class EventStore:
             stream (str): The name of the stream.
 
         Returns:
-            an event store scoped to the specified stream.
+            an `EventStream` for the specified stream.
         """
         return EventStream(
             adapter=self._adapter,
@@ -333,8 +360,8 @@ class EventStore:
     def category(self, *, category: str) -> EventCategory:
         """Get a category of events from the store.
 
-        This method alone doesn't result in any IO, it instead returns a scoped
-        event store for the category identified by the category name,
+        This method alone doesn't result in any IO, it instead returns an
+        `EventCategory` for the category identified by the category name,
         as part of a fluent interface.
 
         Categories implicitly exist, i.e., calling this method for a category
@@ -344,7 +371,7 @@ class EventStore:
             category (str): The name of the category.
 
         Returns:
-            an event store scoped to the specified category.
+            an `EventCategory` for the specified category.
         """
         return EventCategory(
             adapter=self._adapter,

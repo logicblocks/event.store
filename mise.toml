@@ -9,6 +9,7 @@ experimental = true
 postinstall = "uv sync --only-group build --frozen"
 
 [tools]
+node = "24.22.2"
 python = "3.13.9"
 uv = "0.9.14"
 watchexec = "2.3.2"

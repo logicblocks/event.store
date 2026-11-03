@@ -364,6 +364,7 @@ reports
 docs/node_modules
 docs/dist
 docs/.astro
+docs/src/content/docs/reference
 
 ### mise
 mise.local.toml

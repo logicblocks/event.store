@@ -84,9 +84,11 @@ wait_for = ["test:unit", "test:integration", "test:component"]
 run = "invoke test.report"
 
 [tasks."docs:serve"]
+depends = ["dependencies:install"]
 run = "invoke docs.serve"
 
 [tasks."docs:build"]
+depends = ["dependencies:install"]
 run = "invoke docs.build"
 
 [tasks."changelog:fragment:create"]

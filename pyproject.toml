@@ -39,13 +39,11 @@ changelog = [
     "scriv>=1.7.0",
 ]
 docs = [
-    "mkdocs-material>=9.7.0",
-    "mkdocstrings[python]>=0.29.0",
-    "black>=25.11.0",
+    "griffe>=2.4.1",
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "tests/shared"]
+pythonpath = ["src", "tests/shared", "."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = [
@@ -82,14 +80,19 @@ packages = ["src/logicblocks"]
 [tool.pyrefly]
 project-includes = [
     "src",
+    "tasks/reference",
     "tests/shared",
     "tests/unit",
     "tests/integration",
     "tests/component",
 ]
+project-excludes = [
+    "tests/unit/tasks/reference/fixtures",
+]
 search-path = [
     "src",
     "tests/shared",
+    ".",
 ]
 infer-with-first-use = false
 

@@ -1,0 +1,2 @@
+def helper():
+    """Not exported."""

@@ -102,7 +102,9 @@ asyncio.run(main())
 
 Override `finalise_state` to do work once per projection rather than in every
 event handler, for example validation or normalisation. Handlers can then make
-cheap, unvalidated changes and leave the expensive work to the end:
+cheap, unvalidated changes and leave the expensive work to the end. This
+example extends the `ProfileProjector` from the
+[basic example](#basic-example):
 
 ```python
 class ValidatedProfileProjector(ProfileProjector):
@@ -119,9 +121,11 @@ including when the source has no events. Keep in mind that:
 - with `ProjectionEventProcessor`, which projects one event at a time, it
   runs once per processed event, so the saving comes from multi-event folds
   such as rebuilds;
-- its output is passed back in as the starting state when a projection is
-  resumed (via `state=`, and always by `ProjectionEventProcessor`), so it must
-  not change what later handlers, `update_metadata` or `id_factory` compute.
+- its output becomes the starting state when a projection is resumed, either
+  directly via `state=` or, with `ProjectionEventProcessor`, as the state
+  reloaded from the projection store (the processor passes `state=None` for
+  a stream's first event, when nothing is stored yet). So it must not change
+  what later handlers, `update_metadata` or `id_factory` compute.
   Validation and recomputing derived fields are fine; lossy normalisation,
   such as clamping or truncation, isn't;
 - its output must survive a round trip through the projection store, and it
@@ -129,8 +133,12 @@ including when the source has no events. Keep in mind that:
   stored, otherwise those projections need rebuilding;
 - `update_metadata` and `apply()` see unfinalised state;
 - handlers mustn't rely on coercion or defaults that validation would apply;
-- `finalise_state` is a reserved name, so no event may be named
-  `finalise-state`;
+- handlers are found by converting the event name to snake case, and nothing
+  stops that matching a projector method. An event named `finalise-state` is
+  routed to `finalise_state` as if it were a handler and fails with a
+  `TypeError`. Other method names clash the same way: `apply` and `project`
+  also raise a `TypeError`, and `id-factory` silently replaces the state with
+  the projection id. Avoid event names that convert to projector methods;
 - subclasses that override `project()` must call `finalise_state`
   themselves.
 

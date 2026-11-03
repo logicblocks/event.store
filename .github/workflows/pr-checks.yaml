@@ -7,3 +7,16 @@ on:
 jobs:
   ci:
     uses: ./.github/workflows/check-test-build.yaml
+
+  docs:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        uses: jdx/mise-action@v3
+        with:
+          experimental: 'true'
+
+      - name: Build docs
+        run: mise run docs:build

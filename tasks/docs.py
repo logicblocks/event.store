@@ -3,8 +3,6 @@ from pathlib import Path
 
 from invoke import Context, task
 
-from .reference import generate_reference
-
 REFERENCE_DIRECTORY = Path("docs/src/content/docs/reference")
 PACKAGE_ORDER = [
     "store",
@@ -22,6 +20,9 @@ PACKAGE_ORDER = [
 @task
 def reference(context: Context):
     """Generates the API reference pages from the source."""
+    # Deferred so other tasks run before the docs group is installed.
+    from .reference import generate_reference
+
     shutil.rmtree(REFERENCE_DIRECTORY, ignore_errors=True)
     warnings = generate_reference(
         package="logicblocks.event",

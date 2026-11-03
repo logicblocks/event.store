@@ -1,7 +1,23 @@
 import { defineCollection } from 'astro:content';
-import { docsLoader } from '@astrojs/starlight/loaders';
 import { docsSchema } from '@astrojs/starlight/schema';
+import { docsWithRootPagesLoader } from './loaders';
 
 export const collections = {
-	docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }),
+	docs: defineCollection({
+		loader: docsWithRootPagesLoader([
+			{
+				id: 'changelog',
+				file: 'CHANGELOG.md',
+				title: 'Changelog',
+				description: 'Notable changes in each release.',
+			},
+			{
+				id: 'contributing',
+				file: 'CONTRIBUTING.md',
+				title: 'Contributing',
+				description: 'How to contribute to logicblocks.event.store.',
+			},
+		]),
+		schema: docsSchema(),
+	}),
 };

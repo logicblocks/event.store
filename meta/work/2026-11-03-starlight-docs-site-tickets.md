@@ -15,7 +15,7 @@ repository: "event.store"
 Breakdown of the
 [Starlight Documentation Site spec](2026-11-03-starlight-docs-site.md) into
 tracer-bullet tickets, in dependency order. All work happens on the
-`docs/starlight-site` branch and is delivered as a single PR.
+`docs-starlight-site` branch and is delivered as a single PR.
 
 ```
 01 ──┬── 02 ───────────┐
@@ -31,7 +31,7 @@ Tickets 02, 03 and 05 can be worked on at the same time once 01 is done.
 
 **What to build:** A Starlight site with the Home and Getting started pages,
 live at `https://logicblocks.github.io/event.store/` and deployed
-automatically from the `docs/starlight-site` branch, so it can be compared
+automatically from the `docs-starlight-site` branch, so it can be compared
 with the existing Read the Docs site. Maintainers can preview and build it
 locally with mise.
 
@@ -56,12 +56,12 @@ locally with mise.
 - [ ] `starlight-links-validator` is enabled, and the build fails on a broken
       internal link.
 - [ ] A dedicated docs workflow runs on pushes to `main` and to
-      `docs/starlight-site`. It installs tools with `jdx/mise-action`, runs
+      `docs-starlight-site`. It installs tools with `jdx/mise-action`, runs
       `docs:build`, and publishes with `actions/upload-pages-artifact` and
       `actions/deploy-pages`.
 - [ ] GitHub Pages is enabled with the source set to "GitHub Actions", and the
       `github-pages` environment allows deployments from
-      `docs/starlight-site`. This is done via the GitHub API, with the
+      `docs-starlight-site`. This is done via the GitHub API, with the
       maintainer's approval before any command is run.
 - [ ] The default `mise run` and `mise run check` are unchanged.
 - [ ] The existing MkDocs files are left in place, and the Read the Docs site
@@ -223,7 +223,7 @@ anyone visiting the old Read the Docs URL is redirected to the new site.
 
 - [ ] The docs workflow on `main` succeeds and the site is live at
       `https://logicblocks.github.io/event.store/`.
-- [ ] `docs/starlight-site` is removed from the `github-pages` environment's
+- [ ] `docs-starlight-site` is removed from the `github-pages` environment's
       deployment branch policy.
 - [ ] The Read the Docs project administrator (most likely Toby Clemson) has
       configured a redirect from eventstore.readthedocs.io to the new site.

@@ -255,9 +255,9 @@ Contributing (from CONTRIBUTING.md; Code of Conduct linked on GitHub)
 
 ### Rollout
 
-1. Work happens on the `docs/starlight-site` branch.
+1. Work happens on the `docs-starlight-site` branch.
 2. Pages is enabled, and the `github-pages` environment's deployment branch
-   policy temporarily allows `docs/starlight-site`.
+   policy temporarily allows `docs-starlight-site`.
 3. The docs workflow temporarily also runs on pushes to that branch, so the new
    site is live for comparison while Read the Docs keeps serving the old one.
 4. The final commits on the branch:

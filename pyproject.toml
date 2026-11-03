@@ -18,6 +18,10 @@ dependencies = [
     "aiologic>=0.15.0",
 ]
 
+[project.urls]
+Documentation = "https://logicblocks.github.io/event.store/"
+Repository = "https://github.com/logicblocks/event.store"
+
 [dependency-groups]
 dev = [
     "coverage>=7.12.0",

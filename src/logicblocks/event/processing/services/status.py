@@ -7,6 +7,16 @@ from .types import Service
 
 
 class StatusTrackingService[T = Any](Service[T]):
+    """Service that tracks the process status of a wrapped service.
+
+    The status is `RUNNING` while the wrapped service executes, `STOPPED`
+    once it returns or is cancelled, and `ERRORED` if it raises any other
+    exception.
+
+    Args:
+        service: The service to execute and track.
+    """
+
     def __init__(self, service: Service[T]):
         self._service = service
         self._status = ProcessStatus.INITIALISED
@@ -33,6 +43,11 @@ class StatusTrackingService[T = Any](Service[T]):
 
 
 class DelegateServiceStatusTrackingMixin(ABC):
+    """Mixin reporting the status of the service held in `_service`.
+
+    The status is `UNKNOWN` if the service does not report one.
+    """
+
     _service: Service
 
     @property

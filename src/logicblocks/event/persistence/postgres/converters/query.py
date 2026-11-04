@@ -23,6 +23,15 @@ from .types import ClauseConverter, FunctionConverter, QueryConverter
 
 
 class SearchQueryConverter(QueryConverter[genericquery.Search]):
+    """Converts a `Search` into a `SELECT` over a table.
+
+    The filters are applied, then the sort, then the paging.
+
+    Args:
+        clause_converter: The converter used for each clause of the search.
+        table_settings: The table to select from.
+    """
+
     def __init__(
         self,
         clause_converter: Converter[genericquery.Clause, QueryApplier],
@@ -53,6 +62,13 @@ class SearchQueryConverter(QueryConverter[genericquery.Search]):
 
 
 class LookupQueryConverter(QueryConverter[genericquery.Lookup]):
+    """Converts a `Lookup` into a filtered `SELECT` over a table.
+
+    Args:
+        clause_converter: The converter used for each filter of the lookup.
+        table_settings: The table to select from.
+    """
+
     def __init__(
         self,
         clause_converter: Converter[genericquery.Clause, QueryApplier],
@@ -79,6 +95,8 @@ class LookupQueryConverter(QueryConverter[genericquery.Lookup]):
 class TypeRegistryQueryConverter(
     TypeRegistryConverter[genericquery.Query, ParameterisedQuery]
 ):
+    """Converts queries using the converter registered for their type."""
+
     def register[Q: genericquery.Query](
         self, item_type: type[Q], converter: Converter[Q, ParameterisedQuery]
     ) -> Self:
@@ -88,6 +106,22 @@ class TypeRegistryQueryConverter(
 class DelegatingQueryConverter(
     Converter[genericquery.Query, ParameterisedQuery]
 ):
+    """Converts queries into parameterised SQL queries against a table.
+
+    Holds separate registries for functions, clauses and queries. The
+    registries start empty: call `with_default_converters` to register
+    converters for all built-in query types, or register custom ones.
+
+    Args:
+        table_settings: The table that queries select from.
+        function_converter: The registry of function converters. Defaults
+            to an empty registry.
+        clause_converter: The registry of clause converters. Defaults to an
+            empty registry.
+        query_converter: The registry of query converters. Defaults to an
+            empty registry.
+    """
+
     def __init__(
         self,
         table_settings: TableSettings,
@@ -113,11 +147,13 @@ class DelegatingQueryConverter(
         self._table_settings = table_settings
 
     def with_default_function_converters(self) -> Self:
+        """Register the converter for `Similarity`."""
         return self.register_function_converter(
             genericquery.Similarity, SimilarityFunctionConverter()
         )
 
     def with_default_clause_converters(self) -> Self:
+        """Register converters for the built-in clause types."""
         return (
             self.register_clause_converter(
                 genericquery.FilterClause, FilterClauseConverter()
@@ -138,6 +174,7 @@ class DelegatingQueryConverter(
         )
 
     def with_default_query_converters(self) -> Self:
+        """Register converters for `Search` and `Lookup`."""
         return self.register_query_converter(
             genericquery.Search,
             SearchQueryConverter(self._clause_converter, self._table_settings),
@@ -147,6 +184,7 @@ class DelegatingQueryConverter(
         )
 
     def with_default_converters(self):
+        """Register all built-in function, clause and query converters."""
         return (
             self.with_default_function_converters()
             .with_default_clause_converters()
@@ -174,6 +212,15 @@ class DelegatingQueryConverter(
     def apply_clause(
         self, clause: genericquery.Clause, query_builder: postgresquery.Query
     ) -> postgresquery.Query:
+        """Convert a clause and apply it to a query under construction.
+
+        Args:
+            clause: The clause to convert.
+            query_builder: The query to apply the clause to.
+
+        Returns:
+            the query with the clause applied.
+        """
         return self._clause_converter.convert(clause).apply(query_builder)
 
     def convert_query(

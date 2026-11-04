@@ -74,6 +74,13 @@ class StreamInsertDefinition[
 
 @dataclass(frozen=True)
 class QuerySettings:
+    """Settings controlling the queries issued by the Postgres adapter.
+
+    Args:
+        scan_query_page_size: The number of events fetched per query when
+            scanning. Defaults to 100.
+    """
+
     scan_query_page_size: int
 
     def __init__(self, *, scan_query_page_size: int = 100):
@@ -170,6 +177,7 @@ class CategoryStreamsLatestQueryParameters:
 
 
 def get_digest(lock_id: str) -> int:
+    """Hash a lock name into an integer key for a Postgres advisory lock."""
     return (
         int(hashlib.sha256(lock_id.encode("utf-8")).hexdigest(), 16) % 10**16
     )
@@ -615,6 +623,35 @@ async def insert_batch[
 
 
 class PostgresEventStorageAdapter(EventStorageAdapter):
+    """An event storage adapter backed by a PostgreSQL table.
+
+    Writes take transaction-scoped advisory locks according to the
+    serialisation guarantee before checking write conditions and inserting
+    events. Scans are paginated by sequence number, fetching
+    `query_settings.scan_query_page_size` events per query, so a long-running
+    scan may yield events saved after it started.
+
+    When given `ConnectionSettings`, the adapter creates and owns a
+    connection pool, which must be opened with `open` before use and closed
+    with `close` afterwards. When given a pool, the caller manages its
+    lifecycle and `open` and `close` do nothing.
+
+    Args:
+        connection_source: `ConnectionSettings` to create a pool from, or an
+            existing `AsyncConnectionPool`.
+        serialisation_guarantee: The scope within which writes are
+            serialised. Defaults to `EventSerialisationGuarantee.LOG`.
+        query_settings: Settings for the queries issued by the adapter.
+        table_settings: Settings for the events table. Defaults to a table
+            named `events`.
+        constraint_converter: Converts query constraints into query
+            appliers. Defaults to a converter supporting
+            `SequenceNumberAfterConstraint`.
+        condition_converter: Converts write conditions into enforcers.
+            Defaults to a converter supporting all built-in conditions.
+        max_insert_batch_size: Currently unused.
+    """
+
     def __init__(
         self,
         *,
@@ -659,10 +696,12 @@ class PostgresEventStorageAdapter(EventStorageAdapter):
         self.max_insert_batch_size = max_insert_batch_size
 
     async def open(self) -> None:
+        """Open the connection pool, if owned by the adapter."""
         if self._connection_pool_owner:
             await self.connection_pool.open()
 
     async def close(self) -> None:
+        """Close the connection pool, if owned by the adapter."""
         if self._connection_pool_owner:
             await self.connection_pool.close()
 

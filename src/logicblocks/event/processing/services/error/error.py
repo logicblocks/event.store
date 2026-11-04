@@ -29,6 +29,13 @@ from .retry_strategy import RetryStrategy
 
 
 class ErrorHandlingDefinition[T]:
+    """Pairs an error handler with a callback invoked before handling.
+
+    Args:
+        handler: The error handler to use.
+        callback: Called with the exception before the handler is used.
+    """
+
     def __init__(
         self,
         handler: ErrorHandler[T],
@@ -42,6 +49,8 @@ type TypeMappings[T] = Mapping[type[BaseException], ErrorHandlingDefinition[T]]
 
 
 class TypeMappingDict(TypedDict):
+    """Exception types to handle, with an optional callback."""
+
     types: Sequence[type[BaseException]]
     callback: NotRequired[Callable[[BaseException], None]]
 
@@ -282,6 +291,26 @@ def error_handler_type_mappings[T](
     continue_execution: ContinueExecutionTypeMappingValue[T] = None,
     retry_execution: RetryExecutionTypeMappingValue = None,
 ) -> TypeMappings[T]:
+    """Build type mappings for a `TypeMappingErrorHandler`.
+
+    Each argument is either a sequence of exception types, using the
+    default behaviour for that kind of handling, or a mapping produced by
+    the corresponding `*_type_mapping` function, except
+    `continue_execution`, which must be a mapping. If an exception type
+    appears under more than one argument, `retry_execution` takes
+    precedence, then `continue_execution`, `raise_exception` and finally
+    `exit_fatally`.
+
+    Args:
+        exit_fatally: Exception types that should exit the process.
+        raise_exception: Exception types that should be raised.
+        continue_execution: Exception types that should continue with a
+            value, from `continue_execution_type_mapping`.
+        retry_execution: Exception types that should be retried.
+
+    Returns:
+        the mapping from exception type to error handling definition.
+    """
     val = {
         **resolve_exit_fatally_type_mappings(exit_fatally),
         **resolve_raise_exception_type_mappings(raise_exception),
@@ -298,6 +327,17 @@ def exit_fatally_type_mapping(
     ),
     callback: Callable[[BaseException], None] | None = None,
 ) -> ExitFatallyTypeMappingDict:
+    """Build an exit fatally type mapping for `error_handler_type_mappings`.
+
+    Args:
+        types: The exception types to exit on.
+        exit_code_factory: Returns the exit code for an exception. Defaults
+            to always returning 1.
+        callback: Called with the exception before exiting.
+
+    Returns:
+        the type mapping.
+    """
     return ExitFatallyTypeMappingDict(
         types=types,
         exit_code_factory=exit_code_factory,
@@ -310,6 +350,19 @@ def raise_exception_type_mapping(
     exception_factory: Callable[[BaseException], BaseException],
     callback: Callable[[BaseException], None] | None = None,
 ) -> RaiseExceptionTypeMappingDict:
+    """Build a raise exception type mapping.
+
+    For use with `error_handler_type_mappings`.
+
+    Args:
+        types: The exception types to raise on.
+        exception_factory: Returns the exception to raise for a handled
+            exception.
+        callback: Called with the exception before raising.
+
+    Returns:
+        the type mapping.
+    """
     return RaiseExceptionTypeMappingDict(
         types=types,
         exception_factory=exception_factory,
@@ -322,6 +375,18 @@ def continue_execution_type_mapping[T](
     value_factory: Callable[[BaseException], T],
     callback: Callable[[BaseException], None] | None = None,
 ) -> ContinueExecutionTypeMappingDict[T]:
+    """Build a continue execution type mapping.
+
+    For use with `error_handler_type_mappings`.
+
+    Args:
+        types: The exception types to continue on.
+        value_factory: Returns the value to continue with for an exception.
+        callback: Called with the exception before continuing.
+
+    Returns:
+        the type mapping.
+    """
     return ContinueExecutionTypeMappingDict[T](
         types=types,
         value_factory=value_factory,
@@ -334,6 +399,19 @@ def retry_execution_type_mapping(
     callback: Callable[[BaseException], None] | None = None,
     retry_strategy: RetryStrategy | None = None,
 ) -> RetryExecutionTypeMappingDict:
+    """Build a retry execution type mapping.
+
+    For use with `error_handler_type_mappings`.
+
+    Args:
+        types: The exception types to retry on.
+        callback: Called with the exception before retrying.
+        retry_strategy: Decides how to retry for each exception. If `None`,
+            retries immediately.
+
+    Returns:
+        the type mapping.
+    """
     return RetryExecutionTypeMappingDict(
         types=types,
         callback=callback if callback is not None else lambda _: None,
@@ -342,6 +420,19 @@ def retry_execution_type_mapping(
 
 
 class TypeMappingErrorHandler[T](ErrorHandler[T]):
+    """Error handler that delegates based on the type of the exception.
+
+    The most specific mapped type in the exception's class hierarchy
+    determines the handler used. Its callback is invoked before handling.
+    Unmapped exceptions are passed to the default error handler.
+
+    Args:
+        type_mappings: Error handling definitions keyed by exception type,
+            typically built with `error_handler_type_mappings`.
+        default_error_handler: The handler for unmapped exceptions.
+            Defaults to raising them.
+    """
+
     def __init__(
         self,
         type_mappings: TypeMappings[T] = MappingProxyType({}),
@@ -366,6 +457,14 @@ class TypeMappingErrorHandler[T](ErrorHandler[T]):
 
 @warnings.deprecated("Use composition with ErrorHandlingService instead")
 class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
+    """Mixin applying error handling to a service's `_do_execute` method.
+
+    Deprecated: use composition with `ErrorHandlingService` instead.
+
+    Args:
+        error_handler: The error handler to apply.
+    """
+
     def __init__(
         self,
         error_handler: ErrorHandler[T],
@@ -383,6 +482,19 @@ class ErrorHandlingServiceMixin[T = Any](Service[T], ABC):
 
 
 class ErrorHandlingService[T = Any](Service[T]):
+    """Service that applies an error handler to a wrapped service.
+
+    Args:
+        service: The service to execute. Passing a bare callable is
+            deprecated; wrap it in a `CallableService`.
+        callable: Deprecated; use `service` instead.
+        error_handler: The error handler to apply to any exception raised.
+        sleep: The function used to wait before retrying.
+
+    Raises:
+        TypeError: If neither `service` nor `callable` is provided.
+    """
+
     def __init__(
         self,
         service: Service[T] | CallableServiceCallable[T] | None = None,
@@ -420,6 +532,24 @@ class ErrorHandlingService[T = Any](Service[T]):
         *,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> T:
+        """Run a callable, responding to any exception as the handler decides.
+
+        Retry decisions run the callable again, after waiting if required;
+        continue decisions return their value; raise decisions raise their
+        exception; and exit decisions raise `SystemExit`.
+
+        Args:
+            run: The callable to run.
+            error_handler: Decides how to respond to each exception.
+            sleep: The function used to wait before retrying.
+
+        Returns:
+            the result of the callable, or the value of a continue decision.
+
+        Raises:
+            SystemExit: If the handler decides to exit.
+            ValueError: If the handler returns an unknown decision.
+        """
         while True:
             try:
                 return await run()

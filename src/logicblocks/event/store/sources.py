@@ -13,6 +13,18 @@ class InMemoryStoredEventSource[
     I: EventSourceIdentifier,
     E: StoredEvent = StoredEvent,
 ](InMemoryEventSource[I, E]):
+    """An in-memory event source of stored events.
+
+    By default, supports the query constraints understood by the in-memory
+    storage adapter, such as `SequenceNumberAfterConstraint`.
+
+    Args:
+        events: The stored events in the source, in order.
+        identifier: The identifier of the source.
+        constraint_converter: Converts query constraints into predicates
+            over events. Defaults to the in-memory adapter's converter.
+    """
+
     def _get_default_constraint_converter(
         self,
     ) -> Converter[

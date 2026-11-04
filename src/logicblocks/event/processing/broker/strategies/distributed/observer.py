@@ -20,12 +20,29 @@ def log_event_name(event: str) -> str:
 
 
 class EventSubscriptionObserver[E: Event](Process, ABC):
+    """Applies stored subscriptions to the subscribers on this node."""
+
     @abstractmethod
     async def observe(self) -> None:
+        """Synchronise subscriptions to subscribers until cancelled."""
         raise NotImplementedError
 
 
 class DefaultEventSubscriptionObserver[E: Event](EventSubscriptionObserver[E]):
+    """Periodically synchronises stored subscriptions to local subscribers.
+
+    Args:
+        node_id: The ID of the node on which the observer runs.
+        subscriber_store: The store of this node's subscribers.
+        subscription_state_store: The shared store of subscription state.
+        event_source_factory: The factory used to construct event sources
+            from allocated identifiers.
+        subscription_difference: Calculates changes between subscription
+            snapshots.
+        logger: The logger to use.
+        synchronisation_interval: The time to wait between synchronisations.
+    """
+
     _existing_subscriptions: Sequence[EventSubscriptionState]
 
     def __init__(
@@ -75,6 +92,11 @@ class DefaultEventSubscriptionObserver[E: Event](EventSubscriptionObserver[E]):
             raise
 
     async def synchronise(self):
+        """Apply changes in subscriptions since the last synchronisation.
+
+        Revoked event sources are withdrawn before newly allocated ones are
+        accepted. Changes for subscribers not on this node are ignored.
+        """
         await self._logger.adebug(log_event_name("synchronisation.starting"))
 
         existing = self._existing_subscriptions

@@ -31,6 +31,7 @@ Usage
 
 ### Basic Example
 
+<!-- --8<-- [start:basic-example] -->
 ```python
 import asyncio
 
@@ -108,6 +109,7 @@ structlog.configure(
     wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING)
 )
 ```
+<!-- --8<-- [end:basic-example] -->
 
 ### Finalising State
 

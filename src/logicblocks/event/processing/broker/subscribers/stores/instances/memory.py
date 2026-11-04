@@ -7,6 +7,8 @@ from .base import EventSubscriberStore
 
 
 class InMemoryEventSubscriberStore[E: Event](EventSubscriberStore[E]):
+    """An event subscriber store holding subscribers in memory."""
+
     def __init__(self):
         self.subscribers: dict[EventSubscriberKey, EventSubscriber[E]] = {}
 

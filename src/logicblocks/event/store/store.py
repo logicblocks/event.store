@@ -29,8 +29,16 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
-    the entire stream can be read using the `read` method. Streams are also
-    iterable, supporting `aiter`.
+    the stream can be read using the `read` or `iterate` methods. Streams
+    are also async iterable, supporting `aiter` and `async for`.
+
+    Typically obtained via `EventStore.stream` or `EventCategory.stream`
+    rather than constructed directly.
+
+    Args:
+        adapter: The storage adapter backing the stream.
+        stream: The identifier of the stream.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -47,9 +55,16 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> StreamIdentifier:
+        """The identifier of the stream."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the stream.
+
+        Returns:
+            the event at the highest position in the stream, or `None` if
+                the stream is empty.
+        """
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -127,10 +142,11 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the stream.
+            an async iterator over the events in the stream, in position
+                order.
         """
         self._logger.debug(
             "event.stream.iterating", constraints=list(constraints)
@@ -156,8 +172,18 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
     Since a category consists of zero or more streams, the category
     can be narrowed to a specific stream using the `stream` method.
 
-    Events in the category can be read using the `read` method. Categories are
-    also async iterable, supporting `aiter` and `async for`.
+    Events in the category can be read using the `read` or `iterate`
+    methods. Categories are also async iterable, supporting `aiter` and
+    `async for`. Events can be published to multiple streams in the category
+    atomically using the `publish` method.
+
+    Typically obtained via `EventStore.category` rather than constructed
+    directly.
+
+    Args:
+        adapter: The storage adapter backing the category.
+        category: The identifier of the category.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -172,9 +198,16 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> CategoryIdentifier:
+        """The identifier of the category."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the category, across all its streams.
+
+        Returns:
+            the event with the highest sequence number in the category, or
+                `None` if the category is empty.
+        """
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -202,10 +235,11 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the category.
+            an async iterator over the events in the category, in sequence
+                number order.
         """
         self._logger.debug(
             "event.category.iterating", constraints=list(constraints)
@@ -259,6 +293,13 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     This class allows reading and iterating over all events in the log,
     without scoping to a specific category or stream.
+
+    Typically obtained via `EventStore.log` rather than constructed directly.
+
+    Args:
+        adapter: The storage adapter backing the log.
+        log: The identifier of the log.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -273,9 +314,16 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> LogIdentifier:
+        """The identifier of the log."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the log.
+
+        Returns:
+            the event with the highest sequence number in the log, or `None`
+                if the log is empty.
+        """
         await self._logger.adebug("event.log.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -286,10 +334,11 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the log.
+            an async iterator over the events in the log, in sequence number
+                order.
         """
         self._logger.debug(
             "event.log.iterating", constraints=list(constraints)
@@ -323,6 +372,11 @@ class EventStore:
     Streams and categories are each identified by a string name. The combination
     of a category name and a stream name acts as an identifier for a specific
     stream of events.
+
+    Args:
+        adapter: The storage adapter in which events are stored.
+        logger: The logger to use. Streams, categories and logs obtained
+            from the store use the same logger.
     """
 
     def __init__(
@@ -384,6 +438,9 @@ class EventStore:
 
         This method alone doesn't result in any IO, it instead returns an event
         log, as part of a fluent interface.
+
+        Returns:
+            an `EventLog` over all events in the store.
         """
         return EventLog(
             adapter=self._adapter,

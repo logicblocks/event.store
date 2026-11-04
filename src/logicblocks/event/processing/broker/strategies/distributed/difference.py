@@ -12,6 +12,8 @@ from .subscriptions import (
 
 @dataclass(frozen=True)
 class EventSubscriptionChange:
+    """The allocation or revocation of one event source for a subscriber."""
+
     group: str
     id: str
     event_source: EventSourceIdentifier
@@ -27,16 +29,31 @@ class EventSubscriptionChange:
 
 @dataclass(frozen=True)
 class EventSubscriptionChangeset:
+    """The event sources allocated and revoked between two snapshots."""
+
     allocations: Set[EventSubscriptionChange]
     revocations: Set[EventSubscriptionChange]
 
 
 class EventSubscriptionDifference:
+    """Calculates per event source changes between subscription snapshots."""
+
     @staticmethod
     def diff(
         existing: Sequence[EventSubscriptionState],
         updated: Sequence[EventSubscriptionState],
     ) -> EventSubscriptionChangeset:
+        """Calculate the event sources allocated and revoked.
+
+        Args:
+            existing: The previous subscriptions.
+            updated: The current subscriptions.
+
+        Returns:
+            the changeset, with an allocation for each event source
+                present only in `updated` and a revocation for each event
+                source present only in `existing`, per subscription.
+        """
         allocations: set[EventSubscriptionChange] = set()
         revocations: set[EventSubscriptionChange] = set()
 

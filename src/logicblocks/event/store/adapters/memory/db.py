@@ -25,6 +25,12 @@ type EventIndexDict[T] = defaultdict[T, EventPositionList]
 
 
 class InMemorySequence:
+    """Generator of consecutive integers, used for event sequence numbers.
+
+    Args:
+        initial: The first value to return.
+    """
+
     def __init__(self, initial: int = 0):
         self._value = initial
 
@@ -35,6 +41,20 @@ class InMemorySequence:
 
 
 class InMemoryEventsDB:
+    """In-memory store of events, indexed by log, category and stream.
+
+    Events are stored at the index of their sequence number. Index arguments
+    are intended for use by `snapshot`; callers normally omit them.
+
+    Args:
+        events: The initial events, indexed by sequence number.
+        log_index: Sequence numbers of all events, in insertion order.
+        category_index: Sequence numbers of events by category.
+        stream_index: Sequence numbers of events by (category, stream).
+        constraint_converter: Converts query constraints into predicates
+            used by `scan_events`.
+    """
+
     def __init__(
         self,
         *,
@@ -67,6 +87,7 @@ class InMemoryEventsDB:
         self._constraint_converter = constraint_converter
 
     def snapshot(self) -> Self:
+        """Create a copy of the database isolated from subsequent writes."""
         return self.__class__(
             events=list(self._events),
             log_index=list(self._log_index),
@@ -76,6 +97,7 @@ class InMemoryEventsDB:
         )
 
     def transaction(self) -> "InMemoryEventsDBTransaction":
+        """Start a transaction that buffers writes until committed."""
         return InMemoryEventsDBTransaction(db=self)
 
     def stream_events(
@@ -98,6 +120,7 @@ class InMemoryEventsDB:
         return stream_events[-1] if stream_events else None
 
     def last_stream_position(self, target: StreamIdentifier) -> int:
+        """Get the position of the stream's latest event, or -1 if empty."""
         last_stream_event = self.last_stream_event(target)
         return -1 if last_stream_event is None else last_stream_event.position
 
@@ -154,6 +177,15 @@ class InMemoryEventsDB:
 
 
 class InMemoryEventsDBTransaction:
+    """A buffer of writes to an `InMemoryEventsDB`, applied on commit.
+
+    Reads are delegated to the database and do not reflect uncommitted
+    events added to the transaction.
+
+    Args:
+        db: The database the transaction writes to.
+    """
+
     def __init__(self, db: InMemoryEventsDB):
         self._db = db
         self._added_events: list[StoredEvent[str, JsonValue, JsonValue]] = []

@@ -6,6 +6,15 @@ from aiologic import Lock
 
 
 class MultiLock:
+    """Async context manager that holds several locks at once.
+
+    Locks are acquired in the order given and released in reverse order.
+    Callers should supply locks in a consistent order to avoid deadlock.
+
+    Args:
+        locks: The locks to acquire.
+    """
+
     def __init__(self, locks: Sequence[Lock]):
         self._locks = list(locks)
 

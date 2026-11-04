@@ -7,6 +7,11 @@ from .types import EventConsumerStateConverter
 class StoredEventEventConsumerStateConverter(
     EventConsumerStateConverter[StoredEvent]
 ):
+    """Tracks consumption of stored events by their sequence number.
+
+    State takes the form `{"last_sequence_number": <int | None>}`.
+    """
+
     def event_to_state(self, event: StoredEvent) -> JsonObject:
         return {
             "last_sequence_number": event.sequence_number,

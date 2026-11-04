@@ -25,6 +25,25 @@ def log_event_name(event: str) -> str:
 
 
 class SingletonEventBroker[E: Event](EventBroker[E]):
+    """An event broker that allocates event sources on a single node.
+
+    While running, the broker repeatedly passes every registered subscriber
+    each of the event sources it requested, waiting for the distribution
+    interval between rounds. No coordination takes place between nodes, so
+    each subscriber receives all of its requested event sources, and
+    receives them again on every round. Sources are never withdrawn.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        event_subscriber_store: The store holding registered subscribers.
+        event_source_factory: The factory used to construct event sources
+            from the subscribers' requested identifiers.
+        error_handler: The handler for errors raised during execution.
+            Defaults to a `RetryErrorHandler`.
+        logger: The logger to use.
+        distribution_interval: The time to wait between distribution rounds.
+    """
+
     def __init__(
         self,
         node_id: str,
@@ -53,6 +72,10 @@ class SingletonEventBroker[E: Event](EventBroker[E]):
         await self._event_subscriber_store.add(subscriber)
 
     async def execute(self) -> None:
+        """Run the broker until cancelled, distributing event sources.
+
+        Errors are handled by the configured error handler.
+        """
         return await self._error_handling_service.execute()
 
     async def _do_execute(self) -> None:

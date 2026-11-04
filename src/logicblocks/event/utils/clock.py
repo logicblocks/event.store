@@ -10,8 +10,7 @@ class Clock(ABC):
         """Get the current time.
 
         Args:
-            tz: The time zone to return the time in. Defaults to `None`,
-                giving a naive local time.
+            tz: The time zone to return the time in.
 
         Returns:
             the current time.

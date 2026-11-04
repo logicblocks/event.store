@@ -23,6 +23,8 @@ class DeferredFuture[T]:
         """Return the result of the service.
 
         Raises:
+            BaseException: Any exception raised by the service.
+            asyncio.CancelledError: If the service was cancelled.
             RuntimeError: If the service has not been scheduled yet.
             asyncio.InvalidStateError: If the service has not finished.
         """

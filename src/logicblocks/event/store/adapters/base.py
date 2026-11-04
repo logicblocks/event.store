@@ -188,9 +188,9 @@ class EventStorageAdapter(ABC):
 
         Returns:
             for a stream target, the stored events in the order given; for a
-            category target, a mapping from stream name to the stored events
-            for that stream. Stored events retain the unserialised name,
-            payload and metadata of the new events.
+                category target, a mapping from stream name to the stored
+                events for that stream. Stored events retain the unserialised
+                name, payload and metadata of the new events.
 
         Raises:
             UnmetWriteConditionError: If a write condition is not met, in
@@ -211,7 +211,7 @@ class EventStorageAdapter(ABC):
 
         Returns:
             the event with the highest sequence number in the target, in
-            serialised form, or `None` if the target contains no events.
+                serialised form, or `None` if the target contains no events.
         """
         raise NotImplementedError()
 
@@ -233,6 +233,6 @@ class EventStorageAdapter(ABC):
 
         Returns:
             an async iterator over the matching events in serialised form,
-            in ascending sequence number order.
+                in ascending sequence number order.
         """
         raise NotImplementedError()

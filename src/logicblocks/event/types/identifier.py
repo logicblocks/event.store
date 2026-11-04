@@ -44,9 +44,10 @@ class PartitionIdentifier(Identifier, ABC):
 class EventSourceIdentifier(Identifier, ABC):
     """Base class for identifiers of a source of events.
 
-    Built-in subclasses are `LogIdentifier`, `CategoryIdentifier` and
-    `StreamIdentifier`. Projections record the identifier of the source
-    they were projected from.
+    Built-in subclasses are `LogIdentifier`, `LogPartitionIdentifier`,
+    `CategoryIdentifier`, `CategoryPartitionIdentifier` and
+    `StreamIdentifier`. Projections record the identifier of the source they
+    were projected from.
     """
 
     pass

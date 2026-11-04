@@ -15,21 +15,21 @@ class Operator(StrEnum):
     the right operand is the clause's value.
 
     Attributes:
-        EQUAL: The field equals the value. On Postgres, a value of `None`
-            matches a null field.
-        NOT_EQUAL: The field does not equal the value. On Postgres, a value
-            of `None` matches a non-null field.
+        EQUAL: The field equals the value. A value of `None` matches a null
+            field.
+        NOT_EQUAL: The field does not equal the value. A value of `None`
+            matches a non-null field.
         GREATER_THAN: The field is greater than the value.
         GREATER_THAN_OR_EQUAL: The field is greater than or equal to the
             value.
         LESS_THAN: The field is less than the value.
         LESS_THAN_OR_EQUAL: The field is less than or equal to the value.
         IN: The field is one of the values in the given sequence.
-        CONTAINS: The field contains the value, for example a list
-            containing an element or, on Postgres, a JSON object containing
-            the given sub-object.
+        CONTAINS: The field is a list containing the value.
         REGEX_MATCHES: The field is a string matching the regular
-            expression given as the value.
+            expression given as the value. In memory the expression must
+            match from the start of the value; on Postgres it can match
+            anywhere.
         NOT_REGEX_MATCHES: The field is a string not matching the regular
             expression given as the value.
     """
@@ -124,10 +124,9 @@ class KeySetPagingClause(PagingClause):
     """Page through results relative to a known record.
 
     Key-set paging identifies a page by the ID of a record at its boundary
-    rather than by position, so pages remain consistent while records are
-    added or removed. Records are ordered by any sort clause in the query;
-    the Postgres implementation additionally orders by ID to break ties and,
-    when there is no sort clause, orders by ID alone.
+    rather than by position. Records are ordered by any sort clause in the
+    query; the Postgres implementation additionally orders by ID to break
+    ties and, when there is no sort clause, orders by ID alone.
 
     With no `last_id`, the first `item_count` records are returned. With a
     `last_id` and forwards direction, up to `item_count` records

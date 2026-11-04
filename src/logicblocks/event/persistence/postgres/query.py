@@ -900,9 +900,6 @@ class Query:
 
         Returns:
             the SQL query and the parameters to bind into it, in order.
-
-        Raises:
-            ValueError: If the query is empty.
         """
         fragment, params = self.to_fragment()
 

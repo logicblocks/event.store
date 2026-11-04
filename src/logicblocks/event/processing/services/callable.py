@@ -34,7 +34,7 @@ class CallableService[T = Any](Service[T]):
 
         Returns:
             the service if one was given, otherwise a `CallableService`
-            wrapping the callable.
+                wrapping the callable.
         """
         if isinstance(service_or_callable, Service):
             return service_or_callable

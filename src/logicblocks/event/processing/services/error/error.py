@@ -295,14 +295,17 @@ def error_handler_type_mappings[T](
 
     Each argument is either a sequence of exception types, using the
     default behaviour for that kind of handling, or a mapping produced by
-    the corresponding `*_type_mapping` function. If an exception type
-    appears under more than one kind of handling, the later argument wins.
+    the corresponding `*_type_mapping` function, except
+    `continue_execution`, which must be a mapping. If an exception type
+    appears under more than one argument, `retry_execution` takes
+    precedence, then `continue_execution`, `raise_exception` and finally
+    `exit_fatally`.
 
     Args:
         exit_fatally: Exception types that should exit the process.
         raise_exception: Exception types that should be raised.
         continue_execution: Exception types that should continue with a
-            value.
+            value, from `continue_execution_type_mapping`.
         retry_execution: Exception types that should be retried.
 
     Returns:
@@ -347,8 +350,9 @@ def raise_exception_type_mapping(
     exception_factory: Callable[[BaseException], BaseException],
     callback: Callable[[BaseException], None] | None = None,
 ) -> RaiseExceptionTypeMappingDict:
-    """Build a raise exception type mapping for
-    `error_handler_type_mappings`.
+    """Build a raise exception type mapping.
+
+    For use with `error_handler_type_mappings`.
 
     Args:
         types: The exception types to raise on.
@@ -371,8 +375,9 @@ def continue_execution_type_mapping[T](
     value_factory: Callable[[BaseException], T],
     callback: Callable[[BaseException], None] | None = None,
 ) -> ContinueExecutionTypeMappingDict[T]:
-    """Build a continue execution type mapping for
-    `error_handler_type_mappings`.
+    """Build a continue execution type mapping.
+
+    For use with `error_handler_type_mappings`.
 
     Args:
         types: The exception types to continue on.
@@ -394,8 +399,9 @@ def retry_execution_type_mapping(
     callback: Callable[[BaseException], None] | None = None,
     retry_strategy: RetryStrategy | None = None,
 ) -> RetryExecutionTypeMappingDict:
-    """Build a retry execution type mapping for
-    `error_handler_type_mappings`.
+    """Build a retry execution type mapping.
+
+    For use with `error_handler_type_mappings`.
 
     Args:
         types: The exception types to retry on.

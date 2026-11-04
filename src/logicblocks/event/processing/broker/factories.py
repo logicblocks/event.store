@@ -28,8 +28,8 @@ class EventBrokerType(ABC):
     """Marker types selecting the broker strategy for `make_event_broker`.
 
     Attributes:
-        Singleton: Selects a broker that allocates every requested event
-            source to every registered subscriber on the local node.
+        Singleton: Selects a broker that passes each registered subscriber
+            on the local node the event sources it requested.
         Distributed: Selects a broker that coordinates across nodes,
             sharing the requested event sources between the subscribers in
             each subscriber group.
@@ -58,8 +58,8 @@ class EventBrokerStorageType(ABC):
     Attributes:
         InMemory: Selects in-memory storage, suitable for tests and single
             process deployments.
-        Postgres: Selects PostgreSQL storage, required for coordination
-            between multiple nodes.
+        Postgres: Selects PostgreSQL storage, required by the distributed
+            strategy to coordinate between nodes.
     """
 
     InMemory: "type[_InMemoryEventBrokerStorageType]"
@@ -172,7 +172,7 @@ def make_event_broker(
       `PostgresEventStorageAdapter` using `connection_pool`.
 
     All combinations optionally accept an `error_handler`, defaulting to a
-    `RetryErrorHandler`.
+    `RetryErrorHandler` that retries immediately and indefinitely.
 
     Args:
         node_id: The ID of the node on which the broker runs.

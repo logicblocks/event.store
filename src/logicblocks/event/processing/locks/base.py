@@ -56,7 +56,7 @@ class LockManager(ABC):
                 indefinitely.
 
         Yields:
-            the lock, with `timed_out` set to `True` if the timeout elapsed
-            before the lock was acquired.
+            the lock, with `timed_out` set to `True` if the timeout
+                elapsed before the lock was acquired.
         """
         raise NotImplementedError()

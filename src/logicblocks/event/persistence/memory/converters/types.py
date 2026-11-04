@@ -113,7 +113,7 @@ class Result[T: Identifiable]:
 
         Returns:
             the value at the path in the computed values if present,
-            otherwise the value at the path in the record.
+                otherwise the value at the path in the record.
 
         Raises:
             ValueError: If the path cannot be resolved in either.

@@ -99,9 +99,7 @@ class EventConsumerStateStore[E: Event]:
     """Records and persists event consumer state in an event category.
 
     State is held in memory per partition and persisted as `state-changed`
-    events in the stream named after the partition. Writes are guarded by a
-    position condition, so concurrent writers to the same partition fail
-    rather than overwrite each other.
+    events in the stream named after the partition.
 
     Args:
         category: The category in which to store consumer state.
@@ -168,9 +166,7 @@ class EventConsumerStateStore[E: Event]:
     ):
         """Reset a partition's state to the converter's initial state.
 
-        The state is held in memory until saved. As the persistence lag is
-        also reset, a subsequent save will not persist the reset state
-        unless further events are recorded.
+        The reset state is held in memory only and is never saved.
 
         Args:
             extra_state: Additional state to merge into the initial state.
@@ -289,8 +285,9 @@ class EventConsumerStateStore[E: Event]:
             partition: The partition to load.
 
         Returns:
-            a constraint selecting events after those already processed, or
-            `None` if there is no state or all events should be consumed.
+            a constraint selecting events after those already processed,
+                or `None` if there is no state or all events should be
+                consumed.
         """
         state = await self.load(partition=partition)
         if state is None:

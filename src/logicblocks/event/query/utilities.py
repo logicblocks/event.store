@@ -12,7 +12,7 @@ class Path:
 
     Args:
         top_level: The name of the top-level attribute.
-        *sub_levels: The keys or indices into the nested value.
+        *sub_levels: The keys into the nested value.
     """
 
     top_level: str

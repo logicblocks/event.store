@@ -50,9 +50,9 @@ class EventSubscriptionDifference:
             updated: The current subscriptions.
 
         Returns:
-            the changeset, with an allocation for each event source present
-            only in `updated` and a revocation for each event source present
-            only in `existing`, per subscription.
+            the changeset, with an allocation for each event source
+                present only in `updated` and a revocation for each event
+                source present only in `existing`, per subscription.
         """
         allocations: set[EventSubscriptionChange] = set()
         revocations: set[EventSubscriptionChange] = set()

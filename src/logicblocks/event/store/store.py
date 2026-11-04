@@ -63,7 +63,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
         Returns:
             the event at the highest position in the stream, or `None` if
-            the stream is empty.
+                the stream is empty.
         """
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
@@ -146,7 +146,7 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
         Returns:
             an async iterator over the events in the stream, in position
-            order.
+                order.
         """
         self._logger.debug(
             "event.stream.iterating", constraints=list(constraints)
@@ -206,7 +206,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
         Returns:
             the event with the highest sequence number in the category, or
-            `None` if the category is empty.
+                `None` if the category is empty.
         """
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
@@ -239,7 +239,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
         Returns:
             an async iterator over the events in the category, in sequence
-            number order.
+                number order.
         """
         self._logger.debug(
             "event.category.iterating", constraints=list(constraints)
@@ -322,7 +322,7 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
         Returns:
             the event with the highest sequence number in the log, or `None`
-            if the log is empty.
+                if the log is empty.
         """
         await self._logger.adebug("event.log.reading-latest")
         return await self._adapter.latest(target=self._identifier)
@@ -338,7 +338,7 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
         Returns:
             an async iterator over the events in the log, in sequence number
-            order.
+                order.
         """
         self._logger.debug(
             "event.log.iterating", constraints=list(constraints)

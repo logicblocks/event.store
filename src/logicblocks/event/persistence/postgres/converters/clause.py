@@ -626,11 +626,9 @@ class KeySetPagingClauseQueryApplier(QueryApplier):
     """Limits a query to a key-set page.
 
     The query's existing sort is extended with `id` as a tie-breaker, or
-    `id` alone if there is none. For subsequent pages, the sort values of
-    the record with `last_id` are looked up in a common table expression
-    named `last` and compared against using row comparisons, or, for mixed
-    sort directions, a union of per-column comparisons. Backwards pages
-    are selected in reverse order and then re-sorted.
+    `id` alone if there is none. Subsequent pages select the records that
+    sort after, or when paging backwards before, the record with `last_id`,
+    and are always returned in sort order.
 
     Args:
         clause: The paging clause to apply.

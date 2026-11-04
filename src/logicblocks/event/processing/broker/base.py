@@ -23,7 +23,8 @@ class EventBroker[E: Event](Service[NoneType], Process, ABC):
     async def register(self, subscriber: EventSubscriber[E]) -> None:
         """Register a subscriber to receive event sources from the broker.
 
-        Subscribers should be registered before the broker is executed.
+        Subscribers must be registered before the broker is executed, as
+        the distributed broker never allocates sources to later ones.
 
         Args:
             subscriber: The subscriber to register.

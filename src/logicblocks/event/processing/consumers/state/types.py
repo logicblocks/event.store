@@ -36,7 +36,7 @@ class EventConsumerStateConverter[E: Event](ABC):
             state: The consumer state to convert.
 
         Returns:
-            a constraint selecting events after those already processed, or
-            `None` if all events should be consumed.
+            a constraint selecting events after those already processed,
+                or `None` if all events should be consumed.
         """
         raise NotImplementedError()

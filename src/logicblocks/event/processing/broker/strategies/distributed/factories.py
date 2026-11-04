@@ -34,8 +34,8 @@ class InMemoryDistributedEventBrokerBuilder(
 ):
     """Builder for distributed event brokers with in-memory state.
 
-    Locks and subscriber and subscription state are held in memory, so
-    coordination is limited to a single process.
+    Locks and subscriber and subscription state are held in memory by each
+    built broker, so it does not coordinate with any other broker.
     """
 
     def dependencies(

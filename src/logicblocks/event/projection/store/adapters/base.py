@@ -102,6 +102,9 @@ class ProjectionStorageAdapter[
     async def count(self, *, search: CollectionQuery) -> int:
         """Count the projections matching a query.
 
+        Any paging in the query is applied too, so a paged query counts only
+        that page.
+
         Args:
             search: The query to match.
 

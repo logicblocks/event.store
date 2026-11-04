@@ -38,7 +38,7 @@ class MissingHandlerBehaviour(StrEnum):
 
     Attributes:
         RAISE: Raise a `MissingProjectionHandlerError`.
-        IGNORE: Skip the event, leaving the state unchanged.
+        IGNORE: Leave the state unchanged.
     """
 
     RAISE = "raise"
@@ -195,7 +195,7 @@ class Projector[
                 of `initial_state_factory`.
 
         Returns:
-            the new state, or the given state unchanged if there is no
+            the new state, or the state unchanged if there is no
                 handler and `missing_handler_behaviour` is `IGNORE`.
 
         Raises:

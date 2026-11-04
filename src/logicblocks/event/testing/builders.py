@@ -361,7 +361,7 @@ class BaseProjectionBuilder[
     State = JsonValue,
     Metadata = JsonValue,
 ](ABC):
-    """Base class for immutable builders of `Projection` instances for tests.
+    """Base class for builders of `Projection` instances for tests.
 
     Subclasses implement `default_state_factory` and
     `default_metadata_factory` to supply the state and metadata used when

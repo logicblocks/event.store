@@ -26,6 +26,8 @@ from .types import (
 class ExecutableManagedServiceState[T](
     ManagedServiceState[T], ServiceDefinition[T]
 ):
+    """Registration of a service with a `ServiceManager`."""
+
     def __init__(
         self,
         service: Service[T],
@@ -99,6 +101,8 @@ class ExecutableManagedServiceState[T](
 
 
 class ServiceExecutor(ABC):
+    """Base class for executors that run services."""
+
     @abstractmethod
     async def start(self) -> Self:
         raise NotImplementedError
@@ -115,6 +119,8 @@ class ServiceExecutor(ABC):
 
 
 class MainThreadServiceExecutor(ServiceExecutor):
+    """Runs services as tasks on the current event loop."""
+
     def __init__(self):
         self.service_tasks: set[Task[Any]] = set()
 
@@ -143,6 +149,8 @@ class MainThreadServiceExecutor(ServiceExecutor):
 
 
 class IsolatedThreadServiceExecutor(ServiceExecutor):
+    """Runs services on an event loop in a separate thread."""
+
     def __init__(self):
         self._loop = uvloop.new_event_loop()
         self._thread = threading.Thread(target=self._start_event_loop)
@@ -192,6 +200,8 @@ class IsolatedThreadServiceExecutor(ServiceExecutor):
 
 
 class IsolationModeAwareServiceExecutor(ServiceExecutor):
+    """Routes each service to an executor based on its isolation mode."""
+
     def __init__(self):
         self._main_executor = MainThreadServiceExecutor()
         self._shared_executor = IsolatedThreadServiceExecutor()
@@ -234,6 +244,14 @@ class IsolationModeAwareServiceExecutor(ServiceExecutor):
 
 
 class ServiceManager:
+    """Registers, starts and stops a collection of services.
+
+    Services are registered with an execution mode and an isolation mode,
+    and are all scheduled when the manager starts. The manager can be used
+    as an asynchronous context manager, starting on entry and stopping on
+    exit.
+    """
+
     def __init__(self):
         self._service_states: dict[
             str, ExecutableManagedServiceState[Any]
@@ -243,9 +261,15 @@ class ServiceManager:
 
     @property
     def services(self) -> Mapping[str, ManagedServiceState[Any]]:
+        """The state of each registered service, keyed by name."""
         return dict(self._service_states)
 
     def service(self, name: str) -> ManagedServiceState[Any] | None:
+        """Return the state of the named service, or `None` if not found.
+
+        Args:
+            name: The name of the service.
+        """
         return self._service_states.get(name)
 
     def _generate_default_service_name(self, service: Service[Any]) -> str:
@@ -259,6 +283,24 @@ class ServiceManager:
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         isolation_mode: IsolationMode = IsolationMode.MAIN_THREAD,
     ) -> Self:
+        """Register a service to be run when the manager starts.
+
+        Args:
+            service: The service to register.
+            name: The unique name of the service. Defaults to a random
+                identifier.
+            execution_mode: Whether `start` waits for the service to
+                finish.
+            isolation_mode: Which thread and event loop to run the service
+                on.
+
+        Returns:
+            this manager, for chaining.
+
+        Raises:
+            ValueError: If a service with the same name is already
+                registered.
+        """
         name = name or self._generate_default_service_name(service)
 
         if name in self._service_states:
@@ -276,6 +318,17 @@ class ServiceManager:
         return self
 
     def stop_on(self, signals: Sequence[int]) -> Self:
+        """Stop the manager when any of the given signals is received.
+
+        Signal handlers are installed on the event loop when the manager
+        starts.
+
+        Args:
+            signals: The signal numbers to stop on.
+
+        Returns:
+            this manager, for chaining.
+        """
         self._stop_on_signals = [*self._stop_on_signals, *signals]
         return self
 
@@ -299,6 +352,15 @@ class ServiceManager:
         return fut
 
     async def start(self) -> Self:
+        """Start all registered services.
+
+        Waits until all `FOREGROUND` services have finished; exceptions they
+        raise are not propagated but are available via each service's
+        future. `BACKGROUND` services continue running after this returns.
+
+        Returns:
+            this manager.
+        """
         loop = asyncio.get_event_loop()
         for sig in self._stop_on_signals:
             loop.add_signal_handler(
@@ -324,5 +386,10 @@ class ServiceManager:
         return self
 
     async def stop(self) -> Self:
+        """Cancel all running services and shut down their threads.
+
+        Returns:
+            this manager.
+        """
         await self._service_executor.stop()
         return self

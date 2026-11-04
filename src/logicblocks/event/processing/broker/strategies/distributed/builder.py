@@ -23,6 +23,28 @@ from .subscriptions import EventSubscriptionStateStore
 
 @dataclass(frozen=True)
 class DistributedEventBrokerSettings:
+    """Settings for a distributed event broker.
+
+    Attributes:
+        subscriber_manager_heartbeat_interval: How often heartbeats are sent
+            for this node's healthy subscribers.
+        subscriber_manager_purge_interval: How often subscribers not seen
+            recently are purged from shared state.
+        subscriber_manager_subscriber_max_age: How long since last seen
+            before a subscriber is purged.
+        coordinator_subscriber_max_time_since_last_seen: How long since last
+            seen before the coordinator stops allocating event sources to a
+            subscriber.
+        coordinator_distribution_interval: How often the leader
+            redistributes event sources.
+        coordinator_leadership_max_duration: The maximum time a node holds
+            leadership before releasing it.
+        coordinator_leadership_attempt_interval: How often a node that is
+            not leader attempts to acquire leadership.
+        observer_synchronisation_interval: How often allocations are
+            synchronised to this node's subscribers.
+    """
+
     subscriber_manager_heartbeat_interval: timedelta = timedelta(seconds=10)
     subscriber_manager_purge_interval: timedelta = timedelta(minutes=1)
     subscriber_manager_subscriber_max_age: timedelta = timedelta(minutes=10)
@@ -36,6 +58,8 @@ class DistributedEventBrokerSettings:
 
 
 class DistributedEventBrokerDependencies(TypedDict):
+    """The storage dependent dependencies of a distributed event broker."""
+
     lock_manager: LockManager
     event_source_factory: EventStoreEventSourceFactory
     event_subscriber_state_store: EventSubscriberStateStore
@@ -43,6 +67,15 @@ class DistributedEventBrokerDependencies(TypedDict):
 
 
 class DistributedEventBrokerBuilder[**P = ...](ABC):
+    """Base builder for distributed event brokers.
+
+    Subclasses provide the storage dependent dependencies via
+    `dependencies`; `prepare` must be called before `build`.
+
+    Args:
+        node_id: The ID of the node on which the broker will run.
+    """
+
     node_id: str
 
     event_subscriber_state_store: EventSubscriberStateStore
@@ -57,9 +90,15 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
     def dependencies(
         self, *args: P.args, **kwargs: P.kwargs
     ) -> DistributedEventBrokerDependencies:
+        """Create the dependencies for the broker from the given arguments."""
         pass
 
     def prepare(self, *args: P.args, **kwargs: P.kwargs) -> Self:
+        """Resolve and store the broker's dependencies.
+
+        Returns:
+            this builder, for chaining.
+        """
         prepare = self.dependencies(*args, **kwargs)
         self.lock_manager = prepare["lock_manager"]
         self.event_source_factory = prepare["event_source_factory"]
@@ -77,6 +116,15 @@ class DistributedEventBrokerBuilder[**P = ...](ABC):
         settings: DistributedEventBrokerSettings,
         error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
     ) -> EventBroker[StoredEvent]:
+        """Build a distributed event broker from the prepared dependencies.
+
+        Args:
+            settings: The settings for the broker.
+            error_handler: The handler for errors raised during execution.
+
+        Returns:
+            the constructed event broker.
+        """
         event_subscriber_store = InMemoryEventSubscriberStore[StoredEvent]()
 
         event_subscriber_manager = DefaultEventSubscriberManager(

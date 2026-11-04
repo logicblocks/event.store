@@ -33,6 +33,12 @@ from ...exceptions import UnmetWriteConditionError
 
 
 class SequenceNumberAfterConstraintQueryApplier(QueryApplier):
+    """Restricts a query to events after a sequence number.
+
+    Args:
+        sequence_number: The exclusive lower bound on sequence number.
+    """
+
     def __init__(self, sequence_number: int):
         self.sequence_number = sequence_number
 
@@ -57,6 +63,12 @@ class SequenceNumberAfterConstraintConverter(
 class TypeRegistryConstraintConverter(
     TypeRegistryConverter[constraints.QueryConstraint, QueryApplier]
 ):
+    """Converts query constraints into Postgres query appliers by type.
+
+    Register a converter for each supported constraint type, or call
+    `with_default_constraint_converters` to register the built-in ones.
+    """
+
     def register[QC: constraints.QueryConstraint](
         self,
         item_type: type[QC],
@@ -65,6 +77,11 @@ class TypeRegistryConstraintConverter(
         return super()._register(item_type, converter)
 
     def with_default_constraint_converters(self) -> Self:
+        """Register converters for the built-in query constraints.
+
+        Returns:
+            this converter, to allow chaining.
+        """
         return self.register(
             constraints.SequenceNumberAfterConstraint,
             SequenceNumberAfterConstraintConverter(),
@@ -72,6 +89,13 @@ class TypeRegistryConstraintConverter(
 
 
 class WriteConditionEnforcerContext:
+    """The state of a stream against which a write condition is checked.
+
+    Args:
+        identifier: The identifier of the stream being written to.
+        latest_event: The latest event in the stream, or `None` if empty.
+    """
+
     def __init__(
         self,
         identifier: StreamIdentifier,
@@ -82,30 +106,24 @@ class WriteConditionEnforcerContext:
 
 
 class WriteConditionEnforcer(ABC):
+    """Checks a write condition against a stream in the Postgres adapter."""
+
     @abstractmethod
     async def assert_satisfied(
         self,
         context: WriteConditionEnforcerContext,
         connection: AsyncConnection,
     ) -> None:
-        """Throw an UnmetWriteConditionError if the WriteCondition
-        represented/encapsulated by this WriteConditionEnforcer is not
-        satisfied.
+        """Raise if the write condition this enforcer represents is unmet.
 
         Args:
-            context: The context of the stream, against which the WriteCondition
-            will be checked. This includes the stream identifier and the latest
-            event in the stream, if any.
-            connection: The connection to the database, which will be the same
-            instance used for inserting events, such that transactionality can
-            be maintained.
+            context: The state of the stream against which the condition is
+                checked: its identifier and latest event, if any.
+            connection: The database connection that will be used to insert
+                the events, so that checks and writes are transactional.
 
         Raises:
-            UnmetWriteConditionError: If the corresponding WriteCondition is
-            not satisfied.
-
-        Returns:
-            None: If the corresponding WriteCondition is satisfied.
+            UnmetWriteConditionError: If the condition is not met.
         """
         raise NotImplementedError
 
@@ -234,6 +252,12 @@ class OrConditionConverter(Converter[OrCondition, WriteConditionEnforcer]):
 class TypeRegistryConditionConverter(
     TypeRegistryConverter[WriteCondition, WriteConditionEnforcer]
 ):
+    """Converts write conditions into Postgres enforcers by type.
+
+    Register a converter for each supported condition type, or call
+    `with_default_condition_converters` to register the built-in ones.
+    """
+
     def register[WC: WriteCondition](
         self,
         item_type: type[WC],
@@ -242,6 +266,14 @@ class TypeRegistryConditionConverter(
         return super()._register(item_type, converter)
 
     def with_default_condition_converters(self) -> Self:
+        """Register converters for the built-in write conditions.
+
+        The `AndCondition` and `OrCondition` converters use this converter to
+        convert their constituent conditions.
+
+        Returns:
+            this converter, to allow chaining.
+        """
         return (
             self.register(NoCondition, NoConditionConverter())
             .register(PositionIsCondition, PositionIsConditionConverter())

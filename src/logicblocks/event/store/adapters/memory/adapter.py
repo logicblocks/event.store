@@ -50,6 +50,25 @@ from .locks import MultiLock
 
 
 class InMemoryEventStorageAdapter(EventStorageAdapter):
+    """An event storage adapter that holds events in process memory.
+
+    Intended for tests and local development: events are lost when the
+    adapter is discarded and are not shared between processes. Behaviour
+    otherwise mirrors the Postgres adapter, including write locking
+    according to the serialisation guarantee. Reads operate on a snapshot of
+    the events taken when the read starts, so events saved during a scan are
+    not yielded by it.
+
+    Args:
+        serialisation_guarantee: The scope within which writes are
+            serialised. Defaults to `EventSerialisationGuarantee.LOG`.
+        constraint_converter: Converts query constraints into predicates
+            over events. Defaults to a converter supporting
+            `SequenceNumberAfterConstraint`.
+        condition_converter: Converts write conditions into enforcers.
+            Defaults to a converter supporting all built-in conditions.
+    """
+
     def __init__(
         self,
         *,

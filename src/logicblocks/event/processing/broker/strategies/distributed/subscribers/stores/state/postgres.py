@@ -117,6 +117,18 @@ def purge_query(
 
 
 class PostgresEventSubscriberStateStore(EventSubscriberStateStore):
+    """An event subscriber state store persisting state in Postgres.
+
+    Args:
+        node_id: The ID of the node recorded against added subscribers.
+        connection_source: The connection pool, or connection settings from
+            which to create one.
+        clock: The clock used to timestamp subscribers.
+        table_settings: The settings of the table holding subscriber state.
+        query_converter: The converter used to build list queries. Defaults
+            to one with the default clause and query converters.
+    """
+
     def __init__(
         self,
         *,

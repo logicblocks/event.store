@@ -18,6 +18,31 @@ from .subscribers import EventSubscriberManager
 
 
 class DistributedEventBroker[E: Event](EventBroker[E]):
+    """An event broker that coordinates event source allocation across nodes.
+
+    While running, the broker concurrently:
+
+    - maintains the registration of this node's subscribers in shared
+      state, sending heartbeats for healthy subscribers and purging stale
+      ones, via the subscriber manager;
+    - competes for leadership and, while leader, distributes the event
+      sources requested by each subscriber group across the live
+      subscribers in that group, via the subscription coordinator;
+    - applies the resulting allocations to this node's subscribers, calling
+      `accept` and `withdraw` as they change, via the subscription observer.
+
+    Subscribers are unregistered from shared state when execution ends.
+
+    Args:
+        event_subscriber_manager: Manages this node's subscribers.
+        event_subscription_coordinator: Allocates event sources to
+            subscribers when this node is leader.
+        event_subscription_observer: Applies allocations to this node's
+            subscribers.
+        error_handler: The handler for errors raised during execution.
+            Defaults to a `RetryErrorHandler`.
+    """
+
     def __init__(
         self,
         event_subscriber_manager: EventSubscriberManager[E],
@@ -35,6 +60,7 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
 
     @property
     def status(self) -> ProcessStatus:
+        """The combined status of the coordinator and observer."""
         return determine_multi_process_status(
             self._event_subscription_coordinator.status,
             self._event_subscription_observer.status,
@@ -44,6 +70,10 @@ class DistributedEventBroker[E: Event](EventBroker[E]):
         await self._event_subscriber_manager.add(subscriber)
 
     async def execute(self) -> None:
+        """Run the broker until cancelled.
+
+        Errors are handled by the configured error handler.
+        """
         return await self._error_handling_service.execute()
 
     async def _do_execute(self) -> None:

@@ -44,6 +44,21 @@ class NewEventBuilderParams[
 
 @dataclass(frozen=True)
 class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
+    """Immutable builder of `NewEvent` instances for tests.
+
+    Each `with_*` method returns a new builder with that field replaced.
+    Fields that are not provided default to random values, except the
+    timestamps, which default to `None` so that `NewEvent` assigns them on
+    `build`.
+
+    Args:
+        name: The event name. Defaults to a random name.
+        payload: The event payload. Defaults to a random mapping.
+        metadata: The event metadata. Defaults to a random mapping.
+        occurred_at: When the event occurred.
+        observed_at: When the event was observed.
+    """
+
     name: Name
     payload: Payload
     metadata: Metadata
@@ -92,21 +107,27 @@ class NewEventBuilder[Name = str, Payload = JsonValue, Metadata = JsonValue]:
         )
 
     def with_name(self, name: Name):
+        """Return a copy of the builder with the given name."""
         return self._clone(name=name)
 
     def with_payload(self, payload: Payload):
+        """Return a copy of the builder with the given payload."""
         return self._clone(payload=payload)
 
     def with_metadata(self, metadata: Metadata):
+        """Return a copy of the builder with the given metadata."""
         return self._clone(metadata=metadata)
 
     def with_occurred_at(self, occurred_at: datetime | None):
+        """Return a copy of the builder with the given occurrence time."""
         return self._clone(occurred_at=occurred_at)
 
     def with_observed_at(self, observed_at: datetime | None):
+        """Return a copy of the builder with the given observation time."""
         return self._clone(observed_at=observed_at)
 
     def build(self):
+        """Build a `NewEvent` from the builder's fields."""
         return NewEvent[Name, Payload, Metadata](
             name=self.name,
             payload=self.payload,
@@ -139,6 +160,27 @@ class StoredEventBuilder[
     Payload = JsonValue,
     Metadata = JsonValue,
 ]:
+    """Immutable builder of `StoredEvent` instances for tests.
+
+    Each `with_*` method returns a new builder with that field replaced.
+    Fields that are not provided default to random values, except the
+    timestamps: `observed_at` defaults to the current time from `clock`, in
+    UTC, and `occurred_at` defaults to `observed_at`.
+
+    Args:
+        id: The event id. Defaults to a random UUID.
+        name: The event name. Defaults to a random name.
+        stream: The stream name. Defaults to a random name.
+        category: The category name. Defaults to a random name.
+        position: The position in the stream. Defaults to a random number.
+        sequence_number: The sequence number. Defaults to a random number.
+        payload: The event payload. Defaults to a random mapping.
+        metadata: The event metadata. Defaults to a random mapping.
+        occurred_at: When the event occurred.
+        observed_at: When the event was observed.
+        clock: The clock used to default `observed_at`.
+    """
+
     id: str
     name: Name
     stream: str
@@ -232,6 +274,14 @@ class StoredEventBuilder[
         )
 
     def from_new_event(self, event: NewEvent[Name, Payload, Metadata]):
+        """Return a copy of the builder with fields taken from a new event.
+
+        Copies the name, payload, metadata and timestamps, leaving the id,
+        stream, category, position and sequence number unchanged.
+
+        Args:
+            event: The new event to copy fields from.
+        """
         return self._clone(
             name=event.name,
             payload=event.payload,
@@ -241,36 +291,47 @@ class StoredEventBuilder[
         )
 
     def with_id(self, id: str):
+        """Return a copy of the builder with the given id."""
         return self._clone(id=id)
 
     def with_name(self, name: Name):
+        """Return a copy of the builder with the given name."""
         return self._clone(name=name)
 
     def with_stream(self, stream: str):
+        """Return a copy of the builder with the given stream name."""
         return self._clone(stream=stream)
 
     def with_category(self, category: str):
+        """Return a copy of the builder with the given category name."""
         return self._clone(category=category)
 
     def with_position(self, position: int):
+        """Return a copy of the builder with the given stream position."""
         return self._clone(position=position)
 
     def with_sequence_number(self, sequence_number: int):
+        """Return a copy of the builder with the given sequence number."""
         return self._clone(sequence_number=sequence_number)
 
     def with_payload(self, payload: Payload):
+        """Return a copy of the builder with the given payload."""
         return self._clone(payload=payload)
 
     def with_metadata(self, metadata: Metadata):
+        """Return a copy of the builder with the given metadata."""
         return self._clone(metadata=metadata)
 
     def with_occurred_at(self, occurred_at: datetime | None):
+        """Return a copy of the builder with the given occurrence time."""
         return self._clone(occurred_at=occurred_at)
 
     def with_observed_at(self, observed_at: datetime | None):
+        """Return a copy of the builder with the given observation time."""
         return self._clone(observed_at=observed_at)
 
     def build(self):
+        """Build a `StoredEvent` from the builder's fields."""
         return StoredEvent[Name, Payload, Metadata](
             id=self.id,
             name=self.name,
@@ -300,6 +361,28 @@ class BaseProjectionBuilder[
     State = JsonValue,
     Metadata = JsonValue,
 ](ABC):
+    """Base class for immutable builders of `Projection` instances for tests.
+
+    Subclasses implement `default_state_factory` and
+    `default_metadata_factory` to supply the state and metadata used when
+    none is given. Each `with_*` method returns a new builder, of the same
+    class, with that field replaced.
+
+    Type Parameters:
+        State: The type of the projection state.
+        Metadata: The type of the projection metadata.
+
+    Args:
+        id: The projection id. Defaults to a random UUID.
+        name: The projection name. Defaults to a random name.
+        source: The source identifier. Defaults to a `StreamIdentifier`
+            with random category and stream names.
+        state: The projection state. Defaults to the result of
+            `default_state_factory`.
+        metadata: The projection metadata. Defaults to the result of
+            `default_metadata_factory`.
+    """
+
     id: str
     name: str
     source: Projectable
@@ -348,10 +431,20 @@ class BaseProjectionBuilder[
 
     @abstractmethod
     def default_state_factory(self) -> State:
+        """Create the state to use when none is given.
+
+        Returns:
+            the default projection state.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def default_metadata_factory(self) -> Metadata:
+        """Create the metadata to use when none is given.
+
+        Returns:
+            the default projection metadata.
+        """
         raise NotImplementedError
 
     def _clone(
@@ -372,21 +465,31 @@ class BaseProjectionBuilder[
         )
 
     def with_id(self, id: str) -> Self:
+        """Return a copy of the builder with the given id."""
         return self._clone(id=id)
 
     def with_name(self, name: str) -> Self:
+        """Return a copy of the builder with the given name."""
         return self._clone(name=name)
 
     def with_source(self, source: Projectable) -> Self:
+        """Return a copy of the builder with the given source."""
         return self._clone(source=source)
 
     def with_state(self, state: State) -> Self:
+        """Return a copy of the builder with the given state."""
         return self._clone(state=state)
 
     def with_metadata(self, metadata: Metadata) -> Self:
+        """Return a copy of the builder with the given metadata."""
         return self._clone(metadata=metadata)
 
     def build(self) -> Projection[State, Metadata]:
+        """Build the projection.
+
+        Returns:
+            a `Projection` with the builder's fields.
+        """
         return Projection[State, Metadata](
             id=self.id,
             name=self.name,
@@ -399,8 +502,15 @@ class BaseProjectionBuilder[
 class MappingProjectionBuilder(
     BaseProjectionBuilder[Mapping[str, Any], Mapping[str, Any]]
 ):
+    """Projection builder whose state and metadata are mappings.
+
+    State and metadata default to random string-to-string mappings.
+    """
+
     def default_state_factory(self) -> Mapping[str, Any]:
+        """Create a random string-to-string mapping."""
         return random_projection_state()
 
     def default_metadata_factory(self) -> Mapping[str, Any]:
+        """Create a random string-to-string mapping."""
         return random_projection_metadata()

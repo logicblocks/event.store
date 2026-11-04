@@ -10,6 +10,13 @@ from .base import (
 
 
 class InMemoryEventSubscriptionStateStore(EventSubscriptionStateStore):
+    """An event subscription state store holding state in memory.
+
+    Args:
+        node_id: The node ID recorded against stored subscriptions, in
+            place of the node ID on the given subscription.
+    """
+
     def __init__(self, node_id: str):
         self.node_id = node_id
         self._subscriptions: dict[

@@ -19,6 +19,16 @@ from .types import ClauseConverter
 
 
 class FilterClauseQueryApplier(QueryApplier):
+    """Adds a `WHERE` condition for a filter clause.
+
+    Equality and inequality with `None` become `IS NULL` and
+    `IS NOT NULL` respectively.
+
+    Args:
+        clause: The filter clause to apply.
+        operators: The mapping from query operators to SQL operators.
+    """
+
     def __init__(
         self,
         clause: genericquery.FilterClause,
@@ -76,6 +86,13 @@ class FilterClauseQueryApplier(QueryApplier):
 
 
 class FilterClauseConverter(ClauseConverter[genericquery.FilterClause]):
+    """Converts a `FilterClause` into a `FilterClauseQueryApplier`.
+
+    Args:
+        operators: The mapping from query operators to SQL operators.
+            Defaults to a mapping covering every `Operator`.
+    """
+
     def __init__(
         self,
         operators: Mapping[genericquery.Operator, postgresquery.Operator]
@@ -103,6 +120,8 @@ class FilterClauseConverter(ClauseConverter[genericquery.FilterClause]):
 
 
 class SortClauseQueryApplier(QueryApplier):
+    """Adds `ORDER BY` terms for each field of a sort clause."""
+
     def __init__(self, clause: genericquery.SortClause):
         self._clause = clause
 
@@ -137,6 +156,15 @@ class SortClauseQueryApplier(QueryApplier):
 
 
 class SortClauseConverter(ClauseConverter[genericquery.SortClause]):
+    """Converts a `SortClause` into an applier that sorts the query.
+
+    Any functions among the sort fields are added to the select list first.
+
+    Args:
+        function_converter: The converter used for functions among the sort
+            fields.
+    """
+
     def __init__(
         self,
         function_converter: Converter[genericquery.Function, QueryApplier],
@@ -595,6 +623,20 @@ def subsequent_page_existing_sort_mixed_backwards_query(
 
 
 class KeySetPagingClauseQueryApplier(QueryApplier):
+    """Limits a query to a key-set page.
+
+    The query's existing sort is extended with `id` as a tie-breaker, or
+    `id` alone if there is none. For subsequent pages, the sort values of
+    the record with `last_id` are looked up in a common table expression
+    named `last` and compared against using row comparisons, or, for mixed
+    sort directions, a union of per-column comparisons. Backwards pages
+    are selected in reverse order and then re-sorted.
+
+    Args:
+        clause: The paging clause to apply.
+        table_settings: The table holding the record with `last_id`.
+    """
+
     def __init__(
         self,
         clause: genericquery.KeySetPagingClause,
@@ -678,6 +720,12 @@ class KeySetPagingClauseQueryApplier(QueryApplier):
 class KeySetPagingClauseConverter(
     ClauseConverter[genericquery.KeySetPagingClause]
 ):
+    """Converts a `KeySetPagingClause` into a key-set paging applier.
+
+    Args:
+        table_settings: The table holding the records being paged.
+    """
+
     def __init__(self, table_settings: TableSettings):
         self._table_settings = table_settings
 
@@ -689,6 +737,8 @@ class KeySetPagingClauseConverter(
 
 
 class OffsetPagingClauseQueryApplier(QueryApplier):
+    """Adds `LIMIT` and, beyond the first page, `OFFSET` to a query."""
+
     def __init__(self, clause: genericquery.OffsetPagingClause):
         self._clause = clause
 
@@ -704,6 +754,8 @@ class OffsetPagingClauseQueryApplier(QueryApplier):
 class OffsetPagingClauseConverter(
     ClauseConverter[genericquery.OffsetPagingClause]
 ):
+    """Converts an `OffsetPagingClause` into an offset paging applier."""
+
     def convert(self, item: genericquery.OffsetPagingClause) -> QueryApplier:
         return OffsetPagingClauseQueryApplier(clause=item)
 
@@ -711,6 +763,8 @@ class OffsetPagingClauseConverter(
 class TypeRegistryClauseConverter(
     TypeRegistryConverter[genericquery.Clause, QueryApplier]
 ):
+    """Converts clauses using the converter registered for their type."""
+
     def register[C: genericquery.Clause](
         self, item_type: type[C], converter: Converter[C, QueryApplier]
     ) -> Self:

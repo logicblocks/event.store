@@ -32,6 +32,12 @@ from .subscriptions import (
 class InMemoryDistributedEventBrokerBuilder(
     DistributedEventBrokerBuilder[(EventStorageAdapter,)]
 ):
+    """Builder for distributed event brokers with in-memory state.
+
+    Locks and subscriber and subscription state are held in memory, so
+    coordination is limited to a single process.
+    """
+
     def dependencies(
         self, adapter: EventStorageAdapter
     ) -> DistributedEventBrokerDependencies:
@@ -56,6 +62,12 @@ class PostgresDistributedEventBrokerBuilder(
         )
     ]
 ):
+    """Builder for distributed event brokers with Postgres-backed state.
+
+    Event sources are read from the given adapter, or from a
+    `PostgresEventStorageAdapter` on the connection pool if none is given.
+    """
+
     def dependencies(
         self,
         connection_settings: ConnectionSettings,
@@ -87,6 +99,17 @@ def make_in_memory_distributed_event_broker(
     adapter: EventStorageAdapter,
     error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
+    """Construct a distributed event broker with in-memory state.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        settings: The settings for the broker.
+        adapter: The storage adapter from which event sources are read.
+        error_handler: The handler for errors raised during execution.
+
+    Returns:
+        the constructed event broker.
+    """
     return (
         InMemoryDistributedEventBrokerBuilder(node_id)
         .prepare(adapter)
@@ -102,6 +125,23 @@ def make_postgres_distributed_event_broker(
     adapter: EventStorageAdapter | None = None,
     error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
+    """Construct a distributed event broker with Postgres-backed state.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        connection_settings: The settings used to connect for leadership
+            locking.
+        connection_pool: The pool used for subscriber and subscription
+            state, and for the default adapter.
+        settings: The settings for the broker.
+        adapter: The storage adapter from which event sources are read.
+            Defaults to a `PostgresEventStorageAdapter` on
+            `connection_pool`.
+        error_handler: The handler for errors raised during execution.
+
+    Returns:
+        the constructed event broker.
+    """
     return (
         PostgresDistributedEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool, adapter)

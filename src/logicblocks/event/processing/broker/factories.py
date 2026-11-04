@@ -25,6 +25,16 @@ from .strategies import (
 
 
 class EventBrokerType(ABC):
+    """Marker types selecting the broker strategy for `make_event_broker`.
+
+    Attributes:
+        Singleton: Selects a broker that allocates every requested event
+            source to every registered subscriber on the local node.
+        Distributed: Selects a broker that coordinates across nodes,
+            sharing the requested event sources between the subscribers in
+            each subscriber group.
+    """
+
     Singleton: "type[_SingletonEventBrokerType]"
     Distributed: "type[_DistributedEventBrokerType]"
 
@@ -43,6 +53,15 @@ EventBrokerType.Distributed = _DistributedEventBrokerType
 
 
 class EventBrokerStorageType(ABC):
+    """Marker types selecting the broker storage for `make_event_broker`.
+
+    Attributes:
+        InMemory: Selects in-memory storage, suitable for tests and single
+            process deployments.
+        Postgres: Selects PostgreSQL storage, required for coordination
+            between multiple nodes.
+    """
+
     InMemory: "type[_InMemoryEventBrokerStorageType]"
     Postgres: "type[_PostgresEventBrokerStorageType]"
 
@@ -142,6 +161,36 @@ def make_event_broker(
     ),
     **kwargs: Unpack[CombinedBrokerParams],
 ) -> EventBroker[StoredEvent]:
+    """Construct an event broker of the given type and storage.
+
+    The keyword arguments required depend on the combination of broker and
+    storage type:
+
+    - in-memory storage requires `settings` and `adapter`;
+    - Postgres storage requires `settings`, `connection_settings` and
+      `connection_pool`, and optionally accepts `adapter`, defaulting to a
+      `PostgresEventStorageAdapter` using `connection_pool`.
+
+    All combinations optionally accept an `error_handler`, defaulting to a
+    `RetryErrorHandler`.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        broker_type: The broker strategy, one of `EventBrokerType.Singleton`
+            or `EventBrokerType.Distributed`.
+        storage_type: The storage for broker state, one of
+            `EventBrokerStorageType.InMemory` or
+            `EventBrokerStorageType.Postgres`.
+        **kwargs: The settings and dependencies for the chosen combination,
+            where `settings` must be a `SingletonEventBrokerSettings` or
+            `DistributedEventBrokerSettings` to match `broker_type`.
+
+    Returns:
+        the constructed, not yet running, event broker.
+
+    Raises:
+        ValueError: If the broker or storage type is not recognised.
+    """
     match broker_type, storage_type:
         case EventBrokerType.Distributed, EventBrokerStorageType.InMemory:
             return make_in_memory_distributed_event_broker(
@@ -169,6 +218,19 @@ def make_in_memory_event_broker(
     settings: DistributedEventBrokerSettings,
     adapter: EventStorageAdapter,
 ) -> EventBroker[StoredEvent]:
+    """Construct an in-memory distributed event broker.
+
+    Deprecated: use `make_event_broker` with `EventBrokerType.Distributed`
+    and `EventBrokerStorageType.InMemory` instead.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        settings: The settings for the distributed broker.
+        adapter: The storage adapter from which event sources are read.
+
+    Returns:
+        the constructed event broker.
+    """
     return make_in_memory_distributed_event_broker(node_id, settings, adapter)
 
 
@@ -179,6 +241,20 @@ def make_postgres_event_broker(
     connection_pool: AsyncConnectionPool[AsyncConnection],
     settings: DistributedEventBrokerSettings,
 ) -> EventBroker[StoredEvent]:
+    """Construct a Postgres-backed distributed event broker.
+
+    Deprecated: use `make_event_broker` with `EventBrokerType.Distributed`
+    and `EventBrokerStorageType.Postgres` instead.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        connection_settings: The settings used to connect for locking.
+        connection_pool: The pool used for broker state and event storage.
+        settings: The settings for the distributed broker.
+
+    Returns:
+        the constructed event broker.
+    """
     return make_postgres_distributed_event_broker(
         node_id, connection_settings, connection_pool, settings
     )

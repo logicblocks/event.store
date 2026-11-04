@@ -4,6 +4,8 @@ from typing import Protocol, runtime_checkable
 
 
 class ProcessStatus(StrEnum):
+    """The lifecycle status of a process."""
+
     INITIALISED = "initialised"
     STARTING = "starting"
     WAITING = "waiting"
@@ -16,12 +18,17 @@ class ProcessStatus(StrEnum):
 
 @runtime_checkable
 class HasProcessStatus(Protocol):
+    """Protocol for objects that report a process status."""
+
     @property
     def status(self) -> ProcessStatus: ...
 
 
 class Process(ABC):
+    """Base class for processes that report a status."""
+
     @property
     @abstractmethod
     def status(self) -> ProcessStatus:
+        """The current status of the process."""
         raise NotImplementedError

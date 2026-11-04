@@ -8,6 +8,8 @@ from .json import JsonValue, JsonValueSerialisable
 
 
 class Identifier(ABC, JsonValueSerialisable):
+    """Base class for identifiers, which serialise to JSON objects."""
+
     @abstractmethod
     def serialise(
         self,
@@ -15,6 +17,18 @@ class Identifier(ABC, JsonValueSerialisable):
             [object], JsonValue
         ] = default_serialisation_fallback,
     ) -> JsonValue:
+        """Serialise the identifier to a JSON object.
+
+        The object has a `type` key naming the kind of identifier, plus a
+        key for each of the identifier's fields.
+
+        Args:
+            fallback: Called to serialise any nested value that cannot
+                otherwise be serialised.
+
+        Returns:
+            the serialised identifier.
+        """
         raise NotImplementedError
 
     def __hash__(self):
@@ -22,15 +36,30 @@ class Identifier(ABC, JsonValueSerialisable):
 
 
 class PartitionIdentifier(Identifier, ABC):
+    """Base class for identifiers of a partition of an event source."""
+
     pass
 
 
 class EventSourceIdentifier(Identifier, ABC):
+    """Base class for identifiers of a source of events.
+
+    Built-in subclasses are `LogIdentifier`, `CategoryIdentifier` and
+    `StreamIdentifier`. Projections record the identifier of the source
+    they were projected from.
+    """
+
     pass
 
 
 @dataclass(frozen=True)
 class StreamNamePrefixPartitionIdentifier(PartitionIdentifier):
+    """Identifies the partition of streams whose names share a prefix.
+
+    Attributes:
+        value: The stream name prefix.
+    """
+
     value: str
 
     def serialise(
@@ -47,6 +76,11 @@ class StreamNamePrefixPartitionIdentifier(PartitionIdentifier):
 
 @dataclass(frozen=True)
 class LogIdentifier(EventSourceIdentifier):
+    """Identifies the whole event log, across all categories and streams.
+
+    Serialises to `{"type": "log"}`.
+    """
+
     __hash__ = Identifier.__hash__
 
     def serialise(
@@ -63,6 +97,12 @@ class LogIdentifier(EventSourceIdentifier):
 
 @dataclass(frozen=True)
 class LogPartitionIdentifier(EventSourceIdentifier):
+    """Identifies a partition of the whole event log.
+
+    Attributes:
+        partition: The partition of the log.
+    """
+
     partition: PartitionIdentifier
 
     def serialise(
@@ -82,6 +122,14 @@ class LogPartitionIdentifier(EventSourceIdentifier):
 
 @dataclass(frozen=True)
 class CategoryIdentifier(EventSourceIdentifier):
+    """Identifies a category of streams.
+
+    Serialises to `{"type": "category", "category": ...}`.
+
+    Attributes:
+        category: The category name.
+    """
+
     __hash__ = Identifier.__hash__
 
     category: str
@@ -100,6 +148,13 @@ class CategoryIdentifier(EventSourceIdentifier):
 
 @dataclass(frozen=True)
 class CategoryPartitionIdentifier(EventSourceIdentifier):
+    """Identifies a partition of a category.
+
+    Attributes:
+        category: The category name.
+        partition: The partition of the category.
+    """
+
     category: str
     partition: PartitionIdentifier
 
@@ -125,6 +180,15 @@ class CategoryPartitionIdentifier(EventSourceIdentifier):
 
 @dataclass(frozen=True)
 class StreamIdentifier(EventSourceIdentifier):
+    """Identifies a single stream within a category.
+
+    Serialises to `{"type": "stream", "category": ..., "stream": ...}`.
+
+    Attributes:
+        category: The name of the category the stream belongs to.
+        stream: The stream name.
+    """
+
     __hash__ = Identifier.__hash__
 
     category: str
@@ -177,6 +241,18 @@ type EventSequenceIdentifier = (
 def event_sequence_identifier(
     serialised: EventSequenceIdentifierDict,
 ) -> EventSequenceIdentifier:
+    """Deserialise a log, category or stream identifier.
+
+    Args:
+        serialised: The serialised identifier, as produced by `serialise`.
+
+    Returns:
+        the corresponding identifier.
+
+    Raises:
+        ValueError: If the value is not a serialised log, category or
+            stream identifier.
+    """
     match serialised:
         case {"type": "log"}:
             return LogIdentifier()
@@ -191,6 +267,19 @@ def event_sequence_identifier(
 def target(
     *, category: str | None = None, stream: str | None = None
 ) -> EventSequenceIdentifier:
+    """Build the identifier for a category and optional stream.
+
+    Args:
+        category: The category name.
+        stream: The stream name. Requires `category`.
+
+    Returns:
+        a `StreamIdentifier` if both are given, a `CategoryIdentifier` if
+            only `category` is given, otherwise a `LogIdentifier`.
+
+    Raises:
+        ValueError: If `stream` is given without `category`.
+    """
     if category is not None and stream is not None:
         return StreamIdentifier(category=category, stream=stream)
     elif category is not None:

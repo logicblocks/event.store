@@ -1,0 +1,329 @@
+---
+import './styles.css';
+
+const audit = [
+	['09:41:02', 'item-added', 'beans', 'web'],
+	['09:41:49', 'item-added', 'mug', 'web'],
+	['09:44:15', 'item-removed', 'mug', 'support'],
+	['09:46:30', 'checked-out', '', 'web'],
+];
+const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'checked-out'];
+---
+
+<div class="es es-why not-content" data-es-why>
+	<article class="es-panel es-why__card">
+		<div class="es-why__visual es-why__audit">
+			{
+				audit.map(([time, name, sku, actor], index) => (
+					<div class="es-why__audit-line" style={`--i: ${index}`} data-kind={name}>
+						<span>{time}</span>
+						<b>{name}</b>
+						<span>{sku}</span>
+						<em>{actor}</em>
+					</div>
+				))
+			}
+		</div>
+		<h3>A complete audit trail, for free</h3>
+		<p>
+			The history isn't a side effect you hope someone remembered to write. It is the data. Who
+			did what, and when, is always there.
+		</p>
+	</article>
+
+	<article class="es-panel es-why__card">
+		<div class="es-why__visual es-why__travel">
+			<svg viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true">
+				<polyline points="0,70 40,70 40,52 80,52 80,40 120,40 120,52 160,52 160,24 200,24" />
+			</svg>
+			<span class="es-why__cursor"></span>
+			<span class="es-why__cursor-label">as of 09:44</span>
+		</div>
+		<h3>Time travel</h3>
+		<p>
+			"What did this cart look like when the customer phoned us?" Replay up to that moment and you
+			have the exact answer, not a best guess.
+		</p>
+	</article>
+
+	<article class="es-panel es-why__card">
+		<div class="es-why__visual es-why__bars">
+			{[0.8, 0.45, 0.95, 0.3, 0.6, 0.7].map((height, index) => <span style={`--h: ${height}; --i: ${index}`} />)}
+		</div>
+		<h3>New questions of old data</h3>
+		<p>
+			Next year's report needs data you didn't know you'd want. Build a new projection and it
+			back-fills from day one.
+		</p>
+	</article>
+
+	<article class="es-panel es-why__card">
+		<div class="es-why__visual es-why__debug">
+			<div class="es-why__debug-track">
+				{replay.map((name, index) => <span data-kind={name} data-bug={index === 3 ? '' : undefined} />)}
+				<i class="es-why__playhead"></i>
+			</div>
+			<span class="es-why__debug-label">replaying production events locally…</span>
+		</div>
+		<h3>Debugging by replay</h3>
+		<p>
+			Copy the events behind a bug report into a test and replay them. You reproduce the exact
+			state, step by step.
+		</p>
+	</article>
+</div>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-why]')) {
+		new IntersectionObserver(([entry]) => root.classList.toggle('is-playing', entry.isIntersecting), {
+			threshold: 0.2,
+		}).observe(root);
+	}
+</script>
+
+<style>
+	.es-why {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+		gap: 1rem;
+	}
+
+	.es-why__card h3 {
+		margin: 1rem 0 0.4rem;
+		color: var(--es-strong);
+		font-size: var(--sl-text-lg);
+	}
+
+	.es-why__card p {
+		margin: 0;
+		color: var(--sl-color-text);
+	}
+
+	.es-why__visual {
+		position: relative;
+		height: 7rem;
+		border-radius: 0.5rem;
+		background: var(--es-surface-raised);
+		overflow: hidden;
+	}
+
+	.es-why:not(.is-playing) * {
+		animation-play-state: paused !important;
+	}
+
+	/* Audit */
+	.es-why__audit {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.25rem;
+		padding: 0.6rem;
+		font-family: var(--es-mono);
+		font-size: 0.68rem;
+	}
+
+	.es-why__audit-line {
+		display: grid;
+		grid-template-columns: 4.2rem 6.2rem 2.6rem 1fr;
+		gap: 0.25rem;
+		color: var(--es-muted);
+		opacity: 0;
+		animation: es-why-audit 6s calc(var(--i) * 0.6s) ease-out infinite;
+	}
+
+	.es-why__audit-line b {
+		color: var(--es-added-text);
+		font-weight: 600;
+	}
+
+	.es-why__audit-line[data-kind='item-removed'] b {
+		color: var(--es-removed-text);
+	}
+
+	.es-why__audit-line[data-kind='checked-out'] b {
+		color: var(--es-done-text);
+	}
+
+	.es-why__audit-line em {
+		color: var(--es-strong);
+		font-style: normal;
+		text-align: right;
+	}
+
+	@keyframes es-why-audit {
+		0% {
+			opacity: 0;
+			transform: translateY(0.4rem);
+		}
+		8%,
+		80% {
+			opacity: 1;
+			transform: none;
+		}
+		92%,
+		100% {
+			opacity: 0;
+		}
+	}
+
+	/* Time travel */
+	.es-why__travel svg {
+		position: absolute;
+		inset: 1rem 0.75rem;
+		width: calc(100% - 1.5rem);
+		height: calc(100% - 2rem);
+	}
+
+	.es-why__travel polyline {
+		fill: none;
+		stroke: var(--sl-color-text-accent);
+		stroke-width: 2;
+		vector-effect: non-scaling-stroke;
+	}
+
+	.es-why__cursor {
+		position: absolute;
+		top: 0.5rem;
+		bottom: 0.5rem;
+		left: 85%;
+		width: 2px;
+		background: var(--es-warn);
+		animation: es-why-travel 7s ease-in-out infinite;
+	}
+
+	.es-why__cursor-label {
+		position: absolute;
+		top: 0.35rem;
+		left: 0.6rem;
+		color: var(--es-warn-text);
+		font-family: var(--es-mono);
+		font-size: 0.68rem;
+	}
+
+	@keyframes es-why-travel {
+		0%,
+		12% {
+			left: 92%;
+		}
+		45%,
+		62% {
+			left: 52%;
+		}
+		85%,
+		100% {
+			left: 92%;
+		}
+	}
+
+	/* New questions */
+	.es-why__bars {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem 0;
+	}
+
+	.es-why__bars span {
+		flex: 1;
+		height: calc(var(--h) * 100%);
+		border-radius: 0.3rem 0.3rem 0 0;
+		background: linear-gradient(var(--es-removed), color-mix(in oklab, var(--es-removed) 40%, transparent));
+		transform-origin: bottom;
+		animation: es-why-bars 5s calc(var(--i) * 0.12s) cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+	}
+
+	@keyframes es-why-bars {
+		0% {
+			transform: scaleY(0);
+		}
+		25%,
+		85% {
+			transform: scaleY(1);
+		}
+		100% {
+			transform: scaleY(0);
+		}
+	}
+
+	/* Debug */
+	.es-why__debug {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.9rem;
+		padding: 0 1rem;
+	}
+
+	.es-why__debug-track {
+		position: relative;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 0.4rem;
+	}
+
+	.es-why__debug-track span {
+		height: 1.6rem;
+		border-radius: 0.35rem;
+		border-left: 3px solid var(--es-added);
+		background: var(--es-added-bg);
+	}
+
+	.es-why__debug-track span[data-kind='item-removed'] {
+		border-color: var(--es-removed);
+		background: var(--es-removed-bg);
+	}
+
+	.es-why__debug-track span[data-kind='checked-out'] {
+		border-color: var(--es-done);
+		background: var(--es-done-bg);
+	}
+
+	.es-why__debug-track span[data-bug] {
+		animation: es-why-bug 4s infinite;
+	}
+
+	.es-why__playhead {
+		position: absolute;
+		top: -0.35rem;
+		bottom: -0.35rem;
+		left: 0;
+		width: calc((100% - 1.6rem) / 5);
+		border: 2px solid var(--sl-color-text-accent);
+		border-radius: 0.45rem;
+		animation: es-why-playhead 4s steps(1, end) infinite;
+	}
+
+	.es-why__debug-label {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: 0.68rem;
+	}
+
+	@keyframes es-why-playhead {
+		0% {
+			transform: translateX(0);
+		}
+		15% {
+			transform: translateX(calc(100% + 0.4rem));
+		}
+		30% {
+			transform: translateX(calc(200% + 0.8rem));
+		}
+		45%,
+		100% {
+			transform: translateX(calc(300% + 1.2rem));
+			border-color: var(--es-warn);
+		}
+	}
+
+	@keyframes es-why-bug {
+		0%,
+		45% {
+			box-shadow: none;
+		}
+		50%,
+		95% {
+			box-shadow: 0 0 0 3px var(--es-warn);
+		}
+	}
+</style>

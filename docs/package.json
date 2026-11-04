@@ -1,0 +1,20 @@
+{
+  "name": "logicblocks-event-store-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "^0.4.6",
+    "@astrojs/starlight": "^0.42.8",
+    "astro": "^7.4.5",
+    "motion": "^14.9.1",
+    "starlight-links-validator": "^0.27.0"
+  }
+}

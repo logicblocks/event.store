@@ -1,0 +1,338 @@
+---
+import './styles.css';
+import { products, skus } from './cart';
+---
+
+<div class="es es-play not-content" data-es-play>
+	<div class="es-play__grid">
+		<section class="es-panel">
+			<div class="es-label">1 · Commands</div>
+			<ul class="es-play__products">
+				{
+					skus.map((sku) => (
+						<li>
+							<span>
+								{products[sku].name}
+								<small>£{products[sku].price}</small>
+							</span>
+							<span class="es-play__controls">
+								<button class="es-button" data-tone="removed" data-remove={sku} aria-label={`Remove ${products[sku].name}`}>
+									−
+								</button>
+								<button class="es-button" data-tone="added" data-add={sku} aria-label={`Add ${products[sku].name}`}>
+									+
+								</button>
+							</span>
+						</li>
+					))
+				}
+			</ul>
+			<div class="es-play__actions">
+				<button class="es-button" data-tone="done" data-checkout>Check out</button>
+				<button class="es-button" data-reset>Start again</button>
+			</div>
+			<p class="es-play__note" data-note>
+				Each command is checked against the current state. If it's valid, it becomes an event.
+			</p>
+		</section>
+
+		<section class="es-panel es-play__stream-panel">
+			<div class="es-label">2 · Stream <code>cart-42</code> <span class="es-play__count" data-count></span></div>
+			<ol class="es-stream es-play__stream" data-stream></ol>
+		</section>
+
+		<section class="es-panel es-play__state-panel" data-state-panel>
+			<div class="es-label">3 · State, as replayed <span class="es-play__past" data-past>past</span></div>
+			<div class="es-cart" data-state></div>
+		</section>
+	</div>
+
+	<div class="es-panel es-play__timeline">
+		<label class="es-label" for="es-play-slider">Time travel</label>
+		<input id="es-play-slider" type="range" min="0" value="0" step="1" data-slider />
+		<div class="es-play__timeline-text" data-slider-text></div>
+	</div>
+</div>
+
+<script>
+	import {
+		added,
+		checkedOut,
+		eventCard,
+		enter,
+		fold,
+		pulse,
+		removed,
+		renderCart,
+		type CartEvent,
+		type Sku,
+	} from './cart';
+
+	const seed = (): CartEvent[] => [added('beans'), added('mug'), added('beans')];
+	const clock = (index: number) => {
+		const seconds = 9 * 3600 + 41 * 60 + index * 47;
+		const pad = (value: number) => String(value).padStart(2, '0');
+		return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+	};
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-play]')) {
+		const streamView = root.querySelector<HTMLElement>('[data-stream]')!;
+		const stateView = root.querySelector<HTMLElement>('[data-state]')!;
+		const statePanel = root.querySelector<HTMLElement>('[data-state-panel]')!;
+		const slider = root.querySelector<HTMLInputElement>('[data-slider]')!;
+		const sliderText = root.querySelector<HTMLElement>('[data-slider-text]')!;
+		const note = root.querySelector<HTMLElement>('[data-note]')!;
+		const count = root.querySelector<HTMLElement>('[data-count]')!;
+
+		let events = seed();
+
+		const at = () => Number(slider.value);
+		const present = () => fold(events);
+
+		const say = (message: string, tone: 'info' | 'warn' = 'info') => {
+			note.textContent = message;
+			note.dataset.tone = tone;
+			pulse(note);
+		};
+
+		const renderState = () => {
+			const viewing = at();
+			const state = fold(events.slice(0, viewing));
+			stateView.innerHTML = renderCart(state);
+			const inPast = viewing < events.length;
+			statePanel.classList.toggle('is-past', inPast);
+			[...streamView.children].forEach((card, index) => {
+				card.classList.toggle('is-future', index >= viewing);
+				card.classList.toggle('is-current', inPast && index === viewing - 1);
+			});
+			sliderText.innerHTML =
+				viewing === 0
+					? 'Before the first event: an empty cart.'
+					: `${inPast ? 'Rewound to' : 'Now at'} <b>#${viewing - 1}</b> · ${clock(viewing - 1)}. State after ${viewing} of ${events.length} events.`;
+		};
+
+		const renderCommands = () => {
+			const state = present();
+			const open = state.status === 'open';
+			root.querySelectorAll<HTMLButtonElement>('[data-add]').forEach((button) => (button.disabled = !open));
+			root
+				.querySelectorAll<HTMLButtonElement>('[data-remove]')
+				.forEach((button) => (button.disabled = !open || !state.items[button.dataset.remove as Sku]));
+			root.querySelector<HTMLButtonElement>('[data-checkout]')!.disabled =
+				!open || Object.keys(state.items).length === 0;
+			count.textContent = `${events.length} events`;
+		};
+
+		const renderStream = () => {
+			streamView.replaceChildren(
+				...events.map((event, index) => {
+					const card = eventCard(event, index);
+					card.title = clock(index);
+					return card;
+				}),
+			);
+		};
+
+		const syncSlider = () => {
+			slider.max = String(events.length);
+			slider.value = String(events.length);
+		};
+
+		const append = (event: CartEvent) => {
+			if (at() < events.length) {
+				say('New facts always go on the end. You can look at the past, but not change it.', 'warn');
+			} else {
+				say(`Recorded ${event.name} at position #${events.length}.`);
+			}
+			events = [...events, event];
+			syncSlider();
+			const card = eventCard(event, events.length - 1);
+			card.title = clock(events.length - 1);
+			streamView.append(card);
+			enter(card);
+			streamView.scrollTo({ top: streamView.scrollHeight, behavior: 'smooth' });
+			renderState();
+			renderCommands();
+			pulse(stateView);
+		};
+
+		root.querySelectorAll<HTMLButtonElement>('[data-add]').forEach((button) =>
+			button.addEventListener('click', () => append(added(button.dataset.add as Sku))),
+		);
+		root.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) =>
+			button.addEventListener('click', () => append(removed(button.dataset.remove as Sku))),
+		);
+		root
+			.querySelector('[data-checkout]')!
+			.addEventListener('click', () => append(checkedOut()));
+		root.querySelector('[data-reset]')!.addEventListener('click', () => {
+			events = seed();
+			syncSlider();
+			renderStream();
+			renderState();
+			renderCommands();
+			say('Each command is checked against the current state. If it’s valid, it becomes an event.');
+		});
+		slider.addEventListener('input', renderState);
+
+		syncSlider();
+		renderStream();
+		renderState();
+		renderCommands();
+	}
+</script>
+
+<style>
+	.es-play__grid {
+		display: grid;
+		grid-template-columns: 1fr 1.25fr 1fr;
+		gap: 1rem;
+		align-items: stretch;
+	}
+
+	.es-play__products {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.es-play__products li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		color: var(--es-strong);
+	}
+
+	.es-play__products small {
+		margin-left: 0.4rem;
+		color: var(--es-muted);
+	}
+
+	.es-play__controls {
+		display: flex;
+		gap: 0.35rem;
+	}
+
+	.es-play__controls .es-button {
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		font-size: var(--sl-text-base);
+	}
+
+	.es-play__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 1rem;
+	}
+
+	.es-play__note {
+		margin: 1rem 0 0;
+		padding: 0.5rem 0.65rem;
+		border-radius: 0.5rem;
+		background: var(--es-info-bg);
+		color: var(--es-info-text);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-play__note[data-tone='warn'] {
+		background: var(--es-warn-bg);
+		color: var(--es-warn-text);
+	}
+
+	.es-play__stream-panel {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.es-play__stream {
+		flex: 1;
+		max-height: 19rem;
+		overflow-y: auto;
+		padding-right: 0.25rem;
+		scrollbar-width: thin;
+	}
+
+	.es-play__count,
+	.es-play__past {
+		margin-left: auto;
+		font-family: var(--es-mono);
+		letter-spacing: 0;
+		text-transform: none;
+	}
+
+	.es-play__past {
+		display: none;
+		padding: 0.05rem 0.45rem;
+		border-radius: 999px;
+		background: var(--es-warn-bg);
+		color: var(--es-warn-text);
+	}
+
+	.es-play__state-panel {
+		transition:
+			border-color 0.2s ease,
+			background 0.2s ease;
+	}
+
+	.es-play__state-panel.is-past {
+		border-color: var(--es-warn);
+		background: color-mix(in oklab, var(--es-warn-bg) 35%, var(--es-surface));
+	}
+
+	.es-play__state-panel.is-past .es-play__past {
+		display: inline-block;
+	}
+
+	.es-play__timeline {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		align-items: center;
+		gap: 0.5rem 1rem;
+		margin-top: 1rem;
+	}
+
+	.es-play__timeline .es-label {
+		margin: 0;
+	}
+
+	.es-play__timeline input {
+		width: 100%;
+		accent-color: var(--sl-color-text-accent);
+		cursor: pointer;
+	}
+
+	.es-play__timeline-text {
+		grid-column: 1 / -1;
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-play__timeline-text :global(b) {
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+	}
+
+	@media (max-width: 56rem) {
+		.es-play__grid {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.es-play__grid > :first-child {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (max-width: 36rem) {
+		.es-play__grid {
+			grid-template-columns: 1fr;
+		}
+
+		.es-play__stream {
+			max-height: 14rem;
+		}
+	}
+</style>

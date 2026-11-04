@@ -1,0 +1,454 @@
+---
+import './styles.css';
+import { products, skus } from './cart';
+---
+
+<div class="es es-proj not-content" data-es-proj>
+	<div class="es-proj__layout">
+		<section class="es-panel es-proj__feed-panel">
+			<div class="es-label">Category <code>carts</code> · all streams</div>
+			<p class="es-proj__earlier" data-earlier></p>
+			<ol class="es-stream es-proj__feed" data-feed></ol>
+		</section>
+
+		<div class="es-proj__arrow" aria-hidden="true">
+			<span></span>
+		</div>
+
+		<div class="es-proj__models">
+			<section class="es-panel es-proj__model" data-model="open">
+				<div class="es-label">Read model · Open carts</div>
+				<table class="es-proj__table">
+					<thead><tr><th>cart</th><th>items</th><th>total</th></tr></thead>
+					<tbody data-open></tbody>
+				</table>
+			</section>
+
+			<section class="es-panel es-proj__model" data-model="revenue">
+				<div class="es-label">Read model · Revenue</div>
+				<div class="es-proj__revenue">
+					<span data-revenue>£0</span>
+					<small data-orders>0 orders</small>
+				</div>
+			</section>
+
+			<section class="es-panel es-proj__model es-proj__new" data-model="removed" hidden>
+				<div class="es-label">New read model · Most removed products</div>
+				<ul class="es-proj__bars">
+					{
+						skus.map((sku) => (
+							<li data-bar={sku}>
+								<span>{products[sku].name}</span>
+								<span class="es-proj__bar">
+									<span />
+								</span>
+								<b>0</b>
+							</li>
+						))
+					}
+				</ul>
+				<div class="es-proj__progress" data-progress>
+					<span></span>
+					<small></small>
+				</div>
+			</section>
+
+			<button class="es-button es-proj__add" data-variant="primary" data-add-projection>
+				+ Ask a new question: what do people remove?
+			</button>
+		</div>
+	</div>
+</div>
+
+<script>
+	import { animate } from 'motion';
+	import {
+		added,
+		apply,
+		checkedOut,
+		eventCard,
+		enter,
+		initialState,
+		itemCount,
+		money,
+		pulse,
+		removed,
+		sleep,
+		skus,
+		total,
+		whileVisible,
+		type CartEvent,
+		type CartState,
+		type Sku,
+	} from './cart';
+
+	type LoggedEvent = { stream: string; event: CartEvent };
+
+	function random(seed: number) {
+		return () => {
+			seed = (seed * 1664525 + 1013904223) % 4294967296;
+			return seed / 4294967296;
+		};
+	}
+
+	function simulator() {
+		const next = random(42);
+		const carts = new Map<string, CartState>();
+		let counter = 40;
+		const pick = <T,>(values: readonly T[]) => values[Math.floor(next() * values.length)];
+		const regret: Record<Sku, number> = { mug: 5, grinder: 3, filters: 2, beans: 1 };
+		const pickRemoval = (inCart: Sku[]) => pick(inCart.flatMap((sku) => Array(regret[sku]).fill(sku) as Sku[]));
+
+		return (): LoggedEvent => {
+			const open = [...carts.entries()].filter(([, state]) => state.status === 'open');
+			let stream: string;
+			let event: CartEvent;
+			if (open.length < 3 || next() < 0.12) {
+				stream = `cart-${++counter}`;
+				event = added(pick(skus));
+			} else {
+				const [id, state] = pick(open);
+				stream = id;
+				const inCart = Object.keys(state.items) as Sku[];
+				const roll = next();
+				if (inCart.length && roll < 0.35) event = removed(pickRemoval(inCart));
+				else if (inCart.length >= 2 && roll < 0.55) event = checkedOut();
+				else event = added(pick(skus));
+			}
+			carts.set(stream, apply(carts.get(stream) ?? initialState(), event));
+			return { stream, event };
+		};
+	}
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-proj]')) {
+		const feed = root.querySelector<HTMLElement>('[data-feed]')!;
+		const earlier = root.querySelector<HTMLElement>('[data-earlier]')!;
+		const openBody = root.querySelector<HTMLElement>('[data-open]')!;
+		const revenueView = root.querySelector<HTMLElement>('[data-revenue]')!;
+		const ordersView = root.querySelector<HTMLElement>('[data-orders]')!;
+		const removedModel = root.querySelector<HTMLElement>('[data-model="removed"]')!;
+		const progress = root.querySelector<HTMLElement>('[data-progress]')!;
+		const addButton = root.querySelector<HTMLButtonElement>('[data-add-projection]')!;
+		const models = {
+			open: root.querySelector<HTMLElement>('[data-model="open"]')!,
+			revenue: root.querySelector<HTMLElement>('[data-model="revenue"]')!,
+		};
+
+		const generate = simulator();
+		const log: LoggedEvent[] = Array.from({ length: 64 }, generate);
+		const visible = 6;
+
+		const carts = new Map<string, CartState>();
+		let revenue = 0;
+		let orders = 0;
+		const removals = new Map<Sku, number>();
+		let removalsCaughtUpTo: number | undefined;
+
+		const project = ({ stream, event }: LoggedEvent) => {
+			const before = carts.get(stream) ?? initialState();
+			const after = apply(before, event);
+			carts.set(stream, after);
+			if (event.name === 'checked-out') {
+				revenue += total(after);
+				orders += 1;
+			}
+		};
+
+		const projectRemovals = ({ event }: LoggedEvent) => {
+			if (event.name === 'item-removed') {
+				removals.set(event.payload.sku, (removals.get(event.payload.sku) ?? 0) + 1);
+			}
+		};
+
+		const renderOpen = () => {
+			const rows = [...carts.entries()]
+				.filter(([, state]) => state.status === 'open' && itemCount(state) > 0)
+				.slice(-4)
+				.map(
+					([id, state]) =>
+						`<tr><td>${id}</td><td>${itemCount(state)}</td><td>${money(total(state))}</td></tr>`,
+				);
+			openBody.innerHTML = rows.join('');
+		};
+
+		const renderRevenue = () => {
+			revenueView.textContent = money(revenue);
+			ordersView.textContent = `${orders} ${orders === 1 ? 'order' : 'orders'}`;
+		};
+
+		const renderRemovals = () => {
+			const max = Math.max(1, ...removals.values());
+			for (const sku of skus) {
+				const bar = root.querySelector<HTMLElement>(`[data-bar="${sku}"]`)!;
+				const value = removals.get(sku) ?? 0;
+				bar.querySelector<HTMLElement>('.es-proj__bar > span')!.style.width = `${(value / max) * 100}%`;
+				bar.querySelector('b')!.textContent = String(value);
+			}
+		};
+
+		const renderFeed = () => {
+			earlier.textContent = `… ${log.length - visible} earlier events`;
+			feed.replaceChildren(
+				...log.slice(-visible).map(({ stream, event }, offset) =>
+					eventCard(event, log.length - visible + offset, { stream, payload: false }),
+				),
+			);
+		};
+
+		const flash = (model: HTMLElement) => {
+			model.classList.add('is-updated');
+			setTimeout(() => model.classList.remove('is-updated'), 450);
+		};
+
+		log.forEach(project);
+		renderFeed();
+		renderOpen();
+		renderRevenue();
+
+		const tick = () => {
+			const entry = generate();
+			log.push(entry);
+			const card = eventCard(entry.event, log.length - 1, { stream: entry.stream, payload: false });
+			feed.append(card);
+			enter(card);
+			while (feed.children.length > visible) feed.firstElementChild!.remove();
+			earlier.textContent = `… ${log.length - visible} earlier events`;
+
+			project(entry);
+			renderOpen();
+			flash(models.open);
+			if (entry.event.name === 'checked-out') {
+				renderRevenue();
+				flash(models.revenue);
+				pulse(revenueView);
+			}
+			if (removalsCaughtUpTo !== undefined) {
+				projectRemovals(entry);
+				removalsCaughtUpTo = log.length;
+				renderRemovals();
+				if (entry.event.name === 'item-removed') flash(removedModel);
+			}
+		};
+
+		whileVisible(root, () => {
+			const interval = setInterval(tick, 1500);
+			return () => clearInterval(interval);
+		});
+
+		addButton.addEventListener('click', async () => {
+			addButton.disabled = true;
+			removals.clear();
+			removalsCaughtUpTo = undefined;
+			renderRemovals();
+			removedModel.hidden = false;
+			removedModel.classList.add('is-backfilling');
+			enter(removedModel);
+
+			const bar = progress.querySelector<HTMLElement>('span')!;
+			const label = progress.querySelector<HTMLElement>('small')!;
+			for (let index = 0; index < log.length; index++) {
+				projectRemovals(log[index]);
+				renderRemovals();
+				bar.style.width = `${((index + 1) / log.length) * 100}%`;
+				label.textContent = `Replaying history from #0 · ${index + 1} of ${log.length} events`;
+				await sleep(30);
+			}
+			removalsCaughtUpTo = log.length;
+			removedModel.classList.remove('is-backfilling');
+			label.textContent = 'Caught up with every event ever recorded. Now updating live.';
+			animate(label, { opacity: [0, 1] }, { duration: 0.4 });
+			addButton.textContent = '↺ Throw it away and rebuild it from scratch';
+			addButton.disabled = false;
+		});
+	}
+</script>
+
+<style>
+	.es-proj__layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1.1fr);
+		gap: 0.5rem;
+		align-items: start;
+	}
+
+	.es-proj__earlier {
+		margin: 0 0 0.4rem;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+		font-family: var(--es-mono);
+	}
+
+	.es-proj__feed {
+		overflow: hidden;
+	}
+
+	.es-proj__arrow {
+		align-self: stretch;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.es-proj__arrow span {
+		position: relative;
+		width: 100%;
+		height: 2px;
+		background: repeating-linear-gradient(
+			90deg,
+			var(--es-border) 0 6px,
+			transparent 6px 10px
+		);
+		background-size: 20px 2px;
+		animation: es-proj-flow 0.8s linear infinite;
+	}
+
+	.es-proj__arrow span::after {
+		content: '';
+		position: absolute;
+		right: -2px;
+		top: -5px;
+		border: 6px solid transparent;
+		border-left-color: var(--es-border);
+		border-right-width: 0;
+	}
+
+	@keyframes es-proj-flow {
+		to {
+			background-position: 20px 0;
+		}
+	}
+
+	.es-proj__models {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.es-proj__model {
+		transition:
+			border-color 0.3s ease,
+			box-shadow 0.3s ease;
+	}
+
+	.es-proj__model.is-updated {
+		border-color: var(--sl-color-text-accent);
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--sl-color-accent) 25%, transparent);
+	}
+
+	.es-proj__table {
+		width: 100%;
+		border-collapse: collapse;
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-proj__table th,
+	.es-proj__table td {
+		padding: 0.25rem 0.4rem;
+		border-bottom: 1px solid var(--es-border);
+		text-align: left;
+	}
+
+	.es-proj__table th {
+		color: var(--es-muted);
+		font-weight: 500;
+	}
+
+	.es-proj__table td {
+		color: var(--es-strong);
+	}
+
+	.es-proj__revenue {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+	}
+
+	.es-proj__revenue span {
+		display: inline-block;
+		color: var(--es-strong);
+		font-size: var(--sl-text-3xl);
+		font-weight: 700;
+	}
+
+	.es-proj__revenue small {
+		color: var(--es-muted);
+	}
+
+	.es-proj__new {
+		border-style: dashed;
+		border-color: var(--sl-color-text-accent);
+	}
+
+	.es-proj__bars {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.es-proj__bars li {
+		display: grid;
+		grid-template-columns: 6.5rem 1fr 1.5rem;
+		align-items: center;
+		gap: 0.6rem;
+		color: var(--es-strong);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-proj__bars b {
+		font-family: var(--es-mono);
+		text-align: right;
+	}
+
+	.es-proj__bar {
+		height: 0.6rem;
+		border-radius: 999px;
+		background: var(--es-surface-raised);
+		overflow: hidden;
+	}
+
+	.es-proj__bar > span {
+		display: block;
+		height: 100%;
+		width: 0;
+		border-radius: inherit;
+		background: var(--es-removed);
+		transition: width 0.15s ease;
+	}
+
+	.es-proj__progress {
+		margin-top: 0.85rem;
+	}
+
+	.es-proj__progress span {
+		display: block;
+		height: 3px;
+		width: 0;
+		border-radius: 999px;
+		background: var(--sl-color-text-accent);
+	}
+
+	.es-proj__progress small {
+		display: block;
+		margin-top: 0.35rem;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.es-proj__add {
+		align-self: flex-start;
+	}
+
+	@media (max-width: 50rem) {
+		.es-proj__layout {
+			grid-template-columns: 1fr;
+		}
+
+		.es-proj__arrow {
+			height: 2.5rem;
+			transform: rotate(90deg);
+			width: 2.5rem;
+			justify-self: center;
+		}
+	}
+</style>

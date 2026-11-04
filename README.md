@@ -3,7 +3,7 @@ logicblocks.event.store
 
 ![PyPI - Version](https://img.shields.io/pypi/v/logicblocks.event.store)
 ![Python - Version](https://img.shields.io/pypi/pyversions/logicblocks.event.store)
-![Documentation Status](https://readthedocs.org/projects/eventstore/badge/?version=latest)
+[![Documentation](https://img.shields.io/github/actions/workflow/status/logicblocks/event.store/docs.yaml?branch=main&label=docs)](https://logicblocks.github.io/event.store/)
 ![CircleCI](https://img.shields.io/circleci/build/github/logicblocks/event.store)
 
 Eventing infrastructure for event-sourced architectures.
@@ -209,7 +209,8 @@ Features
 Documentation
 -------------
 
-- [API docs](https://eventstore.readthedocs.io/en/latest/)
+- [Documentation](https://logicblocks.github.io/event.store/)
+- [API reference](https://logicblocks.github.io/event.store/reference/store/)
 
 Development
 -----------

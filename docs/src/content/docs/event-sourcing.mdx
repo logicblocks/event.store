@@ -1,0 +1,274 @@
+---
+title: Introduction to event sourcing
+description: What event sourcing is, how it works, why you might use it, and how it differs from the alternatives. An illustrated introduction for engineers.
+template: splash
+hero:
+  title: Store what happened, not just what is
+  tagline: An illustrated introduction to event sourcing for engineers. What it is, how it works, why you'd use it, and what it costs.
+  actions:
+    - text: See how it works
+      link: '#how-it-works'
+      icon: down-arrow
+    - text: Getting started
+      link: /event.store/getting-started/
+      icon: right-arrow
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import PageBody from '../../components/event-sourcing/PageBody.astro';
+import HeroSplit from '../../components/event-sourcing/HeroSplit.astro';
+import StreamFold from '../../components/event-sourcing/StreamFold.astro';
+import CartPlayground from '../../components/event-sourcing/CartPlayground.astro';
+import Projections from '../../components/event-sourcing/Projections.astro';
+import Concurrency from '../../components/event-sourcing/Concurrency.astro';
+import WhyGrid from '../../components/event-sourcing/WhyGrid.astro';
+import Comparison from '../../components/event-sourcing/Comparison.astro';
+
+<PageBody>
+
+<HeroSplit />
+
+<p class="es-lede">
+Most systems store the current state of things and overwrite it on every change. Event sourcing
+stores the changes themselves, as an append-only sequence of facts, and works out the current state
+from them. That small change of perspective has big consequences.
+</p>
+
+Throughout this page we'll follow a single shopping cart, `cart-42`, as a customer adds coffee
+beans, dithers over a mug and eventually checks out. Every diagram is live: watch them, poke them
+and drag them.
+
+<p class="es-eyebrow">01 · What it is</p>
+
+## What is event sourcing?
+
+An **event** is a fact about something that happened in your domain, named in the past tense:
+`item-added`, `item-removed`, `checked-out`. Events are **immutable**. Once something has happened,
+it has happened. You don't edit history, you add to it.
+
+The events for one thing (one cart, one account, one order) are kept together, in order, in a
+**stream**. A stream is append-only: new events always go on the end.
+
+To find out what the cart looks like *now*, you don't look it up. You **replay** the stream from
+the start, applying each event to a running state. Functional programmers will recognise this as a
+**fold** (or `reduce`):
+
+<StreamFold />
+
+That's the whole idea. The event stream is the **source of truth**, and any state you need is
+derived from it. Everything else on this page follows from that.
+
+<p class="es-eyebrow">02 · How it works</p>
+
+## How it works
+
+### Commands in, events out
+
+Changes start as **commands**: requests like "add a mug to cart 42". The system loads the current
+state by replaying the stream, checks the command makes sense (you can't remove something that
+isn't there, or add to a cart that's been checked out) and, if it does, records the outcome as a
+new event.
+
+Try it. Add and remove items, check out, then drag the time-travel slider to see the cart as it was
+at any point in its life.
+
+<CartPlayground />
+
+Notice that rewinding never loses anything. The past is read-only, so any number of views of it
+can coexist. Notice too that state is *cheap to throw away*: it can always be recalculated from the
+events.
+
+### Projections and read models
+
+Replaying a stream works well for making decisions about one cart. But questions like "which carts
+are open right now?" or "how much did we sell today?" span thousands of streams, and you don't want
+to replay all of them for every query.
+
+So you build **projections**. A projection listens to events (often across a whole *category* of
+streams) and keeps a **read model** up to date: a table, document or search index shaped for one
+particular question. You can have as many as you like, each optimised for its own job. Splitting
+the write side (streams) from the read side (projections) like this is known as **CQRS**, short for
+Command Query Responsibility Segregation.
+
+The really useful part is that projections are disposable. When a new question comes along, you
+write a new projection and replay the entire history through it:
+
+<Projections />
+
+The question "what do people remove from their carts?" was never anticipated. In a traditional
+system that information would have been overwritten long ago. Here, the new read model back-fills
+from the very first event, then carries on in real time.
+
+### Concurrency without locks
+
+What happens when two writers change the same stream at the same time? Event stores use
+**optimistic concurrency**. Each writer says which version of the stream its decision was based
+on, and the append only succeeds if the stream is still at that version.
+
+<Concurrency />
+
+Nobody holds a lock while a user is thinking. Conflicts are rare and caught when they happen, and
+the losing writer re-decides against fresh facts instead of silently overwriting the winner.
+
+:::note[What about long streams?]
+Replaying a stream with thousands of events on every command can get slow. The usual answer is a
+**snapshot**: a cached copy of the state at some position, so replay can start from there. Most
+streams are short-lived enough that you never need one, so treat snapshots as an optimisation to
+add when you've measured a need.
+:::
+
+<p class="es-eyebrow">03 · Why</p>
+
+## Why use it?
+
+<WhyGrid />
+
+Events also make excellent **integration points**. Other services and teams can subscribe to the
+facts they care about, such as `checked-out`, without coupling to your database schema, and they
+can rebuild their own view of the world by replaying from the beginning.
+
+Event sourcing tends to pay off most in domains where *what happened* matters as much as *what is*:
+finance, logistics, ordering, bookings, compliance-heavy workflows, and anywhere you've been asked
+"how did it get into this state?" and couldn't answer.
+
+<p class="es-eyebrow">04 · Alternatives</p>
+
+## How it differs from the alternatives
+
+Event sourcing isn't the only way to keep history or share changes. Here's how it compares with the
+approaches you're likely to reach for first.
+
+<Comparison />
+
+|                                     | CRUD          | Audit tables      | Change data capture | Messaging / Kafka       | Event sourcing     |
+| ----------------------------------- | ------------- | ----------------- | ------------------- | ----------------------- | ------------------ |
+| Source of truth                     | Current state | Current state     | Current state       | Usually a separate DB   | The events         |
+| Keeps full history                  | No            | If code remembers | While retained      | While retained          | Yes, by design     |
+| Captures business intent            | No            | Partly            | No, row diffs       | Yes                     | Yes                |
+| Can rebuild state from history      | No            | Rarely            | Rarely              | Rarely                  | Yes                |
+| New read models over past data      | No            | Hard              | Hard                | If retained forever     | Yes                |
+| Familiar to most teams              | Very          | Very              | Fairly              | Fairly                  | Less so            |
+
+These approaches aren't mutually exclusive. Event-sourced systems often publish their events to a
+broker for other services to consume, and plenty of systems mix event-sourced parts (where history
+matters) with plain CRUD (where it doesn't).
+
+<p class="es-eyebrow">05 · Trade-offs</p>
+
+## The trade-offs
+
+Event sourcing is a powerful tool, not a free one. Go in with your eyes open.
+
+<CardGrid>
+	<Card title="Events are forever" icon="padlock">
+		You can't quietly migrate old events. When the shape of an event changes, you version it and
+		teach your code (or an upcaster) to read every version ever written. Naming and modelling events
+		well matters more than designing a table.
+	</Card>
+	<Card title="Read models lag behind" icon="clock">
+		Projections are usually updated asynchronously, so a read model can be a moment behind the
+		stream. User interfaces and other services need to tolerate this eventual consistency, or read
+		from the stream when they can't.
+	</Card>
+	<Card title="More moving parts" icon="puzzle">
+		Streams, projections, subscriptions, replays and versioned events are new concepts for many
+		teams. Debugging gets easier, but there is more to learn and more infrastructure to run.
+	</Card>
+	<Card title="Personal data and erasure" icon="warning">
+		An immutable log and the right to be forgotten are in tension. Keep personal data out of event
+		payloads where you can, or encrypt it per person and delete the key ("crypto-shredding") when
+		asked.
+	</Card>
+</CardGrid>
+
+It's usually a poor fit for simple CRUD domains with no interesting behaviour, where nobody will
+ever ask about history, or when the team has no room to learn something new. You don't have to
+event-source a whole system: start with the part of the domain where history and intent matter most.
+
+<p class="es-eyebrow">06 · In practice</p>
+
+## Event sourcing with logicblocks.event.store
+
+`logicblocks.event.store` gives you the building blocks described above for Python, using
+`asyncio`. Events are grouped into a **log** of **categories** of **streams**. They're stored by a
+pluggable adapter (in-memory for tests, PostgreSQL for production) and reduced into state by a
+**projector**. Here's `cart-42` from this page as real code:
+
+```python
+from logicblocks.event.projection import Projector
+from logicblocks.event.store import EventStore, adapters, conditions
+from logicblocks.event.types import NewEvent, StreamIdentifier
+
+
+class CartProjector(Projector[StreamIdentifier, dict, dict]):
+    def initial_state_factory(self):
+        return {"items": {}, "status": "open"}
+
+    def initial_metadata_factory(self):
+        return {}
+
+    def id_factory(self, state, source):
+        return source.stream
+
+    # One handler per event: "item-added" is handled by item_added, and so on.
+    def item_added(self, state, event):
+        sku = event.payload["sku"]
+        state["items"][sku] = state["items"].get(sku, 0) + 1
+        return state
+
+    def item_removed(self, state, event):
+        sku = event.payload["sku"]
+        state["items"][sku] -= 1
+        if state["items"][sku] == 0:
+            del state["items"][sku]
+        return state
+
+    def checked_out(self, state, event):
+        state["status"] = "checked-out"
+        return state
+
+
+async def main():
+    store = EventStore(adapters.InMemoryEventStorageAdapter())
+    cart = store.stream(category="carts", stream="cart-42")
+
+    await cart.publish(
+        events=[
+            NewEvent(name="item-added", payload={"sku": "beans"}, metadata=None),
+            NewEvent(name="item-added", payload={"sku": "mug"}, metadata=None),
+        ]
+    )
+
+    # Optimistic concurrency: only append if nobody else has written since we read.
+    latest = await cart.latest()
+    await cart.publish(
+        events=[NewEvent(name="item-removed", payload={"sku": "mug"}, metadata=None)],
+        condition=conditions.position_is(latest.position),
+    )
+
+    projection = await CartProjector().project(source=cart)
+    print(projection.state)  # {'items': {'beans': 1}, 'status': 'open'}
+```
+
+If another writer had appended in between, `publish` would raise an `UnmetWriteConditionError`,
+which you can catch to reload and retry.
+
+```shell
+pip install logicblocks-event-store
+```
+
+<CardGrid>
+	<LinkCard
+		title="Getting started"
+		description="Publish your first events and project them into state."
+		href="/event.store/getting-started/"
+	/>
+	<LinkCard
+		title="Finalising state"
+		description="Shape a projection's final state once every event has been applied."
+		href="/event.store/guides/finalising-state/"
+	/>
+</CardGrid>
+
+</PageBody>

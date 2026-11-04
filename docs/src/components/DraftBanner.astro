@@ -1,0 +1,37 @@
+---
+import Default from '@astrojs/starlight/components/Banner.astro';
+
+const repositoryUrl = 'https://github.com/logicblocks/event.store';
+const commit = process.env.DOCS_DRAFT_COMMIT;
+---
+
+<div class="draft-banner" data-pagefind-ignore>
+	<strong>Draft:</strong> this documentation is a preview, published for feedback. Please <a href={`${repositoryUrl}/pull/141`}>share your thoughts on the pull request</a>.{' '}
+	{
+		commit && (
+			<span class="draft-banner-commit">
+				Built from <a href={`${repositoryUrl}/commit/${commit}`}>{commit.slice(0, 7)}</a>.
+			</span>
+		)
+	}
+</div>
+<Default />
+
+<style>
+	.draft-banner {
+		padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+		background-color: var(--sl-color-orange-low);
+		color: var(--sl-color-orange-high);
+		border-bottom: 1px solid var(--sl-color-orange);
+		line-height: var(--sl-line-height-headings);
+		text-align: center;
+		text-wrap: balance;
+	}
+	.draft-banner a {
+		color: inherit;
+		font-weight: 600;
+	}
+	.draft-banner-commit {
+		opacity: 0.8;
+	}
+</style>

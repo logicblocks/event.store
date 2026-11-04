@@ -1,0 +1,312 @@
+---
+import './styles.css';
+---
+
+<div class="es es-hero not-content" data-es-hero>
+	<div class="es-hero__action" aria-live="polite">
+		<span class="es-hero__dot"></span>
+		<span data-action>Customer opens the shop</span>
+	</div>
+
+	<div class="es-hero__panes">
+		<section class="es-panel es-hero__pane">
+			<div class="es-label">Traditional table <code>carts</code></div>
+			<table class="es-hero__table">
+				<thead>
+					<tr><th>id</th><th>items</th><th>total</th><th>status</th></tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>42</td>
+						<td><span class="es-hero__cell" data-cell="items">—</span></td>
+						<td><span class="es-hero__cell" data-cell="total">£0</span></td>
+						<td><span class="es-hero__cell" data-cell="status">open</span></td>
+					</tr>
+				</tbody>
+			</table>
+			<code class="es-hero__sql" data-sql>&nbsp;</code>
+			<p class="es-hero__verdict">One row. Every change overwrites the last.</p>
+		</section>
+
+		<div class="es-hero__versus" aria-hidden="true">vs</div>
+
+		<section class="es-panel es-hero__pane">
+			<div class="es-label">Event stream <code>cart-42</code></div>
+			<ol class="es-stream es-hero__stream" data-stream></ol>
+			<p class="es-hero__verdict">One stream. Every change is a new fact, appended.</p>
+		</section>
+	</div>
+
+	<p class="es-hero__punchline" data-punchline>
+		The row forgot the mug was ever there. <strong>The log remembers.</strong>
+	</p>
+</div>
+
+<script>
+	import { animate } from 'motion';
+	import {
+		added,
+		checkedOut,
+		eventCard,
+		enter,
+		fold,
+		loop,
+		products,
+		removed,
+		sleep,
+		total,
+		whileVisible,
+		type CartEvent,
+		type Sku,
+	} from './cart';
+
+	const script: { event: CartEvent; action: string; sql: string }[] = [
+		{ event: added('beans'), action: 'Customer adds coffee beans', sql: "UPDATE carts SET items = 'beans', total = 12" },
+		{ event: added('mug'), action: 'Customer adds a mug', sql: "UPDATE carts SET items = 'beans, mug', total = 20" },
+		{ event: added('grinder'), action: 'Customer adds a grinder', sql: "UPDATE carts SET items = 'beans, mug, grinder', total = 65" },
+		{ event: removed('mug'), action: 'Customer changes their mind about the mug', sql: "UPDATE carts SET items = 'beans, grinder', total = 57" },
+		{ event: checkedOut(), action: 'Customer checks out', sql: "UPDATE carts SET status = 'checked-out'" },
+	];
+
+	async function swap(cell: HTMLElement, text: string) {
+		if (cell.textContent === text) return;
+		const ghost = cell.cloneNode(true) as HTMLElement;
+		ghost.classList.add('es-hero__ghost');
+		cell.parentElement!.append(ghost);
+		cell.textContent = text;
+		animate(ghost, { opacity: [1, 0], transform: ['translateY(0rem)', 'translateY(-0.9rem)'] }, { duration: 0.6 }).then(() =>
+			ghost.remove(),
+		);
+		cell.parentElement!.classList.add('is-changed');
+		setTimeout(() => cell.parentElement!.classList.remove('is-changed'), 900);
+		animate(cell, { opacity: [0, 1], transform: ['translateY(0.6rem)', 'translateY(0rem)'] }, { duration: 0.6 });
+	}
+
+	for (const hero of document.querySelectorAll<HTMLElement>('[data-es-hero]')) {
+		const action = hero.querySelector<HTMLElement>('[data-action]')!;
+		const stream = hero.querySelector<HTMLElement>('[data-stream]')!;
+		const sql = hero.querySelector<HTMLElement>('[data-sql]')!;
+		const punchline = hero.querySelector<HTMLElement>('[data-punchline]')!;
+		const cells = {
+			items: hero.querySelector<HTMLElement>('[data-cell="items"]')!,
+			total: hero.querySelector<HTMLElement>('[data-cell="total"]')!,
+			status: hero.querySelector<HTMLElement>('[data-cell="status"]')!,
+		};
+
+		const reset = () => {
+			stream.replaceChildren();
+			cells.items.textContent = '—';
+			cells.total.textContent = '£0';
+			cells.status.textContent = 'open';
+			sql.innerHTML = '&nbsp;';
+			punchline.classList.remove('is-visible');
+			action.textContent = 'Customer opens the shop';
+		};
+
+		whileVisible(
+			hero,
+			loop(async (signal) => {
+				reset();
+				await sleep(900);
+				const history: CartEvent[] = [];
+				for (const [index, step] of script.entries()) {
+					if (signal.cancelled) return;
+					action.textContent = step.action;
+					animate(action.parentElement!, { opacity: [0.3, 1] }, { duration: 0.4 });
+					await sleep(700);
+
+					history.push(step.event);
+					const state = fold(history);
+					const card = eventCard(step.event, index);
+					stream.append(card);
+					enter(card);
+
+					sql.textContent = step.sql;
+					animate(sql, { opacity: [0, 1] }, { duration: 0.3 });
+					await swap(cells.items, Object.keys(state.items).map((sku) => products[sku as Sku].name.toLowerCase()).join(', ') || '—');
+					await swap(cells.total, `£${total(state)}`);
+					await swap(cells.status, state.status);
+
+					if (step.event.name === 'item-removed') {
+						await sleep(500);
+						for (const event of stream.querySelectorAll('[data-kind="item-removed"], li:nth-child(2)')) {
+							event.classList.add('is-current');
+						}
+						punchline.classList.add('is-visible');
+						await sleep(3600);
+						for (const event of stream.querySelectorAll('.is-current')) event.classList.remove('is-current');
+					} else {
+						await sleep(1500);
+					}
+				}
+				await sleep(3200);
+			}),
+		);
+	}
+</script>
+
+<style>
+	.es-hero {
+		margin-block: 0.5rem 3rem;
+	}
+
+	.es-hero__action {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.6rem;
+		margin-bottom: 1rem;
+		color: var(--es-strong);
+		font-size: var(--sl-text-base);
+		font-weight: 600;
+		min-height: 1.75rem;
+	}
+
+	.es-hero__dot {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		background: var(--sl-color-accent);
+		box-shadow: 0 0 0 0 var(--sl-color-accent);
+		animation: es-hero-ping 1.6s ease-out infinite;
+	}
+
+	@keyframes es-hero-ping {
+		0% {
+			box-shadow: 0 0 0 0 color-mix(in oklab, var(--sl-color-accent) 60%, transparent);
+		}
+		100% {
+			box-shadow: 0 0 0 0.6rem transparent;
+		}
+	}
+
+	.es-hero__panes {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		gap: 1rem;
+		align-items: stretch;
+	}
+
+	.es-hero__pane {
+		display: flex;
+		flex-direction: column;
+		min-height: 20rem;
+	}
+
+	.es-hero__versus {
+		align-self: center;
+		color: var(--es-muted);
+		font-style: italic;
+		font-size: var(--sl-text-lg);
+	}
+
+	.es-hero__table {
+		width: 100%;
+		border-collapse: collapse;
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-hero__table th,
+	.es-hero__table td {
+		padding: 0.5rem 0.6rem;
+		border: 1px solid var(--es-border);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	.es-hero__table th {
+		color: var(--es-muted);
+		font-weight: 500;
+	}
+
+	.es-hero__table td {
+		position: relative;
+		color: var(--es-strong);
+		background: var(--es-surface-raised);
+	}
+
+	.es-hero__table td {
+		transition: background-color 0.9s ease;
+	}
+
+	.es-hero__table td.is-changed {
+		background: var(--es-warn-bg);
+		transition: none;
+	}
+
+	.es-hero__cell {
+		display: inline-block;
+	}
+
+	.es-hero__ghost {
+		position: absolute;
+		left: 0.6rem;
+		top: 0.5rem;
+		color: var(--es-removed-text);
+		text-decoration: line-through;
+		pointer-events: none;
+	}
+
+	.es-hero__sql {
+		display: block;
+		margin-top: 1rem;
+		padding: 0.5rem 0.65rem;
+		border-radius: 0.4rem;
+		background: var(--es-surface-raised);
+		color: var(--es-warn-text);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		overflow-wrap: anywhere;
+	}
+
+	.es-hero__stream {
+		flex: 1;
+	}
+
+	.es-hero__verdict {
+		margin: auto 0 0;
+		padding-top: 1rem;
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-hero__punchline {
+		margin: 1.5rem 0 0;
+		text-align: center;
+		font-size: var(--sl-text-xl);
+		color: var(--es-muted);
+		opacity: 0;
+		transform: translateY(0.5rem);
+		transition:
+			opacity 0.5s ease,
+			transform 0.5s ease;
+	}
+
+	.es-hero__punchline strong {
+		color: var(--es-strong);
+	}
+
+	.es-hero__punchline.is-visible {
+		opacity: 1;
+		transform: none;
+	}
+
+	@media (max-width: 50rem) {
+		.es-hero__panes {
+			grid-template-columns: 1fr;
+		}
+
+		.es-hero__pane {
+			min-height: 0;
+		}
+
+		.es-hero__versus {
+			justify-self: center;
+		}
+
+		.es-hero__stream {
+			min-height: 15rem;
+		}
+	}
+</style>

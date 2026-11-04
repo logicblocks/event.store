@@ -1,0 +1,50 @@
+---
+import './styles.css';
+---
+
+<div class="es-page">
+	<slot />
+</div>
+
+<style>
+	.es-page {
+		--es-prose-width: 44rem;
+	}
+
+	.es-page > :global(:not(.es, .card-grid, .es-wide)) {
+		max-width: var(--es-prose-width);
+		margin-inline: auto;
+	}
+
+	.es-page > :global(.sl-heading-wrapper.level-h2) {
+		margin-top: 5rem;
+		padding-top: 2.5rem;
+		border-top: 1px solid var(--sl-color-hairline-light);
+	}
+
+	.es-page > :global(.es-eyebrow) {
+		margin-top: 5rem;
+		margin-bottom: -0.5rem;
+		color: var(--sl-color-text-accent);
+		font-family: var(--__sl-font-mono);
+		font-size: var(--sl-text-xs);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.es-page > :global(.es-eyebrow + .sl-heading-wrapper.level-h2) {
+		margin-top: 0.5rem;
+		padding-top: 0;
+		border-top: 0;
+	}
+
+	.es-page > :global(.es-lede) {
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-xl);
+		line-height: 1.6;
+	}
+
+	.es-page > :global(.card-grid) {
+		margin-block: 2rem;
+	}
+</style>

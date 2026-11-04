@@ -28,30 +28,30 @@ class SignatureRenderer:
                 code = code + str(element)
         return code
 
-    def signature(self, target: griffe.Object) -> Code:
+    def signature(self, target: griffe.Object, name: str) -> Code:
         match target:
             case griffe.Class():
-                return self._class(target)
+                return self._class(target, name)
             case griffe.Function():
-                return self._function(target)
+                return self._function(target, name)
             case griffe.TypeAlias():
-                return self._type_alias(target)
+                return self._type_alias(target, name)
             case griffe.Attribute():
-                return self._attribute(target)
+                return self._attribute(target, name)
             case _:
-                return Code.of(target.name)
+                return Code.of(name)
 
-    def _class(self, target: griffe.Class) -> Code:
+    def _class(self, target: griffe.Class, name: str) -> Code:
         parameters = self._parameters(target.parameters, skip_first=True)
-        head = "class " + target.name + self._type_parameters(target)
+        head = "class " + name + self._type_parameters(target)
         return self._callable(head, parameters) if parameters else head
 
-    def _function(self, target: griffe.Function) -> Code:
+    def _function(self, target: griffe.Function, name: str) -> Code:
         if target.overloads:
             return Code.join(
                 "\n",
                 (
-                    "@overload\n" + self._function(overload)
+                    "@overload\n" + self._function(overload, name)
                     for overload in target.overloads
                 ),
             )
@@ -64,31 +64,27 @@ class SignatureRenderer:
         skip_first = target.parent is not None and (
             target.parent.is_class and "staticmethod" not in target.labels
         )
-        head = prefix + target.name + self._type_parameters(target)
+        head = prefix + name + self._type_parameters(target)
         returns = self.expression(target.returns)
         tail = " -> " + returns if returns else Code()
         return decorators + self._callable(
             head, self._parameters(target.parameters, skip_first), tail
         )
 
-    def _type_alias(self, target: griffe.TypeAlias) -> Code:
+    def _type_alias(self, target: griffe.TypeAlias, name: str) -> Code:
         return (
             "type "
-            + target.name
+            + name
             + self._type_parameters(target)
             + " = "
             + self.expression(target.value)
         )
 
-    def _attribute(self, target: griffe.Attribute) -> Code:
+    def _attribute(self, target: griffe.Attribute, name: str) -> Code:
         if "property" in target.labels:
-            return "property " + self._annotated(
-                target.name, target.annotation
-            )
-        code = self._annotated(target.name, target.annotation)
-        if target.value is not None and (
-            "instance-attribute" not in target.labels
-        ):
+            return "property " + self._annotated(name, target.annotation)
+        code = self._annotated(name, target.annotation)
+        if target.value is not None and not _is_instance_only(target):
             code = code + " = " + self.expression(target.value)
         return code
 
@@ -178,3 +174,10 @@ class SignatureRenderer:
             return single_line
         lines = Code.join("", ("    " + p + ",\n" for p in parameters))
         return head + "(\n" + lines + ")" + tail
+
+
+def _is_instance_only(target: griffe.Attribute) -> bool:
+    return (
+        "instance-attribute" in target.labels
+        and "class-attribute" not in target.labels
+    )

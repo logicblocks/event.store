@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 
 from invoke import Context, task
@@ -23,7 +22,6 @@ def reference(context: Context):
     # Deferred so other tasks run before the docs group is installed.
     from .reference import generate_reference
 
-    shutil.rmtree(REFERENCE_DIRECTORY, ignore_errors=True)
     warnings = generate_reference(
         package="logicblocks.event",
         search_paths=[Path("src")],

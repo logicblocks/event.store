@@ -35,6 +35,18 @@ class TestPages:
             "surface.md",
         ]
 
+    def test_omits_packages_with_nothing_to_document(self, tmp_path: Path):
+        generate(tmp_path)
+
+        assert not (tmp_path / "empty.md").exists()
+
+    def test_removes_pages_from_previous_generations(self, tmp_path: Path):
+        (tmp_path / "empty.md").write_text("stale")
+
+        generate(tmp_path)
+
+        assert not (tmp_path / "empty.md").exists()
+
     def test_writes_frontmatter_and_module_heading(self, tmp_path: Path):
         generate(tmp_path)
 
@@ -104,7 +116,7 @@ The nested package.
 
 ### `PartSettings` {#acme.kit.surface.nested.PartSettings}
 
-<pre><code>class Settings</code></pre>
+<pre><code>class PartSettings</code></pre>
 
 Part settings.
 
@@ -151,6 +163,10 @@ editUrl: false
 
 <pre><code>size: int</code></pre>
 
+#### `LIMIT` {#acme.kit.signatures.Box.LIMIT}
+
+<pre><code>LIMIT = 10</code></pre>
+
 #### `item` {#acme.kit.signatures.Box.item}
 
 <pre><code>item</code></pre>
@@ -175,6 +191,20 @@ def kind() -&gt; str</code></pre>
 def get(index: int) -&gt; T
 @overload
 def get(index: slice) -&gt; list[T]</code></pre>
+
+#### `__call__` {#acme.kit.signatures.Box.__call__}
+
+<pre><code>def __call__() -&gt; T</code></pre>
+
+### `Colour` {#acme.kit.signatures.Colour}
+
+<pre><code>class Colour</code></pre>
+
+**Bases:** <code>StrEnum</code>
+
+#### `RED` {#acme.kit.signatures.Colour.RED}
+
+<pre><code>RED = 'red'</code></pre>
 
 ### `DEFAULTS` {#acme.kit.signatures.DEFAULTS}
 
@@ -329,7 +359,7 @@ The references package.
 
 See [`Widget`](/kit/reference/surface/#acme.kit.surface.Widget) and
 [`Sprocket`](/kit/reference/surface/#acme.kit.surface.nested.Sprocket), but not
-`Missing`.
+`Missing` or `empty`.
 
 ### `Report` {{#acme.kit.references.Report}}
 

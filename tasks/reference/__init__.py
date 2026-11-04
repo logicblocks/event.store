@@ -27,6 +27,8 @@ def generate_reference(
         surface = PublicSurface(root)
         names = _ordered(surface.package_names(), page_order)
         output_directory.mkdir(parents=True, exist_ok=True)
+        for stale_page in output_directory.glob("*.md"):
+            stale_page.unlink()
         renderer = PageRenderer(ReferenceLinker(surface, base_path))
         for order, name in enumerate(names, start=1):
             page = renderer.render(

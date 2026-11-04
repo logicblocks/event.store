@@ -5,6 +5,22 @@ from dataclasses import dataclass
 import griffe
 
 
+UNDOCUMENTED_DUNDERS = frozenset(
+    {
+        "__init__",
+        "__new__",
+        "__post_init__",
+        "__repr__",
+        "__str__",
+        "__hash__",
+        "__eq__",
+        "__ne__",
+        "__init_subclass__",
+        "__class_getitem__",
+    }
+)
+
+
 @dataclass(frozen=True)
 class PublicObject:
     path: str
@@ -41,9 +57,7 @@ class PublicSurface:
             for module in sorted(modules, key=lambda m: m.path)
         )
         self._modules = [
-            candidate
-            for candidate in candidates
-            if _is_presented(candidate, root)
+            candidate for candidate in candidates if _has_content(candidate)
         ]
         self._public_paths = _public_paths(self._modules)
 
@@ -53,7 +67,10 @@ class PublicSurface:
 
     def package_names(self) -> list[str]:
         return sorted(
-            name for name in self._root.modules if not name.startswith("_")
+            {
+                module.path.removeprefix(self._root.path + ".").split(".")[0]
+                for module in self._modules
+            }
         )
 
     def modules_in(self, package_name: str) -> list[PublicModule]:
@@ -94,8 +111,8 @@ def _public_object(path: str, target: griffe.Object) -> PublicObject:
         [
             _public_object(f"{path}.{name}", member)
             for name, member in target.members.items()
-            if not name.startswith("_")
-            and not isinstance(member, griffe.Alias)
+            if not isinstance(member, griffe.Alias)
+            and _is_public_member(name, member)
         ]
         if isinstance(target, griffe.Class)
         else []
@@ -103,9 +120,21 @@ def _public_object(path: str, target: griffe.Object) -> PublicObject:
     return PublicObject(path, target, members)
 
 
-def _is_presented(module: PublicModule, root: griffe.Module) -> bool:
-    is_package = module.module.parent is root
-    return is_package or bool(module.objects) or bool(module.module.docstring)
+def _is_public_member(name: str, member: griffe.Object) -> bool:
+    if _is_dunder(name):
+        return (
+            isinstance(member, griffe.Function)
+            and name not in UNDOCUMENTED_DUNDERS
+        )
+    return not name.startswith("_")
+
+
+def _is_dunder(name: str) -> bool:
+    return name.startswith("__") and name.endswith("__")
+
+
+def _has_content(module: PublicModule) -> bool:
+    return bool(module.objects) or bool(module.module.docstring)
 
 
 def _public_paths(modules: Sequence[PublicModule]) -> Mapping[str, str]:

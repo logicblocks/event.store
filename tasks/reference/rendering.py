@@ -44,7 +44,9 @@ class PageRenderer:
         self, public_object: PublicObject, level: int
     ) -> list[str]:
         target = public_object.target
-        signature = self._signatures.signature(target).render()
+        signature = self._signatures.signature(
+            target, public_object.name
+        ).render()
         blocks = [
             _heading(level, public_object.path, public_object.name),
             f"<pre><code>{signature}</code></pre>",

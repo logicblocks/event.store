@@ -1,0 +1,332 @@
+---
+import './styles.css';
+---
+
+<div class="es es-cc not-content" data-es-cc>
+	<div class="es-cc__stage">
+		<section class="es-panel es-cc__writer" data-writer="a">
+			<div class="es-label">Writer A · laptop</div>
+			<div class="es-cc__read" data-read>Hasn't read yet</div>
+			<div class="es-cc__command" data-command></div>
+			<div class="es-cc__result" data-result></div>
+		</section>
+
+		<section class="es-panel es-cc__stream-panel">
+			<div class="es-label">Stream <code>cart-42</code> <span class="es-cc__version" data-version></span></div>
+			<ol class="es-stream es-cc__stream" data-stream></ol>
+		</section>
+
+		<section class="es-panel es-cc__writer" data-writer="b">
+			<div class="es-label">Writer B · phone</div>
+			<div class="es-cc__read" data-read>Hasn't read yet</div>
+			<div class="es-cc__command" data-command></div>
+			<div class="es-cc__result" data-result></div>
+		</section>
+	</div>
+
+	<ol class="es-cc__steps" data-steps>
+		<li>Both writers load <code>cart-42</code>. It's at version 5.</li>
+		<li>Each one decides on a change, based on what it saw.</li>
+		<li>A appends first, expecting version 5. It matches, so the event is accepted.</li>
+		<li>B appends, also expecting version 5. The stream is now at 6, so the append is rejected.</li>
+		<li>B reloads, re-checks its decision against the new state and retries, expecting version 6.</li>
+	</ol>
+
+	<div class="es-cc__footer">
+		<button class="es-button" data-replay>↺ Play again</button>
+	</div>
+</div>
+
+<script>
+	import { animate } from 'motion';
+	import { added, eventCard, enter, removed, sleep, whileVisible, type CartEvent } from './cart';
+
+	const history: CartEvent[] = [added('beans'), added('mug'), added('beans'), removed('beans'), added('filters')];
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-cc]')) {
+		const stream = root.querySelector<HTMLElement>('[data-stream]')!;
+		const version = root.querySelector<HTMLElement>('[data-version]')!;
+		const steps = [...root.querySelectorAll<HTMLElement>('[data-steps] li')];
+		const replay = root.querySelector<HTMLButtonElement>('[data-replay]')!;
+		const writer = (id: 'a' | 'b') => {
+			const element = root.querySelector<HTMLElement>(`[data-writer="${id}"]`)!;
+			return {
+				element,
+				read: element.querySelector<HTMLElement>('[data-read]')!,
+				command: element.querySelector<HTMLElement>('[data-command]')!,
+				result: element.querySelector<HTMLElement>('[data-result]')!,
+			};
+		};
+		const a = writer('a');
+		const b = writer('b');
+		let events: CartEvent[] = [];
+		let run = 0;
+
+		const setVersion = () => (version.textContent = `version ${events.length}`);
+		const step = (index: number) =>
+			steps.forEach((element, position) => {
+				element.classList.toggle('is-active', position === index);
+				element.classList.toggle('is-done', position < index);
+			});
+
+		const reset = () => {
+			events = [...history];
+			stream.replaceChildren(...events.map((event, index) => eventCard(event, index, { payload: false })));
+			setVersion();
+			for (const w of [a, b]) {
+				w.read.textContent = "Hasn't read yet";
+				w.read.classList.remove('is-loaded');
+				w.command.replaceChildren();
+				w.command.style.transform = '';
+				w.command.style.opacity = '';
+				w.result.textContent = '';
+				w.result.removeAttribute('data-tone');
+			}
+			step(-1);
+		};
+
+		const showCommand = (w: ReturnType<typeof writer>, event: CartEvent, expected: number) => {
+			w.command.innerHTML = '';
+			const card = eventCard(event, expected, { payload: false });
+			card.querySelector('.es-event__position')!.textContent = 'new';
+			const expectation = document.createElement('div');
+			expectation.className = 'es-cc__expect';
+			expectation.innerHTML = `expect version <b>${expected}</b>`;
+			w.command.append(card, expectation);
+			w.command.style.transform = '';
+			w.command.style.opacity = '1';
+			enter(w.command);
+		};
+
+		const towardsStream = (w: ReturnType<typeof writer>) => {
+			const from = w.command.getBoundingClientRect();
+			const to = stream.getBoundingClientRect();
+			return {
+				x: to.left + to.width / 2 - (from.left + from.width / 2),
+				y: to.bottom - (from.top + from.height / 2),
+			};
+		};
+
+		const accept = async (w: ReturnType<typeof writer>, event: CartEvent) => {
+			const { x, y } = towardsStream(w);
+			await animate(w.command, { transform: `translate(${x}px, ${y}px) scale(0.9)`, opacity: 0 }, { duration: 0.6, ease: 'easeIn' });
+			events = [...events, event];
+			const card = eventCard(event, events.length - 1, { payload: false });
+			card.classList.add('is-current');
+			stream.append(card);
+			enter(card);
+			setVersion();
+			w.result.dataset.tone = 'ok';
+			w.result.textContent = `✓ Accepted. Stream is now at version ${events.length}.`;
+			setTimeout(() => card.classList.remove('is-current'), 1600);
+		};
+
+		const reject = async (w: ReturnType<typeof writer>, expected: number) => {
+			const { x, y } = towardsStream(w);
+			const near = `translate(${x * 0.45}px, ${y * 0.45}px)`;
+			const recoil = `translate(${x * 0.35}px, ${y * 0.35}px)`;
+			await animate(w.command, { transform: near }, { duration: 0.45, ease: 'easeIn' });
+			await animate(w.command, { transform: [near, recoil, near, 'translate(0px, 0px)'] }, { duration: 0.5 });
+			w.command.classList.add('is-rejected');
+			w.result.dataset.tone = 'error';
+			w.result.textContent = `✗ Rejected: expected version ${expected}, but the stream is at ${events.length}.`;
+		};
+
+		const play = async () => {
+			const current = ++run;
+			const live = () => current === run;
+			reset();
+			await sleep(800);
+
+			step(0);
+			for (const w of [a, b]) {
+				w.read.textContent = `Read cart-42 at version ${events.length}`;
+				w.read.classList.add('is-loaded');
+				enter(w.read);
+			}
+			await sleep(1800);
+			if (!live()) return;
+
+			step(1);
+			showCommand(a, added('grinder'), 5);
+			await sleep(500);
+			showCommand(b, removed('mug'), 5);
+			await sleep(1800);
+			if (!live()) return;
+
+			step(2);
+			await accept(a, added('grinder'));
+			await sleep(1800);
+			if (!live()) return;
+
+			step(3);
+			await reject(b, 5);
+			await sleep(2600);
+			if (!live()) return;
+
+			step(4);
+			b.command.classList.remove('is-rejected');
+			b.read.textContent = `Reloaded at version ${events.length}. The mug is still in the cart, so the removal still makes sense.`;
+			enter(b.read);
+			b.result.textContent = '';
+			await sleep(1600);
+			showCommand(b, removed('mug'), 6);
+			await sleep(1000);
+			if (!live()) return;
+			await accept(b, removed('mug'));
+			await sleep(800);
+			step(5);
+		};
+
+		replay.addEventListener('click', play);
+
+		let started = false;
+		whileVisible(root, () => {
+			if (!started) {
+				started = true;
+				play();
+			}
+			return () => {};
+		});
+	}
+</script>
+
+<style>
+	.es-cc__stage {
+		display: grid;
+		grid-template-columns: 1fr 1.1fr 1fr;
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.es-cc__writer {
+		min-height: 15rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.es-cc__writer .es-label {
+		margin: 0;
+	}
+
+	.es-cc__read {
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+	}
+
+	.es-cc__read.is-loaded {
+		color: var(--es-info-text);
+	}
+
+	.es-cc__command {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		min-height: 4rem;
+	}
+
+	.es-cc__command.is-rejected :global(.es-event) {
+		--kind: var(--es-removed);
+		opacity: 0.6;
+		text-decoration: line-through;
+	}
+
+	.es-cc__command :global(.es-cc__expect) {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.es-cc__command :global(.es-cc__expect b) {
+		color: var(--es-strong);
+	}
+
+	.es-cc__result {
+		min-height: 2.5rem;
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+	}
+
+	.es-cc__result[data-tone='ok'] {
+		color: var(--es-added-text);
+	}
+
+	.es-cc__result[data-tone='error'] {
+		color: var(--es-removed-text);
+	}
+
+	.es-cc__version {
+		margin-left: auto;
+		padding: 0.05rem 0.5rem;
+		border-radius: 999px;
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-text-accent);
+		font-family: var(--es-mono);
+		letter-spacing: 0;
+		text-transform: none;
+	}
+
+	.es-cc__steps {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 0.75rem;
+		margin-top: 1.25rem !important;
+		counter-reset: step;
+	}
+
+	.es-cc__steps li {
+		counter-increment: step;
+		padding-top: 0.6rem;
+		border-top: 3px solid var(--es-border);
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+		transition:
+			border-color 0.3s ease,
+			color 0.3s ease;
+	}
+
+	.es-cc__steps li::before {
+		content: counter(step);
+		display: block;
+		margin-bottom: 0.2rem;
+		font-family: var(--es-mono);
+		font-weight: 700;
+	}
+
+	.es-cc__steps li.is-done {
+		border-color: color-mix(in oklab, var(--sl-color-text-accent) 45%, transparent);
+	}
+
+	.es-cc__steps li.is-active {
+		border-color: var(--sl-color-text-accent);
+		color: var(--es-strong);
+	}
+
+	.es-cc__footer {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 0.75rem;
+	}
+
+	@media (max-width: 50rem) {
+		.es-cc__stage {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.es-cc__stream-panel {
+			grid-column: 1 / -1;
+			grid-row: 2;
+		}
+
+		.es-cc__steps {
+			grid-template-columns: 1fr;
+		}
+
+		.es-cc__steps li:not(.is-active) {
+			display: none;
+		}
+	}
+</style>

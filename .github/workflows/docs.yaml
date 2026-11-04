@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - docs-starlight-site
+      - force-docs-publish
   workflow_dispatch:
 
 permissions:

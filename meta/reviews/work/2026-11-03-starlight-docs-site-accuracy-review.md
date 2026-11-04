@@ -33,7 +33,7 @@ Status values: `todo`, `in-progress`, `done`, `covered-by-#142`, `deferred`.
 
 | # | Finding | Where | Status |
 |---|---------|-------|--------|
-| M1 | Deploy workflow still triggers on pushes to `docs-starlight-site`, a temporary preview. Remove that line before merging, then take the branch out of the `github-pages` environment's deployment policy. | `.github/workflows/docs.yaml:6` | todo (do last; it stops preview deploys) |
+| M1 | Deploy workflow still triggers on pushes to `force-docs-publish`, a preview branch that any branch can be force-pushed to. Remove that line before merging, then take the branch out of the `github-pages` environment's deployment policy. | `.github/workflows/docs.yaml:6` | todo (do last; it stops preview deploys) |
 | M2 | The Utils reference page is empty. `utils/__init__.py` exports nothing and the utils modules have no `__all__`, so the walker skips them. That leaves `Clock`, `SystemClock`, `StaticClock`, `TimezoneRequiredStaticClock` and `class_fullname` undocumented, although `Clock` and `SystemClock` appear in public signatures. | `src/logicblocks/event/utils/` | done (generator skips packages with nothing to document; adding `__all__` to utils is a separate library PR) |
 | M3 | Class-level attribute values are dropped. The value is hidden whenever griffe labels an attribute `instance-attribute`, which it also does for enum members and class constants. `Operator.EQUAL` renders as a bare `EQUAL`, and about 80 `<pre>` blocks hold only a name. | `tasks/reference/signatures.py:90` | done |
 | M4 | Wrong docstrings: `EventCategory` claims `iter` support, and the `stream`/`category` accessors say they return "an event store". | `src/logicblocks/event/store/store.py` | covered-by-#142 |

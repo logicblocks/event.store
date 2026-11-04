@@ -29,6 +29,9 @@ jobs:
 
       - name: Build
         run: mise run docs:build
+        env:
+          DOCS_DRAFT: ${{ github.ref == 'refs/heads/force-docs-publish' }}
+          DOCS_DRAFT_COMMIT: ${{ github.sha }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

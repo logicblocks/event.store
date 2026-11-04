@@ -71,4 +71,4 @@ class PageRenderer:
 
 
 def _heading(level: int, anchor: str, text: str) -> str:
-    return f'<h{level} id="{anchor}"><code>{text}</code></h{level}>'
+    return f"{'#' * level} `{text}` {{#{anchor}}}"

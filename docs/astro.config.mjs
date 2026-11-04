@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { satteri } from '@astrojs/markdown-satteri';
 import starlightLinksValidator from 'starlight-links-validator';
 import { readdirSync } from 'node:fs';
 
@@ -24,6 +25,10 @@ const isDraft = process.env.DOCS_DRAFT === 'true';
 export default defineConfig({
 	site: 'https://logicblocks.github.io',
 	base: '/event.store',
+	markdown: {
+		// The generated reference pages set heading ids with `{#id}`.
+		processor: satteri({ features: { headingAttributes: true } }),
+	},
 	integrations: [
 		starlight({
 			title: 'logicblocks.event.store',

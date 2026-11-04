@@ -48,6 +48,7 @@ export default defineConfig({
 			plugins: [starlightLinksValidator()],
 			sidebar: [
 				{ label: 'Home', link: '/' },
+				{ label: 'Introduction to event sourcing', slug: 'event-sourcing' },
 				{ label: 'Getting started', slug: 'getting-started' },
 				{
 					label: 'Guides',

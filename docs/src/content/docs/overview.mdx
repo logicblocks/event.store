@@ -1,0 +1,159 @@
+---
+title: Library overview
+description: What each part of logicblocks.event.store does, how it works and how the parts fit together, from a ten-second summary to a guided tour.
+template: splash
+hero:
+  title: The whole library on one page
+  tagline: What each part of logicblocks.event.store does, how it works and how the parts fit together. Start with ten seconds, then zoom in as far as you need.
+  actions:
+    - text: Start the tour
+      link: '#in-ten-seconds'
+      icon: down-arrow
+    - text: I know what I want to do
+      link: '#find-your-way'
+      icon: right-arrow
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import PageBody from '../../components/event-sourcing/PageBody.astro';
+import TenSeconds from '../../components/overview/TenSeconds.astro';
+import PackageMap from '../../components/overview/PackageMap.astro';
+import EventJourney from '../../components/overview/EventJourney.astro';
+import MetroMap from '../../components/overview/MetroMap.astro';
+import ProcessingWiring from '../../components/overview/ProcessingWiring.astro';
+import TaskFinder from '../../components/overview/TaskFinder.astro';
+import AdoptionLadder from '../../components/overview/AdoptionLadder.astro';
+
+<PageBody>
+
+<p class="es-lede">
+The library is a set of building blocks for event sourcing in Python, built on asyncio. Each block
+does one job and depends only on the blocks beneath it, so you can start small and add more as you
+need them.
+</p>
+
+This page carries on with `cart-42`, the shopping cart from the
+[introduction to event sourcing](/event.store/event-sourcing/). Each section goes a level deeper
+than the one before, so stop whenever you've seen enough. Every package has its own colour, and
+it's the same colour in every diagram.
+
+<p class="es-eyebrow">01 · Ten seconds</p>
+
+## In ten seconds
+
+<TenSeconds />
+
+<p class="es-eyebrow">02 · One minute</p>
+
+## The map
+
+The library has nine packages in five layers. Each package depends only on packages in the layers
+below it, so the higher a package is, the more it does for you. Click a package to see what it's
+for, the names you'll use from it, and how it connects to the others.
+
+<PackageMap />
+
+Three things to notice:
+
+- **Most code touches three packages.** `store`, `projection` and `types` cover writing events,
+  turning them into state and the values passed between the two. `sources`, `persistence` and
+  `query` mostly work behind the scenes.
+- **Storage is always pluggable.** The event store and the projection store both hand storage to
+  an adapter: in memory for tests, Postgres for production, or
+  [your own](/event.store/guides/custom-storage-adapters/).
+- **Processing builds on everything else.** It is the one package that pulls the rest together,
+  which is why it gets its own [zoom-in](#zoom-in-processing) below.
+
+<p class="es-eyebrow">03 · Five minutes</p>
+
+## The life of an event
+
+Follow one event, a grinder added to `cart-42`, from the moment you describe it to the moment it
+changes an answer. The first four steps are always the same. Then pick a branch: work out the state
+**on demand** when you need it, or keep it up to date **in the background** as events arrive. The
+chips at the top light up the packages each step uses.
+
+<EventJourney />
+
+## The metro map
+
+Here's another way to see how the parts fit together. Each everyday journey through the library is
+a line, and each class you meet along the way is a station. Where two lines share a station, the
+journeys meet, and that's where the parts of the library connect.
+
+<MetroMap />
+
+Three interchanges hold the library together:
+
+- **`EventStream`** is where writing meets projecting: you publish to a stream, and you project
+  from it.
+- **`ProjectionStore`** is where on-demand and background projections meet: both save to it.
+- **`EventStorageAdapter`** is where tests meet production: swap the in-memory adapter for the
+  Postgres one and nothing else changes.
+
+<p class="es-eyebrow">04 · Zoom in</p>
+
+## Zoom in: processing
+
+`processing` has the most moving parts, but they share out three jobs:
+
+- **who reads what**: the broker;
+- **reading and remembering**: subscribers, consumers and their checkpoints;
+- **keeping it all running**: services.
+
+Here they are, wired together for the `cart-projection` subscriber from the background branch above.
+
+<ProcessingWiring />
+
+:::tip[Three rules of thumb]
+- The broker only hands out sources. Subscribers do the reading, and only when they're polled.
+- Checkpoints are events too, kept in a state category you choose. Give each subscriber group its
+  own.
+- Processing is at least once. After a crash, the events since the last checkpoint are processed
+  again, so make your processors safe to repeat.
+:::
+
+<p class="es-eyebrow">05 · Find your way</p>
+
+## Find your way
+
+Pick what you're trying to do to see the names you need, a minimal snippet and where to read more.
+The snippets leave out imports and reuse `cart`, `store` and `CartProjector` from earlier on this
+page.
+
+<TaskFinder />
+
+### Climb the ladder
+
+You don't need everything at once. Most projects take up the library in this order, and each level
+adds to the one before it.
+
+<AdoptionLadder />
+
+## Where next
+
+<CardGrid>
+	<LinkCard
+		title="Getting started"
+		description="Publish your first events and project them into state."
+		href="/event.store/getting-started/"
+	/>
+	<LinkCard
+		title="Streams, categories and the log"
+		description="How events are organised, published and read back."
+		href="/event.store/guides/streams-categories-and-logs/"
+	/>
+	<LinkCard
+		title="Processing events asynchronously"
+		description="Run processors in the background with a broker, subscribers and services."
+		href="/event.store/guides/event-processing/"
+	/>
+	<LinkCard
+		title="How the distributed event broker works"
+		description="Leader election, allocation, observers and failover in detail."
+		href="/event.store/concepts/distributed-event-broker/"
+	/>
+</CardGrid>
+
+</PageBody>

@@ -1,0 +1,403 @@
+---
+import { Code } from '@astrojs/starlight/components';
+import './styles.css';
+import type { PackageId } from './library';
+
+type Task = {
+	id: string;
+	goal: string;
+	names: [name: string, pkg: PackageId][];
+	why: string;
+	code: string;
+	guide: { label: string; href: string };
+};
+
+const base = '/event.store';
+
+const tasks: Task[] = [
+	{
+		id: 'record',
+		goal: 'record that something happened',
+		names: [
+			['EventStore', 'store'],
+			['EventStream.publish', 'store'],
+			['NewEvent', 'types'],
+		],
+		why: 'Get a stream from the store and publish to it. Every event in one publish is stored, or none of them are.',
+		code: `store = EventStore(adapters.InMemoryEventStorageAdapter())
+cart = store.stream(category="carts", stream="cart-42")
+
+await cart.publish(
+    events=[NewEvent(name="item-added", payload={"sku": "mug"}, metadata=None)]
+)`,
+		guide: { label: 'Publishing to a stream', href: `${base}/guides/streams-categories-and-logs/#publishing-to-a-stream` },
+	},
+	{
+		id: 'race',
+		goal: 'stop concurrent writers clobbering each other',
+		names: [
+			['conditions.position_is', 'store'],
+			['retry_on_unmet_condition_error', 'store'],
+			['UnmetWriteConditionError', 'store'],
+		],
+		why: 'Publish on condition that the stream hasn’t moved since you read it. The decorator re-runs read, decide, publish when it has.',
+		code: `@retry_on_unmet_condition_error(tries=3)
+async def check_out(cart: EventStream) -> None:
+    latest = await cart.latest()
+    # ...decide, based on what you just read...
+    await cart.publish(
+        events=[NewEvent(name="checked-out", payload={}, metadata=None)],
+        condition=conditions.position_is(latest.position if latest else None),
+    )`,
+		guide: { label: 'Concurrency and write conditions', href: `${base}/guides/concurrency/` },
+	},
+	{
+		id: 'state',
+		goal: 'work out the current state of one thing',
+		names: [
+			['Projector', 'projection'],
+			['Projection', 'types'],
+		],
+		why: 'Write a projector with one handler per event name, then project the stream.',
+		code: `class CartProjector(Projector[StreamIdentifier, dict, dict]):
+    def initial_state_factory(self):
+        return {"items": {}, "status": "open"}
+
+    def initial_metadata_factory(self):
+        return {}
+
+    def id_factory(self, state, source):
+        return source.stream
+
+    def checked_out(self, state, event):
+        return {**state, "status": "checked-out"}
+
+projection = await CartProjector().project(source=cart)`,
+		guide: { label: 'Getting started', href: `${base}/getting-started/` },
+	},
+	{
+		id: 'query',
+		goal: 'save read models and query them',
+		names: [
+			['ProjectionStore', 'projection'],
+			['FilterClause', 'query'],
+			['SortClause', 'query'],
+			['OffsetPagingClause', 'query'],
+		],
+		why: 'Save projections to a projection store, then load them by id, locate them by source, or search them.',
+		code: `projections = ProjectionStore(InMemoryProjectionStorageAdapter())
+await projections.save(projection=projection)
+
+checked_out = await projections.search(
+    filters=[FilterClause(Operator.EQUAL, Path("state", "status"), "checked-out")],
+    sort=SortClause(fields=[SortField(Path("id"), SortOrder.ASC)]),
+    paging=OffsetPagingClause(item_count=20),
+)`,
+		guide: { label: 'Storing and querying projections', href: `${base}/guides/projection-store/` },
+	},
+	{
+		id: 'react',
+		goal: 'react to events in the background',
+		names: [
+			['EventProcessor', 'processing'],
+			['make_event_store_subscriber', 'processing'],
+			['make_event_broker', 'processing'],
+			['ServiceManager', 'processing'],
+			['PollingService', 'processing'],
+		],
+		why: 'Write a processor, wrap it in a subscriber, register the subscriber with a broker, then run the broker and a poller as services.',
+		code: `class ReceiptMailer(EventProcessor[StoredEvent]):
+    async def process_event(self, event: StoredEvent) -> None:
+        if event.name == "checked-out":
+            await send_receipt(cart_id=event.stream)
+
+subscriber = make_event_store_subscriber(
+    subscriber_group="receipts",
+    subscription_request=CategoryIdentifier(category="carts"),
+    subscriber_state_category=store.category(category="receipts-state"),
+    event_processor=ReceiptMailer(),
+)
+broker = make_event_broker(
+    node_id="node-1",
+    broker_type=EventBrokerType.Singleton,
+    storage_type=EventBrokerStorageType.InMemory,
+    settings=SingletonEventBrokerSettings(),
+    adapter=adapter,
+)
+await broker.register(subscriber)
+
+services = (
+    ServiceManager()
+    .register(broker)
+    .register(PollingService(service=CallableService(subscriber.consume_all)))
+)
+await services.start()`,
+		guide: { label: 'Processing events asynchronously', href: `${base}/guides/event-processing/` },
+	},
+	{
+		id: 'live',
+		goal: 'keep read models up to date automatically',
+		names: [
+			['ProjectionEventProcessor', 'processing'],
+			['Projector', 'projection'],
+			['ProjectionStore', 'projection'],
+		],
+		why: 'Use the built-in processor that applies each event to the stored projection and saves it. Wire it up like any other processor.',
+		code: `subscriber = make_event_store_subscriber(
+    subscriber_group="cart-projection",
+    subscription_request=CategoryIdentifier(category="carts"),
+    subscriber_state_category=store.category(category="cart-projection-state"),
+    event_processor=ProjectionEventProcessor(
+        projector=CartProjector(),
+        projection_store=projections,
+    ),
+)`,
+		guide: { label: 'Project events into a projection store', href: `${base}/guides/event-processing/#project-events-into-a-projection-store` },
+	},
+	{
+		id: 'postgres',
+		goal: 'run on PostgreSQL in production',
+		names: [
+			['PostgresEventStorageAdapter', 'store'],
+			['PostgresProjectionStorageAdapter', 'projection'],
+			['ConnectionSettings', 'persistence'],
+		],
+		why: 'Apply the repository’s SQL files with your own migration tooling, then swap the in-memory adapters for the Postgres ones. Nothing else changes.',
+		code: `connection_settings = ConnectionSettings(
+    host="localhost", port=5432, dbname="shop", user="admin", password="secret"
+)
+
+store = EventStore(
+    PostgresEventStorageAdapter(connection_source=connection_settings)
+)
+projections = ProjectionStore(
+    PostgresProjectionStorageAdapter(connection_source=connection_settings)
+)`,
+		guide: { label: 'Using PostgreSQL', href: `${base}/guides/postgres/` },
+	},
+	{
+		id: 'scale',
+		goal: 'share the work between several processes',
+		names: [
+			['EventBrokerType.Distributed', 'processing'],
+			['DistributedEventBrokerSettings', 'processing'],
+			['EventBrokerStorageType.Postgres', 'processing'],
+		],
+		why: 'Use a distributed broker with Postgres storage. Each source is consumed by one live subscriber in its group, and moves elsewhere if that subscriber goes away.',
+		code: `broker = make_event_broker(
+    node_id="node-1",
+    broker_type=EventBrokerType.Distributed,
+    storage_type=EventBrokerStorageType.Postgres,
+    settings=DistributedEventBrokerSettings(),
+    connection_settings=connection_settings,
+    connection_pool=connection_pool,
+)`,
+		guide: { label: 'How the distributed event broker works', href: `${base}/concepts/distributed-event-broker/` },
+	},
+	{
+		id: 'failures',
+		goal: 'keep going when something fails',
+		names: [
+			['ErrorHandlingService', 'processing'],
+			['RetryErrorHandler', 'processing'],
+			['ConstantRetryStrategy', 'processing'],
+		],
+		why: 'A polling service stops at its first exception. Wrap it so failures are retried after a pause.',
+		code: `retry_after_five_seconds = RetryErrorHandler(
+    retry_strategy=ConstantRetryStrategy(time=timedelta(seconds=5))
+)
+
+services = ServiceManager().register(
+    ErrorHandlingService(
+        service=PollingService(service=CallableService(subscriber.consume_all)),
+        error_handler=retry_after_five_seconds,
+    )
+)`,
+		guide: { label: 'Services and error handling', href: `${base}/guides/services-and-error-handling/#handling-errors` },
+	},
+	{
+		id: 'types',
+		goal: 'use my own payload and state types',
+		names: [
+			['JsonValueSerialisable', 'types'],
+			['JsonValueDeserialisable', 'types'],
+		],
+		why: 'Give your class serialise and deserialise methods. No base class is needed: the protocols are checked by shape.',
+		code: `@dataclass(frozen=True)
+class ItemAdded:
+    sku: str
+
+    def serialise(self, fallback):
+        return {"sku": self.sku}
+
+    @classmethod
+    def deserialise(cls, value, fallback):
+        return cls(sku=value["sku"])
+
+await cart.publish(
+    events=[NewEvent(name="item-added", payload=ItemAdded("mug"), metadata=None)]
+)`,
+		guide: { label: 'Custom payload and state types', href: `${base}/guides/serialisation/` },
+	},
+	{
+		id: 'test',
+		goal: 'test my projectors and processors',
+		names: [
+			['StoredEventBuilder', 'testing'],
+			['InMemoryEventStorageAdapter', 'store'],
+			['StaticClock', 'utils'],
+		],
+		why: 'Build the events you need and apply them directly. No store needed. For wider tests, use the in-memory adapters.',
+		code: `def test_checking_out_closes_the_cart():
+    event = StoredEventBuilder().with_name("checked-out").build()
+
+    state = CartProjector().apply(
+        event=event, state={"items": {}, "status": "open"}
+    )
+
+    assert state["status"] == "checked-out"`,
+		guide: { label: 'Testing', href: `${base}/guides/testing/` },
+	},
+];
+---
+
+<div class="es ov ov-tasks not-content" data-ov-tasks>
+	<div class="ov-tasks__picker">
+		<p class="ov-tasks__lead">I want to…</p>
+		<ul>
+			{
+				tasks.map((task, index) => (
+					<li>
+						<button type="button" data-task-button={task.id} aria-pressed={index === 0}>
+							{task.goal}
+						</button>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+	<div class="ov-tasks__answers">
+		{
+			tasks.map((task, index) => (
+				<section class="es-panel ov-tasks__answer" data-task={task.id} hidden={index !== 0}>
+					<div class="es-label">You need</div>
+					<div class="ov-tasks__names">
+						{task.names.map(([name, pkg]) => (
+							<code class="ov-name" data-pkg={pkg} title={`logicblocks.event.${pkg}`}>
+								{name}
+							</code>
+						))}
+					</div>
+					<p>{task.why}</p>
+					<Code code={task.code} lang="python" wrap />
+					<a class="ov-tasks__guide" href={task.guide.href}>
+						{task.guide.label} →
+					</a>
+				</section>
+			))
+		}
+	</div>
+</div>
+
+<style>
+	.ov-tasks {
+		display: grid;
+		grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+		gap: 1.25rem;
+		align-items: start;
+	}
+
+	.ov-tasks__lead {
+		margin: 0 0 0.5rem;
+		color: var(--es-strong);
+		font-size: var(--sl-text-xl);
+		font-weight: 700;
+	}
+
+	.ov-tasks__picker ul {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.ov-tasks__picker button {
+		width: 100%;
+		padding: 0.45rem 0.75rem;
+		border: 1px solid transparent;
+		border-radius: 0.5rem;
+		background: none;
+		color: var(--es-muted);
+		font: inherit;
+		font-size: var(--sl-text-sm);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.ov-tasks__picker button:hover {
+		color: var(--es-strong);
+		background: var(--es-surface);
+	}
+
+	.ov-tasks__picker button[aria-pressed='true'] {
+		border-color: var(--sl-color-text-accent);
+		background: var(--es-surface);
+		color: var(--es-strong);
+		font-weight: 600;
+	}
+
+	.ov-tasks__picker button[aria-pressed='true']::after {
+		content: ' →';
+		color: var(--sl-color-text-accent);
+	}
+
+	.ov-tasks__answer p {
+		margin: 0.75rem 0;
+	}
+
+	.ov-tasks__names {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+	}
+
+	.ov-tasks__guide {
+		display: inline-block;
+		margin-top: 0.75rem;
+		font-size: var(--sl-text-xs);
+	}
+
+	@media (max-width: 48rem) {
+		.ov-tasks {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ov-tasks__picker ul {
+			flex-direction: row;
+			flex-wrap: wrap;
+		}
+
+		.ov-tasks__picker button {
+			width: auto;
+			border-color: var(--es-border);
+			border-radius: 999px;
+			font-size: var(--sl-text-xs);
+		}
+
+		.ov-tasks__picker button[aria-pressed='true']::after {
+			content: none;
+		}
+	}
+</style>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-tasks]')) {
+		const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-task-button]')];
+		const answers = [...root.querySelectorAll<HTMLElement>('[data-task]')];
+		for (const button of buttons) {
+			button.addEventListener('click', () => {
+				for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+				for (const answer of answers) answer.hidden = answer.dataset.task !== button.dataset.taskButton;
+			});
+		}
+	}
+</script>

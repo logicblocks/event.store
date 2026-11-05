@@ -1,0 +1,110 @@
+@import '../event-sourcing/styles.css';
+
+[data-pkg] {
+	--pkg-l: 72%;
+	--pkg-c: 0.15;
+	--pkg-text-l: 82%;
+	--pkg: oklch(var(--pkg-l) var(--pkg-c) var(--pkg-h, 250));
+	--pkg-text: oklch(var(--pkg-text-l) calc(var(--pkg-c) * 0.8) var(--pkg-h, 250));
+	--pkg-bg: oklch(var(--pkg-l) var(--pkg-c) var(--pkg-h, 250) / 0.14);
+	--pkg-line: oklch(var(--pkg-l) var(--pkg-c) var(--pkg-h, 250) / 0.5);
+}
+
+:root[data-theme='light'] [data-pkg] {
+	--pkg-l: 58%;
+	--pkg-text-l: 42%;
+}
+
+[data-pkg='processing'] { --pkg-h: 55; }
+[data-pkg='projection'] { --pkg-h: 300; }
+[data-pkg='store'] { --pkg-h: 150; }
+[data-pkg='sources'] { --pkg-h: 195; }
+[data-pkg='persistence'] { --pkg-h: 95; }
+[data-pkg='types'] { --pkg-h: 245; }
+[data-pkg='query'] { --pkg-h: 340; }
+[data-pkg='utils'] { --pkg-h: 260; --pkg-c: 0.03; }
+[data-pkg='testing'] { --pkg-h: 15; }
+
+.ov-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.05rem 0.5rem;
+	border: 1px solid var(--pkg-line);
+	border-radius: 999px;
+	background: var(--pkg-bg);
+	color: var(--pkg-text);
+	font-family: var(--es-mono);
+	font-size: var(--sl-text-2xs);
+	font-weight: 600;
+	line-height: 1.6;
+	white-space: nowrap;
+	text-decoration: none;
+}
+
+.ov-chip::before {
+	content: '';
+	width: 0.45rem;
+	height: 0.45rem;
+	border-radius: 50%;
+	background: var(--pkg);
+}
+
+.ov-name {
+	display: inline-block;
+	padding: 0.1rem 0.45rem;
+	border-radius: 0.35rem;
+	border: 1px solid var(--pkg-line);
+	background: var(--pkg-bg);
+	color: var(--es-strong);
+	font-family: var(--es-mono);
+	font-size: var(--sl-text-xs);
+	white-space: nowrap;
+}
+
+.ov-segmented {
+	display: inline-flex;
+	padding: 0.2rem;
+	gap: 0.2rem;
+	border: 1px solid var(--es-border);
+	border-radius: 999px;
+	background: var(--es-surface);
+}
+
+.ov-segmented button {
+	padding: 0.3rem 0.9rem;
+	border: 0;
+	border-radius: 999px;
+	background: none;
+	color: var(--es-muted);
+	font: inherit;
+	font-size: var(--sl-text-xs);
+	cursor: pointer;
+}
+
+.ov-segmented button[aria-pressed='true'] {
+	background: var(--sl-color-text-accent);
+	color: var(--sl-color-black);
+	font-weight: 600;
+}
+
+.ov-scroll {
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+}
+
+.ov a:focus-visible,
+.ov button:focus-visible,
+.ov [tabindex]:focus-visible {
+	outline: 2px solid var(--sl-color-text-accent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ov *,
+	.ov *::before,
+	.ov *::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

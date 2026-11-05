@@ -1,0 +1,562 @@
+---
+import './styles.css';
+import { layers, packageOrder, packages, usedBy, type PackageId } from './library';
+
+const initial: PackageId = 'store';
+---
+
+<div class="es ov ov-map not-content" data-ov-map data-initial={initial}>
+	<div class="ov-map__diagram" data-diagram>
+		<svg class="ov-map__wires" data-wires aria-hidden="true"></svg>
+		<div class="ov-map__layers">
+			{
+				layers.map((layer) => (
+					<div class="ov-map__layer">
+						<div class="ov-map__layer-label">
+							<span>{layer.label}</span>
+							<small>{layer.detail}</small>
+						</div>
+						<div class="ov-map__tiles">
+							{layer.packages.map((id) => (
+								<button type="button" class="ov-map__tile" data-pkg={id} data-tile={id} aria-pressed={id === initial}>
+									<span class="ov-map__tile-title">{packages[id].title}</span>
+									<code>.{id}</code>
+									<span class="ov-map__tile-tagline">{packages[id].tagline}</span>
+								</button>
+							))}
+						</div>
+					</div>
+				))
+			}
+		</div>
+		<div class="ov-map__side">
+			<div class="ov-map__layer-label">
+				<span>Alongside</span>
+				<small>For your tests</small>
+			</div>
+			<button type="button" class="ov-map__tile ov-map__tile--side" data-pkg="testing" data-tile="testing" aria-pressed="false">
+				<span class="ov-map__tile-title">{packages.testing.title}</span>
+				<code>.testing</code>
+				<span class="ov-map__tile-tagline">{packages.testing.tagline}</span>
+			</button>
+		</div>
+		<p class="ov-map__legend">
+			<span><i class="is-dep"></i> depends on</span>
+			<span><i class="is-user"></i> used by</span>
+			<span>Hover to preview, click to pin.</span>
+		</p>
+	</div>
+
+	<div class="ov-map__panels" aria-live="polite">
+		{
+			packageOrder.map((id) => {
+				const pkg = packages[id];
+				const users = usedBy(id);
+				return (
+					<section class="es-panel ov-map__panel" data-pkg={id} data-panel={id} hidden={id !== initial}>
+						<div class="ov-map__panel-head">
+							<span class="ov-chip">{id}</span>
+							<code class="ov-map__module">logicblocks.event.{id}</code>
+						</div>
+						<p class="ov-map__panel-title">{pkg.tagline}</p>
+						{pkg.how.map((paragraph) => (
+							<p>{paragraph}</p>
+						))}
+						<div class="es-label">Names you’ll use</div>
+						<ul class="ov-map__names">
+							{pkg.names.map((entry) => (
+								<li>
+									<code class="ov-name" data-pkg={id}>
+										{entry.name}
+									</code>
+									<span>{entry.what}</span>
+								</li>
+							))}
+						</ul>
+						<div class="ov-map__relations">
+							<div>
+								<div class="es-label">Depends on</div>
+								<div class="ov-map__chips">
+									{pkg.dependsOn.length === 0 ? (
+										<span class="ov-map__none">Nothing else</span>
+									) : (
+										pkg.dependsOn.map((dep) => (
+											<button type="button" class="ov-chip" data-pkg={dep} data-select={dep}>
+												{dep}
+											</button>
+										))
+									)}
+								</div>
+							</div>
+							<div>
+								<div class="es-label">Used by</div>
+								<div class="ov-map__chips">
+									{users.length === 0 ? (
+										<span class="ov-map__none">Your code</span>
+									) : (
+										users.map((user) => (
+											<button type="button" class="ov-chip" data-pkg={user} data-select={user}>
+												{user}
+											</button>
+										))
+									)}
+								</div>
+							</div>
+						</div>
+						<div class="es-label">Read more</div>
+						<ul class="ov-map__guides">
+							{pkg.guides.map((guide) => (
+								<li>
+									<a href={guide.href}>{guide.label} →</a>
+								</li>
+							))}
+							{id === 'processing' && (
+								<li>
+									<a href="#zoom-in-processing">Zoom in on processing below ↓</a>
+								</li>
+							)}
+						</ul>
+					</section>
+				);
+			})
+		}
+	</div>
+</div>
+
+<style>
+	.ov-map {
+		display: grid;
+		grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+		gap: 1.5rem;
+		align-items: start;
+	}
+
+	.ov-map__diagram {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 9.5rem;
+		gap: 0.75rem 1rem;
+	}
+
+	.ov-map__wires {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	.ov-map__layers {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.ov-map__layer {
+		display: grid;
+		grid-template-columns: 6.5rem minmax(0, 1fr);
+		gap: 0.75rem;
+		align-items: stretch;
+	}
+
+	.ov-map__layer-label {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		color: var(--es-strong);
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+	}
+
+	.ov-map__layer-label small {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+		font-weight: 400;
+	}
+
+	.ov-map__tiles {
+		display: flex;
+		gap: 0.75rem;
+		padding: 0.5rem;
+		border: 1px dashed var(--es-border);
+		border-radius: calc(var(--es-radius) + 0.25rem);
+	}
+
+	.ov-map__tile {
+		position: relative;
+		z-index: 1;
+		flex: 1 1 0;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.15rem;
+		padding: 0.65rem 0.75rem;
+		border: 1px solid var(--pkg-line);
+		border-left: 4px solid var(--pkg);
+		border-radius: 0.6rem;
+		background: var(--es-surface-raised);
+		color: var(--es-strong);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition:
+			opacity 0.2s ease,
+			background 0.2s ease,
+			box-shadow 0.2s ease,
+			transform 0.15s ease;
+	}
+
+	.ov-map__tile:hover {
+		transform: translateY(-1px);
+	}
+
+	.ov-map__tile-title {
+		font-weight: 700;
+	}
+
+	.ov-map__tile code {
+		color: var(--pkg-text);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-map__tile-tagline {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+		line-height: 1.4;
+	}
+
+	.ov-map__side {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.ov-map__side .ov-map__layer-label {
+		min-height: 2.5rem;
+	}
+
+	.ov-map__tile--side {
+		flex: 1;
+		justify-content: center;
+		border-style: dashed;
+		border-left-style: solid;
+	}
+
+	[data-ov-map].has-focus .ov-map__tile {
+		opacity: 0.35;
+	}
+
+	[data-ov-map].has-focus .ov-map__tile.is-active {
+		opacity: 1;
+		background: var(--pkg-bg);
+		box-shadow: 0 0 0 2px var(--pkg);
+	}
+
+	[data-ov-map].has-focus .ov-map__tile.is-dep {
+		opacity: 1;
+		box-shadow: 0 0 0 1px var(--pkg);
+	}
+
+	[data-ov-map].has-focus .ov-map__tile.is-user {
+		opacity: 0.85;
+		box-shadow: 0 0 0 1px var(--pkg-line);
+		border-style: dashed;
+		border-left-style: solid;
+	}
+
+	.ov-map__wires :global(path) {
+		fill: none;
+		stroke: var(--sl-color-text-accent);
+		stroke-width: 2;
+		stroke-dasharray: 6 4;
+		animation: ov-map-flow 0.9s linear infinite;
+	}
+
+	.ov-map__wires :global(circle) {
+		fill: var(--sl-color-text-accent);
+	}
+
+	@keyframes ov-map-flow {
+		to {
+			stroke-dashoffset: -18;
+		}
+	}
+
+	.ov-map__legend {
+		grid-column: 1 / -1;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 1.25rem;
+		margin: 0.25rem 0 0;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-map__legend span {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.ov-map__legend i {
+		display: inline-block;
+		width: 1.4rem;
+		height: 0.7rem;
+		border-radius: 0.25rem;
+		border: 1px solid var(--es-strong);
+	}
+
+	.ov-map__legend i.is-user {
+		border-style: dashed;
+		opacity: 0.7;
+	}
+
+	.ov-map__panels {
+		position: sticky;
+		top: calc(var(--sl-nav-height) + 1rem);
+	}
+
+	.ov-map__panel {
+		border-top: 3px solid var(--pkg);
+	}
+
+	.ov-map__panel p {
+		margin: 0 0 0.75rem;
+	}
+
+	.ov-map__panel-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.6rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.ov-map__module {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-map__panel .ov-map__panel-title {
+		color: var(--es-strong);
+		font-size: var(--sl-text-lg);
+		font-weight: 600;
+		line-height: 1.3;
+	}
+
+	.ov-map__names {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+		margin-bottom: 1rem !important;
+	}
+
+	.ov-map__names li {
+		display: grid;
+		grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+		gap: 0.15rem 0.6rem;
+		align-items: baseline;
+	}
+
+	.ov-map__names li span {
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-map__names .ov-name {
+		white-space: normal;
+		word-break: break-word;
+	}
+
+	.ov-map__relations {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.ov-map__relations .es-label {
+		margin-bottom: 0.4rem;
+	}
+
+	.ov-map__chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+	}
+
+	.ov-map__chips button {
+		cursor: pointer;
+		font-family: var(--es-mono);
+	}
+
+	.ov-map__chips button:hover {
+		box-shadow: 0 0 0 1px var(--pkg);
+	}
+
+	.ov-map__none {
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+		font-style: italic;
+	}
+
+	.ov-map__guides {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.ov-map__guides a {
+		font-size: var(--sl-text-xs);
+	}
+
+	@media (max-width: 64rem) {
+		.ov-map {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ov-map__panels {
+			position: static;
+		}
+	}
+
+	@media (max-width: 40rem) {
+		.ov-map__wires {
+			display: none;
+		}
+
+		.ov-map__diagram {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ov-map__layer {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0.35rem;
+		}
+
+		.ov-map__layer-label {
+			flex-direction: row;
+			align-items: baseline;
+			justify-content: flex-start;
+			gap: 0.5rem;
+		}
+
+		.ov-map__tiles {
+			flex-wrap: wrap;
+		}
+
+		.ov-map__tile {
+			flex-basis: 8rem;
+		}
+
+		.ov-map__side .ov-map__layer-label {
+			min-height: 0;
+		}
+
+		.ov-map__relations {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
+
+<script>
+	import { packages, usedBy, type PackageId } from './library';
+
+	const SVG = 'http://www.w3.org/2000/svg';
+
+	function wire(from: DOMRect, to: DOMRect, origin: DOMRect, fan: number) {
+		const below = to.top >= from.bottom - 1;
+		let start: [number, number];
+		let end: [number, number];
+		let path: string;
+		if (below) {
+			start = [from.left + from.width * fan - origin.left, from.bottom - origin.top];
+			end = [to.left + to.width / 2 - origin.left, to.top - origin.top];
+			const bend = Math.max(24, (end[1] - start[1]) / 2);
+			path = `M${start[0]},${start[1]} C${start[0]},${start[1] + bend} ${end[0]},${end[1] - bend} ${end[0]},${end[1]}`;
+		} else {
+			const leftward = to.right <= from.left;
+			start = [(leftward ? from.left : from.right) - origin.left, from.top + from.height / 2 - origin.top];
+			end = [(leftward ? to.right : to.left) - origin.left, to.top + to.height / 2 - origin.top];
+			const bend = Math.max(24, Math.abs(end[0] - start[0]) / 2) * (leftward ? -1 : 1);
+			path = `M${start[0]},${start[1]} C${start[0] + bend},${start[1]} ${end[0] - bend},${end[1]} ${end[0]},${end[1]}`;
+		}
+		return { path, end };
+	}
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-map]')) {
+		const diagram = root.querySelector<HTMLElement>('[data-diagram]')!;
+		const svg = root.querySelector<SVGSVGElement>('[data-wires]')!;
+		const tiles = new Map(
+			[...root.querySelectorAll<HTMLButtonElement>('[data-tile]')].map((tile) => [tile.dataset.tile as PackageId, tile]),
+		);
+		const panels = new Map(
+			[...root.querySelectorAll<HTMLElement>('[data-panel]')].map((panel) => [panel.dataset.panel as PackageId, panel]),
+		);
+
+		let selected = root.dataset.initial as PackageId;
+		let previewing: PackageId | undefined;
+
+		const render = () => {
+			const active = previewing ?? selected;
+			const deps = packages[active].dependsOn;
+			const users = usedBy(active);
+			root.classList.add('has-focus');
+			for (const [id, tile] of tiles) {
+				tile.classList.toggle('is-active', id === active);
+				tile.classList.toggle('is-dep', deps.includes(id));
+				tile.classList.toggle('is-user', users.includes(id));
+				tile.setAttribute('aria-pressed', String(id === selected));
+			}
+			for (const [id, panel] of panels) panel.hidden = id !== selected;
+
+			svg.replaceChildren();
+			const origin = diagram.getBoundingClientRect();
+			const from = tiles.get(active)!.getBoundingClientRect();
+			const targets = deps
+				.map((dep) => tiles.get(dep)!.getBoundingClientRect())
+				.sort((a, b) => a.left + a.width / 2 - (b.left + b.width / 2));
+			for (const [index, target] of targets.entries()) {
+				const { path, end } = wire(from, target, origin, (index + 1) / (targets.length + 1));
+				const line = document.createElementNS(SVG, 'path');
+				line.setAttribute('d', path);
+				const dot = document.createElementNS(SVG, 'circle');
+				dot.setAttribute('cx', String(end[0]));
+				dot.setAttribute('cy', String(end[1]));
+				dot.setAttribute('r', '3');
+				svg.append(line, dot);
+			}
+		};
+
+		const select = (id: PackageId) => {
+			selected = id;
+			previewing = undefined;
+			render();
+		};
+
+		for (const [id, tile] of tiles) {
+			tile.addEventListener('click', () => select(id));
+			tile.addEventListener('mouseenter', () => {
+				previewing = id;
+				render();
+			});
+			tile.addEventListener('mouseleave', () => {
+				previewing = undefined;
+				render();
+			});
+		}
+
+		root.addEventListener('click', (event) => {
+			const target = (event.target as HTMLElement).closest<HTMLElement>('[data-select]');
+			if (target) select(target.dataset.select as PackageId);
+		});
+
+		new ResizeObserver(render).observe(diagram);
+		render();
+	}
+</script>

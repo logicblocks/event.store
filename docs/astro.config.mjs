@@ -49,6 +49,7 @@ export default defineConfig({
 			sidebar: [
 				{ label: 'Home', link: '/' },
 				{ label: 'Introduction to event sourcing', slug: 'event-sourcing' },
+				{ label: 'Library overview', slug: 'overview' },
 				{ label: 'Getting started', slug: 'getting-started' },
 				{
 					label: 'Guides',

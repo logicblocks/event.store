@@ -1,0 +1,56 @@
+:root {
+	--brand-table-rule: color-mix(in srgb, var(--atomic-white) 8%, transparent);
+}
+
+:root[data-theme='light'] {
+	--brand-table-rule: color-mix(in srgb, var(--atomic-ash) 70%, transparent);
+}
+
+/* Starlight already makes tables blocks that scroll sideways on their own. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+	max-width: 100%;
+	font-size: var(--sl-text-sm);
+	line-height: 1.6;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+	padding: 0.75rem 1.25rem;
+	border-bottom-color: var(--brand-table-rule);
+}
+
+/* On narrow screens the table scrolls rather than squeezing prose to a word per line. */
+.sl-markdown-content td:not(:where(.not-content *)) {
+	min-width: 6rem;
+}
+
+.sl-markdown-content td:last-child:not(:where(.not-content *)) {
+	min-width: 15rem;
+}
+
+.sl-markdown-content td code:not(:where(.not-content *)) {
+	white-space: nowrap;
+}
+
+.sl-markdown-content :is(th, td):first-child:not(:where(.not-content *)) {
+	padding-inline-start: 0;
+}
+
+.sl-markdown-content :is(th, td):last-child:not(:where(.not-content *)) {
+	padding-inline-end: 0;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+	padding-block: 0 0.625rem;
+	border-bottom: 1px solid var(--sl-color-gray-5);
+	color: var(--sl-color-gray-3);
+	font-family: var(--atomic-font-display);
+	font-size: var(--sl-text-2xs);
+	font-weight: 600;
+	letter-spacing: var(--atomic-tracking-caps);
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.sl-markdown-content tr:last-child > td:not(:where(.not-content *)) {
+	border-bottom: 0;
+}

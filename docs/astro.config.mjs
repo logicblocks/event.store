@@ -32,7 +32,19 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'logicblocks.event.store',
-			components: isDraft ? { Banner: './src/components/DraftBanner.astro' } : {},
+			components: {
+				ThemeProvider: './src/components/brand/ThemeProvider.astro',
+				...(isDraft ? { Banner: './src/components/DraftBanner.astro' } : {}),
+			},
+			customCss: [
+				'@fontsource-variable/sora',
+				'@fontsource-variable/inter',
+				'@fontsource-variable/inter/wght-italic.css',
+				'@fontsource-variable/fira-code',
+				'./src/styles/tokens.css',
+				'./src/styles/theme.css',
+				'./src/styles/typography.css',
+			],
 			social: [
 				{
 					icon: 'github',

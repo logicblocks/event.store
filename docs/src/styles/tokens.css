@@ -1,0 +1,23 @@
+:root,
+::backdrop {
+	--atomic-night: #0e0f19;
+	--atomic-night-3: #171925;
+	--atomic-ink: #202231;
+	--atomic-ink-2: #2c2e41;
+	--atomic-slate: #5f6378;
+	--atomic-gray: #a4a8c0;
+	--atomic-smoke: #c7c9d8;
+	--atomic-ash: #d3dbe0;
+	--atomic-bone: #fbfcfe;
+	--atomic-white: #ffffff;
+	--atomic-red: #cb4647;
+	--atomic-indigo: #595fc8;
+	--atomic-indigo-2: #323062;
+	--atomic-indigo-tint: #c1c5ff;
+
+	--atomic-font-display: 'Sora Variable', system-ui, sans-serif;
+	--atomic-font-body: 'Inter Variable', system-ui, sans-serif;
+	--atomic-font-code: 'Fira Code Variable', ui-monospace, monospace;
+	--atomic-tracking-tight: -0.025em;
+	--atomic-tracking-caps: 0.12em;
+}

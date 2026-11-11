@@ -38,15 +38,26 @@
 	color: var(--atomic-white);
 }
 
-/* The brand has one outlined button, so Starlight's minimal variant shares it. */
-.sl-link-button:is(.secondary, .minimal) {
+.sl-link-button.secondary {
 	border-color: var(--sl-color-accent);
 	color: var(--sl-color-white);
 }
 
-.sl-link-button:is(.secondary, .minimal):hover {
+.sl-link-button.secondary:hover {
 	background: var(--sl-color-accent);
 	color: var(--atomic-white);
+}
+
+.sl-link-button.minimal {
+	border-color: transparent;
+	padding-inline: 0;
+	color: var(--sl-color-white);
+}
+
+.sl-link-button.minimal:hover {
+	color: var(--sl-color-text-accent);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
 }
 
 .hero .actions {

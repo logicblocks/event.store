@@ -17,6 +17,23 @@
 	--sl-color-accent: var(--atomic-indigo);
 	--sl-color-accent-high: var(--atomic-indigo-tint);
 
+	--sl-color-green-low: color-mix(in oklab, var(--atomic-pastel-green) 18%, var(--atomic-night));
+	--sl-color-green: var(--atomic-pastel-green);
+	--sl-color-green-high: var(--atomic-pastel-green);
+	--sl-color-red-low: color-mix(in oklab, var(--atomic-red) 18%, var(--atomic-night));
+	--sl-color-red: var(--atomic-red-2);
+	/* Red-2 alone falls just under 4.5:1 on its own tint. */
+	--sl-color-red-high: color-mix(in oklab, var(--atomic-red-2) 80%, var(--atomic-white));
+	--sl-color-purple-low: color-mix(in oklab, var(--atomic-medium-purple) 18%, var(--atomic-night));
+	--sl-color-purple: var(--atomic-medium-purple);
+	--sl-color-purple-high: var(--atomic-purple-light);
+	--sl-color-blue-low: color-mix(in oklab, var(--atomic-malibu) 18%, var(--atomic-night));
+	--sl-color-blue: var(--atomic-malibu);
+	--sl-color-blue-high: var(--atomic-malibu);
+	--sl-color-orange-low: color-mix(in oklab, var(--atomic-cream-can) 18%, var(--atomic-night));
+	--sl-color-orange: var(--atomic-cream-can);
+	--sl-color-orange-high: var(--atomic-cream-can);
+
 	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-night) 66%, transparent);
 }
 
@@ -36,6 +53,23 @@
 	--sl-color-accent-low: color-mix(in oklab, var(--atomic-indigo-tint) 30%, var(--atomic-white));
 	--sl-color-accent: var(--atomic-indigo);
 	--sl-color-accent-high: var(--atomic-indigo-2);
+
+	/* The pale accents are too light for borders on white, so those meet their deep shade halfway. */
+	--sl-color-green-low: color-mix(in oklab, var(--atomic-pastel-green) 14%, var(--atomic-white));
+	--sl-color-green: color-mix(in oklab, var(--atomic-pastel-green), var(--atomic-pastel-green-deep));
+	--sl-color-green-high: var(--atomic-pastel-green-deep);
+	--sl-color-red-low: color-mix(in oklab, var(--atomic-red) 14%, var(--atomic-white));
+	--sl-color-red: var(--atomic-red);
+	--sl-color-red-high: var(--atomic-red-deep);
+	--sl-color-purple-low: color-mix(in oklab, var(--atomic-medium-purple) 14%, var(--atomic-white));
+	--sl-color-purple: var(--atomic-medium-purple);
+	--sl-color-purple-high: var(--atomic-medium-purple-deep);
+	--sl-color-blue-low: color-mix(in oklab, var(--atomic-malibu) 14%, var(--atomic-white));
+	--sl-color-blue: color-mix(in oklab, var(--atomic-malibu), var(--atomic-malibu-deep));
+	--sl-color-blue-high: var(--atomic-malibu-deep);
+	--sl-color-orange-low: color-mix(in oklab, var(--atomic-cream-can) 14%, var(--atomic-white));
+	--sl-color-orange: color-mix(in oklab, var(--atomic-cream-can), var(--atomic-cream-can-deep));
+	--sl-color-orange-high: var(--atomic-cream-can-deep);
 
 	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-slate) 66%, transparent);
 }

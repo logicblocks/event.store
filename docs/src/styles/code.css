@@ -1,0 +1,39 @@
+:root {
+	--brand-code-surface: var(--atomic-night-3);
+	--brand-code-bar: var(--atomic-night);
+	--brand-code-border: color-mix(in srgb, var(--atomic-white) 9%, transparent);
+	--sl-color-bg-inline-code: var(--atomic-ink);
+}
+
+:root[data-theme='light'] {
+	--brand-code-surface: var(--atomic-bone);
+	--brand-code-bar: color-mix(in oklab, var(--atomic-ash) 35%, var(--atomic-bone));
+	--brand-code-border: var(--atomic-ash);
+	--sl-color-bg-inline-code: var(--atomic-white-2);
+}
+
+.sl-markdown-content code:not(:where(.not-content *, pre *)) {
+	border: 1px solid var(--brand-code-border);
+	border-radius: var(--atomic-radius-card);
+}
+
+.sl-markdown-content code:not(:where(.not-content *, pre *, a *)) {
+	color: var(--sl-color-white);
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code {
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+/* The generated reference signatures are raw <pre> blocks rather than Expressive Code frames. */
+.sl-markdown-content pre:not(:where(.not-content *)) {
+	overflow-x: auto;
+	border-color: var(--brand-code-border);
+	border-radius: var(--atomic-radius-card);
+	background: var(--brand-code-surface);
+	color: var(--sl-color-white);
+	font-size: var(--sl-text-code-sm);
+	line-height: 1.7;
+}

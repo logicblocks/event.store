@@ -11,10 +11,28 @@
 	--atomic-ash: #d3dbe0;
 	--atomic-bone: #fbfcfe;
 	--atomic-white: #ffffff;
+	--atomic-white-2: #f2f2f2;
 	--atomic-red: #cb4647;
+	--atomic-red-2: #df5758;
 	--atomic-indigo: #595fc8;
 	--atomic-indigo-2: #323062;
 	--atomic-indigo-tint: #c1c5ff;
+
+	--atomic-pastel-green: #6be58b;
+	--atomic-medium-purple: #965dd9;
+	--atomic-purple-light: #ab80f0;
+	--atomic-malibu: #72cbf5;
+	--atomic-cream-can: #f5c25f;
+
+	/*
+		Brand-derived, not in the brand palette: each accent's OKLCH hue, darkened
+		so text in it clears 6:1 on white and on its own pale tint.
+	*/
+	--atomic-pastel-green-deep: #026e30;
+	--atomic-red-deep: #a7212a;
+	--atomic-medium-purple-deep: #7438b2;
+	--atomic-malibu-deep: #046587;
+	--atomic-cream-can-deep: #7b5901;
 
 	--atomic-font-display: 'Sora Variable', system-ui, sans-serif;
 	--atomic-font-body: 'Inter Variable', system-ui, sans-serif;

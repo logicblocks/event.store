@@ -1,0 +1,36 @@
+.starlight-aside {
+	--brand-aside-surface: var(--atomic-night-3);
+	--brand-aside-tint: 8%;
+
+	padding: 1rem 1.25rem;
+	border: 1px solid color-mix(in oklab, var(--sl-color-asides-border) 28%, transparent);
+	border-inline-start: 3px solid var(--sl-color-asides-border);
+	border-radius: var(--atomic-radius-card);
+	background-color: color-mix(
+		in oklab,
+		var(--sl-color-asides-border) var(--brand-aside-tint),
+		var(--brand-aside-surface)
+	);
+	color: var(--sl-color-gray-1);
+}
+
+:root[data-theme='light'] .starlight-aside {
+	--brand-aside-surface: var(--atomic-white);
+	--brand-aside-tint: 7%;
+}
+
+.starlight-aside__title {
+	gap: 0.625rem;
+	font-family: var(--atomic-font-display);
+	font-size: var(--sl-text-base);
+	font-weight: 600;
+	letter-spacing: var(--atomic-tracking-tight);
+}
+
+.starlight-aside__icon {
+	font-size: 1.25em;
+}
+
+.starlight-aside__content a {
+	text-underline-offset: 0.15em;
+}

@@ -57,6 +57,10 @@ export default defineConfig({
 				'./src/styles/typography.css',
 				'./src/styles/identity.css',
 				'./src/styles/buttons.css',
+				'./src/styles/asides.css',
+				'./src/styles/code.css',
+				'./src/styles/tables.css',
+				'./src/styles/content.css',
 			],
 			social: [
 				{

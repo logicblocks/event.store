@@ -61,9 +61,10 @@
 	gap: 0.5rem;
 	margin-bottom: 0.75rem;
 	color: var(--es-muted);
+	font-family: var(--atomic-font-display);
 	font-size: var(--sl-text-2xs);
 	font-weight: 600;
-	letter-spacing: 0.08em;
+	letter-spacing: var(--atomic-tracking-caps);
 	text-transform: uppercase;
 }
 

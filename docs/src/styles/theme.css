@@ -1,0 +1,53 @@
+/*
+	Unlayered, so these beat Starlight's layered defaults. That includes its
+	light-mode block, so every property set here must also be set for light.
+*/
+:root,
+::backdrop {
+	--sl-color-white: var(--atomic-white);
+	--sl-color-gray-1: color-mix(in oklab, var(--atomic-smoke), var(--atomic-white));
+	--sl-color-gray-2: var(--atomic-smoke);
+	--sl-color-gray-3: var(--atomic-gray);
+	--sl-color-gray-4: var(--atomic-slate);
+	--sl-color-gray-5: var(--atomic-ink-2);
+	--sl-color-gray-6: var(--atomic-night-3);
+	--sl-color-black: var(--atomic-night);
+
+	--sl-color-accent-low: var(--atomic-indigo-2);
+	--sl-color-accent: var(--atomic-indigo);
+	--sl-color-accent-high: var(--atomic-indigo-tint);
+
+	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-night) 66%, transparent);
+}
+
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+	--sl-color-white: var(--atomic-night);
+	--sl-color-gray-1: var(--atomic-night-3);
+	--sl-color-gray-2: var(--atomic-ink);
+	--sl-color-gray-3: var(--atomic-slate);
+	--sl-color-gray-4: var(--atomic-gray);
+	--sl-color-gray-5: var(--atomic-ash);
+	--sl-color-gray-6: color-mix(in oklab, var(--atomic-ash) 40%, var(--atomic-bone));
+	--sl-color-gray-7: var(--atomic-bone);
+	--sl-color-black: var(--atomic-white);
+
+	/* Kept pale so indigo text on it stays above 4.5:1. */
+	--sl-color-accent-low: color-mix(in oklab, var(--atomic-indigo-tint) 30%, var(--atomic-white));
+	--sl-color-accent: var(--atomic-indigo);
+	--sl-color-accent-high: var(--atomic-indigo-2);
+
+	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-slate) 66%, transparent);
+}
+
+.sl-link-button.primary {
+	--brand-cta: var(--atomic-red);
+	background: var(--brand-cta);
+	border-color: var(--brand-cta);
+	color: var(--atomic-white);
+}
+
+.sl-link-button.primary:hover {
+	--brand-cta: color-mix(in oklab, var(--atomic-red) 85%, var(--atomic-night));
+	color: var(--atomic-white);
+}

@@ -22,9 +22,11 @@ function hasReferencePages() {
 
 const isDraft = process.env.DOCS_DRAFT === 'true';
 
+const base = '/event.store';
+
 export default defineConfig({
 	site: 'https://logicblocks.github.io',
-	base: '/event.store',
+	base,
 	markdown: {
 		// The generated reference pages set heading ids with `{#id}`.
 		processor: satteri({ features: { headingAttributes: true } }),
@@ -32,6 +34,14 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'logicblocks.event.store',
+			logo: { src: './src/assets/logicblocks-icon.png' },
+			favicon: '/favicon-32x32.png',
+			head: [
+				{
+					tag: 'link',
+					attrs: { rel: 'apple-touch-icon', href: `${base}/apple-touch-icon.png` },
+				},
+			],
 			components: {
 				ThemeProvider: './src/components/brand/ThemeProvider.astro',
 				...(isDraft ? { Banner: './src/components/DraftBanner.astro' } : {}),
@@ -44,6 +54,7 @@ export default defineConfig({
 				'./src/styles/tokens.css',
 				'./src/styles/theme.css',
 				'./src/styles/typography.css',
+				'./src/styles/identity.css',
 			],
 			social: [
 				{

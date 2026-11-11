@@ -1,0 +1,22 @@
+/* Sized so the whole title fits beside the logo on a 375px-wide screen. */
+.site-title {
+	font-size: var(--sl-text-base);
+}
+
+.site-title img {
+	height: 1.75rem;
+}
+
+.site-title span {
+	text-overflow: ellipsis;
+}
+
+@media (min-width: 50rem) {
+	.site-title {
+		font-size: var(--sl-text-h4);
+	}
+
+	.site-title img {
+		height: 2.5rem;
+	}
+}

@@ -20,6 +20,7 @@
 /* Below about 20px, Sora 600 with tight tracking runs words together. */
 :is(
 	.sl-markdown-content :is(h5, h6):not(:where(.not-content *)),
+	.site-title,
 	.sidebar-content .large,
 	#starlight__on-this-page,
 	.sl-link-card .title

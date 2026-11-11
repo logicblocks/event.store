@@ -44,6 +44,7 @@ export default defineConfig({
 			],
 			components: {
 				ThemeProvider: './src/components/brand/ThemeProvider.astro',
+				Hero: './src/components/brand/Hero.astro',
 				...(isDraft ? { Banner: './src/components/DraftBanner.astro' } : {}),
 			},
 			customCss: [
@@ -55,6 +56,7 @@ export default defineConfig({
 				'./src/styles/theme.css',
 				'./src/styles/typography.css',
 				'./src/styles/identity.css',
+				'./src/styles/buttons.css',
 			],
 			social: [
 				{

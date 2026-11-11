@@ -1,0 +1,63 @@
+.sl-link-button {
+	--brand-button-height: var(--atomic-button-height-small);
+	--brand-button-pad-x: var(--atomic-button-pad-x-small);
+
+	justify-content: center;
+	min-height: var(--brand-button-height);
+	padding: 0 var(--brand-button-pad-x);
+	border-radius: var(--atomic-radius-button);
+	font-family: var(--atomic-font-display);
+	font-size: var(--sl-text-base);
+	font-weight: 400;
+	letter-spacing: var(--atomic-tracking-tight);
+	line-height: 1.2;
+	transition:
+		background-color 0.2s ease,
+		border-color 0.2s ease,
+		color 0.2s ease;
+}
+
+.sl-link-button:active {
+	opacity: 0.9;
+}
+
+.sl-link-button:focus-visible {
+	outline: 2px solid var(--sl-color-text-accent);
+	outline-offset: 3px;
+}
+
+.sl-link-button.primary {
+	--brand-cta: var(--atomic-red);
+	background: var(--brand-cta);
+	border-color: var(--brand-cta);
+	color: var(--atomic-white);
+}
+
+.sl-link-button.primary:hover {
+	--brand-cta: color-mix(in oklab, var(--atomic-red) 85%, var(--atomic-night));
+	color: var(--atomic-white);
+}
+
+/* The brand has one outlined button, so Starlight's minimal variant shares it. */
+.sl-link-button:is(.secondary, .minimal) {
+	border-color: var(--sl-color-accent);
+	color: var(--sl-color-white);
+}
+
+.sl-link-button:is(.secondary, .minimal):hover {
+	background: var(--sl-color-accent);
+	color: var(--atomic-white);
+}
+
+.hero .actions {
+	gap: 1rem;
+}
+
+@media (min-width: 50rem) {
+	.sl-link-button {
+		--brand-button-height: var(--atomic-button-height);
+		--brand-button-pad-x: var(--atomic-button-pad-x);
+
+		font-size: var(--sl-text-lg);
+	}
+}

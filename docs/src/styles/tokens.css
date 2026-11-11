@@ -1,6 +1,7 @@
 :root,
 ::backdrop {
 	--atomic-night: #0e0f19;
+	--atomic-night-2: #0a111b;
 	--atomic-night-3: #171925;
 	--atomic-ink: #202231;
 	--atomic-ink-2: #2c2e41;
@@ -20,4 +21,21 @@
 	--atomic-font-code: 'Fira Code Variable', ui-monospace, monospace;
 	--atomic-tracking-tight: -0.025em;
 	--atomic-tracking-caps: 0.12em;
+
+	--atomic-shadow-card: 6px 12px 85px 0 rgb(0 0 0 / 0.08);
+	--atomic-shadow-card-lg: 12px 24px 120px 0 rgb(0 0 0 / 0.12);
+
+	--atomic-radius-card: 4px;
+	--atomic-radius-button: 6px;
+	--atomic-button-height: 48px;
+	--atomic-button-height-small: 40px;
+	--atomic-button-pad-x: 32px;
+	--atomic-button-pad-x-small: 20px;
+
+	--atomic-glow-logicblocks: radial-gradient(
+		98.41% 98.41% at 0% 1.59%,
+		color-mix(in srgb, var(--atomic-indigo) 0%, transparent) 27.04%,
+		color-mix(in srgb, var(--atomic-indigo) 12%, transparent) 67.32%,
+		color-mix(in srgb, var(--atomic-indigo) 0%, transparent) 100%
+	);
 }

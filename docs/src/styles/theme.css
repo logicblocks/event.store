@@ -39,15 +39,3 @@
 
 	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-slate) 66%, transparent);
 }
-
-.sl-link-button.primary {
-	--brand-cta: var(--atomic-red);
-	background: var(--brand-cta);
-	border-color: var(--brand-cta);
-	color: var(--atomic-white);
-}
-
-.sl-link-button.primary:hover {
-	--brand-cta: color-mix(in oklab, var(--atomic-red) 85%, var(--atomic-night));
-	color: var(--atomic-white);
-}

@@ -1,0 +1,208 @@
+---
+import Default from '@astrojs/starlight/components/Hero.astro';
+import { hexPoints, hexVertices, toPoints } from './hex';
+
+const isHome = Astro.locals.starlightRoute.id === '';
+
+const cell = 28;
+const cellWidth = Math.sqrt(3) * cell;
+const tessellation = [
+	[0, 0],
+	[cellWidth, 0],
+	[cellWidth / 2, 1.5 * cell],
+	[0, 3 * cell],
+	[cellWidth, 3 * cell],
+].map(([x, y]) => hexPoints(x, y, cell));
+
+const centre = [200, 200] as const;
+const [top, upperRight, lowerRight, bottom, lowerLeft, upperLeft] = hexVertices(...centre, 58);
+const cube = {
+	top: toPoints([top, upperRight, centre, upperLeft]),
+	left: toPoints([upperLeft, centre, bottom, lowerLeft]),
+	right: toPoints([upperRight, lowerRight, bottom, centre]),
+};
+const orbit = hexVertices(...centre, 148);
+---
+
+{
+	isHome ? (
+		<div class="brand-hero">
+			<div class="backdrop" aria-hidden="true">
+				<svg class="tessellation">
+					<defs>
+						<pattern id="brand-hero-hex" width={cellWidth} height={3 * cell} patternUnits="userSpaceOnUse">
+							{tessellation.map((points) => <polygon {points} />)}
+						</pattern>
+					</defs>
+					<rect width="100%" height="100%" fill="url(#brand-hero-hex)" />
+				</svg>
+			</div>
+			<Default />
+			<div class="visual" aria-hidden="true">
+				<svg viewBox="0 0 400 400">
+					<polygon class="ring outer" points={hexPoints(...centre, 188)} />
+					<polygon class="ring middle" points={toPoints(orbit)} />
+					<polygon class="ring inner" points={hexPoints(...centre, 108)} />
+					<polygon class="face top" points={cube.top} />
+					<polygon class="face left" points={cube.left} />
+					<polygon class="face right" points={cube.right} />
+					<circle class="node" cx={orbit[0][0]} cy={orbit[0][1]} r="4" />
+					<circle class="node latest" cx={orbit[1][0]} cy={orbit[1][1]} r="5" />
+					<circle class="node" cx={orbit[4][0]} cy={orbit[4][1]} r="4" />
+				</svg>
+			</div>
+		</div>
+	) : (
+		<Default />
+	)
+}
+
+<style>
+	.brand-hero {
+		--brand-hero-base: var(--atomic-night-2);
+		--brand-hero-pattern: color-mix(in srgb, var(--atomic-indigo-tint) 9%, transparent);
+		--brand-hero-ring-faint: color-mix(in srgb, var(--atomic-indigo) 40%, transparent);
+		--brand-hero-ring: var(--atomic-indigo);
+		--brand-hero-ring-strong: var(--atomic-indigo-tint);
+		--brand-hero-halo: color-mix(in srgb, var(--atomic-indigo) 38%, transparent);
+		--brand-hero-face-top: color-mix(in srgb, var(--atomic-indigo-tint) 55%, transparent);
+		--brand-hero-face-left: color-mix(in srgb, var(--atomic-indigo) 70%, transparent);
+		--brand-hero-face-right: color-mix(in srgb, var(--atomic-indigo-2) 90%, transparent);
+		--brand-hero-node: var(--atomic-indigo-tint);
+
+		position: relative;
+		isolation: isolate;
+	}
+
+	:global([data-theme='light']) .brand-hero {
+		--brand-hero-base: var(--atomic-bone);
+		--brand-hero-pattern: color-mix(in srgb, var(--atomic-indigo) 10%, transparent);
+		--brand-hero-ring-faint: color-mix(in srgb, var(--atomic-indigo) 30%, transparent);
+		--brand-hero-ring-strong: var(--atomic-indigo-2);
+		--brand-hero-halo: color-mix(in srgb, var(--atomic-indigo) 16%, transparent);
+		--brand-hero-face-top: color-mix(in srgb, var(--atomic-indigo-tint) 80%, var(--atomic-white));
+		--brand-hero-face-left: var(--atomic-indigo);
+		--brand-hero-face-right: var(--atomic-indigo-2);
+		--brand-hero-node: var(--atomic-indigo-2);
+	}
+
+	:global(main:has(.brand-hero)) {
+		overflow-x: clip;
+	}
+
+	/* Bleeds past the content column to the viewport edges, and up under the panel's padding. */
+	.backdrop {
+		position: absolute;
+		z-index: -1;
+		inset-block: -1.5rem -3rem;
+		inset-inline: calc(50% - 50vw - 2rem);
+		background: var(--atomic-glow-logicblocks), var(--brand-hero-base);
+		mask-image: linear-gradient(to bottom, #000 55%, transparent);
+		pointer-events: none;
+	}
+
+	.tessellation {
+		width: 100%;
+		height: 100%;
+		fill: none;
+		stroke: var(--brand-hero-pattern);
+		stroke-width: 1;
+		mask-image: radial-gradient(ellipse 55% 90% at 85% 25%, #000 10%, transparent 75%);
+	}
+
+	.visual {
+		display: none;
+	}
+
+	.visual svg {
+		width: min(100%, 26rem);
+		overflow: visible;
+		stroke-linejoin: round;
+	}
+
+	.ring {
+		fill: none;
+		stroke-width: 1.5;
+	}
+
+	.outer {
+		stroke: var(--brand-hero-ring-faint);
+		stroke-width: 1;
+	}
+
+	.middle {
+		stroke: var(--brand-hero-ring);
+	}
+
+	.inner {
+		stroke: var(--brand-hero-ring-strong);
+	}
+
+	.face {
+		stroke: var(--brand-hero-ring-strong);
+		stroke-width: 1.5;
+	}
+
+	.top {
+		fill: var(--brand-hero-face-top);
+	}
+
+	.left {
+		fill: var(--brand-hero-face-left);
+	}
+
+	.right {
+		fill: var(--brand-hero-face-right);
+	}
+
+	.node {
+		fill: var(--brand-hero-node);
+	}
+
+	.latest {
+		fill: var(--atomic-red);
+	}
+
+	/* The title is one long word, so it scales with the text column instead of wrapping into the visual. */
+	.brand-hero :global(.hero h1) {
+		font-size: clamp(var(--sl-text-3xl), 5.2vw - 0.25rem, 3.5rem);
+	}
+
+	@media (max-width: 49.9375rem) {
+		.brand-hero :global(.hero) {
+			padding-block: 2.5rem 2rem;
+		}
+
+		.brand-hero :global(.hero .actions) {
+			flex-direction: column;
+			align-items: stretch;
+			width: min(100%, 20rem);
+			margin-inline: auto;
+		}
+	}
+
+	@media (min-width: 50rem) {
+		/* Fills the column Starlight's hero grid keeps free for an image. */
+		.visual {
+			position: absolute;
+			inset-block: 0;
+			inset-inline-end: 0;
+			display: grid;
+			place-items: center;
+			width: calc(97% * 4 / 11);
+			background: radial-gradient(circle closest-side, var(--brand-hero-halo), transparent);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.visual {
+			animation: brand-hero-fade 1.6s ease-out both;
+		}
+	}
+
+	@keyframes brand-hero-fade {
+		from {
+			opacity: 0;
+		}
+	}
+</style>

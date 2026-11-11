@@ -1,0 +1,127 @@
+---
+import type { SvgComponent } from 'astro/types';
+import ArrowRight from '../../assets/icons/feather/arrow-right.svg';
+import HexIcon from './HexIcon.astro';
+
+interface Props {
+	title: string;
+	description: string;
+	href: string;
+	icon: string;
+}
+
+const icons = import.meta.glob<SvgComponent>('../../assets/icons/feather/*.svg', {
+	eager: true,
+	import: 'default',
+});
+
+const { title, description, href, icon } = Astro.props;
+const Icon = icons[`../../assets/icons/feather/${icon}.svg`];
+if (!Icon) throw new Error(`No Feather icon named "${icon}" in src/assets/icons/feather.`);
+---
+
+<article class="feature-card">
+	<div class="header">
+		<HexIcon><Icon aria-hidden="true" /></HexIcon>
+		<span class="arrow rtl:flip"><ArrowRight aria-hidden="true" /></span>
+	</div>
+	<h3 class="title"><a {href}>{title}</a></h3>
+	<p class="description">{description}</p>
+</article>
+
+<style>
+	.feature-card {
+		--feature-card-surface: var(--atomic-night-3);
+		--feature-card-border: var(--atomic-slate);
+		--feature-card-border-hover: var(--atomic-indigo);
+		--feature-card-shadow: none;
+		--feature-card-shadow-hover: 0 16px 48px -24px color-mix(in srgb, var(--atomic-indigo) 60%, transparent);
+
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 1.5rem;
+		border: 1px solid var(--feature-card-border);
+		border-radius: var(--atomic-radius-card);
+		background: var(--feature-card-surface);
+		box-shadow: var(--feature-card-shadow);
+		transition:
+			border-color 0.3s ease,
+			box-shadow 0.3s ease;
+	}
+
+	:global([data-theme='light']) .feature-card {
+		--feature-card-surface: var(--atomic-white);
+		--feature-card-border: color-mix(in srgb, var(--atomic-ash) 70%, transparent);
+		--feature-card-border-hover: color-mix(in srgb, var(--atomic-indigo) 45%, transparent);
+		--feature-card-shadow: var(--atomic-shadow-card);
+		--feature-card-shadow-hover: var(--atomic-shadow-card-lg);
+	}
+
+	.feature-card:hover {
+		border-color: var(--feature-card-border-hover);
+		box-shadow: var(--feature-card-shadow-hover);
+	}
+
+	.header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-block-end: 0.25rem;
+	}
+
+	.arrow {
+		display: flex;
+		color: var(--sl-color-gray-3);
+		transition: color 0.3s ease;
+	}
+
+	.arrow :global(svg) {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.feature-card:hover .arrow {
+		color: var(--sl-color-text-accent);
+	}
+
+	.title {
+		margin: 0;
+		font-family: var(--atomic-font-display);
+		font-size: var(--sl-text-lg);
+		font-weight: 600;
+		line-height: var(--sl-line-height-headings);
+		color: var(--sl-color-white);
+	}
+
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	/* Stretches the link over the whole card, as Starlight's LinkCard does. */
+	a::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+
+	a:focus-visible {
+		outline: none;
+	}
+
+	a:focus-visible::before {
+		outline: 2px solid var(--sl-color-text-accent);
+		outline-offset: 3px;
+		border-radius: var(--atomic-radius-card);
+	}
+
+	.description {
+		margin: 0;
+		font-size: var(--sl-text-sm);
+		line-height: 1.6;
+		color: var(--sl-color-gray-3);
+	}
+</style>

@@ -1,0 +1,163 @@
+---
+import './styles.css';
+import type { PackageId } from './library';
+
+const steps: { name: string; pkg: PackageId; verb: string; text: string }[] = [
+	{ name: 'NewEvent', pkg: 'types', verb: 'You describe', text: 'what happened: a name, a payload and metadata.' },
+	{ name: 'EventStore', pkg: 'store', verb: 'The store appends', text: 'it to a stream, if your write condition still holds.' },
+	{ name: 'StoredEvent', pkg: 'types', verb: 'It comes back', text: 'as a fact with an id, a position and a sequence number.' },
+	{ name: 'Projector', pkg: 'projection', verb: 'A projector folds', text: 'a stream’s facts into state, one handler per event name.' },
+	{ name: 'Projection', pkg: 'types', verb: 'The result is', text: 'state you can use, with an id, a name and its source.' },
+	{ name: 'ProjectionStore', pkg: 'projection', verb: 'The store keeps', text: 'it so you can load and search it later.' },
+];
+---
+
+<div class="es ov ov-ten not-content" data-ov-ten>
+	<ol class="ov-ten__steps">
+		{
+			steps.map((step, index) => (
+				<li class="ov-ten__step" data-pkg={step.pkg} data-step={index}>
+					<span class="ov-chip">{step.pkg}</span>
+					<code class="ov-ten__name">{step.name}</code>
+					<p>
+						<strong>{step.verb}</strong> {step.text}
+					</p>
+				</li>
+			))
+		}
+	</ol>
+	<p class="ov-ten__aside">
+		<strong>Everything else in the library</strong> is about doing this safely when writers race, in the
+		background as events arrive, across many processes, or quickly in your tests.
+	</p>
+</div>
+
+<style>
+	.ov-ten__steps {
+		display: grid;
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		gap: 1.25rem;
+		counter-reset: step;
+	}
+
+	.ov-ten__step {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.9rem;
+		border: 1px solid var(--es-border);
+		border-top: 3px solid var(--pkg);
+		border-radius: var(--es-radius);
+		background: var(--es-surface);
+		transition:
+			background 0.4s ease,
+			box-shadow 0.4s ease,
+			opacity 0.4s ease;
+	}
+
+	.ov-ten__step:not(:last-child)::after {
+		content: '→';
+		position: absolute;
+		top: 1.6rem;
+		right: -1.05rem;
+		color: var(--es-muted);
+		font-size: var(--sl-text-sm);
+	}
+
+	.ov-ten__name {
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-sm);
+		font-weight: 600;
+		word-break: break-word;
+	}
+
+	.ov-ten__step p {
+		margin: 0;
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-ten__step p strong {
+		color: var(--es-strong);
+		font-weight: 600;
+	}
+
+	[data-ov-ten].is-animating .ov-ten__step {
+		opacity: 0.45;
+	}
+
+	[data-ov-ten].is-animating .ov-ten__step.is-lit {
+		opacity: 1;
+		background: var(--pkg-bg);
+		box-shadow: 0 0 0 1px var(--pkg-line);
+	}
+
+	.ov-ten__aside {
+		max-width: 44rem;
+		margin: 1.5rem auto 0;
+		color: var(--es-muted);
+		text-align: center;
+	}
+
+	.ov-ten__aside strong {
+		color: var(--es-strong);
+	}
+
+	@media (max-width: 72rem) {
+		.ov-ten__steps {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.ov-ten__step:nth-child(3)::after {
+			content: none;
+		}
+	}
+
+	@media (max-width: 36rem) {
+		.ov-ten__steps {
+			grid-template-columns: 1fr;
+			gap: 1.1rem;
+		}
+
+		.ov-ten__step:not(:last-child)::after {
+			content: '↓';
+			top: auto;
+			right: auto;
+			bottom: -1.15rem;
+			left: 1.1rem;
+		}
+	}
+</style>
+
+<script>
+	import { loop, sleep, whileVisible } from '../event-sourcing/cart';
+
+	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-ten]')) {
+		if (reducedMotion) continue;
+		const steps = [...root.querySelectorAll<HTMLElement>('[data-step]')];
+
+		whileVisible(root, () => {
+			root.classList.add('is-animating');
+			const stop = loop(async (signal) => {
+				for (const step of steps) step.classList.remove('is-lit');
+				await sleep(600);
+				for (const step of steps) {
+					if (signal.cancelled) return;
+					step.classList.add('is-lit');
+					await sleep(1100);
+				}
+				await sleep(3500);
+			})();
+			return () => {
+				stop();
+				root.classList.remove('is-animating');
+				for (const step of steps) step.classList.remove('is-lit');
+			};
+		});
+	}
+</script>

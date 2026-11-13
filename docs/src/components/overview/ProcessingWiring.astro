@@ -1,0 +1,626 @@
+---
+import './styles.css';
+import type { PackageId } from './library';
+
+type Box = { id: string; title: string; sub: string; x: number; y: number; pkg: PackageId };
+type Edge = { id: string; d: string; label?: string; lx?: number; ly?: number; anchor?: 'start' | 'middle' | 'end' };
+
+const W = 210;
+const H = 56;
+
+const boxes: Box[] = [
+	{ id: 'manager', title: 'ServiceManager', sub: 'starts and stops it all', x: 20, y: 20, pkg: 'processing' },
+	{ id: 'broker', title: 'EventBroker', sub: 'singleton', x: 20, y: 120, pkg: 'processing' },
+	{ id: 'polling', title: 'PollingService', sub: 'every 200 ms', x: 20, y: 228, pkg: 'processing' },
+	{ id: 'subscriber', title: 'EventSubscriber', sub: 'group cart-projection', x: 270, y: 120, pkg: 'processing' },
+	{ id: 'consumer', title: 'EventSourceConsumer', sub: 'source: carts', x: 270, y: 228, pkg: 'processing' },
+	{ id: 'processor', title: 'ProjectionEventProcessor', sub: 'with CartProjector', x: 520, y: 228, pkg: 'processing' },
+	{ id: 'projections', title: 'ProjectionStore', sub: 'cart-42 updated', x: 770, y: 228, pkg: 'projection' },
+	{ id: 'category', title: 'EventCategory', sub: 'carts', x: 20, y: 336, pkg: 'store' },
+	{ id: 'state', title: 'EventConsumerStateStore', sub: 'last_sequence_number', x: 520, y: 336, pkg: 'processing' },
+	{ id: 'state-category', title: 'EventCategory', sub: 'cart-projection-state', x: 770, y: 336, pkg: 'store' },
+];
+
+const edges: Edge[] = [
+	{ id: 'run-broker', d: 'M125,76 L125,120', label: 'runs', lx: 133, ly: 102, anchor: 'start' },
+	{ id: 'run-polling', d: 'M20,48 L6,48 L6,256 L20,256' },
+	{ id: 'accept', d: 'M230,148 L270,148', label: 'accept(carts)', lx: 250, ly: 112 },
+	{ id: 'create', d: 'M375,176 L375,228', label: 'creates', lx: 383, ly: 206, anchor: 'start' },
+	{ id: 'poll', d: 'M230,256 L270,256', label: 'consume_all()', lx: 250, ly: 309 },
+	{ id: 'read', d: 'M230,364 L345,364 L345,284', label: 'events after checkpoint', lx: 250, ly: 384, anchor: 'start' },
+	{ id: 'process', d: 'M480,256 L520,256', label: 'process_event', lx: 500, ly: 220 },
+	{ id: 'save', d: 'M730,256 L770,256', label: 'save', lx: 750, ly: 220 },
+	{ id: 'record', d: 'M405,284 L405,364 L520,364', label: 'checkpoint', lx: 413, ly: 320, anchor: 'start' },
+	{ id: 'persist', d: 'M730,364 L770,364', label: 'state-changed', lx: 750, ly: 411 },
+];
+
+const phases = [
+	{ edge: 'accept', text: 'The broker hands the carts category to the subscriber…' },
+	{ edge: 'create', text: '…which creates a consumer for it.' },
+	{ edge: 'poll', text: 'PollingService calls consume_all() on the subscriber.' },
+	{ edge: 'read', text: 'The consumer reads the events after its last checkpoint.' },
+	{ edge: 'process', text: 'Each event goes to the processor…' },
+	{ edge: 'save', text: '…which updates the projection for cart-42 and saves it.' },
+	{ edge: 'record', text: 'The consumer records the event as processed…' },
+	{ edge: 'persist', text: '…and saves its checkpoint as a state-changed event.' },
+];
+---
+
+<div class="es ov ov-wiring not-content" data-ov-wiring>
+	<div class="ov-wiring__top">
+		<div class="ov-segmented" role="group" aria-label="Broker type">
+			<button type="button" data-view-button="singleton" aria-pressed="true">Singleton: one process</button>
+			<button type="button" data-view-button="distributed" aria-pressed="false">Distributed: many processes</button>
+		</div>
+	</div>
+
+	<div data-view="singleton">
+		<div class="es-panel ov-scroll">
+			<svg class="ov-wiring__svg" viewBox="0 0 1000 420" role="img" aria-label="How the processing pieces are wired together on one node">
+				<defs>
+					<marker id="ov-wiring-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+						<path d="M0,0 L10,5 L0,10 z" />
+					</marker>
+				</defs>
+				<rect class="ov-wiring__wrapper" x="12" y="204" width="226" height="88" rx="12" />
+				<text class="ov-wiring__wrapper-label" x="125" y="219" text-anchor="middle">ErrorHandlingService</text>
+				{
+					edges.map((edge) => (
+						<g class="ov-wiring__edge" data-edge={edge.id}>
+							<path d={edge.d} marker-end="url(#ov-wiring-arrow)" />
+							{edge.label && (
+								<text x={edge.lx} y={edge.ly} text-anchor={edge.anchor ?? 'middle'}>
+									{edge.label}
+								</text>
+							)}
+						</g>
+					))
+				}
+				{
+					boxes.map((box) => (
+						<g class="ov-wiring__box" data-pkg={box.pkg} data-box={box.id}>
+							<rect x={box.x} y={box.y} width={W} height={H} rx="10" />
+							<text class="ov-wiring__title" x={box.x + 12} y={box.y + 24}>
+								{box.title}
+							</text>
+							<text class="ov-wiring__sub" x={box.x + 12} y={box.y + 43}>
+								{box.sub}
+							</text>
+						</g>
+					))
+				}
+				<circle class="ov-wiring__token" r="7" data-token cx="-20" cy="-20" />
+			</svg>
+		</div>
+		<p class="es-caption" data-caption aria-live="off">{phases[0].text}</p>
+		<script type="application/json" data-phases set:html={JSON.stringify(phases)} />
+	</div>
+
+	<div data-view="distributed" hidden>
+		<div class="ov-dist" data-dist>
+			<section class="es-panel ov-dist__node" data-node="1">
+				<header><strong>node-1</strong><span class="ov-dist__status" data-node-status>running</span></header>
+				<ul>
+					<li><span>subscriber manager</span><small>heartbeats</small></li>
+					<li><span>coordinator</span><small class="ov-dist__badge" data-coordinator>leader</small></li>
+					<li><span>observer</span><small>watches subscriptions</small></li>
+					<li class="ov-dist__subscriber"><span>subscriber · cart-projection</span><small class="ov-dist__badge" data-subscriber>consuming carts</small></li>
+				</ul>
+			</section>
+
+			<section class="ov-dist__events" data-pkg="store">
+				<div class="es-label">Event store</div>
+				<div class="ov-dist__source">
+					<code>carts</code>
+					<span class="ov-dist__flow" data-flow>→ node-1</span>
+				</div>
+				<div class="ov-dist__source">
+					<code>cart-projection-state</code>
+					<span>shared checkpoint</span>
+				</div>
+			</section>
+
+			<section class="es-panel ov-dist__node" data-node="2">
+				<header><strong>node-2</strong><span class="ov-dist__status" data-node-status>running</span></header>
+				<ul>
+					<li><span>subscriber manager</span><small>heartbeats</small></li>
+					<li><span>coordinator</span><small class="ov-dist__badge" data-coordinator>waiting</small></li>
+					<li><span>observer</span><small>watches subscriptions</small></li>
+					<li class="ov-dist__subscriber"><span>subscriber · cart-projection</span><small class="ov-dist__badge" data-subscriber>standby</small></li>
+				</ul>
+			</section>
+
+			<section class="es-panel ov-dist__shared" data-pkg="persistence">
+				<div class="es-label">Shared state (Postgres)</div>
+				<dl>
+					<div><dt>subscribers</dt><dd data-subscribers></dd></div>
+					<div><dt>subscriptions</dt><dd data-subscriptions></dd></div>
+					<div><dt>coordinator lock</dt><dd data-lock></dd></div>
+				</dl>
+				<p>The nodes never talk to each other. They only read and write this shared state.</p>
+			</section>
+		</div>
+
+		<div class="ov-dist__controls">
+			<button type="button" class="es-button" data-variant="primary" data-toggle-node>Stop node-1</button>
+			<button type="button" class="es-button" data-reset>Reset</button>
+		</div>
+		<ol class="ov-dist__story" data-story aria-live="polite"></ol>
+	</div>
+</div>
+
+<style>
+	.ov-wiring__top {
+		margin-bottom: 1rem;
+	}
+
+	.ov-wiring__svg {
+		display: block;
+		width: 100%;
+		min-width: 48rem;
+		height: auto;
+	}
+
+	.ov-wiring__box rect {
+		fill: var(--pkg-bg);
+		stroke: var(--pkg);
+		stroke-width: 1.5;
+		transition: stroke-width 0.2s ease;
+	}
+
+	.ov-wiring__box.is-active rect {
+		stroke-width: 3;
+	}
+
+	.ov-wiring__title {
+		fill: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: 13px;
+		font-weight: 700;
+	}
+
+	.ov-wiring__sub {
+		fill: var(--es-muted);
+		font-size: 11.5px;
+	}
+
+	.ov-wiring__wrapper {
+		fill: none;
+		stroke: var(--es-muted);
+		stroke-dasharray: 5 4;
+	}
+
+	.ov-wiring__wrapper-label {
+		fill: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: 10.5px;
+	}
+
+	.ov-wiring__edge path {
+		fill: none;
+		stroke: var(--es-muted);
+		stroke-width: 1.5;
+	}
+
+	.ov-wiring__edge text {
+		fill: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: 11px;
+	}
+
+	.ov-wiring__edge.is-active path {
+		stroke: var(--sl-color-text-accent);
+		stroke-width: 2.5;
+	}
+
+	.ov-wiring__edge.is-active text {
+		fill: var(--sl-color-text-accent);
+	}
+
+	.ov-wiring__svg marker path {
+		fill: var(--es-muted);
+	}
+
+	.ov-wiring__token {
+		fill: var(--sl-color-text-accent);
+		stroke: var(--sl-color-bg);
+		stroke-width: 2;
+	}
+
+	.ov-dist {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr);
+		gap: 1rem;
+		align-items: stretch;
+	}
+
+	.ov-dist__node {
+		transition: opacity 0.3s ease;
+	}
+
+	.ov-dist__node.is-down {
+		opacity: 0.4;
+		filter: grayscale(1);
+	}
+
+	.ov-dist__node header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.6rem;
+		font-family: var(--es-mono);
+		color: var(--es-strong);
+	}
+
+	.ov-dist__status {
+		font-size: var(--sl-text-2xs);
+		color: var(--es-added-text);
+	}
+
+	.ov-dist__node.is-down .ov-dist__status {
+		color: var(--es-removed-text);
+	}
+
+	.ov-dist__node ul {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.ov-dist__node li {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.35rem 0.6rem;
+		border: 1px solid var(--es-border);
+		border-radius: 0.45rem;
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-dist__node li small {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+		text-align: right;
+	}
+
+	.ov-dist__subscriber {
+		border-color: oklch(72% 0.15 55 / 0.6) !important;
+	}
+
+	.ov-dist__badge {
+		padding: 0 0.45rem;
+		border-radius: 999px;
+		background: var(--es-surface-raised);
+	}
+
+	.ov-dist__badge.is-hot {
+		background: var(--es-added-bg);
+		color: var(--es-added-text) !important;
+		font-weight: 700;
+	}
+
+	.ov-dist__badge.is-changed {
+		animation: ov-dist-flash 1s ease;
+	}
+
+	@keyframes ov-dist-flash {
+		from {
+			box-shadow: 0 0 0 3px var(--sl-color-text-accent);
+		}
+		to {
+			box-shadow: 0 0 0 0 transparent;
+		}
+	}
+
+	.ov-dist__events {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.75rem;
+		border: 1px dashed var(--pkg-line);
+		border-radius: var(--es-radius);
+		background: var(--pkg-bg);
+	}
+
+	.ov-dist__source {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		padding: 0.4rem 0.6rem;
+		border-radius: 0.45rem;
+		background: var(--es-surface-raised);
+	}
+
+	.ov-dist__source code {
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+		font-weight: 700;
+	}
+
+	.ov-dist__source span {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-dist__flow {
+		color: var(--sl-color-text-accent) !important;
+		font-family: var(--es-mono);
+		font-weight: 700;
+	}
+
+	.ov-dist__shared {
+		grid-column: 1 / -1;
+		border-top: 3px solid var(--pkg);
+	}
+
+	.ov-dist__shared dl {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.75rem;
+		margin: 0;
+	}
+
+	.ov-dist__shared dl > div {
+		margin: 0;
+	}
+
+	.ov-dist__shared dt {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		font-weight: 400;
+	}
+
+	.ov-dist__shared dd {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		margin: 0.25rem 0 0;
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-dist__shared p {
+		margin: 0.75rem 0 0;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-dist__controls {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
+		margin-top: 1rem;
+	}
+
+	.ov-dist__story {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		max-width: 44rem;
+		margin: 1rem auto 0 !important;
+		counter-reset: story;
+	}
+
+	.ov-dist__story :global(li) {
+		counter-increment: story;
+		display: flex;
+		gap: 0.6rem;
+		padding: 0.4rem 0.7rem;
+		border-radius: 0.45rem;
+		background: var(--es-surface);
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-dist__story :global(li)::before {
+		content: counter(story);
+		color: var(--sl-color-text-accent);
+		font-family: var(--es-mono);
+		font-weight: 700;
+	}
+
+	.ov-dist__story :global(li.is-note) {
+		background: none;
+		color: var(--es-muted);
+	}
+
+	.ov-dist__story :global(li.is-note)::before {
+		content: 'ℹ';
+	}
+
+	@media (max-width: 48rem) {
+		.ov-dist {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ov-dist__shared dl {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+</style>
+
+<script>
+	import { loop, sleep, whileVisible } from '../event-sourcing/cart';
+
+	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	function travel(token: SVGCircleElement, path: SVGPathElement, duration: number, signal: { cancelled: boolean }) {
+		const length = path.getTotalLength();
+		return new Promise<void>((resolve) => {
+			const start = performance.now();
+			const frame = (now: number) => {
+				if (signal.cancelled) return resolve();
+				const progress = Math.min(1, (now - start) / duration);
+				const eased = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2;
+				const point = path.getPointAtLength(length * eased);
+				token.setAttribute('cx', String(point.x));
+				token.setAttribute('cy', String(point.y));
+				if (progress < 1) requestAnimationFrame(frame);
+				else resolve();
+			};
+			requestAnimationFrame(frame);
+		});
+	}
+
+	function setUpSingleton(view: HTMLElement) {
+		const phases = JSON.parse(view.querySelector('[data-phases]')!.textContent!) as { edge: string; text: string }[];
+		const token = view.querySelector<SVGCircleElement>('[data-token]')!;
+		const caption = view.querySelector<HTMLElement>('[data-caption]')!;
+		const edges = new Map(
+			[...view.querySelectorAll<SVGGElement>('[data-edge]')].map((edge) => [edge.dataset.edge!, edge]),
+		);
+
+		const clear = () => {
+			for (const edge of edges.values()) edge.classList.remove('is-active');
+			token.setAttribute('cx', '-20');
+			token.setAttribute('cy', '-20');
+		};
+
+		if (reducedMotion) {
+			caption.textContent =
+				'The broker hands carts to the subscriber. Each poll, the consumer reads events after its checkpoint, passes them to the processor and saves a new checkpoint.';
+			return;
+		}
+
+		whileVisible(view, () => {
+			const stop = loop(async (signal) => {
+				clear();
+				for (const phase of phases) {
+					if (signal.cancelled) return;
+					const edge = edges.get(phase.edge)!;
+					caption.textContent = phase.text;
+					edge.classList.add('is-active');
+					await travel(token, edge.querySelector('path')!, 1100, signal);
+					await sleep(500);
+					edge.classList.remove('is-active');
+				}
+				clear();
+				await sleep(1500);
+			})();
+			return () => {
+				stop();
+				clear();
+			};
+		});
+	}
+
+	type DistState = {
+		node1Up: boolean;
+		leader: 1 | 2 | null;
+		allocatedTo: 1 | 2 | null;
+		consuming: 1 | 2 | null;
+	};
+
+	type Step = { text: string; note?: boolean; change?: Partial<DistState> };
+
+	const stopStory: Step[] = [
+		{ text: 'node-1 shuts down. Its broker removes its subscribers from the subscribers table.', change: { node1Up: false, consuming: null } },
+		{ text: 'Its lock connection closes, so Postgres releases the coordinator lock.', change: { leader: null } },
+		{ text: 'node-2’s coordinator takes the lock at its next attempt and becomes the leader.', change: { leader: 2 } },
+		{ text: 'At its next distribution, the leader finds carts has no live subscriber and allocates it to node-2’s subscriber.', change: { allocatedTo: 2 } },
+		{ text: 'node-2’s observer sees the new allocation and calls accept(carts) on its subscriber.', change: { consuming: 2 } },
+		{ text: 'The subscriber resumes from the shared checkpoint, so nothing is skipped. Events processed since the last save are processed again.' },
+		{ note: true, text: 'With default settings, a handover can take around 20 seconds. If node-1 had crashed instead, the leader would wait until its heartbeats were too old.' },
+	];
+
+	const startStory: Step[] = [
+		{ text: 'node-1 starts and registers its subscriber in the subscribers table.', change: { node1Up: true } },
+		{ text: 'It competes for the coordinator lock, but node-2 holds it, so node-1 waits.' },
+		{ text: 'Allocations stick: carts stays with node-2. node-1’s subscriber waits as a standby.' },
+		{ note: true, text: 'To spread work across nodes, run several subscriber groups. One group’s source is never split.' },
+	];
+
+	function setUpDistributed(view: HTMLElement) {
+		const nodes = [1, 2].map((n) => view.querySelector<HTMLElement>(`[data-node="${n}"]`)!);
+		const story = view.querySelector<HTMLOListElement>('[data-story]')!;
+		const toggle = view.querySelector<HTMLButtonElement>('[data-toggle-node]')!;
+		const reset = view.querySelector<HTMLButtonElement>('[data-reset]')!;
+		const flow = view.querySelector<HTMLElement>('[data-flow]')!;
+		const subscribers = view.querySelector<HTMLElement>('[data-subscribers]')!;
+		const subscriptions = view.querySelector<HTMLElement>('[data-subscriptions]')!;
+		const lock = view.querySelector<HTMLElement>('[data-lock]')!;
+
+		const initial: DistState = { node1Up: true, leader: 1, allocatedTo: 1, consuming: 1 };
+		let state = { ...initial };
+		let run = 0;
+
+		const set = (element: HTMLElement, text: string, hot = false) => {
+			if (element.textContent !== text) {
+				element.classList.remove('is-changed');
+				void element.offsetWidth;
+				element.classList.add('is-changed');
+			}
+			element.textContent = text;
+			element.classList.toggle('is-hot', hot);
+		};
+
+		const render = () => {
+			nodes.forEach((node, index) => {
+				const n = (index + 1) as 1 | 2;
+				const up = n === 2 || state.node1Up;
+				node.classList.toggle('is-down', !up);
+				node.querySelector('[data-node-status]')!.textContent = up ? 'running' : 'stopped';
+				set(node.querySelector('[data-coordinator]')!, !up ? '—' : state.leader === n ? 'leader' : 'waiting', state.leader === n);
+				set(
+					node.querySelector('[data-subscriber]')!,
+					!up ? '—' : state.consuming === n ? 'consuming carts' : 'standby',
+					state.consuming === n,
+				);
+			});
+			flow.textContent = state.consuming ? `→ node-${state.consuming}` : '→ nobody yet';
+			subscribers.innerHTML = [state.node1Up ? 'cart-projection @ node-1' : '', 'cart-projection @ node-2']
+				.filter(Boolean)
+				.map((row) => `<span>${row}</span>`)
+				.join('');
+			subscriptions.innerHTML = state.allocatedTo
+				? `<span>cart-projection @ node-${state.allocatedTo} → [carts]</span>`
+				: '<span>none</span>';
+			lock.innerHTML = `<span>${state.leader ? `held by node-${state.leader}` : 'free'}</span>`;
+			toggle.textContent = state.node1Up ? 'Stop node-1' : 'Start node-1';
+		};
+
+		const play = async (steps: Step[]) => {
+			const current = ++run;
+			toggle.disabled = true;
+			story.replaceChildren();
+			for (const step of steps) {
+				if (current !== run) return;
+				if (step.change) state = { ...state, ...step.change };
+				render();
+				const item = document.createElement('li');
+				item.textContent = step.text;
+				if (step.note) item.classList.add('is-note');
+				story.append(item);
+				await sleep(reducedMotion ? 0 : 1400);
+			}
+			if (current === run) toggle.disabled = false;
+		};
+
+		toggle.addEventListener('click', () => play(state.node1Up ? stopStory : startStory));
+		reset.addEventListener('click', () => {
+			run += 1;
+			state = { ...initial };
+			story.replaceChildren();
+			toggle.disabled = false;
+			render();
+		});
+
+		render();
+	}
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-wiring]')) {
+		const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-view-button]')];
+		const views = [...root.querySelectorAll<HTMLElement>('[data-view]')];
+		for (const button of buttons) {
+			button.addEventListener('click', () => {
+				for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+				for (const view of views) view.hidden = view.dataset.view !== button.dataset.viewButton;
+			});
+		}
+		setUpSingleton(root.querySelector<HTMLElement>('[data-view="singleton"]')!);
+		setUpDistributed(root.querySelector<HTMLElement>('[data-view="distributed"]')!);
+	}
+</script>

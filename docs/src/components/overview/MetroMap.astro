@@ -1,0 +1,409 @@
+---
+import './styles.css';
+import type { PackageId } from './library';
+
+type LineId = 'write' | 'project' | 'background' | 'test';
+type Anchor = 'above' | 'below' | 'right';
+
+type Station = {
+	id: string;
+	label: string;
+	x: number;
+	y: number;
+	pkg: PackageId;
+	anchor: Anchor;
+	text: string;
+	href: string;
+};
+
+const base = '/event.store';
+
+const lines: { id: LineId; label: string; detail: string; pkg: PackageId; paths: string[]; stations: string[] }[] = [
+	{
+		id: 'write',
+		label: 'Write line',
+		detail: 'Record facts safely',
+		pkg: 'store',
+		paths: ['M90,90 L900,90'],
+		stations: ['new-event', 'event-stream', 'conditions', 'adapter', 'stored-event'],
+	},
+	{
+		id: 'project',
+		label: 'Project line',
+		detail: 'Turn facts into answers',
+		pkg: 'projection',
+		paths: ['M270,90 L390,210 L960,210'],
+		stations: ['event-stream', 'projector', 'projection', 'projection-store', 'search'],
+	},
+	{
+		id: 'background',
+		label: 'Background line',
+		detail: 'Keep answers fresh as events arrive',
+		pkg: 'processing',
+		paths: ['M90,360 L780,360 L780,210', 'M255,360 L255,460', 'M420,360 L420,460', 'M585,360 L585,460'],
+		stations: [
+			'service-manager',
+			'polling',
+			'error-handling',
+			'subscriber',
+			'broker',
+			'consumer',
+			'consumer-state',
+			'projection-processor',
+			'projection-store',
+		],
+	},
+	{
+		id: 'test',
+		label: 'Test line',
+		detail: 'Prove it works, quickly',
+		pkg: 'testing',
+		paths: ['M90,560 L670,560 Q690,560 690,540 L690,90'],
+		stations: ['static-clock', 'new-event-builder', 'stored-event-builder', 'projection-builder', 'adapter'],
+	},
+];
+
+const stations: Station[] = [
+	{ id: 'new-event', label: 'NewEvent', x: 90, y: 90, pkg: 'types', anchor: 'above', text: 'The event you want to record: a name, a payload and metadata.', href: `${base}/guides/streams-categories-and-logs/#new-events-and-stored-events` },
+	{ id: 'event-stream', label: 'EventStream', x: 270, y: 90, pkg: 'store', anchor: 'above', text: 'One thing’s events. Call publish() to append. It is also an event source you can read and project.', href: `${base}/guides/streams-categories-and-logs/` },
+	{ id: 'conditions', label: 'conditions', x: 470, y: 90, pkg: 'store', anchor: 'above', text: 'position_is(), stream_is_empty() and their combinations make a publish conditional, for optimistic concurrency.', href: `${base}/guides/concurrency/` },
+	{ id: 'adapter', label: 'EventStorageAdapter', x: 690, y: 90, pkg: 'store', anchor: 'above', text: 'Where events are actually kept: InMemoryEventStorageAdapter for tests, PostgresEventStorageAdapter for production.', href: `${base}/guides/postgres/` },
+	{ id: 'stored-event', label: 'StoredEvent', x: 900, y: 90, pkg: 'types', anchor: 'above', text: 'The recorded fact, with an id, a position in its stream and a sequence number in the log.', href: `${base}/guides/streams-categories-and-logs/#new-events-and-stored-events` },
+	{ id: 'projector', label: 'Projector', x: 390, y: 210, pkg: 'projection', anchor: 'below', text: 'Folds a source’s events into state, with one handler per event name.', href: `${base}/getting-started/` },
+	{ id: 'projection', label: 'Projection', x: 570, y: 210, pkg: 'types', anchor: 'below', text: 'The folded state, with an id, a name, its source and metadata.', href: `${base}/guides/projection-store/#the-projection-type` },
+	{ id: 'projection-store', label: 'ProjectionStore', x: 780, y: 210, pkg: 'projection', anchor: 'above', text: 'Saves projections, then loads them by id, locates them by source or searches them.', href: `${base}/guides/projection-store/` },
+	{ id: 'search', label: 'Search', x: 960, y: 210, pkg: 'query', anchor: 'below', text: 'Filters, a sort and a page, built from query clauses and translated by each adapter.', href: `${base}/guides/projection-store/#searching` },
+	{ id: 'service-manager', label: 'ServiceManager', x: 90, y: 360, pkg: 'processing', anchor: 'above', text: 'Starts and stops your long-running services, and can stop them on signals such as SIGTERM.', href: `${base}/guides/services-and-error-handling/#running-services-with-servicemanager` },
+	{ id: 'polling', label: 'PollingService', x: 255, y: 360, pkg: 'processing', anchor: 'above', text: 'Runs another service over and over, every 200 ms by default. Usually it calls subscriber.consume_all.', href: `${base}/guides/services-and-error-handling/#polling` },
+	{ id: 'error-handling', label: 'ErrorHandlingService', x: 255, y: 460, pkg: 'processing', anchor: 'below', text: 'Decides what happens when a service raises: retry, continue, raise or exit.', href: `${base}/guides/services-and-error-handling/#handling-errors` },
+	{ id: 'subscriber', label: 'EventSubscriber', x: 420, y: 360, pkg: 'processing', anchor: 'above', text: 'Asks for an event source and passes its events to a processor. Build one with make_event_store_subscriber.', href: `${base}/guides/event-processing/#create-a-subscriber` },
+	{ id: 'broker', label: 'EventBroker', x: 420, y: 460, pkg: 'processing', anchor: 'below', text: 'Decides which subscriber consumes which source. Singleton for one process, distributed for many.', href: `${base}/guides/event-processing/#choose-a-broker-type` },
+	{ id: 'consumer', label: 'EventSourceConsumer', x: 585, y: 360, pkg: 'processing', anchor: 'above', text: 'Reads one source from its last checkpoint and passes each event to the processor.', href: `${base}/guides/event-processing/#track-and-resume-progress` },
+	{ id: 'consumer-state', label: 'EventConsumerStateStore', x: 585, y: 460, pkg: 'processing', anchor: 'below', text: 'Saves checkpoints as state-changed events, so a restarted process carries on where it left off.', href: `${base}/guides/event-processing/#track-and-resume-progress` },
+	{ id: 'projection-processor', label: 'ProjectionEventProcessor', x: 780, y: 360, pkg: 'processing', anchor: 'right', text: 'Applies each event to the stored projection for its stream, then saves it.', href: `${base}/guides/event-processing/#project-events-into-a-projection-store` },
+	{ id: 'static-clock', label: 'StaticClock', x: 90, y: 560, pkg: 'utils', anchor: 'below', text: 'A fixed time you control, for predictable timestamps.', href: `${base}/guides/testing/#clocks` },
+	{ id: 'new-event-builder', label: 'NewEventBuilder', x: 255, y: 560, pkg: 'testing', anchor: 'below', text: 'Builds NewEvents and fills every field you don’t set with random data.', href: `${base}/guides/testing/#building-events` },
+	{ id: 'stored-event-builder', label: 'StoredEventBuilder', x: 420, y: 560, pkg: 'testing', anchor: 'above', text: 'Builds StoredEvents, ideal for unit-testing projectors and processors.', href: `${base}/guides/testing/#building-events` },
+	{ id: 'projection-builder', label: 'MappingProjectionBuilder', x: 585, y: 560, pkg: 'testing', anchor: 'below', text: 'Builds Projections with random state. Subclass BaseProjectionBuilder for your own state.', href: `${base}/guides/testing/#building-projections` },
+];
+
+const linesFor = (id: string) => lines.filter((line) => line.stations.includes(id)).map((line) => line.id);
+
+const labelPosition = (station: Station) => {
+	switch (station.anchor) {
+		case 'above':
+			return { x: station.x, y: station.y - 20, anchor: 'middle' };
+		case 'below':
+			return { x: station.x, y: station.y + 30, anchor: 'middle' };
+		case 'right':
+			return { x: station.x + 18, y: station.y + 5, anchor: 'start' };
+	}
+};
+---
+
+<div class="es ov ov-metro not-content" data-ov-metro>
+	<ul class="ov-metro__legend">
+		{
+			lines.map((line) => (
+				<li>
+					<button type="button" data-line-toggle={line.id} data-pkg={line.pkg} aria-pressed="false">
+						<i />
+						<span>
+							<strong>{line.label}</strong>
+							<small>{line.detail}</small>
+						</span>
+					</button>
+				</li>
+			))
+		}
+	</ul>
+
+	<div class="es-panel ov-metro__map ov-scroll">
+		<svg viewBox="0 0 1040 610" role="group" aria-label="Metro map of the library">
+			{
+				lines.map((line) => (
+					<g class="ov-metro__line" data-line={line.id} data-pkg={line.pkg}>
+						{line.paths.map((d) => (
+							<path d={d} />
+						))}
+					</g>
+				))
+			}
+			{
+				stations.map((station) => {
+					const label = labelPosition(station);
+					const on = linesFor(station.id);
+					return (
+						<g
+							class:list={['ov-metro__station', { 'is-interchange': on.length > 1 }]}
+							data-station={station.id}
+							data-lines={on.join(' ')}
+							data-pkg={station.pkg}
+							tabindex="0"
+							role="button"
+							aria-label={`${station.label}: ${station.text}`}
+						>
+							<circle class="ov-metro__hit" cx={station.x} cy={station.y} r="22" />
+							<circle class="ov-metro__dot" cx={station.x} cy={station.y} r={on.length > 1 ? 11 : 7} />
+							<text x={label.x} y={label.y} text-anchor={label.anchor}>
+								{station.label}
+							</text>
+						</g>
+					);
+				})
+			}
+		</svg>
+	</div>
+
+	<div class="ov-metro__info" aria-live="polite">
+		<p class="ov-metro__hint" data-hint>
+			Pick a line to follow one journey, or a station to see what it does. Big white stations are
+			interchanges: the places where journeys share a class.
+		</p>
+		{
+			stations.map((station) => (
+				<section class="es-panel ov-metro__card" data-card={station.id} data-pkg={station.pkg} hidden>
+					<div class="ov-metro__card-head">
+						<code class="ov-name" data-pkg={station.pkg}>
+							{station.label}
+						</code>
+						<span class="ov-chip">{station.pkg}</span>
+						{linesFor(station.id).map((id) => {
+							const line = lines.find((candidate) => candidate.id === id)!;
+							return (
+								<span class="ov-metro__line-pill" data-pkg={line.pkg}>
+									{line.label}
+								</span>
+							);
+						})}
+					</div>
+					<p>{station.text}</p>
+					<a href={station.href}>Read more →</a>
+				</section>
+			))
+		}
+	</div>
+</div>
+
+<style>
+	.ov-metro__legend {
+		display: grid !important;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.5rem;
+		margin-bottom: 0.75rem !important;
+	}
+
+	.ov-metro__legend button {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		width: 100%;
+		height: 100%;
+		padding: 0.5rem 0.7rem;
+		border: 1px solid var(--es-border);
+		border-radius: 0.6rem;
+		background: var(--es-surface);
+		color: var(--es-strong);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.ov-metro__legend button[aria-pressed='true'] {
+		border-color: var(--pkg);
+		background: var(--pkg-bg);
+	}
+
+	.ov-metro__legend i {
+		flex: none;
+		width: 1.6rem;
+		height: 0.45rem;
+		border-radius: 999px;
+		background: var(--pkg);
+	}
+
+	.ov-metro__legend span {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.3;
+	}
+
+	.ov-metro__legend strong {
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-metro__legend small {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-metro__map {
+		padding: 0.5rem;
+	}
+
+	.ov-metro__map svg {
+		display: block;
+		width: 100%;
+		min-width: 52rem;
+		height: auto;
+	}
+
+	.ov-metro__line path {
+		fill: none;
+		stroke: var(--pkg);
+		stroke-width: 9;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		transition: opacity 0.2s ease;
+	}
+
+	.ov-metro__station {
+		cursor: pointer;
+		outline: none;
+	}
+
+	.ov-metro__hit {
+		fill: transparent;
+	}
+
+	.ov-metro__dot {
+		fill: var(--sl-color-bg);
+		stroke: var(--es-strong);
+		stroke-width: 3;
+		transition:
+			r 0.15s ease,
+			fill 0.15s ease;
+	}
+
+	.ov-metro__station:not(.is-interchange) .ov-metro__dot {
+		stroke: var(--sl-color-bg);
+		fill: var(--es-strong);
+		stroke-width: 3;
+	}
+
+	.ov-metro__station text {
+		fill: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: 13px;
+		font-weight: 600;
+		paint-order: stroke;
+		stroke: var(--sl-color-bg);
+		stroke-width: 5px;
+		stroke-linejoin: round;
+		transition: opacity 0.2s ease;
+	}
+
+	.ov-metro__station:hover .ov-metro__dot,
+	.ov-metro__station:focus-visible .ov-metro__dot,
+	.ov-metro__station.is-selected .ov-metro__dot {
+		fill: var(--sl-color-text-accent);
+		stroke: var(--es-strong);
+	}
+
+	.ov-metro__station:focus-visible text,
+	.ov-metro__station.is-selected text {
+		fill: var(--sl-color-text-accent);
+	}
+
+	[data-ov-metro].is-isolating .ov-metro__line:not(.is-on) path {
+		opacity: 0.12;
+	}
+
+	[data-ov-metro].is-isolating .ov-metro__station:not(.is-on) {
+		opacity: 0.25;
+	}
+
+	.ov-metro__info {
+		margin-top: 0.75rem;
+		min-height: 6.5rem;
+	}
+
+	.ov-metro__hint {
+		color: var(--es-muted);
+		font-size: var(--sl-text-xs);
+		text-align: center;
+	}
+
+	.ov-metro__card {
+		border-left: 4px solid var(--pkg);
+	}
+
+	.ov-metro__card p {
+		margin: 0.5rem 0;
+	}
+
+	.ov-metro__card a {
+		font-size: var(--sl-text-xs);
+	}
+
+	.ov-metro__card-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.ov-metro__line-pill {
+		padding: 0 0.5rem;
+		border-radius: 999px;
+		background: var(--pkg);
+		color: var(--sl-color-black);
+		font-size: var(--sl-text-2xs);
+		font-weight: 700;
+	}
+
+	@media (max-width: 48rem) {
+		.ov-metro__legend {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+</style>
+
+<script>
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-metro]')) {
+		const toggles = [...root.querySelectorAll<HTMLButtonElement>('[data-line-toggle]')];
+		const lineGroups = [...root.querySelectorAll<SVGGElement>('[data-line]')];
+		const stations = [...root.querySelectorAll<SVGGElement>('[data-station]')];
+		const cards = [...root.querySelectorAll<HTMLElement>('[data-card]')];
+		const hint = root.querySelector<HTMLElement>('[data-hint]')!;
+
+		let line: string | undefined;
+		let station: string | undefined;
+
+		const render = () => {
+			root.classList.toggle('is-isolating', line !== undefined);
+			for (const toggle of toggles) toggle.setAttribute('aria-pressed', String(toggle.dataset.lineToggle === line));
+			for (const group of lineGroups) group.classList.toggle('is-on', group.dataset.line === line);
+			for (const element of stations) {
+				element.classList.toggle('is-on', line !== undefined && element.dataset.lines!.split(' ').includes(line));
+				element.classList.toggle('is-selected', element.dataset.station === station);
+			}
+			for (const card of cards) card.hidden = card.dataset.card !== station;
+			hint.hidden = station !== undefined;
+		};
+
+		for (const toggle of toggles) {
+			toggle.addEventListener('click', () => {
+				line = line === toggle.dataset.lineToggle ? undefined : toggle.dataset.lineToggle;
+				render();
+			});
+		}
+
+		for (const element of stations) {
+			const choose = () => {
+				station = element.dataset.station;
+				if (line && !element.dataset.lines!.split(' ').includes(line)) line = undefined;
+				render();
+			};
+			element.addEventListener('click', choose);
+			element.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					choose();
+				}
+			});
+		}
+
+		render();
+	}
+</script>

@@ -90,6 +90,7 @@ export default defineConfig({
 						{ label: 'Processing events asynchronously', slug: 'guides/event-processing' },
 						{ label: 'Services and error handling', slug: 'guides/services-and-error-handling' },
 						{ label: 'Using PostgreSQL', slug: 'guides/postgres' },
+						{ label: 'Running PostgreSQL in production', slug: 'guides/postgres-in-production' },
 						{ label: 'Custom payload and state types', slug: 'guides/serialisation' },
 						{ label: 'Testing', slug: 'guides/testing' },
 						{ label: 'Logging', slug: 'guides/logging' },

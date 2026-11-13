@@ -265,6 +265,10 @@ Because the state stream is always called `default`, give each subscriber
 group its own state category. Two groups that share a state category write
 to the same stream.
 
+Old state events are never removed, so the state stream grows for as long as
+the subscriber runs. On PostgreSQL, see
+[Keep subscriber state small](/event.store/guides/postgres-in-production/#keep-subscriber-state-small).
+
 ## Project events into a projection store
 
 [`ProjectionEventProcessor`](/event.store/reference/processing/#logicblocks.event.processing.ProjectionEventProcessor)

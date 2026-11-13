@@ -1,0 +1,58 @@
+---
+title: logicblocks.event.store
+description: Eventing infrastructure for event-sourced architectures.
+template: splash
+hero:
+  tagline: Eventing infrastructure for event-sourced architectures.
+  actions:
+    - text: Getting started
+      link: /event.store/getting-started/
+      icon: right-arrow
+    - text: New to event sourcing?
+      link: /event.store/event-sourcing/
+      icon: right-arrow
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Installation
+
+```shell
+pip install logicblocks-event-store
+```
+
+## Features
+
+<CardGrid>
+	<LinkCard
+		title="Streams, categories and the log"
+		description="An append-only log of immutable events, grouped into categories of streams, with bi-temporal timestamps and arbitrary payloads and metadata."
+		href="/event.store/guides/streams-categories-and-logs/"
+	/>
+	<LinkCard
+		title="Concurrency and write conditions"
+		description="Optimistic concurrency through composable write conditions, retry decorators, and configurable write serialisation for consistent ordering."
+		href="/event.store/guides/concurrency/"
+	/>
+	<LinkCard
+		title="Projections"
+		description="Fold events into state with a projector, then save, load and search projections with a rich query language."
+		href="/event.store/guides/projection-store/"
+	/>
+	<LinkCard
+		title="Asynchronous processing"
+		description="Consume events in the background with an event broker, subscribers and consumer state, on one node or distributed across many."
+		href="/event.store/guides/event-processing/"
+	/>
+	<LinkCard
+		title="In-memory and PostgreSQL storage"
+		description="An in-memory adapter for tests and experiments, and a PostgreSQL adapter for production. Both are built on an adapter interface you can implement yourself."
+		href="/event.store/guides/postgres/"
+	/>
+	<LinkCard
+		title="Testing utilities"
+		description="Builders and random data generators for events and projections, and static clocks for deterministic timestamps."
+		href="/event.store/guides/testing/"
+	/>
+</CardGrid>

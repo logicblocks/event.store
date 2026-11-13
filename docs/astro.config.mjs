@@ -52,7 +52,29 @@ export default defineConfig({
 				{ label: 'Getting started', slug: 'getting-started' },
 				{
 					label: 'Guides',
-					items: [{ label: 'Finalising state', slug: 'guides/finalising-state' }],
+					items: [
+						{ label: 'Streams, categories and the log', slug: 'guides/streams-categories-and-logs' },
+						{ label: 'Concurrency and write conditions', slug: 'guides/concurrency' },
+						{ label: 'Storing and querying projections', slug: 'guides/projection-store' },
+						{ label: 'Finalising state', slug: 'guides/finalising-state' },
+						{ label: 'Processing events asynchronously', slug: 'guides/event-processing' },
+						{ label: 'Services and error handling', slug: 'guides/services-and-error-handling' },
+						{ label: 'Using PostgreSQL', slug: 'guides/postgres' },
+						{ label: 'Running PostgreSQL in production', slug: 'guides/postgres-in-production' },
+						{ label: 'Custom payload and state types', slug: 'guides/serialisation' },
+						{ label: 'Testing', slug: 'guides/testing' },
+						{ label: 'Logging', slug: 'guides/logging' },
+						{ label: 'Writing a storage adapter', slug: 'guides/custom-storage-adapters' },
+					],
+				},
+				{
+					label: 'Concepts',
+					items: [
+						{
+							label: 'How the distributed event broker works',
+							slug: 'concepts/distributed-event-broker',
+						},
+					],
 				},
 				...(hasReferencePages() ? [referenceGroup] : []),
 				{ label: 'Changelog', slug: 'changelog' },

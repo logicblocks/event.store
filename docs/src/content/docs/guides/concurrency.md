@@ -410,7 +410,9 @@ stream is safe under every guarantee. Readers of a category are safe under
 `LOG` and `CATEGORY`, and readers of the whole log are only safe under
 `LOG`. If you consume a category or the log with an
 [event processor](/event.store/guides/event-processing/), choose a guarantee
-at least as wide as what it reads.
+at least as wide as what it reads. For how this plays out on PostgreSQL,
+including switching guarantee on a live service, see
+[Running PostgreSQL in production](/event.store/guides/postgres-in-production/#choose-the-serialisation-guarantee).
 
 When you publish to several streams in a category at once, the adapter takes
 one lock under `LOG` or `CATEGORY`: the lock for the whole store or for the

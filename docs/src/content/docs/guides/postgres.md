@@ -29,6 +29,11 @@ Which files you need depends on the features you use:
 Apply each table file before its indices file. The files use plain
 `CREATE TABLE` and `CREATE INDEX` statements, so apply each one only once.
 
+Upgrading the package does not change your tables. When you upgrade, compare
+the `sql/` directory between the two versions and add anything new to your
+migrations. Missing indices make writes slow as your tables grow. See
+[Running PostgreSQL in production](/event.store/guides/postgres-in-production/#keep-the-schema-in-step-with-the-library).
+
 The distributed event broker also reads events through the event store, so it
 needs the events table too. The singleton event broker only needs the events
 table.
@@ -269,6 +274,11 @@ block each other. Every process that writes to a table should use the same
 guarantee, because writes under different guarantees take different locks and
 are not serialised against each other. The
 [concurrency guide](/event.store/guides/concurrency/) explains the trade-offs.
+
+Under the default `LOG` guarantee, one slow write holds up every other write
+to the table. See
+[Running PostgreSQL in production](/event.store/guides/postgres-in-production/#choose-the-serialisation-guarantee)
+for how to choose a guarantee and keep writes fast.
 
 ### Scanning
 

@@ -1,0 +1,75 @@
+/*
+	Unlayered, so these beat Starlight's layered defaults. That includes its
+	light-mode block, so every property set here must also be set for light.
+*/
+:root,
+::backdrop {
+	--sl-color-white: var(--atomic-white);
+	--sl-color-gray-1: color-mix(in oklab, var(--atomic-smoke), var(--atomic-white));
+	--sl-color-gray-2: var(--atomic-smoke);
+	--sl-color-gray-3: var(--atomic-gray);
+	--sl-color-gray-4: var(--atomic-slate);
+	--sl-color-gray-5: var(--atomic-ink-2);
+	--sl-color-gray-6: var(--atomic-night-3);
+	--sl-color-black: var(--atomic-night);
+
+	--sl-color-accent-low: var(--atomic-indigo-2);
+	--sl-color-accent: var(--atomic-indigo);
+	--sl-color-accent-high: var(--atomic-indigo-tint);
+
+	--sl-color-green-low: color-mix(in oklab, var(--atomic-pastel-green) 18%, var(--atomic-night));
+	--sl-color-green: var(--atomic-pastel-green);
+	--sl-color-green-high: var(--atomic-pastel-green);
+	--sl-color-red-low: color-mix(in oklab, var(--atomic-red) 18%, var(--atomic-night));
+	--sl-color-red: var(--atomic-red-2);
+	/* Red-2 alone falls just under 4.5:1 on its own tint. */
+	--sl-color-red-high: color-mix(in oklab, var(--atomic-red-2) 80%, var(--atomic-white));
+	--sl-color-purple-low: color-mix(in oklab, var(--atomic-medium-purple) 18%, var(--atomic-night));
+	--sl-color-purple: var(--atomic-medium-purple);
+	--sl-color-purple-high: var(--atomic-purple-light);
+	--sl-color-blue-low: color-mix(in oklab, var(--atomic-malibu) 18%, var(--atomic-night));
+	--sl-color-blue: var(--atomic-malibu);
+	--sl-color-blue-high: var(--atomic-malibu);
+	--sl-color-orange-low: color-mix(in oklab, var(--atomic-cream-can) 18%, var(--atomic-night));
+	--sl-color-orange: var(--atomic-cream-can);
+	--sl-color-orange-high: var(--atomic-cream-can);
+
+	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-night) 66%, transparent);
+}
+
+:root[data-theme='light'],
+[data-theme='light'] ::backdrop {
+	--sl-color-white: var(--atomic-night);
+	--sl-color-gray-1: var(--atomic-night-3);
+	--sl-color-gray-2: var(--atomic-ink);
+	--sl-color-gray-3: var(--atomic-slate);
+	--sl-color-gray-4: var(--atomic-gray);
+	--sl-color-gray-5: var(--atomic-ash);
+	--sl-color-gray-6: color-mix(in oklab, var(--atomic-ash) 40%, var(--atomic-bone));
+	--sl-color-gray-7: var(--atomic-bone);
+	--sl-color-black: var(--atomic-white);
+
+	/* Kept pale so indigo text on it stays above 4.5:1. */
+	--sl-color-accent-low: color-mix(in oklab, var(--atomic-indigo-tint) 30%, var(--atomic-white));
+	--sl-color-accent: var(--atomic-indigo);
+	--sl-color-accent-high: var(--atomic-indigo-2);
+
+	/* The pale accents are too light for borders on white, so those meet their deep shade halfway. */
+	--sl-color-green-low: color-mix(in oklab, var(--atomic-pastel-green) 14%, var(--atomic-white));
+	--sl-color-green: color-mix(in oklab, var(--atomic-pastel-green), var(--atomic-pastel-green-deep));
+	--sl-color-green-high: var(--atomic-pastel-green-deep);
+	--sl-color-red-low: color-mix(in oklab, var(--atomic-red) 14%, var(--atomic-white));
+	--sl-color-red: var(--atomic-red);
+	--sl-color-red-high: var(--atomic-red-deep);
+	--sl-color-purple-low: color-mix(in oklab, var(--atomic-medium-purple) 14%, var(--atomic-white));
+	--sl-color-purple: var(--atomic-medium-purple);
+	--sl-color-purple-high: var(--atomic-medium-purple-deep);
+	--sl-color-blue-low: color-mix(in oklab, var(--atomic-malibu) 14%, var(--atomic-white));
+	--sl-color-blue: color-mix(in oklab, var(--atomic-malibu), var(--atomic-malibu-deep));
+	--sl-color-blue-high: var(--atomic-malibu-deep);
+	--sl-color-orange-low: color-mix(in oklab, var(--atomic-cream-can) 14%, var(--atomic-white));
+	--sl-color-orange: color-mix(in oklab, var(--atomic-cream-can), var(--atomic-cream-can-deep));
+	--sl-color-orange-high: var(--atomic-cream-can-deep);
+
+	--sl-color-backdrop-overlay: color-mix(in srgb, var(--atomic-slate) 66%, transparent);
+}

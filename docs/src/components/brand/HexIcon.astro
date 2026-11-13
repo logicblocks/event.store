@@ -1,0 +1,43 @@
+---
+import { hexPoints } from './hex';
+---
+
+<span class="hex-icon">
+	<svg class="frame" viewBox="0 0 80 80" aria-hidden="true">
+		<polygon points={hexPoints(40, 40, 37)} />
+	</svg>
+	<slot />
+</span>
+
+<style>
+	.hex-icon {
+		position: relative;
+		display: inline-grid;
+		flex-shrink: 0;
+		place-items: center;
+		width: 3.5rem;
+		height: 3.5rem;
+		color: var(--sl-color-white);
+	}
+
+	.frame {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		fill: color-mix(in srgb, var(--atomic-indigo) 10%, transparent);
+		stroke: var(--atomic-indigo);
+		stroke-width: 2;
+		stroke-linejoin: round;
+	}
+
+	.frame polygon {
+		vector-effect: non-scaling-stroke;
+	}
+
+	.hex-icon > :global(:not(.frame)) {
+		position: relative;
+		width: 1.5rem;
+		height: 1.5rem;
+	}
+</style>

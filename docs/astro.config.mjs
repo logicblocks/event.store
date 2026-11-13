@@ -22,9 +22,11 @@ function hasReferencePages() {
 
 const isDraft = process.env.DOCS_DRAFT === 'true';
 
+const base = '/event.store';
+
 export default defineConfig({
 	site: 'https://logicblocks.github.io',
-	base: '/event.store',
+	base,
 	markdown: {
 		// The generated reference pages set heading ids with `{#id}`.
 		processor: satteri({ features: { headingAttributes: true } }),
@@ -32,7 +34,34 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'logicblocks.event.store',
-			components: isDraft ? { Banner: './src/components/DraftBanner.astro' } : {},
+			logo: { src: './src/assets/logicblocks-icon.png' },
+			favicon: '/favicon-32x32.png',
+			head: [
+				{
+					tag: 'link',
+					attrs: { rel: 'apple-touch-icon', href: `${base}/apple-touch-icon.png` },
+				},
+			],
+			components: {
+				ThemeProvider: './src/components/brand/ThemeProvider.astro',
+				Hero: './src/components/brand/Hero.astro',
+				...(isDraft ? { Banner: './src/components/DraftBanner.astro' } : {}),
+			},
+			customCss: [
+				'@fontsource-variable/sora',
+				'@fontsource-variable/inter',
+				'@fontsource-variable/inter/wght-italic.css',
+				'@fontsource-variable/fira-code',
+				'./src/styles/tokens.css',
+				'./src/styles/theme.css',
+				'./src/styles/typography.css',
+				'./src/styles/identity.css',
+				'./src/styles/buttons.css',
+				'./src/styles/asides.css',
+				'./src/styles/code.css',
+				'./src/styles/tables.css',
+				'./src/styles/content.css',
+			],
 			social: [
 				{
 					icon: 'github',

@@ -1,0 +1,36 @@
+:root {
+	--sl-font: var(--atomic-font-body);
+	--sl-font-mono: var(--atomic-font-code);
+}
+
+:is(
+	#_top,
+	.sl-markdown-content :is(h1, h2, h3, h4):not(:where(.not-content *)),
+	.card .title
+) {
+	font-family: var(--atomic-font-display);
+	font-weight: 600;
+	letter-spacing: var(--atomic-tracking-tight);
+}
+
+:is(#_top, .sl-markdown-content :is(h1, h3):not(:where(.not-content *))) {
+	font-weight: 400;
+}
+
+/* Below about 20px, Sora 600 with tight tracking runs words together. */
+:is(
+	.sl-markdown-content :is(h5, h6):not(:where(.not-content *)),
+	.site-title,
+	.sidebar-content .large,
+	#starlight__on-this-page,
+	.sl-link-card .title
+) {
+	font-family: var(--atomic-font-display);
+	font-weight: 500;
+}
+
+/* Keeps `==`, `!=` and `->` as typed rather than as Fira Code ligatures. */
+:is(code, kbd, samp, pre) {
+	font-variant-ligatures: none;
+	letter-spacing: normal;
+}

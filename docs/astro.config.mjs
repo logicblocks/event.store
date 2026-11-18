@@ -45,6 +45,8 @@ export default defineConfig({
 			components: {
 				ThemeProvider: './src/components/brand/ThemeProvider.astro',
 				Hero: './src/components/brand/Hero.astro',
+				ThemeSelect: './src/components/brand/HeaderThemeSelect.astro',
+				Footer: './src/components/brand/Footer.astro',
 				...(isDraft ? { Banner: './src/components/DraftBanner.astro' } : {}),
 			},
 			customCss: [

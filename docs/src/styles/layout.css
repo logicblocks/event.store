@@ -1,3 +1,8 @@
+/* The divider separated the social icons from the theme picker, which is now in the footer. */
+.header .social-icons::after {
+	content: none;
+}
+
 /* Starlight widens the table of contents with the viewport; keep it at the sidebar's width instead. */
 @media (min-width: 72rem) {
 	.right-sidebar-container {

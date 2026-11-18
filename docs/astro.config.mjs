@@ -54,6 +54,7 @@ export default defineConfig({
 				'@fontsource-variable/fira-code',
 				'./src/styles/tokens.css',
 				'./src/styles/theme.css',
+				'./src/styles/layout.css',
 				'./src/styles/typography.css',
 				'./src/styles/identity.css',
 				'./src/styles/buttons.css',

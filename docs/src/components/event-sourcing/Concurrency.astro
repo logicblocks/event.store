@@ -22,6 +22,10 @@ import './styles.css';
 			<div class="es-cc__command" data-command></div>
 			<div class="es-cc__result" data-result></div>
 		</section>
+
+		<div class="es-cc__start" data-start>
+			<button class="es-button" data-play>▶ Play</button>
+		</div>
 	</div>
 
 	<ol class="es-cc__steps" data-steps>
@@ -33,13 +37,13 @@ import './styles.css';
 	</ol>
 
 	<div class="es-cc__footer">
-		<button class="es-button" data-replay>↺ Play again</button>
+		<button class="es-button" data-replay hidden>↺ Play again</button>
 	</div>
 </div>
 
 <script>
 	import { animate } from 'motion';
-	import { added, eventCard, enter, removed, sleep, whileVisible, type CartEvent } from './cart';
+	import { added, eventCard, enter, removed, sleep, type CartEvent } from './cart';
 
 	const history: CartEvent[] = [added('beans'), added('mug'), added('beans'), removed('beans'), added('filters')];
 
@@ -47,6 +51,8 @@ import './styles.css';
 		const stream = root.querySelector<HTMLElement>('[data-stream]')!;
 		const version = root.querySelector<HTMLElement>('[data-version]')!;
 		const steps = [...root.querySelectorAll<HTMLElement>('[data-steps] li')];
+		const start = root.querySelector<HTMLElement>('[data-start]')!;
+		const playButton = root.querySelector<HTMLButtonElement>('[data-play]')!;
 		const replay = root.querySelector<HTMLButtonElement>('[data-replay]')!;
 		const writer = (id: 'a' | 'b') => {
 			const element = root.querySelector<HTMLElement>(`[data-writer="${id}"]`)!;
@@ -178,25 +184,47 @@ import './styles.css';
 			step(5);
 		};
 
-		replay.addEventListener('click', play);
+		reset();
 
-		let started = false;
-		whileVisible(root, () => {
-			if (!started) {
-				started = true;
-				play();
-			}
-			return () => {};
+		playButton.addEventListener('click', () => {
+			start.hidden = true;
+			replay.hidden = false;
+			play();
 		});
+		replay.addEventListener('click', play);
 	}
 </script>
 
 <style>
 	.es-cc__stage {
+		position: relative;
 		display: grid;
 		grid-template-columns: 1fr 1.1fr 1fr;
 		gap: 1rem;
 		align-items: start;
+	}
+
+	.es-cc__start {
+		position: absolute;
+		z-index: 3;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		border-radius: 0.75rem;
+		background: color-mix(in oklab, var(--sl-color-black) 55%, transparent);
+		backdrop-filter: blur(2px);
+	}
+
+	.es-cc__start[hidden],
+	.es-cc__footer [hidden] {
+		display: none;
+	}
+
+	.es-cc__start .es-button {
+		padding: 0.7rem 1.4rem;
+		border-color: var(--sl-color-accent);
+		font-size: var(--sl-text-base);
+		font-weight: 600;
 	}
 
 	.es-cc__writer {

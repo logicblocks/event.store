@@ -48,7 +48,6 @@ import { products, skus } from './cart';
 
 			<div class="es-proj__slot" data-slot>
 				<div class="es-panel es-proj__placeholder" aria-hidden="true">
-					<span>Room for another read model, built from the full history whenever you need it.</span>
 				</div>
 				<section class="es-panel es-proj__model es-proj__new" data-model="removed">
 					<div class="es-label">New · Most removed products</div>
@@ -297,7 +296,7 @@ import { products, skus } from './cart';
 			removedModel.classList.remove('is-backfilling');
 			label.textContent = 'Caught up with every event ever recorded. Now updating live.';
 			animate(label, { opacity: [0, 1] }, { duration: 0.4 });
-			addButton.textContent = '↺ Bin the projection and rebuild';
+			addButton.textContent = '↺ Bin the projection and rebuild/';
 			addButton.disabled = false;
 		});
 	}

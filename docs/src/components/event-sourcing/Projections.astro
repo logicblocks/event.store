@@ -294,7 +294,7 @@ import { products, skus } from './cart';
 			}
 			removalsCaughtUpTo = log.length;
 			removedModel.classList.remove('is-backfilling');
-			label.textContent = 'Caught up with every event ever recorded. Now updating live.';
+			label.textContent = 'Caught up on the past. Now updating live.';
 			animate(label, { opacity: [0, 1] }, { duration: 0.4 });
 			addButton.textContent = '↺ Bin the projection and rebuild/';
 			addButton.disabled = false;

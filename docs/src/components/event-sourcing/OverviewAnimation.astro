@@ -2,44 +2,47 @@
 import './styles.css';
 ---
 
-<div class="es es-hero not-content" data-es-hero>
-	<div class="es-hero__action" aria-live="polite">
-		<span class="es-hero__dot"></span>
+<div class="es es-overview not-content" data-es-overview>
+	<div class="es-overview__action" aria-live="polite">
+		<span class="es-overview__dot"></span>
 		<span data-action>Customer opens the shop</span>
 	</div>
 
-	<div class="es-hero__panes">
-		<section class="es-panel es-hero__pane">
+	<div class="es-overview__panes">
+		<section class="es-panel es-overview__pane es-overview__pane--table">
 			<div class="es-label">Traditional table <code>carts</code></div>
-			<table class="es-hero__table">
+			<table class="es-overview__table">
 				<thead>
 					<tr><th>id</th><th>items</th><th>total</th><th>status</th></tr>
 				</thead>
 				<tbody>
 					<tr>
 						<td>42</td>
-						<td><span class="es-hero__cell" data-cell="items">—</span></td>
-						<td><span class="es-hero__cell" data-cell="total">£0</span></td>
-						<td><span class="es-hero__cell" data-cell="status">open</span></td>
+						<td><span class="es-overview__cell" data-cell="items">—</span></td>
+						<td><span class="es-overview__cell" data-cell="total">£0</span></td>
+						<td><span class="es-overview__cell" data-cell="status">open</span></td>
 					</tr>
 				</tbody>
 			</table>
-			<code class="es-hero__sql" data-sql>&nbsp;</code>
-			<p class="es-hero__verdict">One row. Every change overwrites the last.</p>
+			<code class="es-overview__sql" data-sql>&nbsp;</code>
+			<p class="es-overview__verdict">A cart is represented by a single row, and every change overwrites that row.</p>
 		</section>
 
-		<div class="es-hero__versus" aria-hidden="true">vs</div>
+		<div class="es-overview__versus" aria-hidden="true">vs</div>
 
-		<section class="es-panel es-hero__pane">
+		<section class="es-panel es-overview__pane es-overview__pane--stream">
 			<div class="es-label">Event stream <code>cart-42</code></div>
-			<ol class="es-stream es-hero__stream" data-stream></ol>
-			<p class="es-hero__verdict">One stream. Every change is a new fact, appended.</p>
+			<ol class="es-stream es-overview__stream" data-stream></ol>
+			<p class="es-overview__verdict">A cart is represented by an append only stream of immutable facts.</p>
 		</section>
-	</div>
 
-	<p class="es-hero__punchline" data-punchline>
-		The row forgot the mug was ever there. <strong>The log remembers.</strong>
-	</p>
+		<p class="es-overview__punchline es-overview__punchline--table" data-punchline="table">
+			The relational table has no record the mug was ever considered.
+		</p>
+		<p class="es-overview__punchline es-overview__punchline--stream" data-punchline="stream">
+			The event log retains this interaction.
+		</p>
+	</div>
 </div>
 
 <script>
@@ -71,7 +74,7 @@ import './styles.css';
 	async function swap(cell: HTMLElement, text: string) {
 		if (cell.textContent === text) return;
 		const ghost = cell.cloneNode(true) as HTMLElement;
-		ghost.classList.add('es-hero__ghost');
+		ghost.classList.add('es-overview__ghost');
 		cell.parentElement!.append(ghost);
 		cell.textContent = text;
 		animate(ghost, { opacity: [1, 0], transform: ['translateY(0rem)', 'translateY(-0.9rem)'] }, { duration: 0.6 }).then(() =>
@@ -82,15 +85,18 @@ import './styles.css';
 		animate(cell, { opacity: [0, 1], transform: ['translateY(0.6rem)', 'translateY(0rem)'] }, { duration: 0.6 });
 	}
 
-	for (const hero of document.querySelectorAll<HTMLElement>('[data-es-hero]')) {
-		const action = hero.querySelector<HTMLElement>('[data-action]')!;
-		const stream = hero.querySelector<HTMLElement>('[data-stream]')!;
-		const sql = hero.querySelector<HTMLElement>('[data-sql]')!;
-		const punchline = hero.querySelector<HTMLElement>('[data-punchline]')!;
+	for (const overview of document.querySelectorAll<HTMLElement>('[data-es-overview]')) {
+		const action = overview.querySelector<HTMLElement>('[data-action]')!;
+		const stream = overview.querySelector<HTMLElement>('[data-stream]')!;
+		const sql = overview.querySelector<HTMLElement>('[data-sql]')!;
+		const punchlines = {
+			table: overview.querySelector<HTMLElement>('[data-punchline="table"]')!,
+			stream: overview.querySelector<HTMLElement>('[data-punchline="stream"]')!,
+		};
 		const cells = {
-			items: hero.querySelector<HTMLElement>('[data-cell="items"]')!,
-			total: hero.querySelector<HTMLElement>('[data-cell="total"]')!,
-			status: hero.querySelector<HTMLElement>('[data-cell="status"]')!,
+			items: overview.querySelector<HTMLElement>('[data-cell="items"]')!,
+			total: overview.querySelector<HTMLElement>('[data-cell="total"]')!,
+			status: overview.querySelector<HTMLElement>('[data-cell="status"]')!,
 		};
 
 		const reset = () => {
@@ -99,12 +105,14 @@ import './styles.css';
 			cells.total.textContent = '£0';
 			cells.status.textContent = 'open';
 			sql.innerHTML = '&nbsp;';
-			punchline.classList.remove('is-visible');
+			punchlines.table.classList.remove('is-visible');
+			punchlines.stream.classList.remove('is-visible');
 			action.textContent = 'Customer opens the shop';
+			delete action.parentElement!.dataset.kind;
 		};
 
 		whileVisible(
-			hero,
+			overview,
 			loop(async (signal) => {
 				reset();
 				await sleep(900);
@@ -112,6 +120,7 @@ import './styles.css';
 				for (const [index, step] of script.entries()) {
 					if (signal.cancelled) return;
 					action.textContent = step.action;
+					action.parentElement!.dataset.kind = step.event.name;
 					animate(action.parentElement!, { opacity: [0.3, 1] }, { duration: 0.4 });
 					await sleep(700);
 
@@ -132,9 +141,13 @@ import './styles.css';
 						for (const event of stream.querySelectorAll('[data-kind="item-removed"], li:nth-child(2)')) {
 							event.classList.add('is-current');
 						}
-						punchline.classList.add('is-visible');
+						punchlines.table.classList.add('is-visible');
 						await sleep(3600);
 						for (const event of stream.querySelectorAll('.is-current')) event.classList.remove('is-current');
+					} else if (step.event.name === 'checked-out') {
+						await sleep(500);
+						punchlines.stream.classList.add('is-visible');
+						await sleep(1000);
 					} else {
 						await sleep(1500);
 					}
@@ -146,11 +159,11 @@ import './styles.css';
 </script>
 
 <style>
-	.es-hero {
+	.es-overview {
 		margin-block: 0.5rem 3rem;
 	}
 
-	.es-hero__action {
+	.es-overview__action {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -162,84 +175,116 @@ import './styles.css';
 		min-height: 1.75rem;
 	}
 
-	.es-hero__dot {
+	.es-overview__action {
+		--dot: var(--sl-color-accent);
+	}
+
+	.es-overview__action[data-kind='item-added'] {
+		--dot: var(--es-added);
+	}
+
+	.es-overview__action[data-kind='item-removed'] {
+		--dot: var(--es-removed);
+	}
+
+	.es-overview__dot {
 		width: 0.6rem;
 		height: 0.6rem;
 		border-radius: 50%;
-		background: var(--sl-color-accent);
-		box-shadow: 0 0 0 0 var(--sl-color-accent);
-		animation: es-hero-ping 1.6s ease-out infinite;
+		background: var(--dot);
+		box-shadow: 0 0 0 0 var(--dot);
+		animation: es-overview-ping 1.6s ease-out infinite;
 	}
 
-	@keyframes es-hero-ping {
+	@keyframes es-overview-ping {
 		0% {
-			box-shadow: 0 0 0 0 color-mix(in oklab, var(--sl-color-accent) 60%, transparent);
+			box-shadow: 0 0 0 0 color-mix(in oklab, var(--dot) 60%, transparent);
 		}
 		100% {
 			box-shadow: 0 0 0 0.6rem transparent;
 		}
 	}
 
-	.es-hero__panes {
+	.es-overview__panes {
 		display: grid;
 		grid-template-columns: 1fr auto 1fr;
+		grid-template-areas:
+			'table versus stream'
+			'table-punchline . stream-punchline';
 		gap: 1rem;
 		align-items: stretch;
 	}
 
-	.es-hero__pane {
+	.es-overview__pane--table {
+		grid-area: table;
+	}
+
+	.es-overview__pane--stream {
+		grid-area: stream;
+	}
+
+	.es-overview__punchline--table {
+		grid-area: table-punchline;
+	}
+
+	.es-overview__punchline--stream {
+		grid-area: stream-punchline;
+	}
+
+	.es-overview__pane {
 		display: flex;
 		flex-direction: column;
 		min-height: 20rem;
 	}
 
-	.es-hero__versus {
+	.es-overview__versus {
+		grid-area: versus;
 		align-self: center;
 		color: var(--es-muted);
 		font-style: italic;
 		font-size: var(--sl-text-lg);
 	}
 
-	.es-hero__table {
+	.es-overview__table {
 		width: 100%;
 		border-collapse: collapse;
 		font-family: var(--es-mono);
 		font-size: var(--sl-text-xs);
 	}
 
-	.es-hero__table th,
-	.es-hero__table td {
+	.es-overview__table th,
+	.es-overview__table td {
 		padding: 0.5rem 0.6rem;
 		border: 1px solid var(--es-border);
 		text-align: left;
 		vertical-align: top;
 	}
 
-	.es-hero__table th {
+	.es-overview__table th {
 		color: var(--es-muted);
 		font-weight: 500;
 	}
 
-	.es-hero__table td {
+	.es-overview__table td {
 		position: relative;
 		color: var(--es-strong);
 		background: var(--es-surface-raised);
 	}
 
-	.es-hero__table td {
+	.es-overview__table td {
 		transition: background-color 0.9s ease;
 	}
 
-	.es-hero__table td.is-changed {
+	.es-overview__table td.is-changed {
 		background: var(--es-warn-bg);
 		transition: none;
 	}
 
-	.es-hero__cell {
+	.es-overview__cell {
 		display: inline-block;
 	}
 
-	.es-hero__ghost {
+	.es-overview__ghost {
 		position: absolute;
 		left: 0.6rem;
 		top: 0.5rem;
@@ -248,7 +293,7 @@ import './styles.css';
 		pointer-events: none;
 	}
 
-	.es-hero__sql {
+	.es-overview__sql {
 		display: block;
 		margin-top: 1rem;
 		padding: 0.5rem 0.65rem;
@@ -260,21 +305,21 @@ import './styles.css';
 		overflow-wrap: anywhere;
 	}
 
-	.es-hero__stream {
+	.es-overview__stream {
 		flex: 1;
 	}
 
-	.es-hero__verdict {
+	.es-overview__verdict {
 		margin: auto 0 0;
 		padding-top: 1rem;
 		color: var(--es-muted);
 		font-size: var(--sl-text-xs);
 	}
 
-	.es-hero__punchline {
-		margin: 1.5rem 0 0;
+	.es-overview__punchline {
+		margin: 0.5rem 0 0;
 		text-align: center;
-		font-size: var(--sl-text-xl);
+		font-size: var(--sl-text-lg);
 		color: var(--es-muted);
 		opacity: 0;
 		transform: translateY(0.5rem);
@@ -283,29 +328,35 @@ import './styles.css';
 			transform 0.5s ease;
 	}
 
-	.es-hero__punchline strong {
+	.es-overview__punchline strong {
 		color: var(--es-strong);
 	}
 
-	.es-hero__punchline.is-visible {
+	.es-overview__punchline.is-visible {
 		opacity: 1;
 		transform: none;
 	}
 
 	@media (max-width: 50rem) {
-		.es-hero__panes {
+		.es-overview__panes {
 			grid-template-columns: 1fr;
+			grid-template-areas:
+				'table'
+				'table-punchline'
+				'versus'
+				'stream'
+				'stream-punchline';
 		}
 
-		.es-hero__pane {
+		.es-overview__pane {
 			min-height: 0;
 		}
 
-		.es-hero__versus {
+		.es-overview__versus {
 			justify-self: center;
 		}
 
-		.es-hero__stream {
+		.es-overview__stream {
 			min-height: 15rem;
 		}
 	}

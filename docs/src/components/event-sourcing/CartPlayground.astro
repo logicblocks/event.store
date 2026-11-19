@@ -6,7 +6,7 @@ import { products, skus } from './cart';
 <div class="es es-play not-content" data-es-play>
 	<div class="es-play__grid">
 		<section class="es-panel">
-			<div class="es-label">1 · Commands</div>
+			<div class="es-label">Commands</div>
 			<ul class="es-play__products">
 				{
 					skus.map((sku) => (
@@ -37,20 +37,24 @@ import { products, skus } from './cart';
 		</section>
 
 		<section class="es-panel es-play__stream-panel">
-			<div class="es-label">2 · Stream <code>cart-42</code> <span class="es-play__count" data-count></span></div>
+			<div class="es-label">Stream <code>cart-42</code> <span class="es-play__count" data-count></span></div>
 			<ol class="es-stream es-play__stream" data-stream></ol>
 		</section>
 
 		<section class="es-panel es-play__state-panel" data-state-panel>
-			<div class="es-label">3 · State, as replayed <span class="es-play__past" data-past>past</span></div>
+			<div class="es-label">State <code>cart-42</code><span class="es-play__past" data-past>past</span></div>
 			<div class="es-cart" data-state></div>
 		</section>
 	</div>
 
 	<div class="es-panel es-play__timeline">
-		<label class="es-label" for="es-play-slider">Time travel</label>
-		<input id="es-play-slider" type="range" min="0" value="0" step="1" data-slider />
 		<div class="es-play__timeline-text" data-slider-text></div>
+		<label class="es-label" for="es-play-slider">Time travel</label>
+		<div class="es-play__track">
+			<input id="es-play-slider" type="range" min="0" value="0" step="1" data-slider />
+			<div class="es-play__ticks" aria-hidden="true" data-ticks></div>
+		</div>
+		
 	</div>
 </div>
 
@@ -81,6 +85,7 @@ import { products, skus } from './cart';
 		const statePanel = root.querySelector<HTMLElement>('[data-state-panel]')!;
 		const slider = root.querySelector<HTMLInputElement>('[data-slider]')!;
 		const sliderText = root.querySelector<HTMLElement>('[data-slider-text]')!;
+		const ticks = root.querySelector<HTMLElement>('[data-ticks]')!;
 		const note = root.querySelector<HTMLElement>('[data-note]')!;
 		const count = root.querySelector<HTMLElement>('[data-count]')!;
 
@@ -133,9 +138,21 @@ import { products, skus } from './cart';
 			);
 		};
 
+		const renderTicks = () => {
+			ticks.style.setProperty('--es-ticks', String(events.length));
+			ticks.replaceChildren(
+				...Array.from({ length: events.length + 1 }, (_, index) => {
+					const tick = document.createElement('span');
+					tick.style.setProperty('--es-tick', String(index));
+					return tick;
+				}),
+			);
+		};
+
 		const syncSlider = () => {
 			slider.max = String(events.length);
 			slider.value = String(events.length);
+			renderTicks();
 		};
 
 		const append = (event: CartEvent) => {
@@ -171,7 +188,7 @@ import { products, skus } from './cart';
 			renderStream();
 			renderState();
 			renderCommands();
-			say('Each command is checked against the current state. If it’s valid, it becomes an event.');
+			say('Each command is checked against the current state. If it’s valid and succeeds, it becomes an event.');
 		});
 		slider.addEventListener('input', renderState);
 
@@ -291,7 +308,7 @@ import { products, skus } from './cart';
 		display: grid;
 		grid-template-columns: auto 1fr;
 		align-items: center;
-		gap: 0.5rem 1rem;
+		gap: 0.85rem 1rem;
 		margin-top: 1rem;
 	}
 
@@ -299,10 +316,39 @@ import { products, skus } from './cart';
 		margin: 0;
 	}
 
+	.es-play__track {
+		--es-thumb: 1rem;
+		--es-tick-height: 0.4rem;
+		--es-tick-gap: 0.15rem;
+		position: relative;
+		display: flex;
+	}
+
 	.es-play__timeline input {
 		width: 100%;
+		margin: 0;
 		accent-color: var(--sl-color-text-accent);
 		cursor: pointer;
+	}
+
+	/* The native thumb's centre stops half a thumb short of each end, so inset the ticks to match. */
+	.es-play__ticks {
+		position: absolute;
+		top: calc(100% + var(--es-tick-gap));
+		right: calc(var(--es-thumb) / 2);
+		left: calc(var(--es-thumb) / 2);
+		height: var(--es-tick-height);
+	}
+
+	.es-play__ticks :global(span) {
+		position: absolute;
+		top: 0;
+		left: calc(var(--es-tick) / var(--es-ticks) * 100%);
+		width: 1px;
+		height: 100%;
+		background: var(--es-muted);
+		opacity: 0.6;
+		transform: translateX(-50%);
 	}
 
 	.es-play__timeline-text {

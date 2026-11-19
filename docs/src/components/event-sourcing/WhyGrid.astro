@@ -24,10 +24,9 @@ const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'che
 				))
 			}
 		</div>
-		<h3>A complete audit trail, for free</h3>
+		<h3>Retain audit trails</h3>
 		<p>
-			The history isn't a side effect you hope someone remembered to write. It is the data. Who
-			did what, and when, is always there.
+			A full history is recorded natively. Compliance with audit requirments happens naturally, without developers needs to maintain a separate service.
 		</p>
 	</article>
 
@@ -39,10 +38,12 @@ const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'che
 			<span class="es-why__cursor"></span>
 			<span class="es-why__cursor-label">as of 09:44</span>
 		</div>
-		<h3>Time travel</h3>
+		<h3>Travel back in time</h3>
 		<p>
-			"What did this cart look like when the customer phoned us?" Replay up to that moment and you
-			have the exact answer, not a best guess.
+			"What did this customer's cart look like when they phoned us?"
+		</p>
+		<p>
+			Travel back to any momemnt in time for shared, accurate views.
 		</p>
 	</article>
 
@@ -50,10 +51,9 @@ const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'che
 		<div class="es-why__visual es-why__bars">
 			{[0.8, 0.45, 0.95, 0.3, 0.6, 0.7].map((height, index) => <span style={`--h: ${height}; --i: ${index}`} />)}
 		</div>
-		<h3>New questions of old data</h3>
+		<h3>Ask new questions</h3>
 		<p>
-			Next year's report needs data you didn't know you'd want. Build a new projection and it
-			back-fills from day one.
+			Not everything you'll want to know can be known up front. Developers don't have to decide which interactions are imporant enough to include in their schema.
 		</p>
 	</article>
 
@@ -65,10 +65,9 @@ const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'che
 			</div>
 			<span class="es-why__debug-label">replaying production events locally…</span>
 		</div>
-		<h3>Debugging by replay</h3>
+		<h3>Debug by replaying</h3>
 		<p>
-			Copy the events behind a bug report into a test and replay them. You reproduce the exact
-			state, step by step.
+			Copy the events behind a bug report into a test and replay them. You've reproduced the exact scenario and can see exactly what happened.
 		</p>
 	</article>
 </div>
@@ -99,6 +98,10 @@ const replay = ['item-added', 'item-added', 'item-removed', 'item-removed', 'che
 	.es-why__card p {
 		margin: 0;
 		color: var(--sl-color-text);
+	}
+
+	.es-why__card p + p {
+		margin-top: 0.75em;
 	}
 
 	.es-why__visual {

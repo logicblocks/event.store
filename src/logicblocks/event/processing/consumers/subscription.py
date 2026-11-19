@@ -38,6 +38,31 @@ def make_event_store_subscriber[E: StoredEvent](
     logger: FilteringBoundLogger = default_logger,
     save_state_after_consumption: bool = True,
 ) -> "EventSubscriptionConsumer[E]":
+    """Create a subscriber that consumes stored events from the event store.
+
+    A convenience wrapper around `make_subscriber` that tracks progress by
+    the sequence number of the last processed event.
+
+    Args:
+        subscriber_group: The group the subscriber belongs to. Subscribers
+            in the same group share the work of consuming the requested
+            sources.
+        subscriber_id: The unique identifier of the subscriber. Defaults to
+            a random UUID.
+        subscription_request: The identifier of the event source to
+            subscribe to.
+        subscriber_state_category: The category in which to store
+            subscriber state.
+        subscriber_state_persistence_interval: The number of processed
+            events after which subscriber state is saved.
+        event_processor: The processor to pass events to.
+        logger: The logger to use.
+        save_state_after_consumption: Whether to save subscriber state after
+            all available events have been consumed.
+
+    Returns:
+        the subscription consumer.
+    """
     return make_subscriber(
         subscriber_group=subscriber_group,
         subscriber_id=subscriber_id,
@@ -63,6 +88,33 @@ def make_subscriber[E: Event](
     logger: FilteringBoundLogger = default_logger,
     save_state_after_consumption: bool = True,
 ) -> "EventSubscriptionConsumer[E]":
+    """Create a subscriber that consumes events from the sources it is given.
+
+    The returned subscriber creates an `EventSourceConsumer` for each source
+    it accepts, all sharing a single `EventConsumerStateStore`.
+
+    Args:
+        subscriber_group: The group the subscriber belongs to. Subscribers
+            in the same group share the work of consuming the requested
+            sources.
+        subscriber_id: The unique identifier of the subscriber. Defaults to
+            a random UUID.
+        subscription_request: The identifier of the event source to
+            subscribe to.
+        subscriber_state_category: The category in which to store
+            subscriber state.
+        subscriber_state_persistence_interval: The number of processed
+            events after which subscriber state is saved.
+        subscriber_state_converter: The converter between events and
+            subscriber state.
+        event_processor: The processor to pass events to.
+        logger: The logger to use.
+        save_state_after_consumption: Whether to save subscriber state after
+            all available events have been consumed.
+
+    Returns:
+        the subscription consumer.
+    """
     subscriber_id = (
         subscriber_id if subscriber_id is not None else str(uuid4())
     )
@@ -93,6 +145,21 @@ def make_subscriber[E: Event](
 
 
 class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
+    """An event subscriber that consumes from the sources it is allocated.
+
+    An event broker allocates sources to the subscriber via `accept` and
+    removes them via `withdraw`. Each accepted source is consumed by a
+    delegate consumer created by the delegate factory.
+
+    Args:
+        group: The group the subscriber belongs to.
+        id: The unique identifier of the subscriber.
+        subscription_requests: The identifiers of the event sources the
+            subscriber requests.
+        delegate_factory: Creates the consumer for an accepted source.
+        logger: The logger to use.
+    """
+
     def __init__(
         self,
         group: str,
@@ -121,6 +188,7 @@ class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
         return self._id
 
     def health(self) -> EventSubscriberHealth:
+        """Return the health of the subscriber, which is always healthy."""
         return EventSubscriberHealth.HEALTHY
 
     @property
@@ -130,6 +198,14 @@ class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
     async def accept(
         self, source: EventSource[EventSourceIdentifier, E]
     ) -> None:
+        """Accept a source, creating a delegate consumer for it.
+
+        If the source has already been accepted, the existing delegate
+        consumer is retained.
+
+        Args:
+            source: The event source to accept.
+        """
         if source.identifier in self._delegates:
             await self._logger.ainfo(
                 "event.consumer.subscription.reaccepting-source",
@@ -149,6 +225,13 @@ class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
     async def withdraw(
         self, source: EventSource[EventSourceIdentifier, E]
     ) -> None:
+        """Withdraw a source, discarding its delegate consumer.
+
+        Withdrawing a source that has not been accepted logs a warning.
+
+        Args:
+            source: The event source to withdraw.
+        """
         if source.identifier in self._delegates:
             await self._logger.ainfo(
                 "event.consumer.subscription.withdrawing-source",
@@ -166,6 +249,7 @@ class EventSubscriptionConsumer[E: Event](EventConsumer, EventSubscriber[E]):
             )
 
     async def consume_all(self) -> None:
+        """Consume all available events from each accepted source in turn."""
         await self._logger.adebug(
             "event.consumer.subscription.starting-consume",
             sources=[

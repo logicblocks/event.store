@@ -18,12 +18,29 @@ def default_exception_factory(exception: BaseException) -> BaseException:
 
 
 class ErrorHandler[T](ABC):
+    """Base class for handlers deciding how to respond to an exception."""
+
     @abstractmethod
     def handle(self, exception: BaseException) -> ErrorHandlerDecision[T]:
+        """Decide how to respond to the given exception.
+
+        Args:
+            exception: The exception to handle.
+
+        Returns:
+            the decision on how to respond.
+        """
         raise NotImplementedError
 
 
 class ExitErrorHandler(ErrorHandler[Any]):
+    """Error handler that decides to exit the process.
+
+    Args:
+        exit_code_factory: Returns the exit code for an exception. Defaults
+            to always returning 1.
+    """
+
     def __init__(
         self,
         exit_code_factory: Callable[[BaseException], int] = (
@@ -39,6 +56,13 @@ class ExitErrorHandler(ErrorHandler[Any]):
 
 
 class RaiseErrorHandler(ErrorHandler[Any]):
+    """Error handler that decides to raise an exception.
+
+    Args:
+        exception_factory: Returns the exception to raise for a handled
+            exception. Defaults to returning the handled exception.
+    """
+
     def __init__(
         self,
         exception_factory: Callable[[BaseException], BaseException] = (
@@ -56,6 +80,15 @@ class RaiseErrorHandler(ErrorHandler[Any]):
 
 
 class ContinueErrorHandler[T](ErrorHandler[T]):
+    """Error handler that decides to continue, returning a value.
+
+    Exceptions that are not `Exception` subclasses, such as
+    `asyncio.CancelledError`, are raised instead.
+
+    Args:
+        value_factory: Returns the value to continue with for an exception.
+    """
+
     def __init__(
         self,
         value_factory: Callable[[BaseException], T],
@@ -72,6 +105,16 @@ class ContinueErrorHandler[T](ErrorHandler[T]):
 
 
 class RetryErrorHandler(ErrorHandler[Any]):
+    """Error handler that decides to retry the failed execution.
+
+    Exceptions that are not `Exception` subclasses, such as
+    `asyncio.CancelledError`, are raised instead.
+
+    Args:
+        retry_strategy: Decides how to retry for each exception. If `None`,
+            retries immediately.
+    """
+
     def __init__(self, retry_strategy: RetryStrategy | None = None):
         self._retry_strategy = retry_strategy
 

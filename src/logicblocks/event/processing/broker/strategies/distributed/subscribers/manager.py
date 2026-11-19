@@ -19,24 +19,50 @@ def log_event_name(event: str) -> str:
 
 
 class EventSubscriberManager[E: Event](ABC):
+    """Manages the registration of this node's subscribers in shared state."""
+
     @abstractmethod
     async def add(self, subscriber: EventSubscriber[E]) -> Self:
+        """Add a subscriber to be managed.
+
+        Returns:
+            this manager, for chaining.
+        """
         raise NotImplementedError
 
     @abstractmethod
     async def start(self) -> None:
+        """Register the managed subscribers in shared state."""
         raise NotImplementedError
 
     @abstractmethod
     async def maintain(self) -> None:
+        """Keep the subscribers' shared state current until cancelled."""
         raise NotImplementedError
 
     @abstractmethod
     async def stop(self) -> None:
+        """Unregister the managed subscribers from shared state."""
         raise NotImplementedError
 
 
 class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
+    """Registers subscribers, sends heartbeats and purges stale subscribers.
+
+    Only subscribers present when `start` is called are registered in shared
+    state; heartbeats are sent only for healthy subscribers.
+
+    Args:
+        node_id: The ID of the node on which the manager runs.
+        subscriber_store: The store of this node's subscribers.
+        subscriber_state_store: The shared store of subscriber state.
+        logger: The logger to use.
+        heartbeat_interval: The time to wait between heartbeats.
+        purge_interval: The time to wait between purges.
+        subscriber_max_age: How long since last seen before any subscriber,
+            on any node, is purged.
+    """
+
     def __init__(
         self,
         node_id: str,
@@ -77,6 +103,7 @@ class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
         await self.register()
 
     async def maintain(self):
+        """Run heartbeats and purges concurrently until cancelled."""
         async with asyncio.TaskGroup() as tg:
             tg.create_task(self.heartbeat())
             tg.create_task(self.purge())
@@ -90,6 +117,7 @@ class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
         )
 
     async def register(self):
+        """Add each subscriber to the subscriber state store."""
         for subscriber in await self._subscriber_store.list():
             await self._logger.ainfo(
                 log_event_name("registering-subscriber"),
@@ -105,6 +133,7 @@ class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
             await self._subscriber_state_store.add(subscriber)
 
     async def unregister(self):
+        """Remove each subscriber from the subscriber state store."""
         for subscriber in await self._subscriber_store.list():
             await self._logger.ainfo(
                 log_event_name("unregistering-subscriber"),
@@ -113,6 +142,10 @@ class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
             await self._subscriber_state_store.remove(subscriber)
 
     async def heartbeat(self):
+        """Periodically record healthy subscribers as seen, until cancelled.
+
+        Unhealthy subscribers are logged and not recorded.
+        """
         while True:
             await self._logger.adebug(
                 log_event_name("sending-heartbeats"),
@@ -137,6 +170,7 @@ class DefaultEventSubscriberManager[E: Event](EventSubscriberManager[E]):
             await asyncio.sleep(self._heartbeat_interval.total_seconds())
 
     async def purge(self):
+        """Periodically purge stale subscribers, until cancelled."""
         while True:
             await self._logger.adebug(
                 log_event_name("purging-subscribers"),

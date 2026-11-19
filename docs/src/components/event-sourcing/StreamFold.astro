@@ -1,0 +1,235 @@
+---
+import './styles.css';
+---
+
+<div class="es es-fold not-content" data-es-fold>
+	<div class="es-panel">
+		<div class="es-label">Stream <code>cart-42</code> · read from oldest to newest</div>
+		<ol class="es-fold__tape" data-tape></ol>
+		<div class="es-fold__head" data-head aria-hidden="true"></div>
+	</div>
+
+	<div class="es-fold__below">
+		<div class="es-panel es-fold__code">
+			<div class="es-label">The fold</div>
+			<pre><code><span data-line="0">state = empty_cart()</span>
+<span data-line="1">for event in stream:</span>
+<span data-line="2">    state = apply(state, event)</span></code></pre>
+			<div class="es-fold__apply" data-apply>&nbsp;</div>
+		</div>
+		<div class="es-panel es-fold__state">
+			<div class="es-label">Current state <span class="es-fold__counter" data-counter></span></div>
+			<div class="es-cart" data-state></div>
+		</div>
+	</div>
+	<p class="es-caption">
+		Current state is never stored on its own. It is calculated by replaying the facts in order.
+	</p>
+</div>
+
+<script>
+	import { animate } from 'motion';
+	import {
+		added,
+		apply,
+		checkedOut,
+		eventCard,
+		initialState,
+		loop,
+		removed,
+		renderCart,
+		sleep,
+		whileVisible,
+		type CartEvent,
+	} from './cart';
+
+	const events: CartEvent[] = [
+		added('beans'),
+		added('mug'),
+		added('beans'),
+		removed('mug'),
+		added('filters'),
+		checkedOut(),
+	];
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-fold]')) {
+		const tape = root.querySelector<HTMLElement>('[data-tape]')!;
+		const head = root.querySelector<HTMLElement>('[data-head]')!;
+		const stateView = root.querySelector<HTMLElement>('[data-state]')!;
+		const counter = root.querySelector<HTMLElement>('[data-counter]')!;
+		const applyLine = root.querySelector<HTMLElement>('[data-apply]')!;
+		const lines = [...root.querySelectorAll<HTMLElement>('[data-line]')];
+
+		const cards = events.map((event, index) => eventCard(event, index, { payload: false }));
+		tape.replaceChildren(...cards);
+
+		const highlight = (line: number) =>
+			lines.forEach((element, index) => element.classList.toggle('is-active', index === line));
+
+		const moveHead = (card?: HTMLElement) => {
+			if (!card) {
+				head.style.opacity = '0';
+				return;
+			}
+			const panel = head.parentElement!;
+			const panelBox = panel.getBoundingClientRect();
+			const cardBox = card.getBoundingClientRect();
+			head.style.opacity = '1';
+			animate(
+				head,
+				{
+					left: `${cardBox.left - panelBox.left - panel.clientLeft - 4}px`,
+					top: `${cardBox.top - panelBox.top - panel.clientTop - 4}px`,
+					width: `${cardBox.width + 8}px`,
+					height: `${cardBox.height + 8}px`,
+				},
+				{ type: 'spring', stiffness: 260, damping: 28 },
+			);
+		};
+
+		whileVisible(
+			root,
+			loop(async (signal) => {
+				let state = initialState();
+				stateView.innerHTML = renderCart(state);
+				counter.textContent = '';
+				applyLine.innerHTML = '&nbsp;';
+				cards.forEach((card) => card.classList.add('is-future'));
+				moveHead();
+				highlight(0);
+				await sleep(1400);
+
+				for (const [index, event] of events.entries()) {
+					if (signal.cancelled) return;
+					const card = cards[index];
+					card.classList.remove('is-future');
+					moveHead(card);
+					highlight(1);
+					await sleep(500);
+					highlight(2);
+					applyLine.innerHTML = `apply(state, <b data-kind="${event.name}">${event.name}</b>)`;
+					state = apply(state, event);
+					stateView.innerHTML = renderCart(state);
+					counter.textContent = `after #${index}`;
+					animate(stateView, { opacity: [0.4, 1], transform: ['scale(0.98)', 'scale(1)'] }, { duration: 0.35 });
+					await sleep(1100);
+				}
+				highlight(-1);
+				moveHead();
+				await sleep(3500);
+			}),
+		);
+	}
+</script>
+
+<style>
+	.es-fold .es-panel:first-child {
+		position: relative;
+	}
+
+	.es-fold__tape {
+		display: grid;
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		gap: 0.6rem;
+	}
+
+	.es-fold__tape :global(.es-event) {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.3rem;
+		min-height: 4.5rem;
+	}
+
+	.es-fold__tape :global(.es-event__body) {
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+
+	.es-fold__head {
+		position: absolute;
+		border: 2px solid var(--sl-color-text-accent);
+		border-radius: 0.65rem;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.3s ease;
+	}
+
+	.es-fold__below {
+		display: grid;
+		grid-template-columns: 1.2fr 1fr;
+		gap: 1rem;
+		margin-top: 1rem;
+	}
+
+	.es-fold__code pre {
+		margin: 0;
+		padding: 0;
+		background: none;
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+		line-height: 1.9;
+		white-space: pre;
+		overflow-x: auto;
+	}
+
+	.es-fold__code [data-line] {
+		display: inline-block;
+		padding-inline: 0.35rem;
+		border-radius: 0.25rem;
+		color: var(--es-muted);
+		transition:
+			background 0.2s ease,
+			color 0.2s ease;
+	}
+
+	.es-fold__code [data-line].is-active {
+		background: var(--sl-color-accent-low);
+		color: var(--es-strong);
+	}
+
+	.es-fold__apply {
+		margin-top: 0.75rem;
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+		color: var(--es-muted);
+	}
+
+	.es-fold__apply :global(b[data-kind='item-added']) {
+		color: var(--es-added-text);
+	}
+
+	.es-fold__apply :global(b[data-kind='item-removed']) {
+		color: var(--es-removed-text);
+	}
+
+	.es-fold__apply :global(b[data-kind='checked-out']) {
+		color: var(--es-done-text);
+	}
+
+	.es-fold__counter {
+		margin-left: auto;
+		font-family: var(--es-mono);
+		letter-spacing: 0;
+		text-transform: none;
+	}
+
+	.es-fold__tape :global(.es-event__name) {
+		white-space: nowrap;
+	}
+
+	@media (max-width: 50rem) {
+		.es-fold__tape {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 36rem) {
+		.es-fold__tape {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.es-fold__below {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

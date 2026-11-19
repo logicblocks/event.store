@@ -4,6 +4,21 @@ from .base import ProcessStatus
 def determine_multi_process_status(
     *statuses: ProcessStatus,
 ) -> ProcessStatus:
+    """Combine the statuses of several processes into a single status.
+
+    `UNKNOWN` statuses are ignored. If all remaining statuses are the same,
+    that status is returned. Otherwise, in order of precedence: any
+    `ERRORED` gives `ERRORED`; any `STOPPING` or `STOPPED` gives
+    `STOPPING`; any `STARTING` gives `STARTING`; a mix of only `RUNNING`
+    and `WAITING` gives `RUNNING`; and a mix including `INITIALISED` gives
+    `STARTING`.
+
+    Args:
+        *statuses: The statuses to combine.
+
+    Returns:
+        the combined status, or `UNKNOWN` if no known statuses are given.
+    """
     status_set = set(statuses)
     status_set.discard(ProcessStatus.UNKNOWN)
 

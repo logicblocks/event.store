@@ -1,0 +1,15 @@
+---
+import Default from '@astrojs/starlight/components/ThemeProvider.astro';
+---
+
+{/*
+	Starlight follows the system scheme until a theme is chosen. Seeding a stored
+	choice of dark makes dark the default; choosing "auto" stores an empty string,
+	so the picker's auto option keeps working.
+*/}
+<script is:inline>
+	if (typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme') === null) {
+		localStorage.setItem('starlight-theme', 'dark');
+	}
+</script>
+<Default />

@@ -1,0 +1,2 @@
+class Unexported:
+    """Not exported."""

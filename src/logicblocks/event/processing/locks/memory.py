@@ -9,6 +9,8 @@ from .base import Lock, LockManager
 
 
 class InMemoryLockManager(LockManager):
+    """Lock manager using `asyncio` locks, local to a single event loop."""
+
     def __init__(self):
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 

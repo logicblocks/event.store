@@ -9,6 +9,22 @@ from .types import Service
 
 
 class PollingService(Service[Never]):
+    """Service that executes another service repeatedly, forever.
+
+    The poll interval is the delay between one execution finishing and the
+    next starting. Any exception raised by the wrapped service stops
+    polling and propagates.
+
+    Args:
+        service: The service to execute on each poll. Passing a bare
+            callable is deprecated; wrap it in a `CallableService`.
+        callable: Deprecated; use `service` instead.
+        poll_interval: The delay between executions.
+
+    Raises:
+        TypeError: If neither `service` nor `callable` is provided.
+    """
+
     def __init__(
         self,
         service: Service[Any] | CallableServiceCallable[Any] | None = None,

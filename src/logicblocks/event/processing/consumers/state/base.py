@@ -34,6 +34,12 @@ def _normalise_state_for_backwards_compat(
 
 @dataclass(frozen=True)
 class EventConsumerState(JsonValueConvertible):
+    """The persisted state of an event consumer.
+
+    Attributes:
+        state: The state as produced by an `EventConsumerStateConverter`.
+    """
+
     state: JsonObject
 
     @classmethod
@@ -44,6 +50,19 @@ class EventConsumerState(JsonValueConvertible):
             [Any, JsonValue], Any
         ] = default_deserialisation_fallback,
     ) -> Self:
+        """Deserialise consumer state from a JSON value.
+
+        For backwards compatibility, a top-level `last_sequence_number` is
+        merged into the state and a missing state is treated as empty.
+
+        Args:
+            value: The JSON value to deserialise.
+            fallback: Called with the class and value if the value is not a
+                valid consumer state.
+
+        Returns:
+            the deserialised consumer state, or the result of the fallback.
+        """
         if not is_json_object(value):
             return fallback(cls, value)
 
@@ -69,11 +88,27 @@ class EventConsumerState(JsonValueConvertible):
 
 
 class EventCount(int):
+    """A count of events."""
+
     def increment(self) -> Self:
+        """Return a new count one greater than this one."""
         return self.__class__(self + 1)
 
 
 class EventConsumerStateStore[E: Event]:
+    """Records and persists event consumer state in an event category.
+
+    State is held in memory per partition and persisted as `state-changed`
+    events in the stream named after the partition.
+
+    Args:
+        category: The category in which to store consumer state.
+        converter: Converts between events and consumer state.
+        persistence_interval: The number of recorded events after which
+            `save_if_needed` persists state. If `None`, `save_if_needed`
+            never saves.
+    """
+
     _states: dict[str, EventConsumerState | None]
     _positions: dict[str, int | None]
     _persistence_lags: dict[str, EventCount]
@@ -98,6 +133,18 @@ class EventConsumerStateStore[E: Event]:
         extra_state: JsonObject | None = None,
         partition: str = "default",
     ) -> EventConsumerState:
+        """Record that an event has been processed.
+
+        The state is held in memory until saved.
+
+        Args:
+            event: The processed event.
+            extra_state: Additional state to merge into the converted state.
+            partition: The partition to record the state against.
+
+        Returns:
+            the new consumer state.
+        """
         state_object = self._converter.event_to_state(event)
         combined_state = {
             **state_object,
@@ -117,6 +164,14 @@ class EventConsumerStateStore[E: Event]:
         extra_state: JsonObject | None = None,
         partition: str = "default",
     ):
+        """Reset a partition's state to the converter's initial state.
+
+        The reset state is held in memory only and is never saved.
+
+        Args:
+            extra_state: Additional state to merge into the initial state.
+            partition: The partition to reset.
+        """
         initial_state = self._converter.initial_state()
         combined_state = {
             **initial_state,
@@ -127,6 +182,11 @@ class EventConsumerStateStore[E: Event]:
         self._persistence_lags[partition] = EventCount(0)
 
     async def save_if_needed(self, *, partition: str = "default") -> None:
+        """Save a partition's state if the persistence interval is reached.
+
+        Args:
+            partition: The partition to save.
+        """
         if (
             self._persistence_interval
             and self._persistence_lags[partition] >= self._persistence_interval
@@ -134,6 +194,19 @@ class EventConsumerStateStore[E: Event]:
             await self.save(partition=partition)
 
     async def save(self, partition: str | None = None) -> None:
+        """Persist unsaved state.
+
+        Partitions with no state or no changes since the last save are
+        skipped.
+
+        Args:
+            partition: The partition to save. If `None`, all partitions
+                with recorded state are saved.
+
+        Raises:
+            UnmetWriteConditionError: If the partition's stream has been
+                written to by another writer since it was last read.
+        """
         partitions: Sequence[str]
         if partition is None:
             partitions = list(self._persistence_lags.keys())
@@ -179,6 +252,17 @@ class EventConsumerStateStore[E: Event]:
     async def load(
         self, *, partition: str = "default"
     ) -> EventConsumerState | None:
+        """Load a partition's state.
+
+        State held in memory is returned if present; otherwise the latest
+        persisted state is read from the partition's stream.
+
+        Args:
+            partition: The partition to load.
+
+        Returns:
+            the consumer state, or `None` if there is none.
+        """
         if self._states.get(partition, None) is None:
             event = await self._category.stream(stream=partition).latest()
             if event is None:
@@ -195,6 +279,16 @@ class EventConsumerStateStore[E: Event]:
     async def load_to_query_constraint(
         self, *, partition: str = "default"
     ) -> constraints.QueryConstraint | None:
+        """Load a partition's state as a constraint for resuming consumption.
+
+        Args:
+            partition: The partition to load.
+
+        Returns:
+            a constraint selecting events after those already processed,
+                or `None` if there is no state or all events should be
+                consumed.
+        """
         state = await self.load(partition=partition)
         if state is None:
             return None

@@ -10,6 +10,11 @@ def expression_for_path(
     path: genericquery.Path,
     operator: postgresquery.Operator | None = None,
 ) -> postgresquery.Expression:
+    """Return the SQL expression referencing the value at a path.
+
+    Nested paths are extracted from the top-level JSONB column, as text if
+    the operator compares text, otherwise as JSONB.
+    """
     if path.is_nested():
         function_name = (
             "jsonb_extract_path_text"
@@ -65,6 +70,12 @@ def value_for_nested_path(
 def value_for_path(
     value: Any, path: genericquery.Path, operator: postgresquery.Operator
 ) -> postgresquery.Expression:
+    """Return the SQL expression for a value compared with a path.
+
+    The expression is empty if the operator takes no value. Values for the
+    `source` column are serialised to JSONB and values for nested paths are
+    converted to JSONB, unless the operator compares text.
+    """
     if not operator.has_value():
         return postgresquery.empty
     elif path == genericquery.Path("source"):

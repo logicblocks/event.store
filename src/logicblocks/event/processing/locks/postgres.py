@@ -52,6 +52,15 @@ async def _try_wait_lock(
 
 
 class PostgresLockManager(LockManager):
+    """Lock manager using PostgreSQL transaction-level advisory locks.
+
+    Each lock attempt opens a new connection, and the lock is held for the
+    duration of that connection's transaction.
+
+    Args:
+        connection_settings: The settings used to connect to PostgreSQL.
+    """
+
     def __init__(self, connection_settings: ConnectionSettings):
         self.connection_settings = connection_settings
 

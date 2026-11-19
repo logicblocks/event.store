@@ -1,0 +1,312 @@
+---
+import './styles.css';
+
+type Tone = 'added' | 'removed' | 'done' | 'warn' | 'plain';
+type Step = { side: 'left' | 'right'; op: 'append' | 'replace'; text: string; tone?: Tone };
+type Scene = {
+	id: string;
+	tab: string;
+	left: { title: string; verdict: string };
+	right: { title: string; verdict: string };
+	steps: Step[];
+};
+
+const scenes: Scene[] = [
+	{
+		id: 'crud',
+		tab: 'CRUD',
+		left: {
+			title: 'Row in carts',
+			verdict: 'Only the latest state survives. What it was before, and why it changed, are gone.',
+		},
+		right: {
+			title: 'Stream cart-42',
+			verdict: 'Every change is kept, in order, along with what it meant.',
+		},
+		steps: [
+			{ side: 'left', op: 'replace', text: 'items = [beans]' },
+			{ side: 'right', op: 'append', text: 'item-added  beans', tone: 'added' },
+			{ side: 'left', op: 'replace', text: 'items = [beans, mug]' },
+			{ side: 'right', op: 'append', text: 'item-added  mug', tone: 'added' },
+			{ side: 'left', op: 'replace', text: 'items = [beans]' },
+			{ side: 'right', op: 'append', text: 'item-removed  mug', tone: 'removed' },
+		],
+	},
+	{
+		id: 'audit',
+		tab: 'Audit tables',
+		left: {
+			title: 'carts + carts_audit',
+			verdict:
+				'History is a second copy, written by extra code. Nothing guarantees it is complete, and you can’t rebuild state from it.',
+		},
+		right: {
+			title: 'Stream cart-42',
+			verdict: 'The log is the data. If a change isn’t in the log, it didn’t happen.',
+		},
+		steps: [
+			{ side: 'left', op: 'append', text: 'UPDATE carts …' },
+			{ side: 'left', op: 'append', text: 'INSERT carts_audit …', tone: 'added' },
+			{ side: 'right', op: 'append', text: 'item-added  mug', tone: 'added' },
+			{ side: 'left', op: 'append', text: 'UPDATE carts …  (bulk fix script)' },
+			{ side: 'left', op: 'append', text: '⚠ no audit row written', tone: 'warn' },
+			{ side: 'right', op: 'append', text: 'item-removed  mug', tone: 'removed' },
+		],
+	},
+	{
+		id: 'cdc',
+		tab: 'Change data capture',
+		left: {
+			title: 'CDC feed from carts',
+			verdict:
+				'You see which columns changed, but not why. Did the customer remove the mug, or did it go out of stock?',
+		},
+		right: {
+			title: 'Stream cart-42',
+			verdict: 'Events record intent in the language of the business, not as diffs of a table.',
+		},
+		steps: [
+			{ side: 'left', op: 'append', text: 'items: [beans, mug] → [beans]', tone: 'warn' },
+			{ side: 'left', op: 'append', text: 'total: 20 → 12', tone: 'warn' },
+			{ side: 'right', op: 'append', text: 'item-removed  mug', tone: 'removed' },
+			{ side: 'left', op: 'append', text: 'status: open → closed', tone: 'warn' },
+			{ side: 'right', op: 'append', text: 'checked-out', tone: 'done' },
+		],
+	},
+	{
+		id: 'messaging',
+		tab: 'Messaging / Kafka',
+		left: {
+			title: 'Topic cart-updates',
+			verdict:
+				'A broker moves events between services. The state they describe still lives in some other database, which is the real source of truth.',
+		},
+		right: {
+			title: 'Stream cart-42',
+			verdict:
+				'With event sourcing the events are the source of truth. You load an entity from its own stream, and you can still publish those events to a broker.',
+		},
+		steps: [
+			{ side: 'left', op: 'append', text: 'cart-updated  → billing' },
+			{ side: 'left', op: 'append', text: 'cart-updated  → email' },
+			{ side: 'right', op: 'append', text: 'load cart-42: 3 events', tone: 'plain' },
+			{ side: 'left', op: 'append', text: 'current state? ask the carts DB', tone: 'warn' },
+			{ side: 'right', op: 'append', text: 'append item-added, expect v3', tone: 'added' },
+		],
+	},
+];
+---
+
+<div class="es es-cmp not-content" data-es-cmp>
+	<div class="es-cmp__tabs" role="tablist">
+		{
+			scenes.map((scene, index) => (
+				<button
+					class="es-cmp__tab"
+					role="tab"
+					id={`es-cmp-tab-${scene.id}`}
+					aria-controls={`es-cmp-panel-${scene.id}`}
+					aria-selected={index === 0 ? 'true' : 'false'}
+					data-tab={scene.id}
+				>
+					{scene.tab}
+				</button>
+			))
+		}
+	</div>
+
+	{
+		scenes.map((scene, index) => (
+			<div
+				class="es-cmp__scene"
+				role="tabpanel"
+				id={`es-cmp-panel-${scene.id}`}
+				aria-labelledby={`es-cmp-tab-${scene.id}`}
+				data-scene={scene.id}
+				data-steps={JSON.stringify(scene.steps)}
+				hidden={index !== 0}
+			>
+				<section class="es-panel es-cmp__side" data-side-panel="left">
+					<div class="es-label">{scene.tab} · <code>{scene.left.title}</code></div>
+					<ul class="es-cmp__lines" data-side="left" />
+					<p class="es-cmp__verdict">{scene.left.verdict}</p>
+				</section>
+				<section class="es-panel es-cmp__side es-cmp__side--es" data-side-panel="right">
+					<div class="es-label">Event sourcing · <code>{scene.right.title}</code></div>
+					<ul class="es-cmp__lines" data-side="right" />
+					<p class="es-cmp__verdict">{scene.right.verdict}</p>
+				</section>
+			</div>
+		))
+	}
+</div>
+
+<script>
+	import { animate } from 'motion';
+	import { enter, sleep } from './cart';
+
+	type Step = { side: 'left' | 'right'; op: 'append' | 'replace'; text: string; tone?: string };
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-es-cmp]')) {
+		const tabs = [...root.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+		const scenes = [...root.querySelectorAll<HTMLElement>('[data-scene]')];
+		let run = 0;
+
+		const play = async (scene: HTMLElement) => {
+			const current = ++run;
+			const steps: Step[] = JSON.parse(scene.dataset.steps!);
+			const sides = {
+				left: scene.querySelector<HTMLElement>('[data-side="left"]')!,
+				right: scene.querySelector<HTMLElement>('[data-side="right"]')!,
+			};
+			sides.left.replaceChildren();
+			sides.right.replaceChildren();
+			for (const verdict of scene.querySelectorAll<HTMLElement>('.es-cmp__verdict')) verdict.style.opacity = '0';
+
+			for (const step of steps) {
+				await sleep(750);
+				if (current !== run) return;
+				const list = sides[step.side];
+				const line = document.createElement('li');
+				line.textContent = step.text;
+				line.dataset.tone = step.tone ?? 'plain';
+				if (step.op === 'replace' && list.lastElementChild) {
+					const previous = list.lastElementChild as HTMLElement;
+					previous.classList.add('is-overwritten');
+					await sleep(450);
+					await animate(previous, { opacity: 0, height: 0, marginBottom: 0 }, { duration: 0.3 });
+					previous.remove();
+				}
+				list.append(line);
+				enter(line);
+			}
+			await sleep(500);
+			if (current !== run) return;
+			for (const verdict of scene.querySelectorAll<HTMLElement>('.es-cmp__verdict')) {
+				animate(verdict, { opacity: [0, 1], transform: ['translateY(0.4rem)', 'translateY(0rem)'] }, { duration: 0.5 });
+			}
+		};
+
+		const select = (id: string) => {
+			tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.tab === id)));
+			scenes.forEach((scene) => (scene.hidden = scene.dataset.scene !== id));
+			play(scenes.find((scene) => scene.dataset.scene === id)!);
+		};
+
+		tabs.forEach((tab) => tab.addEventListener('click', () => select(tab.dataset.tab!)));
+
+		let started = false;
+		new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && !started) {
+					started = true;
+					select(tabs[0].dataset.tab!);
+				}
+			},
+			{ threshold: 0.4 },
+		).observe(root);
+	}
+</script>
+
+<style>
+	.es-cmp__tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-bottom: 1rem;
+	}
+
+	.es-cmp__tab {
+		padding: 0.45rem 0.9rem;
+		border: 1px solid var(--es-border);
+		border-radius: 999px;
+		background: none;
+		color: var(--sl-color-text);
+		font: inherit;
+		font-size: var(--sl-text-sm);
+		cursor: pointer;
+	}
+
+	.es-cmp__tab[aria-selected='true'] {
+		border-color: var(--sl-color-text-accent);
+		background: var(--sl-color-accent-low);
+		color: var(--es-strong);
+	}
+
+	.es-cmp__scene:not([hidden]) {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.es-cmp__side {
+		display: flex;
+		flex-direction: column;
+		min-height: 17rem;
+	}
+
+	.es-cmp__side--es {
+		border-color: color-mix(in oklab, var(--sl-color-text-accent) 55%, transparent);
+	}
+
+	.es-cmp__lines {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		flex: 1;
+	}
+
+	.es-cmp__lines :global(li) {
+		padding: 0.4rem 0.6rem;
+		border-left: 3px solid var(--es-border);
+		border-radius: 0.4rem;
+		background: var(--es-surface-raised);
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+		white-space: pre-wrap;
+		overflow: hidden;
+	}
+
+	.es-cmp__lines :global(li[data-tone='added']) {
+		border-color: var(--es-added);
+		color: var(--es-added-text);
+	}
+
+	.es-cmp__lines :global(li[data-tone='removed']) {
+		border-color: var(--es-removed);
+		color: var(--es-removed-text);
+	}
+
+	.es-cmp__lines :global(li[data-tone='done']) {
+		border-color: var(--es-done);
+		color: var(--es-done-text);
+	}
+
+	.es-cmp__lines :global(li[data-tone='warn']) {
+		border-color: var(--es-warn);
+		color: var(--es-warn-text);
+	}
+
+	.es-cmp__lines :global(li.is-overwritten) {
+		text-decoration: line-through;
+		color: var(--es-removed-text);
+		opacity: 0.7;
+	}
+
+	.es-cmp__verdict {
+		margin: 1rem 0 0;
+		color: var(--sl-color-text);
+		font-size: var(--sl-text-sm);
+	}
+
+	@media (max-width: 44rem) {
+		.es-cmp__scene:not([hidden]) {
+			grid-template-columns: 1fr;
+		}
+
+		.es-cmp__side {
+			min-height: 0;
+		}
+	}
+</style>

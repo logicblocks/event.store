@@ -29,8 +29,16 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
     """A class for interacting with a specific stream of events.
 
     Events can be published into the stream using the `publish` method, and
-    the entire stream can be read using the `read` method. Streams are also
-    iterable, supporting `aiter`.
+    the stream can be read using the `read` or `iterate` methods. Streams
+    are also async iterable, supporting `aiter` and `async for`.
+
+    Typically obtained via `EventStore.stream` or `EventCategory.stream`
+    rather than constructed directly.
+
+    Args:
+        adapter: The storage adapter backing the stream.
+        stream: The identifier of the stream.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -47,9 +55,16 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> StreamIdentifier:
+        """The identifier of the stream."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the stream.
+
+        Returns:
+            the event at the highest position in the stream, or `None` if
+                the stream is empty.
+        """
         await self._logger.adebug("event.stream.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -63,7 +78,20 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
         events: Sequence[NewEvent[Name, Payload, Metadata]],
         condition: WriteCondition = NoCondition(),
     ) -> Sequence[StoredEvent[Name, Payload, Metadata]]:
-        """Publish a sequence of events into the stream."""
+        """Publish a sequence of events into the stream.
+
+        Args:
+            events: The events to publish, in order.
+            condition: A write condition that must be met for the events to
+                be written. Defaults to no condition.
+
+        Returns:
+            the stored events, in the order they were published.
+
+        Raises:
+            UnmetWriteConditionError: If the condition is not met, in which
+                case no events are written.
+        """
         await self._logger.adebug(
             "event.stream.publishing",
             category=self._identifier.category,
@@ -114,10 +142,11 @@ class EventStream(EventSource[StreamIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the stream.
+            an async iterator over the events in the stream, in position
+                order.
         """
         self._logger.debug(
             "event.stream.iterating", constraints=list(constraints)
@@ -143,8 +172,18 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
     Since a category consists of zero or more streams, the category
     can be narrowed to a specific stream using the `stream` method.
 
-    Events in the category can be read using the `read` method. Categories are
-    also iterable, supporting `iter`.
+    Events in the category can be read using the `read` or `iterate`
+    methods. Categories are also async iterable, supporting `aiter` and
+    `async for`. Events can be published to multiple streams in the category
+    atomically using the `publish` method.
+
+    Typically obtained via `EventStore.category` rather than constructed
+    directly.
+
+    Args:
+        adapter: The storage adapter backing the category.
+        category: The identifier of the category.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -159,9 +198,16 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> CategoryIdentifier:
+        """The identifier of the category."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the category, across all its streams.
+
+        Returns:
+            the event with the highest sequence number in the category, or
+                `None` if the category is empty.
+        """
         await self._logger.adebug("event.category.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -172,7 +218,7 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             stream (str): The name of the stream.
 
         Returns:
-            an event store scoped to the specified stream.
+            an `EventStream` for the specified stream.
         """
         return EventStream(
             adapter=self._adapter,
@@ -189,10 +235,11 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the category.
+            an async iterator over the events in the category, in sequence
+                number order.
         """
         self._logger.debug(
             "event.category.iterating", constraints=list(constraints)
@@ -213,7 +260,21 @@ class EventCategory(EventSource[CategoryIdentifier, StoredEvent]):
             str, StreamPublishDefinition[Name, Payload, Metadata]
         ],
     ) -> Mapping[str, Sequence[StoredEvent[Name, Payload, Metadata]]]:
-        """Publish events to multiple streams in the category atomically."""
+        """Publish events to multiple streams in the category atomically.
+
+        Args:
+            streams: A mapping from stream name to the definition of what to
+                publish to that stream. Each definition holds the events to
+                publish and, optionally, the write condition for that stream.
+                Streams without a condition are written unconditionally.
+
+        Returns:
+            a mapping from stream name to the stored events for that stream.
+
+        Raises:
+            UnmetWriteConditionError: If any stream's condition is not met, in
+                which case no events are written to any stream.
+        """
         return await self._adapter.save(
             target=self._identifier, streams=streams
         )
@@ -232,6 +293,13 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     This class allows reading and iterating over all events in the log,
     without scoping to a specific category or stream.
+
+    Typically obtained via `EventStore.log` rather than constructed directly.
+
+    Args:
+        adapter: The storage adapter backing the log.
+        log: The identifier of the log.
+        logger: The logger to use.
     """
 
     def __init__(
@@ -246,9 +314,16 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
     @property
     def identifier(self) -> LogIdentifier:
+        """The identifier of the log."""
         return self._identifier
 
     async def latest(self) -> StoredEvent | None:
+        """Get the latest event in the log.
+
+        Returns:
+            the event with the highest sequence number in the log, or `None`
+                if the log is empty.
+        """
         await self._logger.adebug("event.log.reading-latest")
         return await self._adapter.latest(target=self._identifier)
 
@@ -259,10 +334,11 @@ class EventLog(EventSource[LogIdentifier, StoredEvent]):
 
         Args:
             constraints: A set of query constraints defining which events to
-                   include in the iteration
+                include in the iteration.
 
         Returns:
-            an async iterator over the events in the log.
+            an async iterator over the events in the log, in sequence number
+                order.
         """
         self._logger.debug(
             "event.log.iterating", constraints=list(constraints)
@@ -296,6 +372,11 @@ class EventStore:
     Streams and categories are each identified by a string name. The combination
     of a category name and a stream name acts as an identifier for a specific
     stream of events.
+
+    Args:
+        adapter: The storage adapter in which events are stored.
+        logger: The logger to use. Streams, categories and logs obtained
+            from the store use the same logger.
     """
 
     def __init__(
@@ -309,9 +390,9 @@ class EventStore:
     def stream(self, *, category: str, stream: str) -> EventStream:
         """Get a stream of events from the store.
 
-        This method alone doesn't result in any IO, it instead returns a scoped
-        event store for the stream identified by the category and stream names,
-        as part of a fluent interface.
+        This method alone doesn't result in any IO, it instead returns an
+        `EventStream` for the stream identified by the category and stream
+        names, as part of a fluent interface.
 
         Categories and streams implicitly exist, i.e., calling this method for a
         category or stream that has never been written to will not result in an
@@ -322,7 +403,7 @@ class EventStore:
             stream (str): The name of the stream.
 
         Returns:
-            an event store scoped to the specified stream.
+            an `EventStream` for the specified stream.
         """
         return EventStream(
             adapter=self._adapter,
@@ -333,8 +414,8 @@ class EventStore:
     def category(self, *, category: str) -> EventCategory:
         """Get a category of events from the store.
 
-        This method alone doesn't result in any IO, it instead returns a scoped
-        event store for the category identified by the category name,
+        This method alone doesn't result in any IO, it instead returns an
+        `EventCategory` for the category identified by the category name,
         as part of a fluent interface.
 
         Categories implicitly exist, i.e., calling this method for a category
@@ -344,7 +425,7 @@ class EventStore:
             category (str): The name of the category.
 
         Returns:
-            an event store scoped to the specified category.
+            an `EventCategory` for the specified category.
         """
         return EventCategory(
             adapter=self._adapter,
@@ -357,6 +438,9 @@ class EventStore:
 
         This method alone doesn't result in any IO, it instead returns an event
         log, as part of a fluent interface.
+
+        Returns:
+            an `EventLog` over all events in the store.
         """
         return EventLog(
             adapter=self._adapter,

@@ -7,6 +7,12 @@ type CallableServiceCallable[T] = Callable[[], Awaitable[T]]
 
 
 class CallableService[T = Any](Service[T]):
+    """Service that executes an asynchronous callable.
+
+    Args:
+        callable: The zero-argument callable returning an awaitable result.
+    """
+
     @overload
     @classmethod
     def from_maybe_callable[S: Service](cls, service_or_callable: S) -> S: ...
@@ -21,6 +27,15 @@ class CallableService[T = Any](Service[T]):
     def from_maybe_callable(
         cls, service_or_callable: Service[Any] | CallableServiceCallable[T]
     ):
+        """Wrap a callable as a service, passing services through unchanged.
+
+        Args:
+            service_or_callable: A service, or a callable to wrap.
+
+        Returns:
+            the service if one was given, otherwise a `CallableService`
+                wrapping the callable.
+        """
         if isinstance(service_or_callable, Service):
             return service_or_callable
         return cls(service_or_callable)

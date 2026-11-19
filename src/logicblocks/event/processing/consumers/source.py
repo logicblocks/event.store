@@ -31,6 +31,14 @@ def log_event_name(event: str) -> str:
 
 
 class StateStoreEventProcessorManager[E: Event](EventProcessorManager[E]):
+    """Processor manager backed by an `EventConsumerStateStore`.
+
+    Also tracks counts of consumed and processed events for logging.
+
+    Args:
+        state_store: The store used to record and save consumer state.
+    """
+
     def __init__(self, state_store: EventConsumerStateStore[E]):
         self._state_store = state_store
         self._consumed_events = 0
@@ -137,6 +145,33 @@ async def process_callback_event_iterator[E: Event](
 
 
 class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
+    """Consumes events from a single event source, tracking progress.
+
+    On each call to `consume_all`, the consumer loads its last recorded
+    state, iterates the source from that point onwards and passes events to
+    the processor, recording progress in the state store.
+
+    How events are acknowledged depends on the processor type:
+
+    - `EventProcessor`: each event is acknowledged after `process_event`
+      returns, with state saved whenever the persistence interval is
+      reached. If `save_state_after_consumption` is `True`, state is also
+      saved once all events have been consumed.
+    - `AutoCommitEventIteratorProcessor`: each event is acknowledged when
+      the processor requests the next event.
+    - `ManagedEventIteratorProcessor`: the processor acknowledges events
+      and commits state itself via the provided manager.
+
+    Args:
+        source: The event source to consume from.
+        processor: The processor to pass events to.
+        state_store: The store used to load and save consumer state.
+        logger: The logger to use.
+        save_state_after_consumption: Whether to force a save of consumer
+            state after all events have been consumed. Only applies to
+            `EventProcessor` processors.
+    """
+
     @overload
     def __init__(
         self,
@@ -212,6 +247,11 @@ class EventSourceConsumer[I: EventSourceIdentifier, E: Event](EventConsumer):
                 )
 
     async def consume_all(self) -> None:
+        """Consume all events in the source after the last recorded position.
+
+        Raises:
+            TypeError: If the processor is not of a supported type.
+        """
         constraint = await self._state_store.load_to_query_constraint()
 
         await self._logger.adebug(

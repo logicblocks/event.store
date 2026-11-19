@@ -23,6 +23,8 @@ from .builder import (
 class InMemorySingletonEventBrokerBuilder(
     SingletonEventBrokerBuilder[(EventStorageAdapter,)]
 ):
+    """Builder for singleton event brokers reading from a given adapter."""
+
     def dependencies(
         self, adapter: EventStorageAdapter
     ) -> SingletonEventBrokerDependencies:
@@ -40,6 +42,12 @@ class PostgresSingletonEventBrokerBuilder(
         )
     ]
 ):
+    """Builder for singleton event brokers backed by Postgres.
+
+    Event sources are read from the given adapter, or from a
+    `PostgresEventStorageAdapter` on the connection pool if none is given.
+    """
+
     def dependencies(
         self,
         connection_settings: ConnectionSettings,
@@ -62,6 +70,17 @@ def make_in_memory_singleton_event_broker(
     adapter: EventStorageAdapter,
     error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
+    """Construct a singleton event broker reading from the given adapter.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        settings: The settings for the broker.
+        adapter: The storage adapter from which event sources are read.
+        error_handler: The handler for errors raised during execution.
+
+    Returns:
+        the constructed event broker.
+    """
     return (
         InMemorySingletonEventBrokerBuilder(node_id)
         .prepare(adapter)
@@ -77,6 +96,22 @@ def make_postgres_singleton_event_broker(
     adapter: EventStorageAdapter | None = None,
     error_handler: ErrorHandler[NoneType] = RetryErrorHandler(),
 ) -> EventBroker[StoredEvent]:
+    """Construct a singleton event broker backed by Postgres.
+
+    Args:
+        node_id: The ID of the node on which the broker runs.
+        connection_settings: The Postgres connection settings. Currently
+            unused by the singleton broker.
+        connection_pool: The pool used to construct the default adapter.
+        settings: The settings for the broker.
+        adapter: The storage adapter from which event sources are read.
+            Defaults to a `PostgresEventStorageAdapter` on
+            `connection_pool`.
+        error_handler: The handler for errors raised during execution.
+
+    Returns:
+        the constructed event broker.
+    """
     return (
         PostgresSingletonEventBrokerBuilder(node_id)
         .prepare(connection_settings, connection_pool, adapter)

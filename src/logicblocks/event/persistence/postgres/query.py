@@ -11,16 +11,27 @@ from .types import ParameterisedQuery, ParameterisedQueryFragment
 
 
 class Node(ABC):
+    """Base class for parts of a SQL query that render to a fragment."""
+
     @abstractmethod
     def to_fragment(self) -> ParameterisedQueryFragment:
+        """Render this node as SQL with its parameters."""
         raise NotImplementedError
 
 
-class Expression(Node, ABC): ...
+class Expression(Node, ABC):
+    """Base class for nodes that evaluate to a value."""
 
 
 @dataclass(frozen=True, kw_only=True)
 class FunctionApplication(Expression):
+    """A call to a SQL function, such as `to_jsonb(...)`.
+
+    Attributes:
+        function_name: The name of the function, quoted as an identifier.
+        arguments: The arguments to pass to the function.
+    """
+
     function_name: str
     arguments: Sequence[Expression] = ()
 
@@ -50,6 +61,13 @@ class FunctionApplication(Expression):
 
 @dataclass(frozen=True, kw_only=True)
 class Cast(Expression):
+    """A `CAST(expression AS typename)` expression.
+
+    Attributes:
+        expression: The expression to cast.
+        typename: The type to cast to, quoted as an identifier.
+    """
+
     expression: Expression
     typename: str
 
@@ -72,6 +90,14 @@ class Cast(Expression):
 
 @dataclass(frozen=True, kw_only=True)
 class ColumnReference(Expression):
+    """A reference to a column, optionally qualified by table and schema.
+
+    Attributes:
+        schema: The schema of the table. Requires `table` to be set.
+        table: The table containing the column.
+        field: The name of the column.
+    """
+
     schema: str | None = None
     table: str | None = None
     field: str
@@ -107,6 +133,13 @@ class ColumnReference(Expression):
 
 @dataclass(frozen=True)
 class Star(Expression):
+    """A `*` select target, optionally qualified by table and schema.
+
+    Attributes:
+        schema: The schema of the table. Requires `table` to be set.
+        table: The table whose columns to select.
+    """
+
     schema: str | None = None
     table: str | None = None
 
@@ -139,6 +172,13 @@ class Star(Expression):
 
 @dataclass(frozen=True)
 class ResultTarget(Node):
+    """An entry in a select list, optionally labelled with `AS`.
+
+    Attributes:
+        expression: The expression to select.
+        label: The name to give the selected value, if any.
+    """
+
     expression: Expression
     label: str | None = None
 
@@ -158,6 +198,12 @@ class ResultTarget(Node):
 
 @dataclass(frozen=True)
 class Constant(Expression):
+    """A value passed to the query as a bound parameter.
+
+    Attributes:
+        value: The value to bind.
+    """
+
     value: Any
 
     def to_fragment(self) -> ParameterisedQueryFragment:
@@ -169,6 +215,12 @@ class Constant(Expression):
 
 @dataclass(frozen=True)
 class Raw(Expression):
+    """Literal SQL included verbatim, without escaping.
+
+    Attributes:
+        sql: The SQL text to include.
+    """
+
     sql: Any
 
     def to_fragment(self) -> ParameterisedQueryFragment:
@@ -182,11 +234,15 @@ type OrderByColumn = str | ColumnReference
 
 
 class ComparisonType(Enum):
+    """Whether an operator compares nested values as text or JSONB."""
+
     TEXT = "TEXT"
     JSONB = "JSONB"
 
 
 class Operator(StrEnum):
+    """SQL comparison operators, with values as they appear in SQL."""
+
     EQUALS = "="
     NOT_EQUALS = "!="
     GREATER_THAN = ">"
@@ -202,6 +258,11 @@ class Operator(StrEnum):
 
     @property
     def comparison_type(self) -> ComparisonType:
+        """How nested values are compared by this operator.
+
+        Regular expression and null checks compare text; all other
+        operators compare JSONB.
+        """
         if self in {
             Operator.REGEX_MATCHES,
             Operator.NOT_REGEX_MATCHES,
@@ -212,19 +273,25 @@ class Operator(StrEnum):
         return ComparisonType.JSONB
 
     def has_value(self) -> bool:
+        """Return whether the operator takes a right-hand operand."""
         return self not in {Operator.IS_NULL, Operator.IS_NOT_NULL}
 
 
 class SetQuantifier(StrEnum):
+    """Whether a `UNION` keeps (`ALL`) or removes (`DISTINCT`) duplicates."""
+
     ALL = "ALL"
     DISTINCT = "DISTINCT"
 
 
 class SortDirection(StrEnum):
+    """Direction of an `ORDER BY` term."""
+
     ASC = "ASC"
     DESC = "DESC"
 
     def reverse(self) -> "SortDirection":
+        """Return the opposite direction."""
         return (
             SortDirection.ASC
             if self == SortDirection.DESC
@@ -234,16 +301,26 @@ class SortDirection(StrEnum):
 
 @dataclass(frozen=True)
 class SortBy(Node):
+    """A single `ORDER BY` term.
+
+    Attributes:
+        expression: The expression to sort by.
+        direction: The direction to sort in. If `None`, no direction is
+            rendered, so the database default of ascending applies.
+    """
+
     expression: Expression
     direction: SortDirection | None = None
 
     def is_ascending(self):
+        """Return whether the term sorts ascending, including by default."""
         return self.direction == SortDirection.ASC or self.direction is None
 
     def is_descending(self):
         return self.direction == SortDirection.DESC
 
     def reverse(self):
+        """Return this term with its direction reversed, if it has one."""
         return self.__class__(
             expression=self.expression,
             direction=self.direction.reverse() if self.direction else None,
@@ -276,6 +353,18 @@ class ConditionParams(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class Condition(Expression):
+    """A binary condition, built fluently, for use in a `WHERE` clause.
+
+    Each operand may be an expression, a sequence of expressions (rendered
+    as a row, for row comparisons) or a query (rendered as a subquery).
+    Builder methods return a new condition rather than modifying this one.
+
+    Args:
+        left: The left-hand operand.
+        right: The right-hand operand.
+        operator: The comparison operator.
+    """
+
     _left: ConditionOperand | None
     _right: ConditionOperand | None
     _operator: Operator | None
@@ -429,6 +518,30 @@ class QueryParams(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class Query:
+    """An immutable, fluent builder for SQL `SELECT` queries.
+
+    Each builder method returns a new query rather than modifying this one.
+    Call `build` to render the query and its parameters for execution.
+
+    Example:
+        ```python
+        query = (
+            Query()
+            .select_all()
+            .from_table("projections")
+            .where(
+                Condition()
+                .left(ColumnReference(field="name"))
+                .equals()
+                .right(Constant("thing"))
+            )
+            .order_by("id")
+            .limit(10)
+        )
+        sql, params = query.build()
+        ```
+    """
+
     common_table_expressions: Sequence[tuple[Self, str]]
     unions: tuple[Sequence[Self], SetQuantifier] | None
     select_target_list: Sequence[ResultTarget | Star]
@@ -446,6 +559,18 @@ class Query:
         *more_queries: "Query",
         mode: SetQuantifier = SetQuantifier.DISTINCT,
     ) -> "Query":
+        """Combine two or more queries with `UNION`.
+
+        Args:
+            query1: The first query.
+            query2: The second query.
+            *more_queries: Any further queries.
+            mode: Whether to keep or remove duplicate rows. Defaults to
+                removing them.
+
+        Returns:
+            a query over the union of the given queries.
+        """
         return Query(unions=([query1, query2, *more_queries], mode))
 
     def __init__(
@@ -502,6 +627,7 @@ class Query:
         object.__setattr__(self, "offset_value", offset_value)
 
     def clone(self, **kwargs: Unpack[QueryParams]) -> Self:
+        """Return a copy of this query with the given parts replaced."""
         return self.__class__(
             common_table_expressions=kwargs.get(
                 "common_table_expressions", self.common_table_expressions
@@ -523,6 +649,7 @@ class Query:
         )
 
     def with_query(self, query: Self, name: str) -> Self:
+        """Add a common table expression, rendered as `WITH name AS (...)`."""
         return self.clone(
             common_table_expressions=[
                 *self.common_table_expressions,
@@ -557,11 +684,13 @@ class Query:
         )
 
     def replace_order_by(self, *sortby_list: str | SortBy) -> Self:
+        """Replace any existing `ORDER BY` terms with the given terms."""
         return self.clone(
             sortby_list=[to_sortby(sortby) for sortby in sortby_list]
         )
 
     def order_by(self, *sortby_list: str | SortBy) -> Self:
+        """Append the given `ORDER BY` terms; strings name columns."""
         return self.clone(
             sortby_list=[
                 *self.sortby_list,
@@ -767,6 +896,11 @@ class Query:
         return joined, params
 
     def build(self) -> ParameterisedQuery:
+        """Render the query for execution.
+
+        Returns:
+            the SQL query and the parameters to bind into it, in order.
+        """
         fragment, params = self.to_fragment()
 
         match fragment:
@@ -779,4 +913,4 @@ class Query:
 
 
 class QueryApplier(Applier[Query], ABC):
-    pass
+    """Transforms a query, for example by adding a clause to it."""

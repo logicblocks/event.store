@@ -9,6 +9,13 @@ from .base import EventSubscriberState, EventSubscriberStateStore
 
 
 class InMemoryEventSubscriberStateStore(EventSubscriberStateStore):
+    """An event subscriber state store holding state in memory.
+
+    Args:
+        node_id: The ID of the node recorded against added subscribers.
+        clock: The clock used to timestamp subscribers.
+    """
+
     def __init__(self, node_id: str, clock: Clock = SystemClock()):
         self.node_id = node_id
         self.clock = clock

@@ -68,6 +68,28 @@ class PostgresProjectionStorageAdapter[
     ItemQuery: Query = Lookup,
     CollectionQuery: Query = Search,
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
+    """A projection storage adapter backed by a PostgreSQL table.
+
+    State, metadata and source are stored as `jsonb`. Saving upserts on
+    `(name, id)`, replacing only the state and metadata of an existing
+    projection. Only log, category and stream source identifiers can be read
+    back.
+
+    When given `ConnectionSettings`, the adapter creates and owns a
+    connection pool, which must be opened with `open` before use and closed
+    with `close` afterwards. When given an existing pool, the caller
+    manages its lifecycle and `open` and `close` do nothing.
+
+    Args:
+        connection_source: Either `ConnectionSettings` or an existing
+            `AsyncConnectionPool`.
+        table_settings: The table to store projections in. Defaults to a
+            table named `projections`.
+        query_converter: Converts queries into SQL. Defaults to a
+            `QueryConverter` for `table_settings` with the default
+            converters.
+    """
+
     def __init__(
         self,
         *,
@@ -98,10 +120,12 @@ class PostgresProjectionStorageAdapter[
         )
 
     async def open(self) -> None:
+        """Open the connection pool, if the adapter owns it."""
         if self._connection_pool_owner:
             await self.connection_pool.open()
 
     async def close(self) -> None:
+        """Close the connection pool, if the adapter owns it."""
         if self._connection_pool_owner:
             await self.connection_pool.close()
 

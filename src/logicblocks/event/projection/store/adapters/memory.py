@@ -28,6 +28,20 @@ class InMemoryProjectionStorageAdapter[
     ItemQuery: Query = Lookup,
     CollectionQuery: Query = Search,
 ](ProjectionStorageAdapter[ItemQuery, CollectionQuery]):
+    """A projection storage adapter that keeps projections in memory.
+
+    Projections are stored serialised to JSON values, so they are
+    deserialised again on retrieval. Contents are lost when the adapter is
+    discarded, which makes it suited to tests and prototyping.
+
+    Updating an existing projection replaces only its state and metadata.
+
+    Args:
+        query_converter: Converts queries into transformers applied to the
+            stored projections. Defaults to a `DelegatingQueryConverter`
+            with the default converters.
+    """
+
     def __init__(
         self,
         query_converter: Converter[

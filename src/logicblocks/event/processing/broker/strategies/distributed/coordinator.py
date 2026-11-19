@@ -25,6 +25,7 @@ from .subscriptions import (
 
 
 def chunk[T](values: Sequence[T], chunks: int) -> Sequence[Sequence[T]]:
+    """Split values into the given number of chunks, round-robin."""
     return [values[i::chunks] for i in range(chunks)]
 
 
@@ -104,12 +105,36 @@ def seconds_since(start_ns: int) -> float:
 
 
 class EventSubscriptionCoordinator(Process, ABC):
+    """Allocates requested event sources to subscribers across nodes."""
+
     @abstractmethod
     async def coordinate(self) -> None:
+        """Coordinate event source allocation until cancelled."""
         raise NotImplementedError
 
 
 class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
+    """Coordinates allocation as the leader elected via a shared lock.
+
+    Nodes compete for the lock named by `LOCK_NAME`. The holder distributes
+    event sources at each distribution interval until its leadership
+    maximum duration elapses, then releases the lock and competes again.
+
+    Args:
+        node_id: The ID of the node on which the coordinator runs.
+        lock_manager: The lock manager used for leader election.
+        subscriber_state_store: The shared store of subscriber state.
+        subscription_state_store: The shared store of subscription state.
+        logger: The logger to use.
+        subscriber_max_time_since_last_seen: How long since last seen before
+            a subscriber is no longer allocated event sources.
+        distribution_interval: The time to wait between distributions while
+            leader.
+        leadership_max_duration: The maximum time to hold leadership.
+        leadership_attempt_interval: The time to wait between attempts to
+            acquire leadership.
+    """
+
     def __init__(
         self,
         node_id: str,
@@ -197,6 +222,17 @@ class DefaultEventSubscriptionCoordinator(EventSubscriptionCoordinator):
             raise
 
     async def distribute(self) -> None:
+        """Recalculate and store subscriptions for all live subscribers.
+
+        Subscriptions belonging to subscribers not seen recently are
+        removed. Within each subscriber group, the target event sources are
+        the longest set of subscription requests in the group; subscribers
+        requesting anything else lose their subscription. Event sources not
+        yet allocated to an eligible subscriber are spread round-robin
+        across the eligible subscribers, and sources no longer requested are
+        removed. All changes are applied to the subscription state store in
+        a single call.
+        """
         await self._logger.adebug(log_event_name("distribution.starting"))
 
         subscriptions = await self._subscription_state_store.list()

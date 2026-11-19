@@ -37,6 +37,14 @@ from .types import (
 
 
 class SearchQueryConverter[R: Identifiable](QueryConverter[R, Search]):
+    """Converts a `Search` into a transformer over result sets.
+
+    The transformer applies the filters, then the sort, then the paging.
+
+    Args:
+        clause_converter: The converter used for each clause of the search.
+    """
+
     def __init__(
         self, clause_converter: Converter[Clause, ResultSetTransformer[R]]
     ):
@@ -57,6 +65,12 @@ class SearchQueryConverter[R: Identifiable](QueryConverter[R, Search]):
 
 
 class LookupQueryConverter[R: Identifiable](QueryConverter[R, Lookup]):
+    """Converts a `Lookup` into a transformer that applies its filters.
+
+    Args:
+        clause_converter: The converter used for each filter of the lookup.
+    """
+
     def __init__(
         self, clause_converter: Converter[Clause, ResultSetTransformer[R]]
     ):
@@ -73,6 +87,8 @@ class LookupQueryConverter[R: Identifiable](QueryConverter[R, Lookup]):
 class TypeRegistryQueryConverter[R: Identifiable](
     TypeRegistryConverter[Query, ResultSetTransformer[R]]
 ):
+    """Converts queries using the converter registered for their type."""
+
     def register[Q: Query](
         self,
         item_type: type[Q],
@@ -84,6 +100,21 @@ class TypeRegistryQueryConverter[R: Identifiable](
 class DelegatingQueryConverter[R: Identifiable](
     Converter[Query, ResultSetTransformer[R]]
 ):
+    """Converts queries into transformers over in-memory result sets.
+
+    Holds separate registries for functions, clauses and queries. The
+    registries start empty: call `with_default_converters` to register
+    converters for all built-in query types, or register custom ones.
+
+    Args:
+        function_converter: The registry of function converters. Defaults
+            to an empty registry.
+        clause_converter: The registry of clause converters. Defaults to an
+            empty registry.
+        query_converter: The registry of query converters. Defaults to an
+            empty registry.
+    """
+
     def __init__(
         self,
         function_converter: TypeRegistryFunctionConverter[R] | None = None,
@@ -107,11 +138,13 @@ class DelegatingQueryConverter[R: Identifiable](
         )
 
     def with_default_function_converters(self) -> Self:
+        """Register the converter for `Similarity`."""
         return self.register_function_converter(
             Similarity, SimilarityFunctionConverter[R]()
         )
 
     def with_default_clause_converters(self) -> Self:
+        """Register converters for the built-in clause types."""
         return (
             self.register_clause_converter(
                 FilterClause, FilterClauseConverter[R]()
@@ -128,6 +161,7 @@ class DelegatingQueryConverter[R: Identifiable](
         )
 
     def with_default_query_converters(self) -> Self:
+        """Register converters for `Search` and `Lookup`."""
         return self.register_query_converter(
             Search, SearchQueryConverter[R](self._clause_converter)
         ).register_query_converter(
@@ -135,6 +169,7 @@ class DelegatingQueryConverter[R: Identifiable](
         )
 
     def with_default_converters(self) -> Self:
+        """Register all built-in function, clause and query converters."""
         return (
             self.with_default_function_converters()
             .with_default_clause_converters()

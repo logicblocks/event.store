@@ -18,6 +18,11 @@ from .types import (
 
 
 def find_ngrams(text: str, number: int = 3) -> Set[str]:
+    """Return the n-grams of each word in some text.
+
+    Words are lower-cased and padded with two leading spaces and one
+    trailing space, approximating the trigrams used by Postgres `pg_trgm`.
+    """
     if not text:
         return set()
 
@@ -32,6 +37,7 @@ def find_ngrams(text: str, number: int = 3) -> Set[str]:
 
 
 def score_similarity(text1: str, text2: str, number: int = 3) -> float:
+    """Return the proportion of n-grams shared by two texts, from 0 to 1."""
     ngrams1 = find_ngrams(text1, number)
     ngrams2 = find_ngrams(text2, number)
 
@@ -44,6 +50,8 @@ def score_similarity(text1: str, text2: str, number: int = 3) -> float:
 class SimilarityFunctionConverter[R: Identifiable](
     FunctionConverter[R, Similarity]
 ):
+    """Converts `Similarity` into a transformer adding a score per result."""
+
     def convert(self, item: Similarity) -> ResultSetTransformer[R]:
         def handler(result_set: ResultSet[R]) -> ResultSet[R]:
             return result_set.with_results(
@@ -62,6 +70,8 @@ class SimilarityFunctionConverter[R: Identifiable](
 class TypeRegistryFunctionConverter[R: Identifiable](
     TypeRegistryConverter[Function, ResultSetTransformer[R]]
 ):
+    """Converts functions using the converter registered for their type."""
+
     def register[F: Function](
         self,
         item_type: type[F],

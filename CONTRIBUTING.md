@@ -239,7 +239,7 @@ All submissions require review. Maintainers will:
 - Open a [GitHub Discussion](https://github.com/logicblocks/event.store/discussions)
   for questions
 - Check existing issues and discussions
-- Review the [documentation](https://eventstore.readthedocs.io/)
+- Review the [documentation](https://logicblocks.github.io/event.store/)
 
 ## License
 

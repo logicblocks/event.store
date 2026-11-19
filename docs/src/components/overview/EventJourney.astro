@@ -1,0 +1,879 @@
+---
+import { Code } from '@astrojs/starlight/components';
+import './styles.css';
+import { packageOrder, type PackageId } from './library';
+
+type Step = {
+	key: string;
+	title: string;
+	pkgs: PackageId[];
+	text: string;
+	code: string;
+	inspector: string;
+};
+
+type Row = [key: string, value: string, state?: 'new' | 'kept' | 'derived'];
+
+const obj = (type: string, pkg: PackageId, rows: Row[], note = '') =>
+	`<div class="ov-obj" data-pkg="${pkg}">
+		<div class="ov-obj__type"><code>${type}</code>${note ? `<span>${note}</span>` : ''}</div>
+		<dl>${rows
+			.map(
+				([key, value, state]) =>
+					`<div class="ov-obj__row"${state ? ` data-state="${state}"` : ''}><dt>${key}</dt><dd><code>${value}</code></dd></div>`,
+			)
+			.join('')}</dl>
+	</div>`;
+
+const legend = (...items: [state: string, label: string][]) =>
+	`<p class="ov-obj__legend">${items.map(([state, label]) => `<span data-state="${state}">${label}</span>`).join('')}</p>`;
+
+const shared: Step[] = [
+	{
+		key: 'describe',
+		title: 'Describe what happened',
+		pkgs: ['types'],
+		text: '<p>An event is a frozen dataclass with a past-tense <code>name</code>, a JSON <code>payload</code> and <code>metadata</code>. <code>metadata</code> is required, so pass <code>None</code> when there is none.</p><p><code>observed_at</code> defaults to now. <code>occurred_at</code> defaults to <code>observed_at</code>, so set it when you record something that happened earlier.</p>',
+		code: `event = NewEvent(
+    name="item-added",
+    payload={"sku": "grinder"},
+    metadata={"actor": "customer-7"},
+)`,
+		inspector: obj('NewEvent', 'types', [
+			['name', '"item-added"'],
+			['payload', '{"sku": "grinder"}'],
+			['metadata', '{"actor": "customer-7"}'],
+			['observed_at', '2026-11-04 10:15:00+00:00', 'derived'],
+			['occurred_at', 'same as observed_at', 'derived'],
+		]) + legend(['derived', 'defaulted for you']),
+	},
+	{
+		key: 'address',
+		title: 'Point at a stream',
+		pkgs: ['store', 'types'],
+		text: '<p>The store hands you the <strong>log</strong>, a <strong>category</strong> or a <strong>stream</strong>. These are just addresses. Nothing is read or written yet, and nothing needs creating first.</p><p>The adapter decides where events are kept: in memory here, Postgres in production.</p>',
+		code: `store = EventStore(adapters.InMemoryEventStorageAdapter())
+cart = store.stream(category="carts", stream="cart-42")`,
+		inspector: `<div class="ov-nest">
+			<div class="ov-nest__box" data-pkg="store"><span class="ov-nest__label">log <code>EventLog</code></span>
+				<div class="ov-nest__row">
+					<div class="ov-nest__box"><span class="ov-nest__label">category <code>carts</code></span>
+						<div class="ov-nest__row">
+							<span class="ov-nest__stream">cart-41</span>
+							<span class="ov-nest__stream is-here">cart-42</span>
+							<span class="ov-nest__stream">cart-43</span>
+						</div>
+					</div>
+					<div class="ov-nest__box is-faint"><span class="ov-nest__label">category <code>profiles</code></span>
+						<div class="ov-nest__row"><span class="ov-nest__stream">joe.bloggs</span></div>
+					</div>
+				</div>
+			</div>
+			<p class="ov-nest__id"><code>cart.identifier</code> → <code>StreamIdentifier(category="carts", stream="cart-42")</code></p>
+		</div>`,
+	},
+	{
+		key: 'publish',
+		title: 'Publish, if nothing has changed',
+		pkgs: ['store'],
+		text: '<p>You decided to add the grinder based on the cart as it was at position 1. A <strong>write condition</strong> makes the write depend on that still being true.</p><p>The adapter checks it while holding its write lock. If someone else got in first, <code>publish</code> raises <code>UnmetWriteConditionError</code> and writes nothing, so you can re-read and decide again.</p>',
+		code: `latest = await cart.latest()  # position 1
+stored = await cart.publish(
+    events=[event],
+    condition=conditions.position_is(latest.position),
+)`,
+		inspector: `<div class="ov-check">
+			<div class="ov-check__row"><span>You expect</span><code>position_is(1)</code></div>
+			<div class="ov-check__row"><span>Stream is at</span><code>1</code></div>
+			<div class="ov-check__verdict">✓ Condition met, so the events are appended</div>
+			<p class="ov-check__note">Other conditions: <code>stream_is_empty()</code>, <code>NoCondition()</code> (the default), and combinations with <code>&amp;</code> and <code>|</code>.</p>
+		</div>`,
+	},
+	{
+		key: 'stored',
+		title: 'It becomes a stored event',
+		pkgs: ['store', 'types', 'persistence'],
+		text: '<p>The adapter stores the event and gives it an <code>id</code>, its <code>position</code> in the stream and a <code>sequence_number</code> in the whole log. The timestamps you set are kept.</p><p>Positions start at 0 and have no gaps. Sequence numbers only ever increase, but they can have gaps.</p>',
+		code: `print(stored[0].position, stored[0].sequence_number)
+# 2 7`,
+		inspector:
+			obj('StoredEvent', 'types', [
+				['id', '"0b6f9c2e-…"', 'new'],
+				['category', '"carts"', 'new'],
+				['stream', '"cart-42"', 'new'],
+				['position', '2', 'new'],
+				['sequence_number', '7', 'new'],
+				['name', '"item-added"', 'kept'],
+				['payload', '{"sku": "grinder"}', 'kept'],
+				['metadata', '{"actor": "customer-7"}', 'kept'],
+				['observed_at · occurred_at', 'as before', 'kept'],
+			]) + legend(['new', 'assigned by the store'], ['kept', 'from the NewEvent']),
+	},
+];
+
+const onDemand: Step[] = [
+	{
+		key: 'read',
+		title: 'Read the stream back',
+		pkgs: ['sources', 'store'],
+		text: '<p>Streams, categories and the log are all <strong>event sources</strong>, so they read the same way: <code>async for</code>, <code>read()</code>, <code>iterate()</code> and <code>latest()</code>.</p><p>A stream reads in position order. A category or the log reads in sequence number order.</p>',
+		code: `async for event in cart:
+    print(event.position, event.name, event.payload)`,
+		inspector: `<ol class="ov-events">
+			<li><span>0</span><code>item-added</code><small>{"sku": "beans"}</small></li>
+			<li><span>1</span><code>item-added</code><small>{"sku": "mug"}</small></li>
+			<li class="is-new"><span>2</span><code>item-added</code><small>{"sku": "grinder"}</small></li>
+		</ol>`,
+	},
+	{
+		key: 'fold',
+		title: 'Fold it into state',
+		pkgs: ['projection'],
+		text: '<p>A <strong>projector</strong> is a fold. <code>project()</code> starts from <code>initial_state_factory</code>, calls the handler named after each event (<code>item-added</code> → <code>item_added</code>), then calls <code>finalise_state</code>.</p>',
+		code: `class CartProjector(Projector[StreamIdentifier, dict, dict]):
+    def initial_state_factory(self):
+        return {"items": {}, "status": "open"}
+
+    def item_added(self, state, event):
+        sku = event.payload["sku"]
+        state["items"][sku] = state["items"].get(sku, 0) + 1
+        return state
+    # ...
+
+projection = await CartProjector().project(source=cart)`,
+		inspector: `<ol class="ov-fold">
+			<li><span class="ov-fold__step">start</span><code>{"items": {}}</code></li>
+			<li><span class="ov-fold__step">+ beans</span><code>{"items": {"beans": 1}}</code></li>
+			<li><span class="ov-fold__step">+ mug</span><code>{"items": {"beans": 1, "mug": 1}}</code></li>
+			<li class="is-new"><span class="ov-fold__step">+ grinder</span><code>{"items": {"beans": 1, "mug": 1, "grinder": 1}}</code></li>
+		</ol>`,
+	},
+	{
+		key: 'projection',
+		title: 'Get a projection',
+		pkgs: ['types', 'projection'],
+		text: '<p>The result is a <strong>Projection</strong>: the state, plus what is needed to store and find it again. <code>id_factory</code> picks the id. The name comes from the class, so <code>CartProjector</code> gives <code>cart</code>.</p>',
+		code: `print(projection.id, projection.name)
+# cart-42 cart`,
+		inspector:
+			obj('Projection', 'types', [
+				['id', '"cart-42"', 'derived'],
+				['name', '"cart"', 'derived'],
+				['source', 'StreamIdentifier("carts", "cart-42")', 'derived'],
+				['state', '{"items": {…}, "status": "open"}'],
+				['metadata', '{}'],
+			]) + legend(['derived', 'worked out by the projector']),
+	},
+	{
+		key: 'save',
+		title: 'Save it and search it',
+		pkgs: ['projection', 'query'],
+		text: '<p>A <strong>ProjectionStore</strong> saves projections and finds them again by id, by source, or by searching. Searches are built from the <strong>query</strong> package’s clauses, which each adapter turns into its own query language.</p>',
+		code: `projections = ProjectionStore(InMemoryProjectionStorageAdapter())
+await projections.save(projection=projection)
+
+open_carts = await projections.search(
+    filters=[
+        FilterClause(Operator.EQUAL, Path("name"), "cart"),
+        FilterClause(Operator.EQUAL, Path("state", "status"), "open"),
+    ],
+    sort=SortClause(fields=[SortField(Path("id"), SortOrder.ASC)]),
+    paging=OffsetPagingClause(item_count=10),
+)`,
+		inspector: `<table class="ov-table">
+			<thead><tr><th>name</th><th>id</th><th>state.status</th></tr></thead>
+			<tbody>
+				<tr><td>cart</td><td>cart-39</td><td>open</td></tr>
+				<tr class="is-new"><td>cart</td><td>cart-42</td><td>open</td></tr>
+				<tr><td>cart</td><td>cart-44</td><td>open</td></tr>
+			</tbody>
+		</table>`,
+	},
+];
+
+const background: Step[] = [
+	{
+		key: 'subscribe',
+		title: 'A subscriber asks for the category',
+		pkgs: ['processing'],
+		text: '<p>Rather than projecting on demand, you can keep projections up to date as events arrive. A <strong>subscriber</strong> asks for an event source, here the whole <code>carts</code> category, and names the processor to pass events to.</p><p>The <strong>broker</strong> hands each source to one subscriber in the group. With a distributed broker, that is one live instance across all your nodes.</p>',
+		code: `subscriber = make_event_store_subscriber(
+    subscriber_group="cart-projection",
+    subscription_request=CategoryIdentifier(category="carts"),
+    subscriber_state_category=store.category(category="cart-projection-state"),
+    event_processor=ProjectionEventProcessor(
+        projector=CartProjector(), projection_store=projections
+    ),
+)
+await broker.register(subscriber)`,
+		inspector: `<div class="ov-flow">
+			<span class="ov-name" data-pkg="processing">EventBroker</span>
+			<span class="ov-flow__arrow">accept(<code>carts</code>) →</span>
+			<span class="ov-name" data-pkg="processing">subscriber · cart-projection</span>
+		</div>
+		<p class="ov-obj__legend">The broker only allocates sources. It never reads events itself.</p>`,
+	},
+	{
+		key: 'poll',
+		title: 'Poll, from the last checkpoint',
+		pkgs: ['processing', 'sources'],
+		text: '<p>A <strong>PollingService</strong> calls <code>subscriber.consume_all()</code> every 200 ms by default. The subscriber loads its last checkpoint and reads only the events after it, using a <code>sequence_number_after</code> constraint.</p>',
+		code: `PollingService(service=CallableService(subscriber.consume_all))
+
+# each poll reads only what's new, roughly:
+carts.iterate(constraints={constraints.sequence_number_after(6)})`,
+		inspector: `<ol class="ov-events">
+			<li class="is-faint"><span>#4</span><code>cart-41 · checked-out</code><small>already processed</small></li>
+			<li class="is-faint"><span>#6</span><code>cart-42 · item-added</code><small>already processed</small></li>
+			<li class="is-new"><span>#7</span><code>cart-42 · item-added</code><small>{"sku": "grinder"}</small></li>
+		</ol>
+		<p class="ov-obj__legend">Numbers are sequence numbers across the category.</p>`,
+	},
+	{
+		key: 'process',
+		title: 'Process the event',
+		pkgs: ['processing', 'projection'],
+		text: '<p><strong>ProjectionEventProcessor</strong> locates the stored projection for <code>cart-42</code>, applies the event with <code>CartProjector</code> and saves the result.</p><p>Or write your own <code>EventProcessor</code> and do anything in <code>process_event</code>: send an email, call an API, publish more events.</p>',
+		code: `class ReceiptMailer(EventProcessor[StoredEvent]):
+    async def process_event(self, event: StoredEvent) -> None:
+        if event.name == "checked-out":
+            await send_receipt(cart_id=event.stream)`,
+		inspector: `<ol class="ov-pipeline">
+			<li data-pkg="projection"><code>projection_store.locate(source=cart-42, name="cart")</code></li>
+			<li data-pkg="projection"><code>projector.project(state=stored state, source=just this event)</code></li>
+			<li data-pkg="projection"><code>projection_store.save(projection=…)</code></li>
+		</ol>`,
+	},
+	{
+		key: 'checkpoint',
+		title: 'Record a checkpoint',
+		pkgs: ['processing', 'store'],
+		text: '<p>The consumer records how far it got. Every 100 events, and at the end of each <code>consume_all</code> that processed events, it publishes the checkpoint as a <code>state-changed</code> event to the subscriber state category.</p><p>After a crash it carries on from the last save, so events since then are processed again. Make processors safe to repeat.</p>',
+		code: `# stream "default" in category "cart-projection-state"
+NewEvent(
+    name="state-changed",
+    payload={"state": {"last_sequence_number": 7}},
+    metadata=None,
+)`,
+		inspector: `<ol class="ov-events">
+			<li class="is-faint"><span>0</span><code>state-changed</code><small>{"last_sequence_number": 4}</small></li>
+			<li class="is-faint"><span>1</span><code>state-changed</code><small>{"last_sequence_number": 6}</small></li>
+			<li class="is-new"><span>2</span><code>state-changed</code><small>{"last_sequence_number": 7}</small></li>
+		</ol>
+		<p class="ov-obj__legend">The checkpoint is itself just events in the store.</p>`,
+	},
+];
+
+const branches = {
+	demand: { label: 'On demand', steps: [...shared, ...onDemand] },
+	background: { label: 'In the background', steps: [...shared, ...background] },
+};
+
+const allSteps = [...shared, ...onDemand, ...background];
+---
+
+<div class="es ov ov-journey not-content" data-ov-journey>
+	<div class="ov-journey__top">
+		<div class="ov-segmented" role="group" aria-label="Branch">
+			<button type="button" data-branch="demand" aria-pressed="true">On demand</button>
+			<button type="button" data-branch="background" aria-pressed="false">In the background</button>
+		</div>
+		<ul class="ov-journey__pkgs" aria-label="Packages involved in this step">
+			{
+				packageOrder.map((id) => (
+					<li class="ov-chip" data-pkg={id} data-pkg-chip={id}>
+						{id}
+					</li>
+				))
+			}
+		</ul>
+	</div>
+
+	<div class="ov-journey__body">
+		<nav class="ov-journey__nav" aria-label="Steps">
+			{
+				Object.entries(branches).map(([branch, { steps }]) => (
+					<ol data-steps={branch} hidden={branch !== 'demand'}>
+						{steps.map((step, index) => (
+							<li>
+								<button type="button" data-goto={index} data-shared={index < shared.length ? '' : undefined}>
+									<span class="ov-journey__num">{index + 1}</span>
+									<span>{step.title}</span>
+								</button>
+							</li>
+						))}
+					</ol>
+				))
+			}
+		</nav>
+
+		<div class="es-panel ov-journey__stage">
+			{
+				allSteps.map((step) => (
+					<section class="ov-journey__step" data-step={step.key} data-pkgs={step.pkgs.join(' ')} hidden>
+						<div class="ov-journey__text">
+							<div class="es-label" data-step-label />
+							<p class="ov-journey__title">{step.title}</p>
+							<Fragment set:html={step.text} />
+						</div>
+						<div class="ov-journey__inspector">
+							<div class="es-label">What you have now</div>
+							<Fragment set:html={step.inspector} />
+						</div>
+						<div class="ov-journey__code">
+							<Code code={step.code} lang="python" wrap />
+						</div>
+					</section>
+				))
+			}
+			<div class="ov-journey__controls">
+				<button type="button" class="es-button" data-prev>← Back</button>
+				<button type="button" class="es-button" data-play>▶ Play</button>
+				<button type="button" class="es-button" data-variant="primary" data-next>Next →</button>
+			</div>
+		</div>
+	</div>
+	<script type="application/json" data-branches set:html={JSON.stringify(Object.fromEntries(Object.entries(branches).map(([branch, { steps }]) => [branch, steps.map((step) => step.key)])))} />
+</div>
+
+<style>
+	.ov-journey__top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem 1.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.ov-journey__pkgs {
+		display: flex !important;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+	}
+
+	.ov-journey__pkgs .ov-chip {
+		opacity: 0.3;
+		filter: grayscale(0.8);
+		transition:
+			opacity 0.25s ease,
+			filter 0.25s ease;
+	}
+
+	.ov-journey__pkgs .ov-chip.is-lit {
+		opacity: 1;
+		filter: none;
+	}
+
+	.ov-journey__body {
+		display: grid;
+		grid-template-columns: 15rem minmax(0, 1fr);
+		gap: 1.25rem;
+		align-items: start;
+	}
+
+	.ov-journey__nav ol[hidden] {
+		display: none;
+	}
+
+	.ov-journey__nav ol {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		position: relative;
+	}
+
+	.ov-journey__nav ol::before {
+		content: '';
+		position: absolute;
+		top: 1rem;
+		bottom: 1rem;
+		left: 0.95rem;
+		border-left: 2px solid var(--es-border);
+	}
+
+	.ov-journey__nav button {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		width: 100%;
+		padding: 0.4rem 0.5rem 0.4rem 0.3rem;
+		border: 0;
+		border-radius: 0.5rem;
+		background: none;
+		color: var(--es-muted);
+		font: inherit;
+		font-size: var(--sl-text-xs);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.ov-journey__nav button:hover {
+		color: var(--es-strong);
+	}
+
+	.ov-journey__num {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 1.35rem;
+		height: 1.35rem;
+		border: 2px solid var(--es-border);
+		border-radius: 50%;
+		background: var(--sl-color-bg);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		margin-left: 0.05rem;
+	}
+
+	.ov-journey__nav button.is-done .ov-journey__num {
+		border-color: var(--sl-color-text-accent);
+		color: var(--sl-color-text-accent);
+	}
+
+	.ov-journey__nav button.is-current {
+		background: var(--es-surface);
+		color: var(--es-strong);
+		font-weight: 600;
+	}
+
+	.ov-journey__nav button.is-current .ov-journey__num {
+		border-color: var(--sl-color-text-accent);
+		background: var(--sl-color-text-accent);
+		color: var(--sl-color-black);
+	}
+
+	.ov-journey__nav button:not([data-shared]) {
+		margin-left: 0;
+	}
+
+	.ov-journey__stage {
+		padding: 1.25rem;
+	}
+
+	.ov-journey__step:not([hidden]) {
+		display: grid;
+		grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+		gap: 1.5rem;
+	}
+
+	.ov-journey__text > :global(p) {
+		margin: 0 0 0.75rem;
+	}
+
+	.ov-journey__code {
+		grid-column: 1 / -1;
+	}
+
+	.ov-journey__title {
+		color: var(--es-strong);
+		font-size: var(--sl-text-xl);
+		font-weight: 600;
+		line-height: 1.25;
+	}
+
+	.ov-journey__controls {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+		margin-top: 1.25rem;
+		padding-top: 1rem;
+		border-top: 1px dashed var(--es-border);
+	}
+
+	/* Inspector building blocks */
+	.ov-journey :global(.ov-obj) {
+		border: 1px solid var(--pkg-line);
+		border-radius: 0.6rem;
+		overflow: hidden;
+	}
+
+	.ov-journey :global(.ov-obj__type) {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.4rem 0.7rem;
+		background: var(--pkg-bg);
+		color: var(--pkg-text);
+		font-family: var(--es-mono);
+		font-weight: 700;
+	}
+
+	.ov-journey :global(.ov-obj dl) {
+		margin: 0;
+	}
+
+	.ov-journey :global(.ov-obj__row) {
+		display: grid;
+		grid-template-columns: 9.5rem minmax(0, 1fr);
+		gap: 0.6rem;
+		padding: 0.3rem 0.7rem;
+		border-top: 1px solid var(--es-border);
+		margin: 0;
+	}
+
+	.ov-journey :global(.ov-obj__row dt) {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		font-weight: 400;
+	}
+
+	.ov-journey :global(.ov-obj__row dd) {
+		margin: 0;
+	}
+
+	.ov-journey :global(.ov-obj__row code),
+	.ov-journey :global(.ov-events code),
+	.ov-journey :global(.ov-fold code),
+	.ov-journey :global(.ov-pipeline code) {
+		padding: 0;
+		background: none;
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		word-break: break-word;
+	}
+
+	.ov-journey :global([data-state='new']) {
+		background: var(--es-added-bg);
+	}
+
+	.ov-journey :global(.ov-obj__row[data-state='kept']) {
+		opacity: 0.6;
+	}
+
+	.ov-journey :global(.ov-obj__row[data-state='derived'] dd code) {
+		color: var(--es-info-text);
+	}
+
+	.ov-journey :global(.ov-obj__legend) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin: 0.6rem 0 0;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-obj__legend [data-state]) {
+		padding: 0 0.4rem;
+		border-radius: 0.25rem;
+	}
+
+	.ov-journey :global(.ov-obj__legend [data-state='kept']) {
+		border: 1px solid var(--es-border);
+	}
+
+	.ov-journey :global(.ov-obj__legend [data-state='derived']) {
+		color: var(--es-info-text);
+	}
+
+	.ov-journey :global(.ov-nest__box) {
+		padding: 0.5rem;
+		border: 1px solid var(--pkg-line, var(--es-border));
+		border-radius: 0.6rem;
+		background: color-mix(in oklab, var(--es-surface-raised) 50%, transparent);
+	}
+
+	.ov-journey :global(.ov-nest__box.is-faint) {
+		opacity: 0.45;
+	}
+
+	.ov-journey :global(.ov-nest__label) {
+		display: block;
+		margin-bottom: 0.4rem;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-nest__label code) {
+		color: var(--es-strong);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-nest__row) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.ov-journey :global(.ov-nest__stream) {
+		padding: 0.2rem 0.5rem;
+		border: 1px dashed var(--es-border);
+		border-radius: 0.4rem;
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-nest__stream.is-here) {
+		border: 1px solid var(--pkg);
+		background: var(--pkg-bg);
+		color: var(--es-strong);
+		font-weight: 700;
+	}
+
+	.ov-journey :global(.ov-nest__id) {
+		margin: 0.75rem 0 0;
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-check) {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.ov-journey :global(.ov-check__row) {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.45rem 0.7rem;
+		border: 1px solid var(--es-border);
+		border-radius: 0.5rem;
+	}
+
+	.ov-journey :global(.ov-check__verdict) {
+		padding: 0.5rem 0.7rem;
+		border-radius: 0.5rem;
+		background: var(--es-added-bg);
+		color: var(--es-added-text);
+		font-weight: 600;
+	}
+
+	.ov-journey :global(.ov-check__note) {
+		margin: 0.25rem 0 0;
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-events),
+	.ov-journey :global(.ov-fold),
+	.ov-journey :global(.ov-pipeline) {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.ov-journey :global(.ov-events li),
+	.ov-journey :global(.ov-fold li) {
+		display: grid;
+		grid-template-columns: 2.2rem minmax(0, 1fr);
+		gap: 0.1rem 0.5rem;
+		padding: 0.35rem 0.6rem;
+		border: 1px solid var(--es-border);
+		border-left: 3px solid var(--es-added);
+		border-radius: 0.45rem;
+	}
+
+	.ov-journey :global(.ov-fold li) {
+		grid-template-columns: 5rem minmax(0, 1fr);
+		border-left-color: var(--sl-color-purple);
+	}
+
+	.ov-journey :global(.ov-events li > span),
+	.ov-journey :global(.ov-fold__step) {
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-events small) {
+		grid-column: 2;
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.is-faint) {
+		opacity: 0.5;
+	}
+
+	.ov-journey :global(li.is-new),
+	.ov-journey :global(tr.is-new) {
+		background: var(--es-added-bg);
+	}
+
+	.ov-journey :global(.ov-pipeline) {
+		counter-reset: pipe;
+	}
+
+	.ov-journey :global(.ov-pipeline li) {
+		counter-increment: pipe;
+		display: flex;
+		gap: 0.5rem;
+		align-items: baseline;
+		padding: 0.45rem 0.6rem;
+		border: 1px solid var(--pkg-line);
+		border-radius: 0.45rem;
+		background: var(--pkg-bg);
+	}
+
+	.ov-journey :global(.ov-pipeline li::before) {
+		content: counter(pipe);
+		color: var(--pkg-text);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		font-weight: 700;
+	}
+
+	.ov-journey :global(.ov-flow) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.ov-journey :global(.ov-flow__arrow) {
+		color: var(--es-muted);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-table) {
+		width: 100%;
+		border-collapse: collapse;
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+	}
+
+	.ov-journey :global(.ov-table th),
+	.ov-journey :global(.ov-table td) {
+		padding: 0.35rem 0.5rem;
+		border: 1px solid var(--es-border);
+		text-align: left;
+	}
+
+	.ov-journey :global(.ov-table th) {
+		color: var(--es-muted);
+		font-weight: 400;
+	}
+
+	@media (max-width: 64rem) {
+		.ov-journey__step:not([hidden]) {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 48rem) {
+		.ov-journey__body {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.ov-journey__nav ol {
+			flex-direction: row;
+			flex-wrap: wrap;
+		}
+
+		.ov-journey__nav ol::before {
+			content: none;
+		}
+
+		.ov-journey__nav button {
+			width: auto;
+		}
+
+		.ov-journey__nav button > span:not(.ov-journey__num) {
+			display: none;
+		}
+
+		.ov-journey__nav button.is-current > span:not(.ov-journey__num) {
+			display: inline;
+		}
+	}
+</style>
+
+<script>
+	type Branch = 'demand' | 'background';
+
+	const PLAY_INTERVAL = 5000;
+
+	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-journey]')) {
+		const order = JSON.parse(root.querySelector('[data-branches]')!.textContent!) as Record<Branch, string[]>;
+		const stepPanels = new Map(
+			[...root.querySelectorAll<HTMLElement>('[data-step]')].map((panel) => [panel.dataset.step!, panel]),
+		);
+		const chips = [...root.querySelectorAll<HTMLElement>('[data-pkg-chip]')];
+		const branchButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-branch]')];
+		const lists = [...root.querySelectorAll<HTMLElement>('[data-steps]')];
+		const prev = root.querySelector<HTMLButtonElement>('[data-prev]')!;
+		const next = root.querySelector<HTMLButtonElement>('[data-next]')!;
+		const play = root.querySelector<HTMLButtonElement>('[data-play]')!;
+
+		let branch: Branch = 'demand';
+		let index = 0;
+		let timer: number | undefined;
+
+		const stop = () => {
+			if (timer !== undefined) window.clearInterval(timer);
+			timer = undefined;
+			play.textContent = '▶ Play';
+		};
+
+		const render = () => {
+			const keys = order[branch];
+			const key = keys[index];
+			for (const [stepKey, panel] of stepPanels) {
+				panel.hidden = stepKey !== key;
+				if (stepKey === key) {
+					panel.querySelector('[data-step-label]')!.textContent = `Step ${index + 1} of ${keys.length}`;
+				}
+			}
+			const lit = stepPanels.get(key)!.dataset.pkgs!.split(' ');
+			for (const chip of chips) chip.classList.toggle('is-lit', lit.includes(chip.dataset.pkgChip!));
+			for (const button of branchButtons) button.setAttribute('aria-pressed', String(button.dataset.branch === branch));
+			for (const list of lists) {
+				list.hidden = list.dataset.steps !== branch;
+				for (const button of list.querySelectorAll<HTMLButtonElement>('[data-goto]')) {
+					const position = Number(button.dataset.goto);
+					button.classList.toggle('is-current', position === index);
+					button.classList.toggle('is-done', position < index);
+					if (position === index) button.setAttribute('aria-current', 'step');
+					else button.removeAttribute('aria-current');
+				}
+			}
+			prev.disabled = index === 0;
+			next.disabled = index === keys.length - 1;
+		};
+
+		const advance = () => {
+			if (index < order[branch].length - 1) {
+				index += 1;
+				render();
+			} else stop();
+		};
+
+		for (const button of branchButtons) {
+			button.addEventListener('click', () => {
+				stop();
+				branch = button.dataset.branch as Branch;
+				if (index >= 4) index = 4;
+				render();
+			});
+		}
+		root.addEventListener('click', (event) => {
+			const target = (event.target as HTMLElement).closest<HTMLElement>('[data-goto]');
+			if (!target) return;
+			stop();
+			index = Number(target.dataset.goto);
+			render();
+		});
+		prev.addEventListener('click', () => {
+			stop();
+			index = Math.max(0, index - 1);
+			render();
+		});
+		next.addEventListener('click', () => {
+			stop();
+			advance();
+		});
+		play.addEventListener('click', () => {
+			if (timer !== undefined) return stop();
+			if (index === order[branch].length - 1) index = 0;
+			render();
+			play.textContent = '❚❚ Pause';
+			timer = window.setInterval(advance, PLAY_INTERVAL);
+		});
+
+		render();
+	}
+</script>

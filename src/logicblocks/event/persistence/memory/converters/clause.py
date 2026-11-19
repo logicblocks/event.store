@@ -34,6 +34,8 @@ from .types import (
 def make_field_key_function(
     field: Path | Function,
 ) -> Callable[[Result[Any]], Any]:
+    """Return a sort key function for a path or a function's alias."""
+
     def get_key_for_projection(result: Result[Any]) -> Any:
         if isinstance(field, Function):
             return result.lookup(Path(top_level=field.alias))
@@ -43,6 +45,11 @@ def make_field_key_function(
 
 
 def regex_matches(comparison_value: str, resolved_value: str) -> bool:
+    """Return whether a value matches a pattern from its start.
+
+    Raises:
+        ValueError: If the pattern is not a valid regular expression.
+    """
     try:
         match = re.match(comparison_value, resolved_value)
         return match is not None
@@ -53,6 +60,11 @@ def regex_matches(comparison_value: str, resolved_value: str) -> bool:
 
 
 class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
+    """Converts a `FilterClause` into a transformer that filters results.
+
+    Results missing a nested level of the clause's path never match.
+    """
+
     @staticmethod
     def _matches(clause: FilterClause, item: Result[R]) -> bool:
         comparison_value = clause.value
@@ -103,6 +115,15 @@ class FilterClauseConverter[R: Identifiable](ClauseConverter[R, FilterClause]):
 
 
 class SortClauseConverter[R: Identifiable](ClauseConverter[R, SortClause]):
+    """Converts a `SortClause` into a transformer that sorts results.
+
+    Any functions among the sort fields are evaluated before sorting.
+
+    Args:
+        function_converter: The converter used for functions among the sort
+            fields.
+    """
+
     def __init__(
         self,
         function_converter: Converter[Function, ResultSetTransformer[R]],
@@ -166,6 +187,13 @@ class LastIndexFound:
 class KeySetPagingClauseConverter[R: Identifiable](
     ClauseConverter[R, KeySetPagingClause]
 ):
+    """Converts a `KeySetPagingClause` into a transformer selecting a page.
+
+    Pages are taken relative to the position of the record with `last_id`
+    in the current order of the results. If that record is not present, or
+    no `last_id` is given when paging backwards, the page is empty.
+    """
+
     @staticmethod
     def _determine_last_index(
         results: Sequence[Result[R]],
@@ -222,6 +250,8 @@ class KeySetPagingClauseConverter[R: Identifiable](
 class OffsetPagingClauseConverter[R: Identifiable](
     ClauseConverter[R, OffsetPagingClause]
 ):
+    """Converts an `OffsetPagingClause` into a transformer selecting a page."""
+
     def convert(self, item: OffsetPagingClause) -> ResultSetTransformer[R]:
         offset = item.offset
         item_count = item.item_count
@@ -237,6 +267,8 @@ class OffsetPagingClauseConverter[R: Identifiable](
 class TypeRegistryClauseConverter[R: Identifiable](
     TypeRegistryConverter[Clause, ResultSetTransformer[R]]
 ):
+    """Converts clauses using the converter registered for their type."""
+
     def register[C: Clause](
         self,
         item_type: type[C],

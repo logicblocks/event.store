@@ -1,0 +1,20 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+---
+
+<Default />
+<div class="theme-select print:hidden">
+	<ThemeSelect />
+</div>
+
+<style>
+	.theme-select {
+		display: flex;
+		justify-content: center;
+		margin-top: 3rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--sl-color-hairline-light);
+		color: var(--sl-color-gray-3);
+	}
+</style>

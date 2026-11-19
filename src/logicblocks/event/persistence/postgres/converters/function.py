@@ -15,6 +15,8 @@ from .types import (
 
 
 class SimilarityFunctionQueryApplier(QueryApplier):
+    """Selects a `pg_trgm` similarity score under the function's alias."""
+
     def __init__(self, function: genericquery.Similarity):
         self._function = function
 
@@ -37,6 +39,8 @@ class SimilarityFunctionQueryApplier(QueryApplier):
 
 
 class SimilarityFunctionConverter(FunctionConverter[genericquery.Similarity]):
+    """Converts `Similarity` into a `SimilarityFunctionQueryApplier`."""
+
     def convert(self, item: genericquery.Similarity) -> QueryApplier:
         return SimilarityFunctionQueryApplier(function=item)
 
@@ -44,6 +48,8 @@ class SimilarityFunctionConverter(FunctionConverter[genericquery.Similarity]):
 class TypeRegistryFunctionConverter(
     TypeRegistryConverter[genericquery.Function, QueryApplier]
 ):
+    """Converts functions using the converter registered for their type."""
+
     def register[F: genericquery.Function](
         self,
         item_type: type[F],

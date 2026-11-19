@@ -7,12 +7,32 @@ from .retry_strategy_decision import RetryStrategyDecision
 
 
 class RetryStrategy[T](ABC):
+    """Base class for strategies deciding how to retry after an exception.
+
+    Used by `RetryErrorHandler`.
+    """
+
     @abstractmethod
-    def calculate(self, exception: Exception) -> RetryStrategyDecision: ...
+    def calculate(self, exception: Exception) -> RetryStrategyDecision:
+        """Decide how to retry after the given exception.
+
+        Args:
+            exception: The exception that caused the failure.
+
+        Returns:
+            the retry decision.
+        """
+        ...
 
 
 @dataclass(frozen=True)
 class ConstantRetryStrategy[T](RetryStrategy[T]):
+    """Retry strategy that always waits the same time before retrying.
+
+    Attributes:
+        time: The time to wait before each retry.
+    """
+
     time: timedelta
 
     def calculate(self, exception: Exception) -> RetryStrategyDecision:
@@ -20,6 +40,17 @@ class ConstantRetryStrategy[T](RetryStrategy[T]):
 
 
 class IncludeExceptionsRetryStrategy[T](RetryStrategy[T]):
+    """Applies a delegate strategy only to the listed exception types.
+
+    Exceptions not matching any of the listed types are retried
+    immediately, rather than not retried.
+
+    Args:
+        delegate: The strategy to apply to matching exceptions.
+        include_list: The exception types to apply the delegate to,
+            including their subclasses.
+    """
+
     def __init__(
         self, delegate: RetryStrategy, include_list: Sequence[type[Exception]]
     ):
@@ -37,6 +68,17 @@ class IncludeExceptionsRetryStrategy[T](RetryStrategy[T]):
 
 
 class ExcludeExceptionsRetryStrategy[T](RetryStrategy[T]):
+    """Applies a delegate strategy to all but the listed exception types.
+
+    Exceptions matching any of the listed types are retried immediately,
+    rather than not retried.
+
+    Args:
+        delegate: The strategy to apply to non-matching exceptions.
+        exclude_list: The exception types not to apply the delegate to,
+            including their subclasses.
+    """
+
     def __init__(
         self, delegate: RetryStrategy, exclude_list: Sequence[type[Exception]]
     ):

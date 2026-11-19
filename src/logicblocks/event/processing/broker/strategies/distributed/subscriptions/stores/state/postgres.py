@@ -144,6 +144,20 @@ async def replace(
 
 
 class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
+    """An event subscription state store persisting state in Postgres.
+
+    `get` is not supported and raises `NotImplementedError`.
+
+    Args:
+        node_id: The node ID recorded against stored subscriptions, in
+            place of the node ID on the given subscription.
+        connection_source: The connection pool, or connection settings from
+            which to create one.
+        table_settings: The settings of the table holding subscriptions.
+        query_converter: The converter used to build list queries. Defaults
+            to one with the default clause and query converters.
+    """
+
     def __init__(
         self,
         *,
@@ -246,6 +260,12 @@ class PostgresEventSubscriptionStateStore(EventSubscriptionStateStore):
     async def apply(
         self, changes: Sequence[EventSubscriptionStateChange]
     ) -> None:
+        """Apply a batch of changes using a single connection.
+
+        Raises:
+            ValueError: If more than one change targets the same key, or if
+                any individual change is invalid.
+        """
         keys = set(change.subscription.key for change in changes)
         if len(keys) != len(changes):
             raise ValueError(

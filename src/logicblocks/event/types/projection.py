@@ -12,6 +12,7 @@ from .identifier import EventSourceIdentifier
 from .json import JsonValue, JsonValueType
 
 type Projectable = EventSourceIdentifier
+"""The type of identifier a projection can be projected from."""
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,24 @@ class Projection[
     State = JsonValue,
     Metadata = JsonValue,
 ]:
+    """The result of projecting the events from an event source.
+
+    A projection is identified by its name and id together.
+
+    Type Parameters:
+        State: The type of the projection state. Defaults to `JsonValue`.
+        Metadata: The type of the projection metadata. Defaults to
+            `JsonValue`.
+
+    Attributes:
+        id: The projection id, unique among projections with the same name.
+        name: The projection name, typically shared by all projections
+            produced by the same projector.
+        source: The identifier of the event source projected from.
+        state: The projection state.
+        metadata: The projection metadata.
+    """
+
     id: str
     name: str
     source: Projectable
@@ -46,6 +65,16 @@ class Projection[
             [object], JsonValue
         ] = default_serialisation_fallback,
     ) -> JsonValue:
+        """Serialise the projection to a JSON value.
+
+        Args:
+            fallback: Called to serialise values that are neither JSON
+                values nor `JsonValueSerialisable`. Defaults to raising a
+                `ValueError`.
+
+        Returns:
+            a JSON object containing every field of the projection.
+        """
         state = serialise_to_json_value(self.state, fallback)
         metadata = serialise_to_json_value(self.metadata, fallback)
         source = self.source.serialise(fallback)
@@ -64,6 +93,15 @@ class Projection[
             [object], JsonValue
         ] = default_serialisation_fallback,
     ) -> JsonValue:
+        """Summarise the projection, omitting its state and metadata.
+
+        Args:
+            fallback: Called to serialise any value in the source that
+                cannot otherwise be serialised.
+
+        Returns:
+            a JSON object containing the projection id, name and source.
+        """
         return {
             "id": self.id,
             "name": self.name,
@@ -88,6 +126,16 @@ def serialise_projection(
     projection: Projection[JsonPersistable, JsonPersistable],
     fallback: Callable[[object], JsonValue] = default_serialisation_fallback,
 ) -> Projection[JsonValue, JsonValue]:
+    """Serialise a projection's state and metadata to JSON values.
+
+    Args:
+        projection: The projection to serialise.
+        fallback: Called to serialise values that are neither JSON values
+            nor `JsonValueSerialisable`. Defaults to raising a `ValueError`.
+
+    Returns:
+        a copy of the projection with JSON value state and metadata.
+    """
     return Projection[JsonValue, JsonValue](
         id=projection.id,
         name=projection.name,
@@ -121,6 +169,24 @@ def deserialise_projection[
         [type[Metadata], object], Metadata
     ] = _metadata_deserialisation_fallback,
 ) -> Projection[State, Metadata]:
+    """Deserialise a projection's state and metadata to the given types.
+
+    Uses `deserialise_from_json_value` for both state and metadata.
+
+    Args:
+        projection: The projection with JSON value state and metadata.
+        state_type: The type to deserialise the state into. Defaults to a
+            JSON value.
+        metadata_type: The type to deserialise the metadata into. Defaults
+            to a JSON value.
+        state_fallback: Called when the state cannot otherwise be
+            deserialised. Defaults to raising a `ValueError`.
+        metadata_fallback: Called when the metadata cannot otherwise be
+            deserialised. Defaults to raising a `ValueError`.
+
+    Returns:
+        a copy of the projection with deserialised state and metadata.
+    """
     return Projection[State, Metadata](
         id=projection.id,
         name=projection.name,

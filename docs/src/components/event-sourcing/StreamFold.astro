@@ -4,14 +4,14 @@ import './styles.css';
 
 <div class="es es-fold not-content" data-es-fold>
 	<div class="es-panel">
-		<div class="es-label">Stream <code>cart-42</code> · read from oldest to newest</div>
+		<div class="es-label">Event Stream</div>
 		<ol class="es-fold__tape" data-tape></ol>
 		<div class="es-fold__head" data-head aria-hidden="true"></div>
 	</div>
 
 	<div class="es-fold__below">
 		<div class="es-panel es-fold__code">
-			<div class="es-label">The fold</div>
+			<div class="es-label">Fold</div>
 			<pre><code><span data-line="0">state = empty_cart()</span>
 <span data-line="1">for event in stream:</span>
 <span data-line="2">    state = apply(state, event)</span></code></pre>
@@ -23,7 +23,7 @@ import './styles.css';
 		</div>
 	</div>
 	<p class="es-caption">
-		Current state is never stored on its own. It is calculated by replaying the facts in order.
+		The current state is never stored on its own. It is derived by replaying the events in order.
 	</p>
 </div>
 

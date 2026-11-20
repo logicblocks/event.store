@@ -354,6 +354,10 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# VSCode
+#   Rewrap settings
+.vscode/
+
 ### project specific
 # Test reports
 reports
@@ -368,3 +372,5 @@ docs/src/content/docs/reference
 mise.local.toml
 
 .accelerator/config.local.md
+
+

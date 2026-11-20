@@ -3,6 +3,12 @@ import './styles.css';
 ---
 
 <div class="es es-cc not-content" data-es-cc>
+	<nav class="es-cc__nav" aria-label="Walkthrough steps">
+		<button class="es-button es-cc__arrow" data-prev aria-label="Previous step">←</button>
+		<span class="es-cc__position" data-position aria-live="polite"></span>
+		<button class="es-button es-cc__arrow" data-next aria-label="Next step">→</button>
+	</nav>
+
 	<div class="es-cc__stage">
 		<section class="es-panel es-cc__writer" data-writer="a">
 			<div class="es-label">Writer A · laptop</div>
@@ -22,23 +28,15 @@ import './styles.css';
 			<div class="es-cc__command" data-command></div>
 			<div class="es-cc__result" data-result></div>
 		</section>
-
-		<div class="es-cc__start" data-start>
-			<button class="es-button" data-play>▶ Play</button>
-		</div>
 	</div>
 
 	<ol class="es-cc__steps" data-steps>
-		<li>Both writers load <code>cart-42</code>. It's at version 5.</li>
-		<li>Each one decides on a change, based on what it saw.</li>
-		<li>A appends first, expecting version 5. It matches, so the event is accepted.</li>
-		<li>B appends, also expecting version 5. The stream is now at 6, so the append is rejected.</li>
-		<li>B reloads, re-checks its decision against the new state and retries, expecting version 6.</li>
+		<li><span class="es-cc__step-text">Both services load <code>cart-42</code>. It's at version 5.</span></li>
+		<li><span class="es-cc__step-text">Each decides on a change, based on the version it receives.</span></li>
+		<li><span class="es-cc__step-text">A appends first, expecting version 5. It matches, so the event is accepted.</span></li>
+		<li><span class="es-cc__step-text">B appends, also expecting version 5. The stream is now at 6, so the append is rejected.</span></li>
+		<li><span class="es-cc__step-text">B reloads, reprocessing against the new state, and retries, this time expecting version 6.</span></li>
 	</ol>
-
-	<div class="es-cc__footer">
-		<button class="es-button" data-replay hidden>↺ Play again</button>
-	</div>
 </div>
 
 <script>
@@ -46,14 +44,17 @@ import './styles.css';
 	import { added, eventCard, enter, removed, sleep, type CartEvent } from './cart';
 
 	const history: CartEvent[] = [added('beans'), added('mug'), added('beans'), removed('beans'), added('filters')];
+	const grinder = added('grinder');
+	const removeMug = removed('mug');
+	const cancelled = Symbol('cancelled');
 
 	for (const root of document.querySelectorAll<HTMLElement>('[data-es-cc]')) {
 		const stream = root.querySelector<HTMLElement>('[data-stream]')!;
 		const version = root.querySelector<HTMLElement>('[data-version]')!;
 		const steps = [...root.querySelectorAll<HTMLElement>('[data-steps] li')];
-		const start = root.querySelector<HTMLElement>('[data-start]')!;
-		const playButton = root.querySelector<HTMLButtonElement>('[data-play]')!;
-		const replay = root.querySelector<HTMLButtonElement>('[data-replay]')!;
+		const prev = root.querySelector<HTMLButtonElement>('[data-prev]')!;
+		const next = root.querySelector<HTMLButtonElement>('[data-next]')!;
+		const position = root.querySelector<HTMLElement>('[data-position]')!;
 		const writer = (id: 'a' | 'b') => {
 			const element = root.querySelector<HTMLElement>(`[data-writer="${id}"]`)!;
 			return {
@@ -63,17 +64,34 @@ import './styles.css';
 				result: element.querySelector<HTMLElement>('[data-result]')!,
 			};
 		};
+		type Writer = ReturnType<typeof writer>;
 		const a = writer('a');
 		const b = writer('b');
 		let events: CartEvent[] = [];
+		let stage = -1;
 		let run = 0;
+		const running = new Set<ReturnType<typeof animate>>();
+
+		const track = (animation: ReturnType<typeof animate>) => {
+			running.add(animation);
+			animation.then(() => running.delete(animation));
+			return animation;
+		};
+		const stopAnimations = () => {
+			running.forEach((animation) => animation.stop());
+			running.clear();
+		};
 
 		const setVersion = () => (version.textContent = `version ${events.length}`);
-		const step = (index: number) =>
-			steps.forEach((element, position) => {
-				element.classList.toggle('is-active', position === index);
-				element.classList.toggle('is-done', position < index);
+		const showStep = (index: number) => {
+			steps.forEach((element, step) => {
+				element.classList.toggle('is-active', step === index);
+				element.classList.toggle('is-done', step < index);
 			});
+			position.textContent = index < 0 ? 'Press → to start' : `Step ${index + 1} of ${steps.length}`;
+			prev.disabled = index < 0;
+			next.disabled = index >= steps.length - 1;
+		};
 
 		const reset = () => {
 			events = [...history];
@@ -82,29 +100,76 @@ import './styles.css';
 			for (const w of [a, b]) {
 				w.read.textContent = "Hasn't read yet";
 				w.read.classList.remove('is-loaded');
+				w.read.style.cssText = '';
 				w.command.replaceChildren();
-				w.command.style.transform = '';
-				w.command.style.opacity = '';
+				w.command.classList.remove('is-rejected');
+				w.command.style.cssText = '';
 				w.result.textContent = '';
 				w.result.removeAttribute('data-tone');
 			}
-			step(-1);
 		};
 
-		const showCommand = (w: ReturnType<typeof writer>, event: CartEvent, expected: number) => {
-			w.command.innerHTML = '';
+		const load = (w: Writer) => {
+			w.read.textContent = `Read cart-42 at version ${events.length}`;
+			w.read.classList.add('is-loaded');
+		};
+
+		const prepare = (w: Writer, event: CartEvent, expected: number) => {
 			const card = eventCard(event, expected, { payload: false });
 			card.querySelector('.es-event__position')!.textContent = 'new';
 			const expectation = document.createElement('div');
 			expectation.className = 'es-cc__expect';
 			expectation.innerHTML = `expect version <b>${expected}</b>`;
-			w.command.append(card, expectation);
-			w.command.style.transform = '';
-			w.command.style.opacity = '1';
-			enter(w.command);
+			w.command.replaceChildren(card, expectation);
+			w.command.classList.remove('is-rejected');
+			w.command.style.cssText = '';
 		};
 
-		const towardsStream = (w: ReturnType<typeof writer>) => {
+		const commit = (w: Writer, event: CartEvent) => {
+			w.command.style.opacity = '0';
+			events = [...events, event];
+			const card = eventCard(event, events.length - 1, { payload: false });
+			stream.append(card);
+			setVersion();
+			w.result.dataset.tone = 'ok';
+			w.result.textContent = `✓ Accepted. Stream is now at version ${events.length}.`;
+			return card;
+		};
+
+		const refuse = (w: Writer, expected: number) => {
+			w.command.classList.add('is-rejected');
+			w.result.dataset.tone = 'error';
+			w.result.textContent = `✗ Rejected: expected version ${expected}, but the stream is at ${events.length}.`;
+		};
+
+		const reload = (w: Writer) => {
+			w.read.textContent = `Reloaded at version ${events.length}. The mug is still in the cart, so the removal still makes sense.`;
+			w.command.classList.remove('is-rejected');
+			w.result.removeAttribute('data-tone');
+			w.result.textContent = '';
+		};
+
+		const states = [
+			() => [a, b].forEach(load),
+			() => {
+				prepare(a, grinder, 5);
+				prepare(b, removeMug, 5);
+			},
+			() => commit(a, grinder),
+			() => refuse(b, 5),
+			() => {
+				reload(b);
+				prepare(b, removeMug, 6);
+				commit(b, removeMug);
+			},
+		];
+
+		const render = (index: number) => {
+			reset();
+			states.slice(0, index + 1).forEach((state) => state());
+		};
+
+		const towardsStream = (w: Writer) => {
 			const from = w.command.getBoundingClientRect();
 			const to = stream.getBoundingClientRect();
 			return {
@@ -113,118 +178,115 @@ import './styles.css';
 			};
 		};
 
-		const accept = async (w: ReturnType<typeof writer>, event: CartEvent) => {
+		type Wait = (pending: PromiseLike<unknown>) => Promise<void>;
+
+		const accept = async (w: Writer, event: CartEvent, wait: Wait) => {
 			const { x, y } = towardsStream(w);
-			await animate(w.command, { transform: `translate(${x}px, ${y}px) scale(0.9)`, opacity: 0 }, { duration: 0.6, ease: 'easeIn' });
-			events = [...events, event];
-			const card = eventCard(event, events.length - 1, { payload: false });
+			await wait(
+				track(animate(w.command, { transform: `translate(${x}px, ${y}px) scale(0.9)`, opacity: 0 }, { duration: 0.6, ease: 'easeIn' })),
+			);
+			const card = commit(w, event);
 			card.classList.add('is-current');
-			stream.append(card);
-			enter(card);
-			setVersion();
-			w.result.dataset.tone = 'ok';
-			w.result.textContent = `✓ Accepted. Stream is now at version ${events.length}.`;
+			track(enter(card));
 			setTimeout(() => card.classList.remove('is-current'), 1600);
 		};
 
-		const reject = async (w: ReturnType<typeof writer>, expected: number) => {
+		const reject = async (w: Writer, expected: number, wait: Wait) => {
 			const { x, y } = towardsStream(w);
 			const near = `translate(${x * 0.45}px, ${y * 0.45}px)`;
 			const recoil = `translate(${x * 0.35}px, ${y * 0.35}px)`;
-			await animate(w.command, { transform: near }, { duration: 0.45, ease: 'easeIn' });
-			await animate(w.command, { transform: [near, recoil, near, 'translate(0px, 0px)'] }, { duration: 0.5 });
-			w.command.classList.add('is-rejected');
-			w.result.dataset.tone = 'error';
-			w.result.textContent = `✗ Rejected: expected version ${expected}, but the stream is at ${events.length}.`;
+			await wait(track(animate(w.command, { transform: near }, { duration: 0.45, ease: 'easeIn' })));
+			await wait(track(animate(w.command, { transform: [near, recoil, near, 'translate(0px, 0px)'] }, { duration: 0.5 })));
+			refuse(w, expected);
 		};
 
-		const play = async () => {
+		const transitions: ((wait: Wait) => Promise<void>)[] = [
+			async () => {
+				for (const w of [a, b]) {
+					load(w);
+					track(enter(w.read));
+				}
+			},
+			async (wait) => {
+				prepare(a, grinder, 5);
+				track(enter(a.command));
+				await wait(sleep(500));
+				prepare(b, removeMug, 5);
+				track(enter(b.command));
+			},
+			(wait) => accept(a, grinder, wait),
+			(wait) => reject(b, 5, wait),
+			async (wait) => {
+				reload(b);
+				track(enter(b.read));
+				await wait(sleep(1600));
+				prepare(b, removeMug, 6);
+				track(enter(b.command));
+				await wait(sleep(1000));
+				await accept(b, removeMug, wait);
+			},
+		];
+
+		const go = async (target: number) => {
 			const current = ++run;
-			const live = () => current === run;
-			reset();
-			await sleep(800);
+			const previous = stage;
+			stage = target;
+			stopAnimations();
+			showStep(target);
 
-			step(0);
-			for (const w of [a, b]) {
-				w.read.textContent = `Read cart-42 at version ${events.length}`;
-				w.read.classList.add('is-loaded');
-				enter(w.read);
+			if (target !== previous + 1) return render(target);
+
+			render(previous);
+			const wait: Wait = async (pending) => {
+				await pending;
+				if (current !== run) throw cancelled;
+			};
+			try {
+				await transitions[target](wait);
+			} catch (error) {
+				if (error !== cancelled) throw error;
 			}
-			await sleep(1800);
-			if (!live()) return;
-
-			step(1);
-			showCommand(a, added('grinder'), 5);
-			await sleep(500);
-			showCommand(b, removed('mug'), 5);
-			await sleep(1800);
-			if (!live()) return;
-
-			step(2);
-			await accept(a, added('grinder'));
-			await sleep(1800);
-			if (!live()) return;
-
-			step(3);
-			await reject(b, 5);
-			await sleep(2600);
-			if (!live()) return;
-
-			step(4);
-			b.command.classList.remove('is-rejected');
-			b.read.textContent = `Reloaded at version ${events.length}. The mug is still in the cart, so the removal still makes sense.`;
-			enter(b.read);
-			b.result.textContent = '';
-			await sleep(1600);
-			showCommand(b, removed('mug'), 6);
-			await sleep(1000);
-			if (!live()) return;
-			await accept(b, removed('mug'));
-			await sleep(800);
-			step(5);
 		};
 
-		reset();
+		prev.addEventListener('click', () => go(stage - 1));
+		next.addEventListener('click', () => go(stage + 1));
 
-		playButton.addEventListener('click', () => {
-			start.hidden = true;
-			replay.hidden = false;
-			play();
-		});
-		replay.addEventListener('click', play);
+		render(-1);
+		showStep(-1);
 	}
 </script>
 
 <style>
+	.es-cc__nav {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.es-cc__arrow {
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		padding: 0;
+		font-size: var(--sl-text-base);
+	}
+
+	.es-cc__position {
+		min-width: 9rem;
+		color: var(--es-muted);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-xs);
+		text-align: center;
+	}
+
 	.es-cc__stage {
 		position: relative;
 		display: grid;
 		grid-template-columns: 1fr 1.1fr 1fr;
 		gap: 1rem;
 		align-items: start;
-	}
-
-	.es-cc__start {
-		position: absolute;
-		z-index: 3;
-		inset: 0;
-		display: grid;
-		place-items: center;
-		border-radius: 0.75rem;
-		background: color-mix(in oklab, var(--sl-color-black) 55%, transparent);
-		backdrop-filter: blur(2px);
-	}
-
-	.es-cc__start[hidden],
-	.es-cc__footer [hidden] {
-		display: none;
-	}
-
-	.es-cc__start .es-button {
-		padding: 0.7rem 1.4rem;
-		border-color: var(--sl-color-accent);
-		font-size: var(--sl-text-base);
-		font-weight: 600;
 	}
 
 	.es-cc__writer {
@@ -324,6 +386,23 @@ import './styles.css';
 		font-weight: 700;
 	}
 
+	.es-cc__step-text {
+		display: block;
+		opacity: 0;
+		clip-path: inset(0 0 100% 0);
+		transform: translateY(-0.5rem);
+		transition:
+			clip-path 0.5s ease,
+			transform 0.5s ease,
+			opacity 0.3s ease;
+	}
+
+	.es-cc__steps li:is(.is-active, .is-done) .es-cc__step-text {
+		opacity: 1;
+		clip-path: inset(0 0 0 0);
+		transform: translateY(0);
+	}
+
 	.es-cc__steps li.is-done {
 		border-color: color-mix(in oklab, var(--sl-color-text-accent) 45%, transparent);
 	}
@@ -331,12 +410,6 @@ import './styles.css';
 	.es-cc__steps li.is-active {
 		border-color: var(--sl-color-text-accent);
 		color: var(--es-strong);
-	}
-
-	.es-cc__footer {
-		display: flex;
-		justify-content: flex-end;
-		margin-top: 0.75rem;
 	}
 
 	@media (max-width: 50rem) {

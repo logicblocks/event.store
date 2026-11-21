@@ -43,6 +43,7 @@
 .idea/modules.xml
 .idea/*.iml
 .idea/modules
+.idea/copilot.*
 *.iml
 *.ipr
 
@@ -371,6 +372,8 @@ docs/src/content/docs/reference
 ### mise
 mise.local.toml
 
+.accelerator/
+.direnv/
 .accelerator/config.local.md
 
 

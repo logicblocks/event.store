@@ -1,116 +1,88 @@
 ---
 import './styles.css';
-import { packageOrder, type PackageId } from './library';
+import { base } from './library';
 
-const base = '/event.store';
+type Rung = { title: string; get: string; tasks: { label: string; href: string }[] };
 
-const rungs: { title: string; add: string[]; get: string; pkgs: PackageId[]; href: string }[] = [
+const rungs: Rung[] = [
 	{
 		title: 'Store and fold',
-		add: ['EventStore', 'InMemoryEventStorageAdapter', 'NewEvent', 'Projector'],
 		get: 'Event-sourced state for one thing, entirely in memory. Enough for a prototype or a test.',
-		pkgs: ['store', 'types', 'sources', 'projection', 'testing', 'utils'],
-		href: `${base}/getting-started/`,
+		tasks: [
+			{ label: 'Publish events to a stream', href: `${base}/guides/streams-categories-and-logs/#publishing-to-a-stream` },
+			{ label: 'Fold a stream into state', href: `${base}/getting-started/` },
+			{ label: 'Test projectors and processors', href: `${base}/guides/testing/` },
+		],
 	},
 	{
 		title: 'Persist and query',
-		add: ['PostgresEventStorageAdapter', 'conditions', 'ProjectionStore', 'FilterClause'],
 		get: 'Durable events, safe concurrent writes, and read models you can search.',
-		pkgs: ['persistence', 'query'],
-		href: `${base}/guides/projection-store/`,
+		tasks: [
+			{ label: 'Run on PostgreSQL', href: `${base}/guides/postgres/` },
+			{ label: 'Stop concurrent writers clobbering each other', href: `${base}/guides/concurrency/` },
+			{ label: 'Save and search read models', href: `${base}/guides/projection-store/` },
+			{ label: 'Use your own payload and state types', href: `${base}/guides/serialisation/` },
+		],
 	},
 	{
 		title: 'Process in the background',
-		add: ['EventProcessor', 'make_event_store_subscriber', 'make_event_broker', 'ServiceManager'],
-		get: 'Read models and side effects that update themselves as events arrive, with checkpoints.',
-		pkgs: ['processing'],
-		href: `${base}/guides/event-processing/`,
+		get: 'Read models and side effects that update themselves as events arrive.',
+		tasks: [
+			{ label: 'React to events as they arrive', href: `${base}/guides/event-processing/` },
+			{ label: 'Keep read models up to date', href: `${base}/guides/event-processing/#project-events-into-a-projection-store` },
+			{ label: 'Run services and handle errors', href: `${base}/guides/services-and-error-handling/` },
+		],
 	},
 	{
 		title: 'Scale out and harden',
-		add: ['DistributedEventBrokerSettings', 'ErrorHandlingService', 'RetryErrorHandler'],
-		get: 'Several processes sharing the work, failover when one dies, and retries when things go wrong.',
-		pkgs: [],
-		href: `${base}/concepts/distributed-event-broker/`,
+		get: 'Several processes sharing the work, failover when one dies, and a database ready for production.',
+		tasks: [
+			{ label: 'Share the work between processes', href: `${base}/concepts/distributed-event-broker/` },
+			{ label: 'Run PostgreSQL in production', href: `${base}/guides/postgres-in-production/` },
+			{ label: 'See what the library is doing', href: `${base}/guides/logging/` },
+			{ label: 'Write your own storage adapter', href: `${base}/guides/custom-storage-adapters/` },
+		],
 	},
 ];
-
-const cumulative = rungs.map((_, index) => rungs.slice(0, index + 1).flatMap((rung) => rung.pkgs));
 ---
 
-<div class="es ov ov-ladder not-content" data-ov-ladder>
-	<ol class="ov-ladder__rungs">
-		{
-			rungs.map((rung, index) => (
-				<li class="ov-ladder__rung" style={`--rung: ${index}`}>
-					<button type="button" data-rung={index} data-pkgs={cumulative[index].join(' ')} aria-pressed={index === 0}>
-						<span class="ov-ladder__level">Level {index + 1}</span>
-						<span class="ov-ladder__title">{rung.title}</span>
-						<span class="ov-ladder__add">
-							{rung.add.map((name) => (
-								<code set:html={name.replace(/([a-z])([A-Z])/g, '$1<wbr>$2')} />
-							))}
-						</span>
-						<span class="ov-ladder__get">{rung.get}</span>
-					</button>
-					<a href={rung.href} class="ov-ladder__link">
-						Start here →
-					</a>
-				</li>
-			))
-		}
-	</ol>
-	<div class="ov-ladder__pkgs">
-		<span class="es-label">Packages in play</span>
-		<ul>
-			{
-				packageOrder.map((id) => (
-					<li class="ov-chip" data-pkg={id} data-ladder-pkg={id}>
-						{id}
-					</li>
-				))
-			}
-		</ul>
-	</div>
-</div>
+<ol class="es ov ov-ladder not-content">
+	{
+		rungs.map((rung, index) => (
+			<li class="ov-ladder__rung" style={`--rung: ${index}`}>
+				<span class="ov-ladder__level">Level {index + 1}</span>
+				<h3 class="ov-ladder__title">{rung.title}</h3>
+				<p class="ov-ladder__get">{rung.get}</p>
+				<ul class="ov-ladder__tasks">
+					{rung.tasks.map((task) => (
+						<li>
+							<a href={task.href}>{task.label}</a>
+						</li>
+					))}
+				</ul>
+			</li>
+		))
+	}
+</ol>
 
 <style>
-	.ov-ladder__rungs {
+	.ov-ladder {
 		display: grid !important;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0.75rem;
-		align-items: end;
+		padding: 0;
 	}
 
 	.ov-ladder__rung {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-
-	.ov-ladder__rung button {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.4rem;
-		min-height: calc(13rem + var(--rung) * 1.75rem);
-		padding: 0.9rem;
+		display: grid;
+		grid-row: span 4;
+		grid-template-rows: subgrid;
+		row-gap: 0.5rem;
+		padding: 1rem;
 		border: 1px solid var(--es-border);
 		border-top: 4px solid color-mix(in oklab, var(--sl-color-text-accent) calc(40% + var(--rung) * 20%), transparent);
 		border-radius: var(--es-radius);
 		background: var(--es-surface);
-		color: var(--es-strong);
-		font: inherit;
-		text-align: left;
-		cursor: pointer;
-		transition:
-			background 0.2s ease,
-			box-shadow 0.2s ease;
-	}
-
-	.ov-ladder__rung button[aria-pressed='true'] {
-		background: var(--es-surface-raised);
-		box-shadow: 0 0 0 2px var(--sl-color-text-accent);
 	}
 
 	.ov-ladder__level {
@@ -122,101 +94,41 @@ const cumulative = rungs.map((_, index) => rungs.slice(0, index + 1).flatMap((ru
 	}
 
 	.ov-ladder__title {
+		margin: 0;
+		color: var(--es-strong);
 		font-size: var(--sl-text-base);
 		font-weight: 700;
 	}
 
-	.ov-ladder__add {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem;
-	}
-
-	.ov-ladder__add code {
-		padding: 0.05rem 0.35rem;
-		border-radius: 0.3rem;
-		background: var(--es-surface-raised);
-		font-family: var(--es-mono);
-		font-size: var(--sl-text-2xs);
-		overflow-wrap: anywhere;
-	}
-
-	.ov-ladder__add code::before {
-		content: '+ ';
-		color: var(--es-added-text);
-	}
-
 	.ov-ladder__get {
+		margin: 0;
 		color: var(--es-muted);
 		font-size: var(--sl-text-xs);
 	}
 
-	.ov-ladder__link {
-		font-size: var(--sl-text-xs);
-		padding-left: 0.25rem;
-	}
-
-	.ov-ladder__pkgs {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.5rem 1rem;
-		margin-top: 1rem;
-	}
-
-	.ov-ladder__pkgs .es-label {
-		margin: 0;
-	}
-
-	.ov-ladder__pkgs ul {
+	.ov-ladder__tasks {
 		display: flex !important;
-		flex-wrap: wrap;
-		gap: 0.3rem;
+		flex-direction: column;
+		gap: 0.35rem;
+		margin-top: 0.25rem !important;
+		padding-top: 0.75rem !important;
+		border-top: 1px dashed var(--es-border);
+		font-size: var(--sl-text-xs);
 	}
 
-	.ov-ladder__pkgs .ov-chip {
-		opacity: 0.25;
-		filter: grayscale(0.9);
-		transition:
-			opacity 0.25s ease,
-			filter 0.25s ease;
-	}
-
-	.ov-ladder__pkgs .ov-chip.is-lit {
-		opacity: 1;
-		filter: none;
+	.ov-ladder__tasks a::after {
+		content: '\00a0→';
 	}
 
 	@media (max-width: 56rem) {
-		.ov-ladder__rungs {
+		.ov-ladder {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
-		.ov-ladder__rung button {
-			min-height: 0;
 		}
 	}
 
 	@media (max-width: 32rem) {
-		.ov-ladder__rungs {
+		.ov-ladder {
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 </style>
-
-<script>
-	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-ladder]')) {
-		const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-rung]')];
-		const chips = [...root.querySelectorAll<HTMLElement>('[data-ladder-pkg]')];
-		const select = (button: HTMLButtonElement) => {
-			const lit = button.dataset.pkgs!.split(' ');
-			for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
-			for (const chip of chips) chip.classList.toggle('is-lit', lit.includes(chip.dataset.ladderPkg!));
-		};
-		for (const button of buttons) {
-			button.addEventListener('click', () => select(button));
-			button.addEventListener('mouseenter', () => select(button));
-		}
-		select(buttons[0]);
-	}
-</script>

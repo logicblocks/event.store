@@ -1,7 +1,7 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import './styles.css';
-import { packageOrder, type PackageId } from './library';
+import { journeyPackages, type PackageId } from './library';
 
 type Step = {
 	key: string;
@@ -142,10 +142,10 @@ const onDemand: Step[] = [
 
 projection = await CartProjector().project(source=cart)`,
 		inspector: `<ol class="ov-fold">
-			<li><span class="ov-fold__step">start</span><code>{"items": {}}</code></li>
-			<li><span class="ov-fold__step">+ beans</span><code>{"items": {"beans": 1}}</code></li>
-			<li><span class="ov-fold__step">+ mug</span><code>{"items": {"beans": 1, "mug": 1}}</code></li>
-			<li class="is-new"><span class="ov-fold__step">+ grinder</span><code>{"items": {"beans": 1, "mug": 1, "grinder": 1}}</code></li>
+			<li><span class="ov-fold__step">start</span><code>{"items": {}, "status": "open"}</code></li>
+			<li><span class="ov-fold__step">+ beans</span><code>{"items": {"beans": 1}, "status": "open"}</code></li>
+			<li><span class="ov-fold__step">+ mug</span><code>{"items": {"beans": 1, "mug": 1}, "status": "open"}</code></li>
+			<li class="is-new"><span class="ov-fold__step">+ grinder</span><code>{"items": {"beans": 1, "mug": 1, "grinder": 1}, "status": "open"}</code></li>
 		</ol>`,
 	},
 	{
@@ -196,7 +196,7 @@ const background: Step[] = [
 		key: 'subscribe',
 		title: 'A subscriber asks for the category',
 		pkgs: ['processing'],
-		text: '<p>Rather than projecting on demand, you can keep projections up to date as events arrive. A <strong>subscriber</strong> asks for an event source, here the whole <code>carts</code> category, and names the processor to pass events to.</p><p>The <strong>broker</strong> hands each source to one subscriber in the group. With a distributed broker, that is one live instance across all your nodes.</p>',
+		text: '<p>Rather than projecting on demand, you can keep projections up to date as events arrive. A <strong>subscriber</strong> asks for an event source, here the whole <code>carts</code> category, and names the processor to pass events to.</p><p>The <strong>broker</strong> decides which subscribers read which sources. A singleton broker gives each subscriber every source it asks for. A distributed broker shares the sources out across the group, aiming for one live subscriber per source across all your nodes.</p>',
 		code: `subscriber = make_event_store_subscriber(
     subscriber_group="cart-projection",
     subscription_request=CategoryIdentifier(category="carts"),
@@ -280,7 +280,7 @@ const allSteps = [...shared, ...onDemand, ...background];
 		</div>
 		<ul class="ov-journey__pkgs" aria-label="Packages involved in this step">
 			{
-				packageOrder.map((id) => (
+				journeyPackages.map((id) => (
 					<li class="ov-chip" data-pkg={id} data-pkg-chip={id}>
 						{id}
 					</li>

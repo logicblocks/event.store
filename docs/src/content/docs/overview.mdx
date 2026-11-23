@@ -27,18 +27,20 @@ state up to date in the background as events arrive.
 </p>
 
 This page assumes you know the ideas behind event sourcing. If you don't, start with the
-[introduction to event sourcing](/event.store/event-sourcing/). The examples here carry on with its
+[introduction to event sourcing](/event.store/event-sourcing/). The examples here use the same
 shopping cart, `cart-42`.
 
 ## What you'll work with
 
-Most of your code uses four parts of the library. Each one lives in its own package under
+Most of your code uses four parts of the library. Each one is built from one or two packages under
 `logicblocks.event`, and each package has its own colour on this page.
 
 <Capabilities />
 
-The other packages work underneath. You'll import from `persistence` to connect to PostgreSQL, and
-from `sources` or `persistence` if you [write your own storage adapter](/event.store/guides/custom-storage-adapters/).
+The other packages work underneath. You'll import from `persistence` to connect to PostgreSQL. To
+[write your own storage adapter](/event.store/guides/custom-storage-adapters/), you subclass
+`EventStorageAdapter` from `store` or `ProjectionStorageAdapter` from `projection`, with helpers from
+`sources` and `persistence`.
 
 ## The life of an event
 
@@ -72,13 +74,15 @@ predictable.
 	</Card>
 	<Card title="Storage is an adapter" icon="database">
 		The event store, the projection store and the broker each hand storage to an adapter. Use the
-		in-memory adapters in tests and the PostgreSQL ones in production. Nothing else changes.
+		in-memory adapters in tests and the PostgreSQL ones in production. Your code stays the same,
+		though [a few projection queries](/event.store/guides/projection-store/#in-memory-and-postgres-differences)
+		behave differently in memory.
 		[Using PostgreSQL](/event.store/guides/postgres/)
 	</Card>
 	<Card title="The broker allocates, subscribers read" icon="random">
 		A broker only decides which subscriber reads which source. Subscribers read when they're
-		polled. With a distributed broker, each source has one live subscriber per group across all
-		your processes.
+		polled. A distributed broker aims for one live subscriber per source per group across all your
+		processes, though two can overlap briefly while a source moves.
 		[Choose a broker type](/event.store/guides/event-processing/#choose-a-broker-type)
 	</Card>
 	<Card title="Processing is at least once" icon="approve-check-circle">

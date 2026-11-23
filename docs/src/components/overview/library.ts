@@ -11,4 +11,12 @@ export type PackageId =
 
 export const base = '/event.store';
 
-export const corePackages: PackageId[] = ['types', 'store', 'projection', 'query', 'processing'];
+export const journeyPackages: PackageId[] = [
+	'types',
+	'store',
+	'sources',
+	'persistence',
+	'projection',
+	'query',
+	'processing',
+];

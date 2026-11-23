@@ -3,6 +3,8 @@ title: Processing events asynchronously
 description: Consume events in the background with an event broker, subscribers and event processors, and keep projections up to date.
 ---
 
+import ProcessingWiring from '../../../components/processing/ProcessingWiring.astro';
+
 The `logicblocks.event.processing` package runs work in the background as
 events arrive. It has four parts:
 
@@ -17,6 +19,13 @@ events arrive. It has four parts:
 The broker only allocates event sources. It does not read events itself.
 Each subscriber reads events when its `consume_all` method is called, so you
 need to call it repeatedly, usually with a `PollingService`.
+
+Here are the parts wired together for a subscriber that keeps profile
+projections up to date, as in
+[Project events into a projection store](#project-events-into-a-projection-store).
+Switch to the distributed view to see what happens when a node stops.
+
+<ProcessingWiring />
 
 ## Write an event processor
 

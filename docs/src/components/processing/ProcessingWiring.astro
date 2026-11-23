@@ -1,6 +1,6 @@
 ---
-import './styles.css';
-import type { PackageId } from './library';
+import '../overview/styles.css';
+import type { PackageId } from '../overview/library';
 
 type Box = { id: string; title: string; sub: string; x: number; y: number; pkg: PackageId };
 type Edge = { id: string; d: string; label?: string; lx?: number; ly?: number; anchor?: 'start' | 'middle' | 'end' };
@@ -12,35 +12,35 @@ const boxes: Box[] = [
 	{ id: 'manager', title: 'ServiceManager', sub: 'starts and stops it all', x: 20, y: 20, pkg: 'processing' },
 	{ id: 'broker', title: 'EventBroker', sub: 'singleton', x: 20, y: 120, pkg: 'processing' },
 	{ id: 'polling', title: 'PollingService', sub: 'every 200 ms', x: 20, y: 228, pkg: 'processing' },
-	{ id: 'subscriber', title: 'EventSubscriber', sub: 'group cart-projection', x: 270, y: 120, pkg: 'processing' },
-	{ id: 'consumer', title: 'EventSourceConsumer', sub: 'source: carts', x: 270, y: 228, pkg: 'processing' },
-	{ id: 'processor', title: 'ProjectionEventProcessor', sub: 'with CartProjector', x: 520, y: 228, pkg: 'processing' },
-	{ id: 'projections', title: 'ProjectionStore', sub: 'cart-42 updated', x: 770, y: 228, pkg: 'projection' },
-	{ id: 'category', title: 'EventCategory', sub: 'carts', x: 20, y: 336, pkg: 'store' },
+	{ id: 'subscriber', title: 'EventSubscriber', sub: 'group profile-projection', x: 270, y: 120, pkg: 'processing' },
+	{ id: 'consumer', title: 'EventSourceConsumer', sub: 'source: profiles', x: 270, y: 228, pkg: 'processing' },
+	{ id: 'processor', title: 'ProjectionEventProcessor', sub: 'with ProfileProjector', x: 520, y: 228, pkg: 'processing' },
+	{ id: 'projections', title: 'ProjectionStore', sub: 'joe.bloggs updated', x: 520, y: 120, pkg: 'projection' },
+	{ id: 'category', title: 'EventCategory', sub: 'profiles', x: 20, y: 336, pkg: 'store' },
 	{ id: 'state', title: 'EventConsumerStateStore', sub: 'last_sequence_number', x: 520, y: 336, pkg: 'processing' },
-	{ id: 'state-category', title: 'EventCategory', sub: 'cart-projection-state', x: 770, y: 336, pkg: 'store' },
+	{ id: 'state-category', title: 'EventCategory', sub: 'profile-projection-state', x: 520, y: 444, pkg: 'store' },
 ];
 
 const edges: Edge[] = [
 	{ id: 'run-broker', d: 'M125,76 L125,120', label: 'runs', lx: 133, ly: 102, anchor: 'start' },
 	{ id: 'run-polling', d: 'M20,48 L6,48 L6,256 L20,256' },
-	{ id: 'accept', d: 'M230,148 L270,148', label: 'accept(carts)', lx: 250, ly: 112 },
+	{ id: 'accept', d: 'M230,148 L270,148', label: 'accept(profiles)', lx: 250, ly: 112 },
 	{ id: 'create', d: 'M375,176 L375,228', label: 'creates', lx: 383, ly: 206, anchor: 'start' },
 	{ id: 'poll', d: 'M230,256 L270,256', label: 'consume_all()', lx: 250, ly: 309 },
 	{ id: 'read', d: 'M230,364 L345,364 L345,284', label: 'events after checkpoint', lx: 250, ly: 384, anchor: 'start' },
 	{ id: 'process', d: 'M480,256 L520,256', label: 'process_event', lx: 500, ly: 220 },
-	{ id: 'save', d: 'M730,256 L770,256', label: 'save', lx: 750, ly: 220 },
+	{ id: 'save', d: 'M625,228 L625,176', label: 'save', lx: 633, ly: 206, anchor: 'start' },
 	{ id: 'record', d: 'M405,284 L405,364 L520,364', label: 'checkpoint', lx: 413, ly: 320, anchor: 'start' },
-	{ id: 'persist', d: 'M730,364 L770,364', label: 'state-changed', lx: 750, ly: 411 },
+	{ id: 'persist', d: 'M625,392 L625,444', label: 'state-changed', lx: 633, ly: 422, anchor: 'start' },
 ];
 
 const phases = [
-	{ edge: 'accept', text: 'The broker hands the carts category to the subscriber…' },
+	{ edge: 'accept', text: 'The broker hands the profiles category to the subscriber…' },
 	{ edge: 'create', text: '…which creates a consumer for it.' },
 	{ edge: 'poll', text: 'PollingService calls consume_all() on the subscriber.' },
 	{ edge: 'read', text: 'The consumer reads the events after its last checkpoint.' },
 	{ edge: 'process', text: 'Each event goes to the processor…' },
-	{ edge: 'save', text: '…which updates the projection for cart-42 and saves it.' },
+	{ edge: 'save', text: '…which updates the projection for joe.bloggs and saves it.' },
 	{ edge: 'record', text: 'The consumer records the event as processed…' },
 	{ edge: 'persist', text: '…and saves its checkpoint as a state-changed event.' },
 ];
@@ -56,7 +56,7 @@ const phases = [
 
 	<div data-view="singleton">
 		<div class="es-panel ov-scroll">
-			<svg class="ov-wiring__svg" viewBox="0 0 1000 420" role="img" aria-label="How the processing pieces are wired together on one node">
+			<svg class="ov-wiring__svg" viewBox="0 0 750 520" role="img" aria-label="How the processing pieces are wired together on one node">
 				<defs>
 					<marker id="ov-wiring-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
 						<path d="M0,0 L10,5 L0,10 z" />
@@ -104,18 +104,18 @@ const phases = [
 					<li><span>subscriber manager</span><small>heartbeats</small></li>
 					<li><span>coordinator</span><small class="ov-dist__badge" data-coordinator>leader</small></li>
 					<li><span>observer</span><small>watches subscriptions</small></li>
-					<li class="ov-dist__subscriber"><span>subscriber · cart-projection</span><small class="ov-dist__badge" data-subscriber>consuming carts</small></li>
+					<li class="ov-dist__subscriber"><span>subscriber · profile-projection</span><small class="ov-dist__badge" data-subscriber>consuming profiles</small></li>
 				</ul>
 			</section>
 
 			<section class="ov-dist__events" data-pkg="store">
 				<div class="es-label">Event store</div>
 				<div class="ov-dist__source">
-					<code>carts</code>
+					<code>profiles</code>
 					<span class="ov-dist__flow" data-flow>→ node-1</span>
 				</div>
 				<div class="ov-dist__source">
-					<code>cart-projection-state</code>
+					<code>profile-projection-state</code>
 					<span>shared checkpoint</span>
 				</div>
 			</section>
@@ -126,7 +126,7 @@ const phases = [
 					<li><span>subscriber manager</span><small>heartbeats</small></li>
 					<li><span>coordinator</span><small class="ov-dist__badge" data-coordinator>waiting</small></li>
 					<li><span>observer</span><small>watches subscriptions</small></li>
-					<li class="ov-dist__subscriber"><span>subscriber · cart-projection</span><small class="ov-dist__badge" data-subscriber>standby</small></li>
+					<li class="ov-dist__subscriber"><span>subscriber · profile-projection</span><small class="ov-dist__badge" data-subscriber>standby</small></li>
 				</ul>
 			</section>
 
@@ -157,7 +157,7 @@ const phases = [
 	.ov-wiring__svg {
 		display: block;
 		width: 100%;
-		min-width: 48rem;
+		min-width: 36rem;
 		height: auto;
 	}
 
@@ -481,7 +481,7 @@ const phases = [
 
 		if (reducedMotion) {
 			caption.textContent =
-				'The broker hands carts to the subscriber. Each poll, the consumer reads events after its checkpoint, passes them to the processor and saves a new checkpoint.';
+				'The broker hands profiles to the subscriber. Each poll, the consumer reads events after its checkpoint, passes them to the processor and saves a new checkpoint.';
 			return;
 		}
 
@@ -520,8 +520,8 @@ const phases = [
 		{ text: 'node-1 shuts down. Its broker removes its subscribers from the subscribers table.', change: { node1Up: false, consuming: null } },
 		{ text: 'Its lock connection closes, so Postgres releases the coordinator lock.', change: { leader: null } },
 		{ text: 'node-2’s coordinator takes the lock at its next attempt and becomes the leader.', change: { leader: 2 } },
-		{ text: 'At its next distribution, the leader finds carts has no live subscriber and allocates it to node-2’s subscriber.', change: { allocatedTo: 2 } },
-		{ text: 'node-2’s observer sees the new allocation and calls accept(carts) on its subscriber.', change: { consuming: 2 } },
+		{ text: 'At its next distribution, the leader finds profiles has no live subscriber and allocates it to node-2’s subscriber.', change: { allocatedTo: 2 } },
+		{ text: 'node-2’s observer sees the new allocation and calls accept(profiles) on its subscriber.', change: { consuming: 2 } },
 		{ text: 'The subscriber resumes from the shared checkpoint, so nothing is skipped. Events processed since the last save are processed again.' },
 		{ note: true, text: 'With default settings, a handover can take around 20 seconds. If node-1 had crashed instead, the leader would wait until its heartbeats were too old.' },
 	];
@@ -529,7 +529,7 @@ const phases = [
 	const startStory: Step[] = [
 		{ text: 'node-1 starts and registers its subscriber in the subscribers table.', change: { node1Up: true } },
 		{ text: 'It competes for the coordinator lock, but node-2 holds it, so node-1 waits.' },
-		{ text: 'Allocations stick: carts stays with node-2. node-1’s subscriber waits as a standby.' },
+		{ text: 'Allocations stick: profiles stays with node-2. node-1’s subscriber waits as a standby.' },
 		{ note: true, text: 'To spread work across nodes, run several subscriber groups. One group’s source is never split.' },
 	];
 
@@ -566,17 +566,17 @@ const phases = [
 				set(node.querySelector('[data-coordinator]')!, !up ? '—' : state.leader === n ? 'leader' : 'waiting', state.leader === n);
 				set(
 					node.querySelector('[data-subscriber]')!,
-					!up ? '—' : state.consuming === n ? 'consuming carts' : 'standby',
+					!up ? '—' : state.consuming === n ? 'consuming profiles' : 'standby',
 					state.consuming === n,
 				);
 			});
 			flow.textContent = state.consuming ? `→ node-${state.consuming}` : '→ nobody yet';
-			subscribers.innerHTML = [state.node1Up ? 'cart-projection @ node-1' : '', 'cart-projection @ node-2']
+			subscribers.innerHTML = [state.node1Up ? 'profile-projection @ node-1' : '', 'profile-projection @ node-2']
 				.filter(Boolean)
 				.map((row) => `<span>${row}</span>`)
 				.join('');
 			subscriptions.innerHTML = state.allocatedTo
-				? `<span>cart-projection @ node-${state.allocatedTo} → [carts]</span>`
+				? `<span>profile-projection @ node-${state.allocatedTo} → [profiles]</span>`
 				: '<span>none</span>';
 			lock.innerHTML = `<span>${state.leader ? `held by node-${state.leader}` : 'free'}</span>`;
 			toggle.textContent = state.node1Up ? 'Stop node-1' : 'Start node-1';

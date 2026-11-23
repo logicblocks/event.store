@@ -1,16 +1,7 @@
 ---
-import { Code } from '@astrojs/starlight/components';
 import './styles.css';
-import { journeyPackages, type PackageId } from './library';
-
-type Step = {
-	key: string;
-	title: string;
-	pkgs: PackageId[];
-	text: string;
-	code: string;
-	inspector: string;
-};
+import JourneyStep from './JourneyStep.astro';
+import type { JourneyStep as Step, PackageId } from './library';
 
 type Row = [key: string, value: string, state?: 'new' | 'kept' | 'derived'];
 
@@ -264,222 +255,90 @@ NewEvent(
 	},
 ];
 
-const branches = {
-	demand: { label: 'On demand', steps: [...shared, ...onDemand] },
-	background: { label: 'In the background', steps: [...shared, ...background] },
-};
-
-const allSteps = [...shared, ...onDemand, ...background];
+const branches = [
+	{ id: 'journey-on-demand', label: 'On demand', summary: 'work out the state when you need it.', steps: onDemand },
+	{
+		id: 'journey-in-the-background',
+		label: 'In the background',
+		summary: 'keep the state up to date as events arrive.',
+		steps: background,
+	},
+];
 ---
 
-<div class="es ov ov-journey not-content" data-ov-journey>
-	<div class="ov-journey__top">
-		<div class="ov-segmented" role="group" aria-label="Branch">
-			<button type="button" data-branch="demand" aria-pressed="true">On demand</button>
-			<button type="button" data-branch="background" aria-pressed="false">In the background</button>
-		</div>
-		<ul class="ov-journey__pkgs" aria-label="Packages involved in this step">
-			{
-				journeyPackages.map((id) => (
-					<li class="ov-chip" data-pkg={id} data-pkg-chip={id}>
-						{id}
-					</li>
-				))
-			}
-		</ul>
-	</div>
+<div class="es ov ov-journey not-content">
+	<ol class="ov-journey__steps">
+		{shared.map((step, index) => <JourneyStep step={step} number={index + 1} headingLevel={3} />)}
+	</ol>
 
-	<div class="ov-journey__body">
-		<nav class="ov-journey__nav" aria-label="Steps">
-			{
-				Object.entries(branches).map(([branch, { steps }]) => (
-					<ol data-steps={branch} hidden={branch !== 'demand'}>
-						{steps.map((step, index) => (
-							<li>
-								<button type="button" data-goto={index} data-shared={index < shared.length ? '' : undefined}>
-									<span class="ov-journey__num">{index + 1}</span>
-									<span>{step.title}</span>
-								</button>
-							</li>
-						))}
-					</ol>
-				))
-			}
-		</nav>
-
-		<div class="es-panel ov-journey__stage">
-			{
-				allSteps.map((step) => (
-					<section class="ov-journey__step" data-step={step.key} data-pkgs={step.pkgs.join(' ')} hidden>
-						<div class="ov-journey__text">
-							<div class="es-label" data-step-label />
-							<p class="ov-journey__title">{step.title}</p>
-							<Fragment set:html={step.text} />
-						</div>
-						<div class="ov-journey__inspector">
-							<div class="es-label">What you have now</div>
-							<Fragment set:html={step.inspector} />
-						</div>
-						<div class="ov-journey__code">
-							<Code code={step.code} lang="python" wrap />
-						</div>
-					</section>
-				))
-			}
-			<div class="ov-journey__controls">
-				<button type="button" class="es-button" data-prev>← Back</button>
-				<button type="button" class="es-button" data-play>▶ Play</button>
-				<button type="button" class="es-button" data-variant="primary" data-next>Next →</button>
-			</div>
-		</div>
-	</div>
-	<script type="application/json" data-branches set:html={JSON.stringify(Object.fromEntries(Object.entries(branches).map(([branch, { steps }]) => [branch, steps.map((step) => step.key)])))} />
+	{
+		branches.map((branch) => (
+			<section class="ov-journey__branch" aria-labelledby={branch.id}>
+				<header class="ov-journey__branch-header">
+					<svg class="ov-journey__fork" viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M16 21h5v-5M8 21H3v-5M12 2v8.3a4 4 0 0 1-1.17 2.87L3 21M15 15l6 6" />
+					</svg>
+					<div>
+						<h3 id={branch.id}>{branch.label}</h3>
+						<p>
+							After step {shared.length}, {branch.summary}
+						</p>
+					</div>
+				</header>
+				<ol class="ov-journey__steps">
+					{branch.steps.map((step, index) => (
+						<JourneyStep step={step} number={shared.length + index + 1} headingLevel={4} />
+					))}
+				</ol>
+			</section>
+		))
+	}
 </div>
 
 <style>
-	.ov-journey__top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem 1.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.ov-journey__pkgs {
-		display: flex !important;
-		flex-wrap: wrap;
-		gap: 0.3rem;
-	}
-
-	.ov-journey__pkgs .ov-chip {
-		opacity: 0.3;
-		filter: grayscale(0.8);
-		transition:
-			opacity 0.25s ease,
-			filter 0.25s ease;
-	}
-
-	.ov-journey__pkgs .ov-chip.is-lit {
-		opacity: 1;
-		filter: none;
-	}
-
-	.ov-journey__body {
-		display: grid;
-		grid-template-columns: 15rem minmax(0, 1fr);
-		gap: 1.25rem;
-		align-items: start;
-	}
-
-	.ov-journey__nav ol[hidden] {
-		display: none;
-	}
-
-	.ov-journey__nav ol {
+	.ov-journey__steps {
 		display: flex;
 		flex-direction: column;
-		gap: 0.15rem;
-		position: relative;
+		gap: 1.25rem;
 	}
 
-	.ov-journey__nav ol::before {
-		content: '';
-		position: absolute;
-		top: 1rem;
-		bottom: 1rem;
-		left: 0.95rem;
-		border-left: 2px solid var(--es-border);
+	.ov-journey__branch {
+		margin-top: 3rem;
 	}
 
-	.ov-journey__nav button {
-		position: relative;
-		display: flex;
+	.ov-journey__branch-header {
+		display: grid;
+		grid-template-columns: 2.25rem minmax(0, 1fr);
+		gap: 0 0.9rem;
 		align-items: center;
-		gap: 0.6rem;
-		width: 100%;
-		padding: 0.4rem 0.5rem 0.4rem 0.3rem;
-		border: 0;
-		border-radius: 0.5rem;
-		background: none;
-		color: var(--es-muted);
-		font: inherit;
-		font-size: var(--sl-text-xs);
-		text-align: left;
-		cursor: pointer;
+		margin-bottom: 1.25rem;
 	}
 
-	.ov-journey__nav button:hover {
-		color: var(--es-strong);
-	}
-
-	.ov-journey__num {
-		flex: none;
-		display: grid;
-		place-items: center;
-		width: 1.35rem;
-		height: 1.35rem;
-		border: 2px solid var(--es-border);
+	.ov-journey__fork {
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0.4rem;
 		border-radius: 50%;
-		background: var(--sl-color-bg);
-		font-family: var(--es-mono);
-		font-size: var(--sl-text-2xs);
-		margin-left: 0.05rem;
-	}
-
-	.ov-journey__nav button.is-done .ov-journey__num {
-		border-color: var(--sl-color-text-accent);
-		color: var(--sl-color-text-accent);
-	}
-
-	.ov-journey__nav button.is-current {
-		background: var(--es-surface);
-		color: var(--es-strong);
-		font-weight: 600;
-	}
-
-	.ov-journey__nav button.is-current .ov-journey__num {
-		border-color: var(--sl-color-text-accent);
 		background: var(--sl-color-text-accent);
-		color: var(--sl-color-black);
+		fill: none;
+		stroke: var(--sl-color-black);
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
-	.ov-journey__nav button:not([data-shared]) {
-		margin-left: 0;
-	}
-
-	.ov-journey__stage {
-		padding: 1.25rem;
-	}
-
-	.ov-journey__step:not([hidden]) {
-		display: grid;
-		grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-		gap: 1.5rem;
-	}
-
-	.ov-journey__text > :global(p) {
-		margin: 0 0 0.75rem;
-	}
-
-	.ov-journey__code {
-		grid-column: 1 / -1;
-	}
-
-	.ov-journey__title {
+	.ov-journey__branch-header h3 {
+		margin: 0;
+		scroll-margin-top: calc(var(--sl-nav-height, 4rem) + 1rem);
 		color: var(--es-strong);
-		font-size: var(--sl-text-xl);
+		font-size: var(--sl-text-2xl);
 		font-weight: 600;
-		line-height: 1.25;
+		line-height: 1.2;
 	}
 
-	.ov-journey__controls {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		margin-top: 1.25rem;
-		padding-top: 1rem;
-		border-top: 1px dashed var(--es-border);
+	.ov-journey__branch-header p {
+		margin: 0.15rem 0 0;
+		color: var(--es-muted);
 	}
 
 	/* Inspector building blocks */
@@ -748,132 +607,20 @@ const allSteps = [...shared, ...onDemand, ...background];
 		font-weight: 400;
 	}
 
-	@media (max-width: 64rem) {
-		.ov-journey__step:not([hidden]) {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
-
 	@media (max-width: 48rem) {
-		.ov-journey__body {
-			grid-template-columns: minmax(0, 1fr);
+		.ov-journey__branch-header {
+			grid-template-columns: 1.75rem minmax(0, 1fr);
+			gap: 0 0.6rem;
 		}
 
-		.ov-journey__nav ol {
-			flex-direction: row;
-			flex-wrap: wrap;
+		.ov-journey__fork {
+			width: 1.75rem;
+			height: 1.75rem;
+			padding: 0.3rem;
 		}
 
-		.ov-journey__nav ol::before {
-			content: none;
-		}
-
-		.ov-journey__nav button {
-			width: auto;
-		}
-
-		.ov-journey__nav button > span:not(.ov-journey__num) {
-			display: none;
-		}
-
-		.ov-journey__nav button.is-current > span:not(.ov-journey__num) {
-			display: inline;
+		.ov-journey__branch-header h3 {
+			font-size: var(--sl-text-xl);
 		}
 	}
 </style>
-
-<script>
-	type Branch = 'demand' | 'background';
-
-	const PLAY_INTERVAL = 5000;
-
-	for (const root of document.querySelectorAll<HTMLElement>('[data-ov-journey]')) {
-		const order = JSON.parse(root.querySelector('[data-branches]')!.textContent!) as Record<Branch, string[]>;
-		const stepPanels = new Map(
-			[...root.querySelectorAll<HTMLElement>('[data-step]')].map((panel) => [panel.dataset.step!, panel]),
-		);
-		const chips = [...root.querySelectorAll<HTMLElement>('[data-pkg-chip]')];
-		const branchButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-branch]')];
-		const lists = [...root.querySelectorAll<HTMLElement>('[data-steps]')];
-		const prev = root.querySelector<HTMLButtonElement>('[data-prev]')!;
-		const next = root.querySelector<HTMLButtonElement>('[data-next]')!;
-		const play = root.querySelector<HTMLButtonElement>('[data-play]')!;
-
-		let branch: Branch = 'demand';
-		let index = 0;
-		let timer: number | undefined;
-
-		const stop = () => {
-			if (timer !== undefined) window.clearInterval(timer);
-			timer = undefined;
-			play.textContent = '▶ Play';
-		};
-
-		const render = () => {
-			const keys = order[branch];
-			const key = keys[index];
-			for (const [stepKey, panel] of stepPanels) {
-				panel.hidden = stepKey !== key;
-				if (stepKey === key) {
-					panel.querySelector('[data-step-label]')!.textContent = `Step ${index + 1} of ${keys.length}`;
-				}
-			}
-			const lit = stepPanels.get(key)!.dataset.pkgs!.split(' ');
-			for (const chip of chips) chip.classList.toggle('is-lit', lit.includes(chip.dataset.pkgChip!));
-			for (const button of branchButtons) button.setAttribute('aria-pressed', String(button.dataset.branch === branch));
-			for (const list of lists) {
-				list.hidden = list.dataset.steps !== branch;
-				for (const button of list.querySelectorAll<HTMLButtonElement>('[data-goto]')) {
-					const position = Number(button.dataset.goto);
-					button.classList.toggle('is-current', position === index);
-					button.classList.toggle('is-done', position < index);
-					if (position === index) button.setAttribute('aria-current', 'step');
-					else button.removeAttribute('aria-current');
-				}
-			}
-			prev.disabled = index === 0;
-			next.disabled = index === keys.length - 1;
-		};
-
-		const advance = () => {
-			if (index < order[branch].length - 1) {
-				index += 1;
-				render();
-			} else stop();
-		};
-
-		for (const button of branchButtons) {
-			button.addEventListener('click', () => {
-				stop();
-				branch = button.dataset.branch as Branch;
-				if (index >= 4) index = 4;
-				render();
-			});
-		}
-		root.addEventListener('click', (event) => {
-			const target = (event.target as HTMLElement).closest<HTMLElement>('[data-goto]');
-			if (!target) return;
-			stop();
-			index = Number(target.dataset.goto);
-			render();
-		});
-		prev.addEventListener('click', () => {
-			stop();
-			index = Math.max(0, index - 1);
-			render();
-		});
-		next.addEventListener('click', () => {
-			stop();
-			advance();
-		});
-		play.addEventListener('click', () => {
-			if (timer !== undefined) return stop();
-			if (index === order[branch].length - 1) index = 0;
-			render();
-			play.textContent = '❚❚ Pause';
-			timer = window.setInterval(advance, PLAY_INTERVAL);
-		});
-
-		render();
-	}
-</script>

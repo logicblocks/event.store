@@ -11,12 +11,11 @@ export type PackageId =
 
 export const base = '/event.store';
 
-export const journeyPackages: PackageId[] = [
-	'types',
-	'store',
-	'sources',
-	'persistence',
-	'projection',
-	'query',
-	'processing',
-];
+export type JourneyStep = {
+	key: string;
+	title: string;
+	pkgs: PackageId[];
+	text: string;
+	code: string;
+	inspector: string;
+};

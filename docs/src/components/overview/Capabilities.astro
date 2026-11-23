@@ -1,0 +1,153 @@
+---
+import './styles.css';
+import { base, type PackageId } from './library';
+
+type Capability = {
+	title: string;
+	pkgs: PackageId[];
+	text: string;
+	names: string[];
+	guides: { label: string; href: string }[];
+};
+
+const capabilities: Capability[] = [
+	{
+		title: 'Store events',
+		pkgs: ['store', 'types'],
+		text: 'An <code>EventStore</code> hands you the log, a category or a stream. <code>publish</code> appends events to a stream atomically, optionally on condition that the stream hasn’t moved since you read it.',
+		names: ['EventStore', 'EventStream', 'NewEvent', 'StoredEvent', 'conditions'],
+		guides: [
+			{ label: 'Streams, categories and the log', href: `${base}/guides/streams-categories-and-logs/` },
+			{ label: 'Concurrency and write conditions', href: `${base}/guides/concurrency/` },
+		],
+	},
+	{
+		title: 'Derive and query state',
+		pkgs: ['projection', 'query'],
+		text: 'A <code>Projector</code> folds a source’s events into state, with one handler per event name. A <code>ProjectionStore</code> saves the result, then loads it, locates it by source or searches it.',
+		names: ['Projector', 'Projection', 'ProjectionStore', 'FilterClause'],
+		guides: [
+			{ label: 'Storing and querying projections', href: `${base}/guides/projection-store/` },
+			{ label: 'Finalising state', href: `${base}/guides/finalising-state/` },
+		],
+	},
+	{
+		title: 'Process in the background',
+		pkgs: ['processing'],
+		text: 'A subscriber reads an event source from its last checkpoint and passes each event to your processor. A broker decides which subscriber reads which source, and services keep it all running.',
+		names: ['EventProcessor', 'ProjectionEventProcessor', 'make_event_store_subscriber', 'make_event_broker', 'ServiceManager'],
+		guides: [
+			{ label: 'Processing events asynchronously', href: `${base}/guides/event-processing/` },
+			{ label: 'Services and error handling', href: `${base}/guides/services-and-error-handling/` },
+		],
+	},
+	{
+		title: 'Test',
+		pkgs: ['testing', 'utils'],
+		text: 'Builders make events and projections, filling every field you don’t set with random data. Add the in-memory adapters and a static clock, and your tests are fast and predictable.',
+		names: ['NewEventBuilder', 'StoredEventBuilder', 'StaticClock'],
+		guides: [{ label: 'Testing', href: `${base}/guides/testing/` }],
+	},
+];
+---
+
+<div class="es ov ov-caps not-content">
+	{
+		capabilities.map((capability) => (
+			<section class="es-panel ov-caps__card" data-pkg={capability.pkgs[0]}>
+				<ul class="ov-caps__pkgs" aria-label="Packages">
+					{capability.pkgs.map((id) => (
+						<li class="ov-chip" data-pkg={id}>
+							{id}
+						</li>
+					))}
+				</ul>
+				<h3 class="ov-caps__title">{capability.title}</h3>
+				<p class="ov-caps__text" set:html={capability.text} />
+				<ul class="ov-caps__names" aria-label="Names you'll use">
+					{capability.names.map((name) => (
+						<li>
+							<code>{name}</code>
+						</li>
+					))}
+				</ul>
+				<ul class="ov-caps__guides">
+					{capability.guides.map((guide) => (
+						<li>
+							<a href={guide.href}>{guide.label} →</a>
+						</li>
+					))}
+				</ul>
+			</section>
+		))
+	}
+</div>
+
+<style>
+	.ov-caps {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+	}
+
+	.ov-caps__card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 1.25rem;
+		border-top: 3px solid var(--pkg);
+	}
+
+	.ov-caps__pkgs,
+	.ov-caps__names,
+	.ov-caps__guides {
+		display: flex !important;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+	}
+
+	.ov-caps__title {
+		margin: 0;
+		color: var(--es-strong);
+		font-size: var(--sl-text-lg);
+		font-weight: 600;
+		line-height: 1.25;
+	}
+
+	.ov-caps__text {
+		margin: 0;
+		color: var(--es-muted);
+	}
+
+	.ov-caps__text :global(code) {
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: 0.9em;
+	}
+
+	.ov-caps__names code {
+		display: inline-block;
+		padding: 0.1rem 0.45rem;
+		border: 1px solid var(--pkg-line);
+		border-radius: 0.35rem;
+		background: var(--pkg-bg);
+		color: var(--es-strong);
+		font-family: var(--es-mono);
+		font-size: var(--sl-text-2xs);
+		overflow-wrap: anywhere;
+	}
+
+	.ov-caps__guides {
+		flex-direction: column;
+		gap: 0.2rem;
+		margin-top: auto;
+		padding-top: 0.5rem;
+		font-size: var(--sl-text-xs);
+	}
+
+	@media (max-width: 48rem) {
+		.ov-caps {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+</style>

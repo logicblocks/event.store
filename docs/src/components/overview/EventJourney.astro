@@ -1,7 +1,7 @@
 ---
 import { Code } from '@astrojs/starlight/components';
 import './styles.css';
-import { packageOrder, type PackageId } from './library';
+import { corePackages, type PackageId } from './library';
 
 type Step = {
 	key: string;
@@ -280,7 +280,7 @@ const allSteps = [...shared, ...onDemand, ...background];
 		</div>
 		<ul class="ov-journey__pkgs" aria-label="Packages involved in this step">
 			{
-				packageOrder.map((id) => (
+				corePackages.map((id) => (
 					<li class="ov-chip" data-pkg={id} data-pkg-chip={id}>
 						{id}
 					</li>

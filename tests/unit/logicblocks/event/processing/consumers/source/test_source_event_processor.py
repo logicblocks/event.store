@@ -1,3 +1,4 @@
+import pytest
 from logicblocks.event.testlogging import CapturingLogger
 from logicblocks.event.testlogging.logger import LogLevel
 
@@ -14,6 +15,7 @@ from logicblocks.event.sources.constraints import SequenceNumberAfterConstraint
 from logicblocks.event.store import (
     EventStore,
     InMemoryEventStorageAdapter,
+    UnmetWriteConditionError,
 )
 from logicblocks.event.testing import NewEventBuilder, data
 from logicblocks.event.types import StoredEvent
@@ -365,6 +367,63 @@ class TestEventSourceConsumerWithEventProcessor:
         assert processor.processed_events == [
             *published_events,
             *published_events[5:],
+        ]
+
+    async def test_resumes_from_state_saved_by_another_consumer_after_save_rejected(
+        self,
+    ):
+        event_store = EventStore(adapter=InMemoryEventStorageAdapter())
+        state_category = event_store.category(
+            category=data.random_event_category_name()
+        )
+
+        category_name = data.random_event_category_name()
+        stream_name = data.random_event_stream_name()
+
+        source = event_store.category(category=category_name)
+        stream = event_store.stream(category=category_name, stream=stream_name)
+
+        processor = CapturingEventProcessor()
+        consumer = EventSourceConsumer(
+            source=source,
+            processor=processor,
+            state_store=EventConsumerStateStore(
+                category=state_category,
+                converter=StoredEventEventConsumerStateConverter(),
+            ),
+        )
+        other_consumer = EventSourceConsumer(
+            source=source,
+            processor=CapturingEventProcessor(),
+            state_store=EventConsumerStateStore(
+                category=state_category,
+                converter=StoredEventEventConsumerStateConverter(),
+            ),
+        )
+
+        publish_1_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        await consumer.consume_all()
+
+        publish_2_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        await other_consumer.consume_all()
+
+        publish_3_events = await stream.publish(
+            events=[NewEventBuilder().build()]
+        )
+        with pytest.raises(UnmetWriteConditionError):
+            await consumer.consume_all()
+
+        await consumer.consume_all()
+
+        assert processor.processed_events == [
+            *publish_1_events,
+            *publish_2_events,
+            *publish_3_events,
+            *publish_3_events,
         ]
 
     async def test_logs_when_consume_all_starting(self):
